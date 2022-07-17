@@ -177,7 +177,9 @@ def moran(graph: gerrychain.Graph, col: str) -> float:
                 int(graph.nodes[neighbor][col]) - avg
             )
 
-    return top_summation / bottom_summation
+    return (len(graph.nodes()) / len(graph.edges())) * (
+        top_summation / bottom_summation
+    )
 
 
 if __name__ == "__main__":
