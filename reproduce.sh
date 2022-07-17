@@ -20,3 +20,6 @@ fd connected.json cbsas/ -x python calculate_metrics.py {} WHITE BLACK TOTPOP >>
 
 python calculate_metrics.py blank blank blank blank --headers-only > outputs/white_poc.csv
 fd connected.json cbsas/ -x python calculate_metrics.py {} WHITE POC TOTPOP >> outputs/white_poc.csv
+
+python parse_output.py outputs/white_black.csv outputs/white_black_parsed.csv
+python parse_output.py outputs/white_poc.csv outputs/white_poc_parsed.csv
