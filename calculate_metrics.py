@@ -10,7 +10,9 @@ import tqdm
 import functools
 
 
-def main(filename: str, x_col: str, y_col: str, headers_only: bool = False):
+def main(
+    filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
+):
     if headers_only:
         print(
             "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}".replace(
@@ -40,8 +42,12 @@ def main(filename: str, x_col: str, y_col: str, headers_only: bool = False):
     half_edge_10_metric = half_edge(graph, x_col, y_col, lam=10)
     half_edge_lim_metric = half_edge(graph, x_col, y_col, lam=None)
 
+    dissimilarity_metric = dissimilarity(graph, x_col, tot_col)
+    frey_metric = frey(graph, x_col, y_col)
+    gini_metric = gini(graph, x_col, tot_col)
+
     print(
-        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}"
+        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}"
     )
 
 
@@ -105,6 +111,56 @@ def half_edge(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -
     y_y = angle_1(graph, y_col, y_col, lam=lam)
 
     return 0.5 * ((x_x / (x_x + x_y)) + (y_y / (y_y + x_y)))
+
+
+def property_sum(graph: gerrychain.Graph, col: str) -> float:
+    cummulative = 0
+    for node in graph.nodes():
+        cummulative += int(graph.nodes[node][col])
+    return cummulative
+
+
+def dissimilarity(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+    x_bar = property_sum(graph, x_col)
+    p_bar = property_sum(graph, tot_col)
+
+    summation = 0
+    for node in graph.nodes():
+        summation += abs(
+            (int(graph.nodes[node][x_col]) * p_bar)
+            - (int(graph.nodes[node][tot_col]) * x_bar)
+        )
+
+    return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
+
+
+def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    x_bar = property_sum(graph, x_col)
+    y_bar = property_sum(graph, y_col)
+
+    summation = 0
+    for node in graph.nodes():
+        summation += abs(
+            (int(graph.nodes[node][x_col]) * y_bar)
+            - (int(graph.nodes[node][y_col]) * x_bar)
+        )
+
+    return (1 / (2 * x_bar * y_bar)) * summation
+
+
+def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+    x_bar = property_sum(graph, x_col)
+    p_bar = property_sum(graph, tot_col)
+
+    summation = 0
+    for node in graph.nodes():
+        for neighbor in graph.neighbors(node):
+            summation += abs(
+                (int(graph.nodes[node][x_col]) * int(graph.nodes[neighbor][tot_col]))
+                - (int(graph.nodes[node][tot_col]) * int(graph.nodes[neighbor][x_col]))
+            )
+
+    return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
 if __name__ == "__main__":
