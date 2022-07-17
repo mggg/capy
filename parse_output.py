@@ -19,7 +19,7 @@ def main(filename: str, output: str):
     df["cbsa_code"] = cbsa_infos.apply(lambda x: x.cbsa_code)
     df["total_population"] = cbsa_infos.apply(lambda x: x.total_population)
 
-    df.to_csv(output)
+    df.to_csv(output, index = False)
 
 
 if __name__ == "__main__":
