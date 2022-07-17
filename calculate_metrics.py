@@ -10,7 +10,17 @@ import tqdm
 import functools
 
 
-def main(filename: str, x_col: str, y_col: str):
+def main(filename: str, x_col: str, y_col: str, headers_only: bool = False):
+    if headers_only:
+        print(
+            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}".replace(
+                "{", ""
+            ).replace(
+                "}", ""
+            )
+        )
+        return
+
     graph = gerrychain.Graph.from_json(filename)
     angle_1_metric = angle_1(graph, x_col, y_col)
     angle_2_metric = angle_2(graph, x_col, y_col)
