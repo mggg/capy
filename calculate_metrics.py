@@ -13,7 +13,7 @@ def main(filename: str, x_col: str, y_col: str):
     graph = gerrychain.Graph.from_json(filename)
     angle_1_metric = angle_1(graph, x_col, y_col)
     angle_2_metric = angle_2(graph, x_col, y_col)
-    print(filename, angle_1_metric, angle_2_metric)
+    print(f"{filename}, {angle_1_metric}, {angle_2_metric}")
 
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     first_summation = 0

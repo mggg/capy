@@ -13,3 +13,7 @@ fd "shp" cbsas/defs/ -x python intersection.py processed/2010_tracts.shp {} cbsa
 
 # Generate dual graphs
 fd _cbsa_tracts.shp cbsas/ -x python3 gen-duals.py {} {.}_orig.json {.}_connected.json
+
+# Calculate metrics
+fd connected.json cbsas/ -x python calculate_metrics.py {} WHITE BLACK > outputs/white_black.csv
+fd connected.json cbsas/ -x python calculate_metrics.py {} WHITE POC > outputs/white_poc.csv
