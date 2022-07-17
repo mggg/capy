@@ -9,6 +9,7 @@ from itertools import product
 import tqdm
 import functools
 
+
 def main(filename: str, output_orig: str, output_connected: str):
     shp = gpd.read_file(filename)
 
@@ -23,14 +24,17 @@ def main(filename: str, output_orig: str, output_connected: str):
     connected_graph = connect_components(shp, graph)
     connected_graph.to_json(output_connected)
 
+
 def select_geom(shp: gpd.GeoDataFrame, geoid: str):
     filtered_geoms = shp[shp["GISJOIN"] == geoid]
     return filtered_geoms.iloc[0]["geometry"]
+
 
 def distance(shp: gpd.GeoDataFrame, geoid_1: str, geoid_2: str):
     geom_1 = select_geom(shp, geoid_1)
     geom_2 = select_geom(shp, geoid_2)
     return geom_1.distance(geom_2)
+
 
 def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph):
     distance_cache = {}
