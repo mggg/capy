@@ -15,7 +15,7 @@ def main(
 ):
     if headers_only:
         print(
-            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}".replace(
+            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}".replace(
                 "{", ""
             ).replace(
                 "}", ""
@@ -45,9 +45,10 @@ def main(
     dissimilarity_metric = dissimilarity(graph, x_col, tot_col)
     frey_metric = frey(graph, x_col, y_col)
     gini_metric = gini(graph, x_col, tot_col)
+    moran_metric = moran(graph, x_col)
 
     print(
-        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}"
+        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}"
     )
 
 
@@ -161,6 +162,22 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
             )
 
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
+
+
+def moran(graph: gerrychain.Graph, col: str) -> float:
+    avg = property_sum(graph, col) / len(graph.nodes())
+
+    top_summation = 0
+    bottom_summation = 0
+    for node in graph.nodes():
+        bottom_summation += (int(graph.nodes[node][col]) - avg) ** 2
+
+        for neighbor in graph.neighbors(node):
+            top_summation += (int(graph.nodes[node][col]) - avg) * (
+                int(graph.nodes[neighbor][col]) - avg
+            )
+
+    return top_summation / bottom_summation
 
 
 if __name__ == "__main__":
