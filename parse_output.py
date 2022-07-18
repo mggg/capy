@@ -24,7 +24,7 @@ def main(filename: str, output: str):
     df["year"] = df["filename"].apply(lambda x: x.split("/")[1])
     df["cbsa_title"] = cbsa_infos.apply(lambda x: x.cbsa_title)
     df["cbsa_code"] = cbsa_infos.apply(lambda x: x.cbsa_code)
-    df["total_population"] = cbsa_infos.apply(lambda x: x.total_population)
+    df["total_population_2020"] = cbsa_infos.apply(lambda x: x.total_population)
 
     df.to_csv(output, index=False)
 

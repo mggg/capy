@@ -1,5 +1,6 @@
 import typer
 import geopandas as gpd
+import sys
 
 
 def main(source: str, target: str, output: str):
@@ -11,12 +12,16 @@ def main(source: str, target: str, output: str):
     target_gdf_union = target_gdf.unary_union
 
     possible_intersects = source_gdf.iloc[
-        source_gdf.sindex.query(target_gdf_union, predicate="contains")
+        source_gdf.sindex.query(target_gdf_union, predicate="intersects")
     ]
     intersects = possible_intersects[
         possible_intersects["geometry"].apply(lambda x: x.intersects(target_gdf_union))
     ]
-    intersects.to_file(output)
+
+    if len(intersects) != 0:
+        intersects.to_file(output)
+    else:
+        print("empty intersection computed:", source, target, output, file=sys.stderr)
 
 
 if __name__ == "__main__":
