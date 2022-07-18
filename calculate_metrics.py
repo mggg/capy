@@ -8,14 +8,23 @@ import matplotlib.pyplot as plt
 from itertools import product
 import tqdm
 import functools
+import sys
 
 
 def main(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
+    try:
+        run_metrics(filename, x_col, y_col, tot_col, headers_only)
+    except ZeroDivisionError as e:
+        print(filename, e, file=sys.stderr)
+
+def run_metrics(
+    filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
+):
     if headers_only:
         print(
-            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}".replace(
+            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_nodes}, total_edges}".replace(
                 "{", ""
             ).replace(
                 "}", ""
@@ -47,12 +56,31 @@ def main(
     gini_metric = gini(graph, x_col, tot_col)
     moran_metric = moran(graph, x_col)
 
+    total_population = property_sum(graph, "TOTPOP")
+    total_white = property_sum(graph, "WHITE")
+    total_poc = property_sum(graph, "POC")
+    total_black = property_sum(graph, "BLACK")
+    total_asian = property_sum(graph, "ASIAN")
+    total_amin = property_sum(graph, "AMIN")
+    total_x = property_sum(graph, x_col) / property_sum(graph, y_col)
+
+    total_nodes = len(graph.nodes())
+    total_edges = len(graph.edges())
+
     print(
-        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}"
+        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_nodes}, {total_edges}"
     )
 
-
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    first_summation, second_summation = _angle_1(graph, x_col, y_col)
+
+    if lam == None:
+        return first_summation
+    else:
+        return (lam * first_summation) + second_summation
+
+@functools.cache  # cached for speed purposes
+def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
@@ -66,12 +94,10 @@ def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
                 graph.nodes[node][y_col]
             )
 
-    if lam == None:
-        return first_summation
-    else:
-        return (lam * first_summation) + second_summation
+    return (first_summation, second_summation)
 
 
+@functools.cache
 def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     first_summation = 0
     second_summation = 0
@@ -114,6 +140,7 @@ def half_edge(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -
     return 0.5 * ((x_x / (x_x + x_y)) + (y_y / (y_y + x_y)))
 
 
+@functools.cache
 def property_sum(graph: gerrychain.Graph, col: str) -> float:
     cummulative = 0
     for node in graph.nodes():
