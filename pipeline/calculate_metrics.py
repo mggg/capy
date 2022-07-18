@@ -24,7 +24,7 @@ def run_metrics(
 ):
     if headers_only:
         print(
-            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_nodes}, total_edges}".replace(
+            "{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_y}, {total_nodes}, total_edges}".replace(
                 "{", ""
             ).replace(
                 "}", ""
@@ -62,13 +62,14 @@ def run_metrics(
     total_black = property_sum(graph, "BLACK")
     total_asian = property_sum(graph, "ASIAN")
     total_amin = property_sum(graph, "AMIN")
-    total_x = property_sum(graph, x_col) / property_sum(graph, y_col)
+    total_x = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
+    total_y = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
 
     total_nodes = len(graph.nodes())
     total_edges = len(graph.edges())
 
     print(
-        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_nodes}, {total_edges}"
+        f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_y}, {total_nodes}, {total_edges}"
     )
 
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
