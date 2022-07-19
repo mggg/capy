@@ -19,6 +19,7 @@ def main(
     except ZeroDivisionError as e:
         print(filename, e, file=sys.stderr)
 
+
 def run_metrics(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
@@ -72,13 +73,18 @@ def run_metrics(
         f"{filename}, {angle_1_metric}, {angle_2_metric}, {skew_metric}, {edge_0_metric}, {edge_0_5_metric}, {edge_1_metric}, {edge_2_metric}, {edge_10_metric}, {edge_lim_metric}, {half_edge_0_metric}, {half_edge_0_5_metric}, {half_edge_1_metric}, {half_edge_2_metric}, {half_edge_10_metric}, {half_edge_lim_metric}, {dissimilarity_metric}, {frey_metric}, {gini_metric}, {moran_metric}, {total_population}, {total_white}, {total_poc}, {total_black}, {total_asian}, {total_amin}, {total_x}, {total_y}, {total_nodes}, {total_edges}"
     )
 
+
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    """
+    This implements `<x_col, y_col>` from the paper
+    """
     first_summation, second_summation = _angle_1(graph, x_col, y_col)
 
     if lam == None:
         return first_summation
     else:
         return (lam * first_summation) + second_summation
+
 
 @functools.cache  # cached for speed purposes
 def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
@@ -100,6 +106,9 @@ def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
 
 @functools.cache
 def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    """
+    This implements `<<x_col, y_col>>` from the paper
+    """
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
