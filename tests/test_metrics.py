@@ -1,4 +1,11 @@
-from pipeline.calculate_metrics import angle_1, angle_2, property_sum, moran, edge, half_edge
+from pipeline.calculate_metrics import (
+    angle_1,
+    angle_2,
+    property_sum,
+    moran,
+    edge,
+    half_edge,
+)
 import random
 import gerrychain.grid
 import gerrychain
@@ -81,20 +88,23 @@ def test_uniform_graph_moran(graph):
     with pytest.raises(Exception):
         moran(graph)
 
+
 @pytest.mark.parametrize("graph", create_diverse_graphs())
 def test_uniform_graph_edge_and_half_edge(graph):
     for node in graph.nodes():
         graph.nodes[node]["x_col"] = 40
         graph.nodes[node]["y_col"] = 60
 
-    rho = 40/100
+    rho = 40 / 100
 
     assert edge(graph, "x_col", "y_col") == (1 - rho + rho**2) / (2 + rho - rho**2)
     assert half_edge(graph, "x_col", "y_col") == 0.5
 
+
 @pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))
 def test_checkerboard_grid_moran(grid):
     assert math.isclose(moran(grid, "x_col"), -1)
+
 
 """
 @pytest.mark.parametrize("grid", map(lambda x: give_checkerboard_pattern(x, low_val=0, high_val=1), create_odd_grids()))
