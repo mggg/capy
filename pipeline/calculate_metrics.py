@@ -202,6 +202,7 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
 
 
 def moran(graph: gerrychain.Graph, col: str) -> float:
+    # TODO: double/triple-check the 2 coefficient 
     avg = property_sum(graph, col) / len(graph.nodes())
 
     top_summation = 0
@@ -216,7 +217,7 @@ def moran(graph: gerrychain.Graph, col: str) -> float:
 
     return (len(graph.nodes()) / len(graph.edges())) * (
         top_summation / bottom_summation
-    )
+    ) * 0.5
 
 
 if __name__ == "__main__":
