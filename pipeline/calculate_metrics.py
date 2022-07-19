@@ -105,7 +105,7 @@ def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
 
 
 @functools.cache
-def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
     """
     This implements `<<x_col, y_col>>` from the paper
     """
@@ -124,7 +124,7 @@ def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
                 graph.nodes[node][y_col]
             )
 
-    return 0.5 * (first_summation + second_summation)
+    return 0.5 * ((lam * first_summation) + second_summation)
 
 
 def skew(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
@@ -134,18 +134,22 @@ def skew(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     return (x_x) / (x_x + (2 * x_y))
 
 
-def edge(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
-    x_x = angle_1(graph, x_col, x_col, lam=lam)
-    x_y = angle_1(graph, x_col, y_col, lam=lam)
-    y_y = angle_1(graph, y_col, y_col, lam=lam)
+def edge(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1, func=angle_1
+) -> float:
+    x_x = func(graph, x_col, x_col, lam=lam)
+    x_y = func(graph, x_col, y_col, lam=lam)
+    y_y = func(graph, y_col, y_col, lam=lam)
 
     return 0.5 * ((x_x / (x_x + 2 * x_y)) + (y_y / (y_y + 2 * x_y)))
 
 
-def half_edge(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
-    x_x = angle_1(graph, x_col, x_col, lam=lam)
-    x_y = angle_1(graph, x_col, y_col, lam=lam)
-    y_y = angle_1(graph, y_col, y_col, lam=lam)
+def half_edge(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1, func=angle_1
+) -> float:
+    x_x = func(graph, x_col, x_col, lam=lam)
+    x_y = func(graph, x_col, y_col, lam=lam)
+    y_y = func(graph, y_col, y_col, lam=lam)
 
     return 0.5 * ((x_x / (x_x + x_y)) + (y_y / (y_y + x_y)))
 

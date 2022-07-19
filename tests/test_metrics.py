@@ -19,13 +19,13 @@ def generate_grid(n: int, m: int):
 
 
 def create_odd_grids():
-    for i in range(2, 100):
+    for i in range(2, 10):
         if i % 2 == 1:
             yield generate_grid(i, i)
 
 
 def create_even_grids():
-    for i in range(2, 100):
+    for i in range(2, 10):
         if i % 2 == 0:
             yield generate_grid(i, i)
 
@@ -104,6 +104,22 @@ def test_uniform_graph_edge_and_half_edge(graph):
 @pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))
 def test_checkerboard_grid_moran(grid):
     assert math.isclose(moran(grid, "x_col"), -1)
+
+
+@pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))
+def test_edge_similiar_checkerboard(grid):
+    assert edge(grid, "x_col", "y_col", func=angle_1) == edge(
+        grid, "x_col", "y_col", func=angle_2
+    )
+
+
+@pytest.mark.parametrize("grid", create_odd_grids())
+def test_edge_similiar_random_weights(grid):
+    give_random_weights(grid, "x_col", 0, 10)
+    give_random_weights(grid, "y_col", 0, 10)
+    assert edge(grid, "x_col", "y_col", func=angle_1) == edge(
+        grid, "x_col", "y_col", func=angle_2
+    )
 
 
 """
