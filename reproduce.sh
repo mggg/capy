@@ -14,11 +14,11 @@ fd "shp" cbsas/defs/ -x python pipeline/intersection.py processed/1970_tracts.sh
 # Generate dual graphs
 fd _cbsa_tracts.shp cbsas/ -x python3 pipeline/gen-duals.py {} {.}_orig.json {.}_connected.json
 
-# Calculate metrics
-python pipeline/calculate_metrics.py blank blank blank blank --headers-only > outputs/white_black.csv
+# Calculate metrics, need to gen headers
+python pipeline/calculate_metrics.py cbsas/2010/668921_19660_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_black.csv
 fd connected.json cbsas/ -x python pipeline/calculate_metrics.py {} WHITE BLACK TOTPOP >> outputs/white_black.csv
 
-python pipeline/calculate_metrics.py blank blank blank blank --headers-only > outputs/white_poc.csv
+python pipeline/calculate_metrics.py cbsas/2010/668921_19660_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_poc.csv
 fd connected.json cbsas/ -x python pipeline/calculate_metrics.py {} WHITE POC TOTPOP >> outputs/white_poc.csv
 
 python scripts/parse_output.py outputs/white_black.csv outputs/white_black_parsed.csv

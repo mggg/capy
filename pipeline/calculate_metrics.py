@@ -23,55 +23,49 @@ def main(
 def run_metrics(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
-    if headers_only:
-        print(
-            "{filename},{angle_1_metric},{angle_2_metric},{skew_metric},{edge_0_metric},{edge_0_5_metric},{edge_1_metric},{edge_2_metric},{edge_10_metric},{edge_lim_metric},{half_edge_0_metric},{half_edge_0_5_metric},{half_edge_1_metric},{half_edge_2_metric},{half_edge_10_metric},{half_edge_lim_metric},{dissimilarity_metric},{frey_metric},{gini_metric},{moran_metric},{total_population},{total_white},{total_poc},{total_black},{total_asian},{total_amin},{total_x},{total_y},{total_nodes}, total_edges}".replace(
-                "{", ""
-            ).replace(
-                "}", ""
-            )
-        )
-        return
-
     graph = gerrychain.Graph.from_json(filename)
-    angle_1_metric = angle_1(graph, x_col, y_col)
-    angle_2_metric = angle_2(graph, x_col, y_col)
-    skew_metric = skew(graph, x_col, y_col)
 
-    edge_0_metric = edge(graph, x_col, y_col, lam=0)
-    edge_0_5_metric = edge(graph, x_col, y_col, lam=0.5)
-    edge_1_metric = edge(graph, x_col, y_col, lam=1)
-    edge_2_metric = edge(graph, x_col, y_col, lam=2)
-    edge_10_metric = edge(graph, x_col, y_col, lam=10)
-    edge_lim_metric = edge(graph, x_col, y_col, lam=None)
+    capy_metrics = {}
+    capy_metrics["filename"] = filename
+    capy_metrics["x_col"] = x_col
+    capy_metrics["y_col"] = y_col
+    capy_metrics["tot_col"] = tot_col
+    capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
+    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col)
+    capy_metrics["skew"] = skew(graph, x_col, y_col)
 
-    half_edge_0_metric = half_edge(graph, x_col, y_col, lam=0)
-    half_edge_0_5_metric = half_edge(graph, x_col, y_col, lam=0.5)
-    half_edge_1_metric = half_edge(graph, x_col, y_col, lam=1)
-    half_edge_2_metric = half_edge(graph, x_col, y_col, lam=2)
-    half_edge_10_metric = half_edge(graph, x_col, y_col, lam=10)
-    half_edge_lim_metric = half_edge(graph, x_col, y_col, lam=None)
+    for lam in [0, 0.5, 1, 2, 10, None]:
+        for fname, func in [("angle_1", angle_1), ("angle_2", angle_2)]:
+            for vname, variant in [("edge", edge), ("half_edge", half_edge)]:
+                metric_name = f"{vname}_lam_{str(lam).replace('.','_').replace('None','lim')}_{fname}"
+                capy_metrics[metric_name] = variant(
+                    graph, x_col, y_col, lam=lam, func=func
+                )
 
-    dissimilarity_metric = dissimilarity(graph, x_col, tot_col)
-    frey_metric = frey(graph, x_col, y_col)
-    gini_metric = gini(graph, x_col, tot_col)
-    moran_metric = moran(graph, x_col)
+    capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, tot_col)
+    capy_metrics["frey"] = frey(graph, x_col, y_col)
+    capy_metrics["gini"] = gini(graph, x_col, tot_col)
+    capy_metrics["moran"] = moran(graph, x_col)
 
-    total_population = property_sum(graph, "TOTPOP")
-    total_white = property_sum(graph, "WHITE")
-    total_poc = property_sum(graph, "POC")
-    total_black = property_sum(graph, "BLACK")
-    total_asian = property_sum(graph, "ASIAN")
-    total_amin = property_sum(graph, "AMIN")
-    total_x = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
-    total_y = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
+    capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
+    capy_metrics["total_white"] = property_sum(graph, "WHITE")
+    capy_metrics["total_poc"] = property_sum(graph, "POC")
+    capy_metrics["total_black"] = property_sum(graph, "BLACK")
+    capy_metrics["total_asian"] = property_sum(graph, "ASIAN")
+    capy_metrics["total_amin"] = property_sum(graph, "AMIN")
+    capy_metrics["total_x"] = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
+    capy_metrics["total_y"] = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
 
-    total_nodes = len(graph.nodes())
-    total_edges = len(graph.edges())
+    capy_metrics["total_nodes"] = len(graph.nodes())
+    capy_metrics["total_edges"] = len(graph.edges())
 
-    print(
-        f"{filename},{angle_1_metric},{angle_2_metric},{skew_metric},{edge_0_metric},{edge_0_5_metric},{edge_1_metric},{edge_2_metric},{edge_10_metric},{edge_lim_metric},{half_edge_0_metric},{half_edge_0_5_metric},{half_edge_1_metric},{half_edge_2_metric},{half_edge_10_metric},{half_edge_lim_metric},{dissimilarity_metric},{frey_metric},{gini_metric},{moran_metric},{total_population},{total_white},{total_poc},{total_black},{total_asian},{total_amin},{total_x},{total_y},{total_nodes},{total_edges}"
-    )
+    capy_metrics_keys = ",".join(map(str, list(capy_metrics.keys())))
+    capy_metrics_values = ",".join(map(str, list(capy_metrics.values())))
+
+    if headers_only:
+        print(capy_metrics_keys)
+    else:
+        print(capy_metrics_values)
 
 
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
@@ -104,11 +98,20 @@ def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     return (first_summation, second_summation)
 
 
-@functools.cache
 def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
     """
     This implements `<<x_col, y_col>>` from the paper
     """
+    first_summation, second_summation = _angle_2(graph, x_col, y_col)
+
+    if lam == None:
+        return first_summation
+    else:
+        return 0.5 * ((lam * first_summation) + second_summation)
+
+
+@functools.cache
+def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
@@ -124,7 +127,7 @@ def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
                 graph.nodes[node][y_col]
             )
 
-    return 0.5 * ((lam * first_summation) + second_summation)
+    return (first_summation, second_summation)
 
 
 def skew(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
