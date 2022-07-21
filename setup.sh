@@ -1,13 +1,15 @@
 # Set up folder structure
-mkdir nhgis
-mkdir cbsas
+mkdir -p configs
+mkdir -p nhgis
+mkdir -p cbsas
 
-mkdir cbsas/2020
-mkdir cbsas/2010
-mkdir cbsas/2000
-mkdir cbsas/1990
-mkdir cbsas/1980
-mkdir cbsas/1970
+mkdir -p cbsas/defs
+mkdir -p cbsas/2020
+mkdir -p cbsas/2010
+mkdir -p cbsas/2000
+mkdir -p cbsas/1990
+mkdir -p cbsas/1980
+mkdir -p cbsas/1970
 
-mkdir outputs
-mkdir figures
+mkdir -p outputs
+mkdir -p figures
