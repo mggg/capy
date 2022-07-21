@@ -10,3 +10,4 @@ mkdir cbsas/1980
 mkdir cbsas/1970
 
 mkdir outputs
+mkdir figures

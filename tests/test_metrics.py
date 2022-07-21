@@ -106,10 +106,15 @@ def test_checkerboard_grid_moran(grid):
     assert math.isclose(moran(grid, "x_col"), -1)
 
 
+def is_similiar(metric_1, metric_2):
+    return (abs(metric_1 - metric_2) / max(metric_1, metric_2)) < 0.1
+
+
 @pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))
 def test_edge_similiar_checkerboard(grid):
-    assert edge(grid, "x_col", "y_col", func=angle_1) == edge(
-        grid, "x_col", "y_col", func=angle_2
+    assert is_similiar(
+        edge(grid, "x_col", "y_col", func=angle_1),
+        edge(grid, "x_col", "y_col", func=angle_2),
     )
 
 
@@ -117,17 +122,7 @@ def test_edge_similiar_checkerboard(grid):
 def test_edge_similiar_random_weights(grid):
     give_random_weights(grid, "x_col", 0, 10)
     give_random_weights(grid, "y_col", 0, 10)
-    assert edge(grid, "x_col", "y_col", func=angle_1) == edge(
-        grid, "x_col", "y_col", func=angle_2
+    assert is_similiar(
+        edge(grid, "x_col", "y_col", func=angle_1),
+        edge(grid, "x_col", "y_col", func=angle_2),
     )
-
-
-"""
-@pytest.mark.parametrize("grid", map(lambda x: give_checkerboard_pattern(x, low_val=0, high_val=1), create_odd_grids()))
-def test_perfect_checkerboard_grid_edge(grid):
-    assert edge(grid, "x_col") == -1
-
-@pytest.mark.parametrize("grid", map(lambda x: give_checkerboard_pattern(x, low_val=0, high_val=1), create_odd_grids()))
-def test_perfect_checkerboard_grid_half_edge(grid):
-    assert moran(grid, "x_col") == -1
-"""
