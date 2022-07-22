@@ -11,11 +11,20 @@ import json
 import os
 
 
-def main(filename: str = "list1_2020.xls"):
+def main(
+    filename: str = "configs/list1_march_2020.xls",
+    definition_tracts: str = "processed/2020_tracts.shp",
+    output_dir: str = "cbsas/defs",
+):
+    config_month = filename.split(".")[0].split("_")[1]
+    config_year = filename.split(".")[0].split("_")[2]
+
     metro_areas = fetch_metro_areas(filename)
     mappings_without_pops = create_metro_mappings(metro_areas)
     # mappings_without_pops = dict(list(mappings_without_pops.items())[:3])
-    country = gpd.read_file("processed/2020_tracts.shp")
+    country = gpd.read_file(definition_tracts)
+    country["STATEFP"] = country["STATEFP"].apply(lambda x: x.zfill(2))
+    country["COUNTYFP"] = country["COUNTYFP"].apply(lambda x: x.zfill(3))
     country["STCNTYFP"] = country["STATEFP"] + country["COUNTYFP"]
 
     metros = {
@@ -27,13 +36,24 @@ def main(filename: str = "list1_2020.xls"):
     #     metros_with_pops = dict(p.imap(f, mappings_without_pops.items()))
 
     for cbsa_code, cbsa in metros.items():
-        with open(f"cbsas/defs/{cbsa.total_population}_{cbsa_code}.json", "w") as w:
+        with open(
+            f"{output_dir}/{cbsa.total_population}_{cbsa_code}_{config_month}_{config_year}.json",
+            "w",
+        ) as w:
             json.dump(cbsa.json(exclude={"geometry": True}), w)
 
-        cbsa.geometry.to_file(f"cbsas/defs/{cbsa.total_population}_{cbsa_code}.shp")
+        try:
+            cbsa.geometry.to_file(
+                f"{output_dir}/{cbsa.total_population}_{cbsa_code}_{config_month}_{config_year}.shp"
+            )
+        except ValueError as e:
+            print(
+                f"{output_dir}/{cbsa.total_population}_{cbsa_code}_{config_month}_{config_year}.shp"
+            )
+            raise
 
 
-def fetch_metro_areas(filename: str = "list1_2020.xls") -> pd.DataFrame:
+def fetch_metro_areas(filename) -> pd.DataFrame:
     cbsa_counties = pd.read_excel(filename, skiprows=2)
     cbsa_counties = cbsa_counties[~cbsa_counties["FIPS County Code"].isna()]
     cbsa_counties["FIPS County Code"] = (
