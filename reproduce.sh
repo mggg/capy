@@ -8,10 +8,10 @@ bash scripts/setup.sh
 # Preprocess data to produce shapefile; join pop vals to shapefile
 python scripts/preprocess.py
 
-# Generate different dual graphs based on the various CBSA defs
+# Generate CBSA definition shapefiles for each configured year
 cat scripts/filter.sh | parallel --bar
 
-# Subsection tracts by computing overlaps
+# Select tracts that overlap with CBSA definition shapefiles
 cat scripts/overlaps.sh | parallel --bar
 
 # Generate dual graphs
