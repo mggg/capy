@@ -15,7 +15,7 @@ cat scripts/filter.sh | parallel --bar
 cat scripts/overlaps.sh | parallel --bar
 
 # Generate dual graphs
-fd _cbsa_tracts.shp cbsas/ | parallel --bar python3 pipeline/gen-duals.py {} {.}_orig.json {.}_connected.json
+fd _cbsa_tracts.shp cbsas/ | parallel --bar python3 pipeline/gen_duals.py {} {.}_orig.json {.}_connected.json
 
 # Calculate metrics, but first generate headers
 python pipeline/calculate_metrics.py cbsas/2010/154834_27980_september_2018_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_black.csv
