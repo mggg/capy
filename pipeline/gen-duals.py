@@ -43,7 +43,7 @@ def contract_zero_nodes(graph: gerrychain.Graph):
 
             for neighbor in graph.neighbors(node):
                 pop = graph.nodes[neighbor]["TOTPOP"]
-                if pop > min_seen:
+                if min_seen < pop or min_seen == 0:
                     min_seen = pop
                     min_neighbor = neighbor
 
