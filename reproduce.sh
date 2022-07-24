@@ -2,6 +2,9 @@ set -euxo pipefail
 
 # Download NHGIS data
 
+# Set up folder structure
+bash scripts/setup.sh
+
 # Preprocess data; join pop vals to shapefile
 python scripts/preprocess.py
 
