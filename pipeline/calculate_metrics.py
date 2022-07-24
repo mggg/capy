@@ -199,10 +199,13 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
 
     summation = 0
     for node in graph.nodes():
-        for neighbor in graph.neighbors(node):
+        for other_node in graph.nodes():
             summation += abs(
-                (int(graph.nodes[node][x_col]) * int(graph.nodes[neighbor][tot_col]))
-                - (int(graph.nodes[node][tot_col]) * int(graph.nodes[neighbor][x_col]))
+                (int(graph.nodes[node][x_col]) * int(graph.nodes[other_node][tot_col]))
+                - (
+                    int(graph.nodes[node][tot_col])
+                    * int(graph.nodes[other_node][x_col])
+                )
             )
 
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
