@@ -14,7 +14,7 @@ python scripts/filter_cbsas.py --filename configs/list1_september_2018.xls --def
 python scripts/filter_cbsas.py --filename configs/list1_march_2020.xls --definition-tracts processed/2020_tracts.shp
 
 # Subsection tracts by computing intersections
-cat overlaps.sh | parallel --bar
+cat scripts/overlaps.sh | parallel --bar
 
 # Generate dual graphs
 fd _cbsa_tracts.shp cbsas/ | parallel --bar python3 pipeline/gen-duals.py {} {.}_orig.json {.}_connected.json
