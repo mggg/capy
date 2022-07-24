@@ -16,9 +16,12 @@ def main(filename: str, output: str):
     cbsa_infos = (
         df["filename"]
         .apply(
-            lambda x: "cbsas/defs/" + "_".join(x.split("/")[2].split("_")[:2]) + ".json"
+            lambda x: "cbsas/defs/" + "_".join(x.split("/")[2].split("_")[:4]) + ".json"
         )
         .apply(parse_cbsa)
+    )
+    df["definition_month_year"] = df["filename"].apply(
+        lambda x: "_".join(x.split("/")[2].split("_")[2:4])
     )
 
     df["year"] = df["filename"].apply(lambda x: x.split("/")[1])
