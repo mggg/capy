@@ -22,7 +22,35 @@ def main(filename: str, output_orig: str, output_connected: str):
     graph.to_json(output_orig)
 
     connected_graph = connect_components(shp, graph)
+    while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
+        connected_graph = contract_zero_nodes(connected_graph)
+
     connected_graph.to_json(output_connected)
+
+
+def has_zero_nodes(graph: gerrychain.Graph):
+    for node in graph.nodes():
+        if int(graph.nodes[node]["TOTPOP"]) == 0:
+            return True
+    return False
+
+
+def contract_zero_nodes(graph: gerrychain.Graph):
+    for node in graph.nodes():
+        if int(graph.nodes[node]["TOTPOP"]) == 0:
+            min_seen = 0
+            min_neighbor = None
+
+            for neighbor in graph.neighbors(node):
+                pop = graph.nodes[neighbor]["TOTPOP"]
+                if pop > min_seen:
+                    min_seen = pop
+                    min_neighbor = neighbor
+
+            if min_seen != 0:
+                return nx.contracted_nodes(graph, node, neighbor, self_loops=False)
+
+    return graph
 
 
 def select_geom(shp: gpd.GeoDataFrame, geoid: str):
