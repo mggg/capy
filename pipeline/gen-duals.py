@@ -23,7 +23,7 @@ def main(filename: str, output_orig: str, output_connected: str):
 
     connected_graph = connect_components(shp, graph)
     while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
-        contract_zero_nodes(connected_graph)
+        connected_graph = contract_zero_nodes(connected_graph)
 
     connected_graph.to_json(output_connected)
 
@@ -49,8 +49,17 @@ def contract_zero_nodes(graph: gerrychain.Graph):
 
             if min_seen != 0:
                 print("contracted", node, neighbor)
-                nx.contracted_nodes(graph, node, neighbor, self_loops=False, copy=False)
-                break
+                nx.contracted_nodes(graph, neighbor, node, self_loops=False, copy=False)
+
+                # Clean up attributes so GerryChain can serialize to JSON
+                del graph.nodes[neighbor]["contraction"][node]["geometry"]
+                for new_neighbor in graph.neighbors(neighbor):
+                    edge = graph.edges[(neighbor, new_neighbor)]
+                    if "contraction" in edge:
+                        del edge["contraction"]
+
+                return graph
+    return graph
 
 
 def select_geom(shp: gpd.GeoDataFrame, geoid: str):
