@@ -27,3 +27,6 @@ fd connected.json cbsas/ | parallel --bar python pipeline/calculate_metrics.py {
 # Parse CSVs and add metadata
 python scripts/parse_output.py outputs/white_black.csv outputs/white_black_parsed.csv
 python scripts/parse_output.py outputs/white_poc.csv outputs/white_poc_parsed.csv
+
+# Generate figures
+python scripts/generate_figures.py
