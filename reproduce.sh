@@ -18,10 +18,10 @@ cat scripts/overlaps.sh | parallel --bar
 fd _cbsa_tracts.shp cbsas/ | parallel --bar python3 pipeline/gen_duals.py {} {.}_orig.json {.}_connected.json
 
 # Calculate metrics, but first generate headers
-python pipeline/calculate_metrics.py cbsas/2010/154834_27980_september_2018_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_black.csv
+python pipeline/calculate_metrics.py cbsas/2020/186847_39460_march_2020_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_black.csv
 fd connected.json cbsas/ | parallel --bar python pipeline/calculate_metrics.py {} WHITE BLACK TOTPOP >> outputs/white_black.csv
 
-python pipeline/calculate_metrics.py cbsas/2010/154834_27980_september_2018_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_poc.csv
+python pipeline/calculate_metrics.py cbsas/2020/186847_39460_march_2020_cbsa_tracts_connected.json WHITE BLACK TOTPOP --headers-only > outputs/white_poc.csv
 fd connected.json cbsas/ | parallel --bar python pipeline/calculate_metrics.py {} WHITE POC TOTPOP >> outputs/white_poc.csv
 
 # Parse CSVs and add metadata
