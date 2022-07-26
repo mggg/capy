@@ -34,7 +34,7 @@ def main(
                 data=top_n_df, y=metric, x="year", hue="cbsa_title", legend=False
             )
             plt.savefig(f"figures/{prefix}_{month_year}_{metric}.png")
-            # plt.show()
+            plt.close()
 
 
 if __name__ == "__main__":
