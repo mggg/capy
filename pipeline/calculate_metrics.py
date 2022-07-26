@@ -45,7 +45,7 @@ def run_metrics(
     capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, tot_col)
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, tot_col)
-    capy_metrics["moran"] = moran(graph, x_col)
+    capy_metrics["moran"] = moran(graph, x_col, tot_col)
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -211,19 +211,26 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
-def moran(graph: gerrychain.Graph, col: str) -> float:
+def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     # TODO: double/triple-check the 2 coefficient
-    avg = property_sum(graph, col) / len(graph.nodes())
+    total_shares = []
+    for node in graph.nodes():
+        total_shares.append(
+            int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
+        )
+    avg = sum(total_shares) / len(total_shares)
 
     top_summation = 0
     bottom_summation = 0
     for node in graph.nodes():
-        bottom_summation += (int(graph.nodes[node][col]) - avg) ** 2
+        node_share = int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
+        bottom_summation += (node_share - avg) ** 2
 
         for neighbor in graph.neighbors(node):
-            top_summation += (int(graph.nodes[node][col]) - avg) * (
-                int(graph.nodes[neighbor][col]) - avg
+            neighbor_share = int(graph.nodes[neighbor][x_col]) / int(
+                graph.nodes[neighbor][tot_col]
             )
+            top_summation += (node_share - avg) * (neighbor_share - avg)
 
     return (
         (len(graph.nodes()) / len(graph.edges()))

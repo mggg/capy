@@ -58,6 +58,10 @@ def give_checkerboard_pattern(grid: gerrychain.Graph, low_val=40, high_val=60):
             grid.nodes[node]["x_col"] = high_val
             grid.nodes[node]["y_col"] = low_val
 
+        grid.nodes[node]["tot_col"] = (
+            grid.nodes[node]["x_col"] + grid.nodes[node]["y_col"]
+        )
+
     return grid
 
 
@@ -83,10 +87,11 @@ def test_propsition_1_c(graph):
 def test_uniform_graph_moran(graph):
     for node in graph.nodes():
         graph.nodes[node]["uniform_weight"] = 100
+        graph.nodes[node]["total_weight"] = 100
 
     # Should raise a divide by zero error (undefined)
     with pytest.raises(Exception):
-        moran(graph)
+        moran(graph, "uniform_weight", "total_weight")
 
 
 @pytest.mark.parametrize("graph", create_diverse_graphs())
@@ -103,7 +108,7 @@ def test_uniform_graph_edge_and_half_edge(graph):
 
 @pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))
 def test_checkerboard_grid_moran(grid):
-    assert math.isclose(moran(grid, "x_col"), -1)
+    assert math.isclose(moran(grid, "x_col", "tot_col"), -1)
 
 
 def is_similiar(metric_1, metric_2):
