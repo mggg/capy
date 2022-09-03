@@ -31,8 +31,15 @@ def main(
             "gini",
         ]:
             sns.lineplot(
-                data=top_n_df, y=metric, x="year", hue="cbsa_title", legend=False
+                data=top_n_df,
+                y=metric,
+                x="year",
+                hue="cbsa_title",
+                legend=True,
             )
+            sns.set(rc={"figure.figsize": (10, 4)})
+            plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+            plt.tight_layout()
             plt.savefig(f"figures/{prefix}_{month_year}_{metric}.png")
             plt.close()
 
