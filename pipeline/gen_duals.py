@@ -10,7 +10,7 @@ import tqdm
 import functools
 
 
-def main(filename: str, output_orig: str, output_connected: str):
+def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
 
     try:
@@ -21,28 +21,28 @@ def main(filename: str, output_orig: str, output_connected: str):
 
     graph.to_json(output_orig)
 
-    connected_graph = connect_components(shp, graph)
-    while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
-        connected_graph = contract_zero_nodes(connected_graph)
+    connected_graph = connect_components(shp, graph, attr)
+    while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph, pop_col):
+        connected_graph = contract_zero_nodes(connected_graph, pop_col)
 
     connected_graph.to_json(output_connected)
 
 
-def has_zero_nodes(graph: gerrychain.Graph):
+def has_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
     for node in graph.nodes():
-        if int(graph.nodes[node]["TOTPOP"]) == 0:
+        if int(graph.nodes[node][pop_col]) == 0:
             return True
     return False
 
 
-def contract_zero_nodes(graph: gerrychain.Graph):
+def contract_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
     for node in graph.nodes():
-        if int(graph.nodes[node]["TOTPOP"]) == 0:
+        if int(graph.nodes[node][pop_col]) == 0:
             min_seen = 0
             min_neighbor = None
 
             for neighbor in graph.neighbors(node):
-                pop = graph.nodes[neighbor]["TOTPOP"]
+                pop = graph.nodes[neighbor][pop_col]
                 if min_seen < pop or min_seen == 0:
                     min_seen = pop
                     min_neighbor = neighbor
@@ -62,18 +62,18 @@ def contract_zero_nodes(graph: gerrychain.Graph):
     return graph
 
 
-def select_geom(shp: gpd.GeoDataFrame, geoid: str):
-    filtered_geoms = shp[shp["GISJOIN"] == geoid]
+def select_geom(shp: gpd.GeoDataFrame, geoid: str, attr: str = "GISJOIN"):
+    filtered_geoms = shp[shp[attr] == geoid]
     return filtered_geoms.iloc[0]["geometry"]
 
 
-def distance(shp: gpd.GeoDataFrame, geoid_1: str, geoid_2: str):
-    geom_1 = select_geom(shp, geoid_1)
-    geom_2 = select_geom(shp, geoid_2)
+def distance(shp: gpd.GeoDataFrame, geoid_1: str, geoid_2: str, attr: str = "GISJOIN"):
+    geom_1 = select_geom(shp, geoid_1, attr)
+    geom_2 = select_geom(shp, geoid_2, attr)
     return geom_1.distance(geom_2)
 
 
-def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph):
+def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
     distance_cache = {}
     while nx.algorithms.components.number_connected_components(graph) != 1:
         print(
@@ -90,7 +90,7 @@ def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph):
             geoids = []
 
             for node in component:
-                geoid = graph.nodes[node]["GISJOIN"]
+                geoid = graph.nodes[node][attr]
                 geoids.append(geoid)
                 geoid_node_mapping[geoid] = node
 
@@ -109,7 +109,7 @@ def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph):
             if geoid_pair in distance_cache:
                 calc_distance = geoid_pair
             else:
-                calc_distance = distance(shp, geoid_1, geoid_2)
+                calc_distance = distance(shp, geoid_1, geoid_2, attr)
 
             distance_cache[geoid_pair] = calc_distance
             distance_cache[tuple(reversed(geoid_pair))] = calc_distance
