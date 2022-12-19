@@ -18,8 +18,10 @@ chicago-maup/%_$(CHCIAGO_REF)_connected.json: chicago_black_header chicago_poc_h
 	python3 pipeline/calculate_metrics.py $@ BLACK WHITE TOTPOP >> outputs/white_black_chicago.csv
 	python3 pipeline/calculate_metrics.py $@ POC WHITE TOTPOP >> outputs/white_poc_chicago.csv
 
-outputs/white_black_chicago.csv: chicago_black_header chicago_duals $(wildcard chicago-maup/*connected.json)
-outputs/white_poc_chicago.csv: chicago_poc_header chicago_duals $(wildcard chicago-maup/*connected.json)
+outputs/white_black_chicago.csv: chicago_black_header chicago_duals
+	$(MAKE) $(wildcard chicago-maup/*connected.json)
+outputs/white_poc_chicago.csv: chicago_poc_header chicago_duals
+	$(MAKE) $(wildcard chicago-maup/*connected.json)
 
 chicago: outputs/white_black_chicago.csv outputs/white_poc_chicago.csv
 
