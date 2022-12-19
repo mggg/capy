@@ -24,9 +24,19 @@ fd connected.json cbsas/ | parallel --bar python pipeline/calculate_metrics.py {
 python pipeline/calculate_metrics.py cbsas/2020/186847_39460_march_2020_cbsa_tracts_connected.json POC WHITE TOTPOP --headers-only > outputs/white_poc.csv
 fd connected.json cbsas/ | parallel --bar python pipeline/calculate_metrics.py {} POC WHITE TOTPOP >> outputs/white_poc.csv
 
+# New York swaps
+python pipeline/random_swaps.py cbsas/2020/20140470_35620_march_2020_cbsa_tracts_connected.json new-york-swaps/
+
+python pipeline/calculate_metrics.py cbsas/2020/186847_39460_march_2020_cbsa_tracts_connected.json BLACK WHITE TOTPOP --headers-only > outputs/new_york_swaps_white_black.csv
+fd json new-york-swaps/ | parallel --bar python pipeline/calculate_metrics.py {} BLACK WHITE TOTPOP >> outputs/new_york_swaps_white_black.csv
+
+python pipeline/calculate_metrics.py cbsas/2020/186847_39460_march_2020_cbsa_tracts_connected.json BLACK WHITE TOTPOP --headers-only > outputs/new_york_swaps_white_poc.csv
+fd json new-york-swaps/ | parallel --bar python pipeline/calculate_metrics.py {} POC WHITE TOTPOP >> outputs/new_york_swaps_white_poc.csv
+
 # Parse CSVs and add metadata
 python scripts/parse_output.py outputs/white_black.csv outputs/white_black_parsed.csv
 python scripts/parse_output.py outputs/white_poc.csv outputs/white_poc_parsed.csv
 
 # Generate figures
-python scripts/generate_figures.py
+python3 scripts/generate_figures.py --filename outputs/white_poc_parsed.csv --prefix white_poc
+python3 scripts/generate_figures.py --filename outputs/white_black_parsed.csv --prefix white_black
