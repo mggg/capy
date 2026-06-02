@@ -16,7 +16,7 @@ The code expects this structure in `nhgis`.
 
 ```
 nhgis/
-└── **/ # an intermediary folder as downloaded from NHGIS.
+└── **/ # intermediary folder(s) as downloaded from NHGIS.
     ├── ... one CSV for each year, e.g. nhgis0001_ts_nominal_tract_1970.csv ...
     └── ... one shapefile for each year, with tract_YEAR in titles ...
 ```

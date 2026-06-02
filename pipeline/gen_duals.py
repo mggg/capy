@@ -1,11 +1,8 @@
 import geopandas as gpd
 import typer
 import warnings
-# import os
-# import glob
 import gerrychain
 import networkx as nx
-# import matplotlib.pyplot as plt # not used
 from itertools import product
 import tqdm
 import functools

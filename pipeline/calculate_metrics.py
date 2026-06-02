@@ -229,7 +229,7 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
-def moran_right(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     # Moran but using counts and w/out double counting
     avg = sum(int(graph.nodes[node][x_col]) for node in graph.nodes()) / len(graph.nodes())
 
