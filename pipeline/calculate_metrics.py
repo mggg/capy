@@ -229,33 +229,21 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
-# Will change to Sam's version with counts (not shares) and no double counting
-def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
-    # TODO: double/triple-check the 2 coefficient
-    total_shares = []
-    for node in graph.nodes():
-        total_shares.append(
-            int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
-        )
-    avg = sum(total_shares) / len(total_shares)
+def moran_right(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+    # Moran but using counts and w/out double counting
+    avg = sum(int(graph.nodes[node][x_col]) for node in graph.nodes()) / len(graph.nodes())
 
     top_summation = 0
     bottom_summation = 0
     for node in graph.nodes():
-        node_share = int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
-        bottom_summation += (node_share - avg) ** 2
+        bottom_summation += (int(graph.nodes[node][x_col])  - avg) ** 2
 
-        for neighbor in graph.neighbors(node):
-            neighbor_share = int(graph.nodes[neighbor][x_col]) / int(
-                graph.nodes[neighbor][tot_col]
-            )
-            top_summation += (node_share - avg) * (neighbor_share - avg)
+    for u, v in graph.edges():
+        top_summation += (int(graph.nodes[u][x_col]) - avg) * (int(graph.nodes[v][x_col]) - avg)
 
     return (
         (len(graph.nodes()) / len(graph.edges()))
-        * (top_summation / bottom_summation)
-        * 0.5 # because we double-counted edges in the top summation
-    )
+        * (top_summation / bottom_summation))
 
 
 if __name__ == "__main__":
