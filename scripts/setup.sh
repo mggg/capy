@@ -13,3 +13,4 @@ mkdir -p cbsas/1970
 
 mkdir -p outputs
 mkdir -p figures
+mkdir -p processed

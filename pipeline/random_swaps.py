@@ -16,6 +16,7 @@ def main(filename: str, output_dir: str, rounds=1000):
     attrs = ["WHITE", "BLACK", "AMIN", "ASIAN", "2MORE", "TOTPOP", "POC"]
 
     graph = gerrychain.Graph.from_json(filename)
+    os.makedirs(output_dir, exist_ok=True)
 
     if len(graph.nodes) < 2:
         return

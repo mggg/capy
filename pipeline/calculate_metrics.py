@@ -87,13 +87,22 @@ def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     for node in graph.nodes():
         first_summation += int(graph.nodes[node][x_col]) * int(graph.nodes[node][y_col])
 
-        for neighbor in graph.neighbors(node):
-            second_summation += int(graph.nodes[node][x_col]) * int(
-                graph.nodes[neighbor][y_col]
-            )
-            second_summation += int(graph.nodes[neighbor][x_col]) * int(
-                graph.nodes[node][y_col]
-            )
+    for node, neighbor in graph.edges():
+        second_summation += int(graph.nodes[node][x_col]) * int(
+            graph.nodes[neighbor][y_col])
+        second_summation += int(graph.nodes[neighbor][x_col]) * int(
+            graph.nodes[node][y_col])
+
+    # wrong? old version below counts each undirected edge twice because every neighbor pair
+    # is visited once from each endpoint.
+    # for node in graph.nodes():
+    #     for neighbor in graph.neighbors(node):
+    #         second_summation += int(graph.nodes[node][x_col]) * int(
+    #             graph.nodes[neighbor][y_col]
+    #         )
+    #         second_summation += int(graph.nodes[neighbor][x_col]) * int(
+    #             graph.nodes[node][y_col]
+    #         )
 
     return (first_summation, second_summation)
 
@@ -119,13 +128,22 @@ def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) ->
             graph.nodes[node][y_col]
         ) - ((int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])) * 0.5)
 
-        for neighbor in graph.neighbors(node):
-            second_summation += int(graph.nodes[node][x_col]) * int(
-                graph.nodes[neighbor][y_col]
-            )
-            second_summation += int(graph.nodes[neighbor][x_col]) * int(
-                graph.nodes[node][y_col]
-            )
+    for node, neighbor in graph.edges():
+        second_summation += int(graph.nodes[node][x_col]) * int(
+            graph.nodes[neighbor][y_col])
+        second_summation += int(graph.nodes[neighbor][x_col]) * int(
+            graph.nodes[node][y_col])
+
+    # wrong? old version below counts each undirected edge twice because every neighbor pair
+    # is visited once from each endpoint.
+    # for node in graph.nodes():
+    #     for neighbor in graph.neighbors(node):
+    #         second_summation += int(graph.nodes[node][x_col]) * int(
+    #             graph.nodes[neighbor][y_col]
+    #         )
+    #         second_summation += int(graph.nodes[neighbor][x_col]) * int(
+    #             graph.nodes[node][y_col]
+    #         )
 
     return (first_summation, second_summation)
 
@@ -211,6 +229,7 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
+# Will change to Sam's version with counts (not shares) and no double counting
 def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     # TODO: double/triple-check the 2 coefficient
     total_shares = []
@@ -235,7 +254,7 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (
         (len(graph.nodes()) / len(graph.edges()))
         * (top_summation / bottom_summation)
-        * 0.5
+        * 0.5 # because we double-counted edges in the top summation
     )
 
 

@@ -23,8 +23,8 @@ def main(
     mappings_without_pops = create_metro_mappings(metro_areas)
     # mappings_without_pops = dict(list(mappings_without_pops.items())[:3])
     country = gpd.read_file(definition_tracts)
-    country["STATEFP"] = country["STATEFP"].apply(lambda x: x.zfill(2))
-    country["COUNTYFP"] = country["COUNTYFP"].apply(lambda x: x.zfill(3))
+    country["STATEFP"] = country["STATEFP"].apply(lambda x: str(x).zfill(2))
+    country["COUNTYFP"] = country["COUNTYFP"].apply(lambda x: str(x).zfill(3))
     country["STCNTYFP"] = country["STATEFP"] + country["COUNTYFP"]
 
     metros = {

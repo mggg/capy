@@ -2,6 +2,7 @@ import seaborn as sns
 import typer
 import matplotlib.pyplot as plt
 import pandas as pd
+from pathlib import Path
 
 
 def main(
@@ -9,6 +10,8 @@ def main(
     n: int = 10,
     prefix: str = "white_poc",
 ):
+    Path("figures").mkdir(exist_ok=True)
+
     df = pd.read_csv(filename)
     df = df.sort_values("total_population_2020", ascending=False)
 
