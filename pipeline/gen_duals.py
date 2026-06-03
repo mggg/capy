@@ -11,7 +11,7 @@ import functools
 def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
 
-    try:
+    try: #fixes invalid geometry, Chatgpt said .make_valid() is preferable to buffer.(0)
         graph = gerrychain.Graph.from_geodataframe(shp)
     except:
         shp["geometry"] = shp["geometry"].buffer(0)
@@ -62,7 +62,7 @@ def contract_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
     return graph
 
 
-def select_geom(shp: gpd.GeoDataFrame, geoid: str, attr: str = "GISJOIN"):
+def select_geom(shp: gpd.GeoDataFrame, geoid: str, attr: str = "GISJOIN"): 
     filtered_geoms = shp[shp[attr] == geoid]
     return filtered_geoms.iloc[0]["geometry"]
 

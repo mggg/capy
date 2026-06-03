@@ -11,10 +11,11 @@ def main(source: str, target_glob: str, output_dir: str, prefix: str = ""):
     Returns the subset of the source gdf that overlaps the target
     """
     source_gdf = gpd.read_file(source)
-    source_area = source_gdf.unary_union.area
+    source_area = source_gdf.union_all().area #Peter: VScode is saying that unary_union is deprecated
+    #so I have replaced all uses with unary_union with union_all
     for target in tqdm.tqdm(glob.glob(target_glob)):
         target_gdf = gpd.read_file(target).to_crs(source_gdf.crs)
-        target_gdf_union = target_gdf.unary_union
+        target_gdf_union = target_gdf.union_all() #same here with unary_union
 
         possible_intersects = source_gdf.iloc[
             source_gdf.sindex.query(target_gdf_union, predicate="intersects")
@@ -29,7 +30,7 @@ def main(source: str, target_glob: str, output_dir: str, prefix: str = ""):
         if len(overlaps) != 0:
             filename = target.split("/")[-1].split(".")[0]
             overlaps.to_file(f"{output_dir}/{prefix}{filename}_cbsa_tracts.shp")
-            overlap_area = overlaps.unary_union.area
+            overlap_area = overlaps.union_all().area #same here with unary_union
             print(f"{source}, {target}, {source_area}, {overlap_area}, {overlap_area/source_area}")
         else:
             print(
