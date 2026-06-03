@@ -15,7 +15,8 @@ NHGIS_MAPPINGS = {
 
 
 def main():
-    shapefiles = glob.glob("nhgis/**/**.shp")
+    shapefiles = glob.glob("nhgis/**/**.shp") #Peter: perhaps we should change recursive to true?
+    #I did this in my local version since my shapefiles were in an intermediate folder
     for filename in tqdm.tqdm(glob.glob("nhgis/**/**.csv")):
         year = filename.split("_")[-2]
         shapefile_matches = [x for x in shapefiles if f"tract_{year}" in x]

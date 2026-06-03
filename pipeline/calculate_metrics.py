@@ -34,8 +34,12 @@ def run_metrics(
     capy_metrics["angle_2"] = angle_2(graph, x_col, y_col)
     capy_metrics["skew"] = skew(graph, x_col, y_col)
 
-    for lam in [0, 0.5, 1, 2, 10, None]:
-        for fname, func in [("angle_1", angle_1), ("angle_2", angle_2)]:
+    for lam in [0, 0.5, 1, 2, 10, None]: 
+        for fname, func in [("angle_1", angle_1), ("angle_2", angle_2)]: #the implementation of angle_2
+            #in the pipeline is odd. This calculates both <x,x>/(<x,x> +<x,y>) and <<x,x>>/(<<x,x>> +<<x,y>>) 
+            #but the paper gives no rationale for calculating the latter. 
+            #Rather you would want to calculate <<x,x>>/(<<x,x>> +<x,y>) which is the exact count 
+            #of ingroup vs outgroup ties (which the first expression approximates for large node populations)
             for vname, variant in [("edge", edge), ("half_edge", half_edge)]:
                 metric_name = f"{vname}_lam_{str(lam).replace('.','_').replace('None','lim')}_{fname}"
                 capy_metrics[metric_name] = variant(
