@@ -38,5 +38,5 @@ python scripts/parse_output.py outputs/white_black.csv outputs/white_black_parse
 python scripts/parse_output.py outputs/white_poc.csv outputs/white_poc_parsed.csv
 
 # Generate figures
-python3 scripts/generate_figures.py --filename outputs/white_poc_parsed.csv --prefix white_poc
-python3 scripts/generate_figures.py --filename outputs/white_black_parsed.csv --prefix white_black
+python scripts/generate_figures.py --filename outputs/white_poc_parsed.csv --prefix white_poc
+python scripts/generate_figures.py --filename outputs/white_black_parsed.csv --prefix white_black
