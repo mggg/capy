@@ -32,29 +32,27 @@ def has_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
             return True
     return False
 
-# PETER please look: this finds maximum population neighbor but says minimum. What do you think.
+
 def contract_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
     for node in graph.nodes():
         if int(graph.nodes[node][pop_col]) == 0:
-            min_seen = 0
-            min_neighbor = None
+            max_seen = 0
+            max_neighbor = None
 
             for neighbor in graph.neighbors(node):
                 pop = graph.nodes[neighbor][pop_col]
-                if min_seen < pop or min_seen == 0:
-                    min_seen = pop
-                    min_neighbor = neighbor
+                if max_seen < pop or max_seen == 0:
+                    max_seen = pop
+                    max_neighbor = neighbor
 
-            # This used to use neighbor, changed to min_neighbor which we found above.
-            if min_seen != 0: # zero-pop nodes are only merged if they have at least one nonzero-pop neighbor
-                # Peter: is it possible to have only 0-pop nodes in a graph (e.g. in a metro area) - then they don't get contracted according to this code. Will probably never happen but flagging.
-                print("contracted", node, min_neighbor)
-                nx.contracted_nodes(graph, min_neighbor, node, self_loops=False, copy=False)
+            if max_neighbor is not None:
+                print("contracted", node, max_neighbor)
+                nx.contracted_nodes(graph, max_neighbor, node, self_loops=False, copy=False)
 
                 # Clean up attributes so GerryChain can serialize to JSON
-                del graph.nodes[min_neighbor]["contraction"][node]["geometry"]
-                for new_neighbor in graph.neighbors(min_neighbor):
-                    edge = graph.edges[(min_neighbor, new_neighbor)]
+                del graph.nodes[max_neighbor]["contraction"][node]["geometry"]
+                for new_neighbor in graph.neighbors(max_neighbor):
+                    edge = graph.edges[(max_neighbor, new_neighbor)]
                     if "contraction" in edge:
                         del edge["contraction"]
 
