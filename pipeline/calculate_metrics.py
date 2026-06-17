@@ -49,7 +49,7 @@ def run_metrics(
     capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, y_col)
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
-    capy_metrics["moran"] = moran(graph, x_col, y_col)
+    capy_metrics["moran"] = moran_positive_sum(graph, x_col, y_col)
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -258,6 +258,34 @@ def moran(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
 
     return (
         (len(graph.nodes()) / len(graph.edges()))
+        * (top_summation / bottom_summation))
+
+
+def moran_positive_sum(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    # Pairwise Moran's I, skipping nodes where the pairwise population is undefined.
+    values = {}
+    for node in graph.nodes():
+        x_pop = int(graph.nodes[node][x_col])
+        y_pop = int(graph.nodes[node][y_col])
+        pairwise_pop = x_pop + y_pop
+        if pairwise_pop > 0:
+            values[node] = x_pop / pairwise_pop
+
+    avg = sum(values.values()) / len(values)
+
+    top_summation = 0
+    edge_count = 0
+    for u, v in graph.edges():
+        if u in values and v in values:
+            top_summation += (values[u] - avg) * (values[v] - avg)
+            edge_count += 1
+
+    bottom_summation = 0
+    for node in values:
+        bottom_summation += (values[node] - avg) ** 2
+
+    return (
+        (len(values) / edge_count)
         * (top_summation / bottom_summation))
 
 
