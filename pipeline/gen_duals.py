@@ -8,6 +8,10 @@ import tqdm
 import functools
 
 
+CONTRACTION_POP_COLS = ("WHITE", "BLACK")
+POPULATION_SUM_COLS = ("WHITE", "BLACK", "AMIN", "ASIAN", "2MORE", "TOTPOP", "POC")
+
+
 def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
 
@@ -20,33 +24,55 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
     graph.to_json(output_orig)
 
     connected_graph = connect_components(shp, graph, attr)
-    while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph, pop_col):
-        connected_graph = contract_zero_nodes(connected_graph, pop_col)
+    while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
+        node_count = len(connected_graph.nodes())
+        connected_graph = contract_zero_nodes(connected_graph)
+        if len(connected_graph.nodes()) == node_count:
+            break
 
     connected_graph.to_json(output_connected)
 
 
-def has_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
+def int_attr(attrs, col: str) -> int:
+    value = attrs.get(col, 0)
+    if value is None:
+        return 0
+    return int(value)
+
+
+def node_contraction_population(graph: gerrychain.Graph, node) -> int:
+    return sum(int_attr(graph.nodes[node], col) for col in CONTRACTION_POP_COLS)
+
+
+def has_zero_nodes(graph: gerrychain.Graph):
     for node in graph.nodes():
-        if int(graph.nodes[node][pop_col]) == 0:
+        if node_contraction_population(graph, node) == 0:
             return True
     return False
 
 
-def contract_zero_nodes(graph: gerrychain.Graph, pop_col: str = "TOTPOP"):
+def add_population_attrs(graph: gerrychain.Graph, target, source):
+    for col in POPULATION_SUM_COLS:
+        graph.nodes[target][col] = int_attr(graph.nodes[target], col) + int_attr(
+            graph.nodes[source], col
+        )
+
+
+def contract_zero_nodes(graph: gerrychain.Graph):
     for node in graph.nodes():
-        if int(graph.nodes[node][pop_col]) == 0:
+        if node_contraction_population(graph, node) == 0:
             max_seen = 0
             max_neighbor = None
 
             for neighbor in graph.neighbors(node):
-                pop = graph.nodes[neighbor][pop_col]
+                pop = node_contraction_population(graph, neighbor)
                 if max_seen < pop or max_seen == 0:
                     max_seen = pop
                     max_neighbor = neighbor
 
             if max_neighbor is not None:
                 print("contracted", node, max_neighbor)
+                add_population_attrs(graph, max_neighbor, node)
                 nx.contracted_nodes(graph, max_neighbor, node, self_loops=False, copy=False)
 
                 # Clean up attributes so GerryChain can serialize to JSON
