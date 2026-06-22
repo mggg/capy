@@ -17,6 +17,11 @@ def main(
     try:
         run_metrics(filename, x_col, y_col, tot_col, headers_only)
     except ZeroDivisionError as e:
+        with open("outputs/metric_failures.csv", "a+") as f:
+            f.seek(0, os.SEEK_END)
+            if f.tell() == 0:
+                print("filename,cbsa_code,error", file=f)
+            print(f"{filename},{os.path.basename(filename).split('_')[1]},{e}", file=f)
         print(filename, e, file=sys.stderr)
 
 
@@ -248,6 +253,33 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (
         (len(graph.nodes()) / len(graph.edges()))
         * (top_summation / bottom_summation))
+
+
+def moran_old(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+    total_shares = []
+    for node in graph.nodes():
+        total_shares.append(
+            int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
+        )
+    avg = sum(total_shares) / len(total_shares)
+    
+    top_summation = 0
+    bottom_summation = 0
+    for node in graph.nodes():
+        node_share = int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
+        bottom_summation += (node_share - avg) ** 2
+
+        for neighbor in graph.neighbors(node):
+            neighbor_share = int(graph.nodes[neighbor][x_col]) / int(
+                graph.nodes[neighbor][tot_col]
+            )
+            top_summation += (node_share - avg) * (neighbor_share - avg)
+
+    return (
+        (len(graph.nodes()) / len(graph.edges()))
+        * (top_summation / bottom_summation)
+        * 0.5 # because we double-counted edges in the top summation
+    )
 
 
 if __name__ == "__main__":
