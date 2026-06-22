@@ -51,10 +51,10 @@ def run_metrics(
                     graph, x_col, y_col, lam=lam, func=func
                 )
 
-    capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, tot_col)
+    capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, y_col)
     capy_metrics["frey"] = frey(graph, x_col, y_col)
-    capy_metrics["gini"] = gini(graph, x_col, tot_col)
-    capy_metrics["moran"] = moran(graph, x_col, tot_col)
+    capy_metrics["gini"] = gini(graph, x_col, y_col)
+    capy_metrics["moran"] = moran(graph, x_col, y_col)
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -192,15 +192,16 @@ def property_sum(graph: gerrychain.Graph, col: str) -> float:
     return cummulative
 
 
-def dissimilarity(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     x_bar = property_sum(graph, x_col)
-    p_bar = property_sum(graph, tot_col)
+    p_bar = x_bar + property_sum(graph, y_col)
 
     summation = 0
     for node in graph.nodes():
+        node_total = int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
         summation += abs(
             (int(graph.nodes[node][x_col]) * p_bar)
-            - (int(graph.nodes[node][tot_col]) * x_bar)
+            - (node_total * x_bar)
         )
 
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
@@ -220,17 +221,21 @@ def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     return (1 / (2 * x_bar * y_bar)) * summation
 
 
-def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+def gini(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     x_bar = property_sum(graph, x_col)
-    p_bar = property_sum(graph, tot_col)
+    p_bar = x_bar + property_sum(graph, y_col)
 
     summation = 0
     for node in graph.nodes():
+        node_total = int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
         for other_node in graph.nodes():
+            other_node_total = int(graph.nodes[other_node][x_col]) + int(
+                graph.nodes[other_node][y_col]
+            )
             summation += abs(
-                (int(graph.nodes[node][x_col]) * int(graph.nodes[other_node][tot_col]))
+                (int(graph.nodes[node][x_col]) * other_node_total)
                 - (
-                    int(graph.nodes[node][tot_col])
+                    node_total
                     * int(graph.nodes[other_node][x_col])
                 )
             )
@@ -238,17 +243,23 @@ def gini(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
-def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
-    # Moran but using counts and w/out double counting
-    avg = sum(int(graph.nodes[node][x_col]) for node in graph.nodes()) / len(graph.nodes())
+def moran(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    # Moran but using pairwise population shares and w/out double counting
+    values = {}
+    for node in graph.nodes():
+        x_pop = int(graph.nodes[node][x_col])
+        y_pop = int(graph.nodes[node][y_col])
+        values[node] = x_pop / (x_pop + y_pop)
+
+    avg = sum(values.values()) / len(values)
 
     top_summation = 0
     bottom_summation = 0
     for node in graph.nodes():
-        bottom_summation += (int(graph.nodes[node][x_col])  - avg) ** 2
+        bottom_summation += (values[node]  - avg) ** 2
 
     for u, v in graph.edges():
-        top_summation += (int(graph.nodes[u][x_col]) - avg) * (int(graph.nodes[v][x_col]) - avg)
+        top_summation += (values[u] - avg) * (values[v] - avg)
 
     return (
         (len(graph.nodes()) / len(graph.edges()))
