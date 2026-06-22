@@ -28,6 +28,7 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
         node_count = len(connected_graph.nodes())
         connected_graph = contract_zero_nodes(connected_graph)
         if len(connected_graph.nodes()) == node_count:
+            print("No more zero nodes to contract, but graph still has zero nodes. Remaining nodes:", connected_graph.nodes())
             break
 
     connected_graph.to_json(output_connected)
