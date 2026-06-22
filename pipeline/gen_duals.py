@@ -131,7 +131,7 @@ def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str
             geoid_1, geoid_2 = geoid_pair
 
             if geoid_pair in distance_cache:
-                calc_distance = geoid_pair
+                calc_distance = distance_cache[geoid_pair]
             else:
                 calc_distance = distance(shp, geoid_1, geoid_2, attr)
 
