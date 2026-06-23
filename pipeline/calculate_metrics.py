@@ -241,7 +241,7 @@ def property_sum(graph: gerrychain.Graph, col: str) -> float:
     return cummulative
 
 
-def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: int) -> float:
     x_bar = property_sum(graph, x_col)
     p_bar = x_bar + property_sum(graph, y_col)
 
@@ -251,9 +251,9 @@ def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
         summation += abs(
             (int(graph.nodes[node][x_col]) * p_bar)
             - (node_total * x_bar)
-        )
+        ) ** (p)
 
-    return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
+    return (1 / (2 * x_bar * (p_bar - x_bar))) * (summation ** (1 / p))
 
 
 def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
