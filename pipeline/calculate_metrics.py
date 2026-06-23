@@ -36,25 +36,43 @@ def run_metrics(
     capy_metrics["y_col"] = y_col
     capy_metrics["tot_col"] = tot_col
     capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
-    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col)
-    capy_metrics["skew"] = skew(graph, x_col, y_col)
+    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) #rationale seems to be to cache these for the later calculations?
+    
+    e_assort, he_assort = assortativity(graph, x_col, y_col)
+    capy_metrics["e_assort"] = e_assort
+    capy_metrics["he_assort"] = he_assort
 
     for lam in [0, 0.5, 1, 2, 10, None]: 
-        for fname, func in [("angle_1", angle_1), ("angle_2", angle_2)]: #the implementation of angle_2
-            #in the pipeline is odd. This calculates both <x,x>/(<x,x> +<x,y>) and <<x,x>>/(<<x,x>> +<<x,y>>) 
-            #but the paper gives no rationale for calculating the latter. 
-            #Rather you would want to calculate <<x,x>>/(<<x,x>> +<x,y>) which is the exact count 
-            #of ingroup vs outgroup ties (which the first expression approximates for large node populations)
-            for vname, variant in [("edge", edge), ("half_edge", half_edge)]:
-                metric_name = f"{vname}_lam_{str(lam).replace('.','_').replace('None','lim')}_{fname}"
-                capy_metrics[metric_name] = variant(
-                    graph, x_col, y_col, lam=lam, func=func
-                )
+        lam_str = "lim" if lam is None else str(lam)
+        capy_metrics[f"skew_self_{lam_str}"] = skew(graph, x_col, y_col, lam = lam)
+        capy_metrics[f"skew_other_{lam_str}"] = skew(graph, y_col, x_col, lam = lam)
+        capy_metrics[f"edge_{lam_str}"] = 0.5 * (capy_metrics[f"skew_other_{lam_str}"] + 
+                                                 capy_metrics[f"skew_self_{lam_str}"])
 
-    capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, y_col)
+        capy_metrics[f"skew'_self_{lam_str}"] = skew_prime(graph, x_col, y_col, lam = lam)
+        capy_metrics[f"skew'_other_{lam_str}"] = skew_prime(graph, y_col, x_col, lam = lam)
+        capy_metrics[f"half_edge_{lam_str}"] = 0.5 * (capy_metrics[f"skew'_other_{lam_str}"] + 
+                                                 capy_metrics[f"skew'_self_{lam_str}"])    
+
+
+        capy_metrics[f"skew_self_exact_{lam_str}"] = skew(graph, x_col, y_col, lam = lam)
+        capy_metrics[f"skew_other_exact_{lam_str}"] = skew(graph, y_col, x_col, lam = lam)
+        capy_metrics[f"edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew_other_exact_{lam_str}"] + 
+                                                 capy_metrics[f"skew_self_exact_{lam_str}"])
+
+        capy_metrics[f"skew'_self_exact_{lam_str}"] = skew_prime(graph, x_col, y_col, lam = lam)
+        capy_metrics[f"skew'_other_exact_{lam_str}"] = skew_prime(graph, y_col, x_col, lam = lam)
+        capy_metrics[f"half_edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew'_other_exact_{lam_str}"] + 
+                                                 capy_metrics[f"skew'_self_exact_{lam_str}"])
+
+    for p in [1, 2, 10]:
+        capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, y_col, p)
+
+
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
     capy_metrics["moran"] = moran(graph, x_col, y_col)
+    capy_metrics["moran_shares"] = moran_shares(graph, x_col, y_col)
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -157,12 +175,29 @@ def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) ->
     return (first_summation, second_summation)
 
 
-def skew(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
-    x_x = angle_1(graph, x_col, x_col)
-    x_y = angle_1(graph, x_col, y_col)
+def skew(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    x_x = angle_1(graph, x_col, x_col, lam = lam)
+    x_y = angle_1(graph, x_col, y_col, lam = lam)
 
     return (x_x) / (x_x + (2 * x_y))
 
+def skew_prime(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    x_x = angle_1(graph, x_col, x_col, lam = lam)
+    x_y = angle_1(graph, x_col, y_col, lam = lam)
+
+    return (x_x) / (x_x + (x_y))
+
+def skew_exact(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    x_x = angle_2(graph, x_col, x_col, lam = lam)
+    x_y = angle_1(graph, x_col, y_col, lam = lam)
+
+    return (x_x) / (x_x + (x_y))
+
+def skew_prime_exact(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    x_x = angle_2(graph, x_col, x_col, lam = lam)
+    x_y = angle_1(graph, x_col, y_col, lam = lam)
+
+    return (2 * x_x) / ( 2 * x_x + (x_y))
 
 def edge(
     graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1, func=angle_1
@@ -183,6 +218,20 @@ def half_edge(
 
     return 0.5 * ((x_x / (x_x + x_y)) + (y_y / (y_y + x_y)))
 
+def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
+    #determine node majorities
+    for node in graph.nodes():
+        threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) * 2
+        if graph.nodes[node][x_col] >= threshold: #so ties break in favor of x_col
+            graph.nodes[node]["x_maj"] = 1
+            graph.nodes[node]["y_maj"] = 0
+        else: 
+            graph.nodes[node]["x_maj"] = 0
+            graph.nodes[node]["y_maj"] = 1
+    
+    e_assort = 0.5 * (skew_exact(graph, "x_maj", "y_maj") + skew_exact(graph, "y_maj", "x_maj"))
+    he_assort = 0.5 * (skew_prime_exact(graph, "x_maj", "y_maj") + skew_prime_exact(graph, "y_maj", "x_maj"))
+    return e_assort, he_assort
 
 @functools.cache
 def property_sum(graph: gerrychain.Graph, col: str) -> float:
@@ -266,7 +315,7 @@ def moran(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
         * (top_summation / bottom_summation))
 
 
-def moran_old(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+def moran_shares(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     total_shares = []
     for node in graph.nodes():
         total_shares.append(
