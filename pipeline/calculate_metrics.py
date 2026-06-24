@@ -9,7 +9,8 @@ from itertools import product
 import tqdm
 import functools
 import sys
-
+import scipy.sparse
+import numpy as np
 
 def main(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
@@ -71,8 +72,10 @@ def run_metrics(
 
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
-    capy_metrics["moran"] = moran(graph, x_col, y_col)
-    capy_metrics["moran_shares"] = moran_shares(graph, x_col, y_col)
+    capy_metrics["moran_A"] = moran(graph, x_col, y_col)["moran_A"]
+    capy_metrics["moran_P"] = moran(graph, x_col, y_col)["moran_P"]
+    capy_metrics["moran_L"] = moran(graph, x_col, y_col)["moran_L"]
+    capy_metrics["moran_W"] = moran(graph, x_col, y_col)["moran_W"]
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -292,54 +295,56 @@ def gini(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
 
 
-def moran(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
-    # Moran but using pairwise population shares and w/out double counting
-    values = {}
-    for node in graph.nodes():
-        x_pop = int(graph.nodes[node][x_col])
-        y_pop = int(graph.nodes[node][y_col])
-        values[node] = x_pop / (x_pop + y_pop)
+def make_adj_weights(graph: gerrychain.Graph):
+    #TODO: check_order
+    nodes = list(graph.nodes())
+    A = nx.adjacency_matrix(graph, nodelist=nodes)
+    degrees = np.array([graph.degree(n) for n in nodes])    
+    D = scipy.sparse.diags(degrees)
 
-    avg = sum(values.values()) / len(values)
+    inv_degrees = np.zeros_like(degrees, dtype=float)
+    mask = degrees > 0
+    inv_degrees[mask] = 1 / degrees[mask]
+    D_inv = scipy.sparse.diags(inv_degrees)
 
-    top_summation = 0
-    bottom_summation = 0
-    for node in graph.nodes():
-        bottom_summation += (values[node]  - avg) ** 2
+    P = D_inv @ A
+    L = D - A
 
-    for u, v in graph.edges():
-        top_summation += (values[u] - avg) * (values[v] - avg)
+    A_coo = A.tocoo()
+    rows = A_coo.row
+    cols = A_coo.col
 
-    return (
-        (len(graph.nodes()) / len(graph.edges()))
-        * (top_summation / bottom_summation))
+    vals = 1 / np.maximum(degrees[rows], degrees[cols])
 
+    M = scipy.sparse.csr_matrix((vals, (rows, cols)), shape=A.shape)
 
-def moran_shares(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
-    total_shares = []
-    for node in graph.nodes():
-        total_shares.append(
-            int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
-        )
-    avg = sum(total_shares) / len(total_shares)
-    
-    top_summation = 0
-    bottom_summation = 0
-    for node in graph.nodes():
-        node_share = int(graph.nodes[node][x_col]) / int(graph.nodes[node][tot_col])
-        bottom_summation += (node_share - avg) ** 2
+    diag = 1 - np.asarray(M.sum(axis=1)).ravel()
+    M = M + scipy.sparse.diags(diag)
 
-        for neighbor in graph.neighbors(node):
-            neighbor_share = int(graph.nodes[neighbor][x_col]) / int(
-                graph.nodes[neighbor][tot_col]
-            )
-            top_summation += (node_share - avg) * (neighbor_share - avg)
+    return A, P, L, M
 
-    return (
-        (len(graph.nodes()) / len(graph.edges()))
-        * (top_summation / bottom_summation)
-        * 0.5 # because we double-counted edges in the top summation
-    )
+def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+    shares = np.array([
+        graph.nodes[node][x_col] / graph.nodes[node][tot_col]
+        for node in graph.nodes()
+        ])
+
+    shares -= shares.mean()
+
+    x = scipy.sparse.csr_matrix(shares).T
+
+    weights = make_adj_weights(graph)
+    names = ["A", "P", "L", "M"]
+
+    morans = {}
+
+    for name, W in zip(names, weights):
+        numerator = (x.T @ W @ x)[0, 0]
+        denominator = (x.T @ x)[0, 0]
+        S0 = W.sum()
+        morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
+
+    return morans
 
 
 if __name__ == "__main__":
