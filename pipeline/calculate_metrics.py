@@ -364,6 +364,9 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
         numerator = (x.T @ W @ x)[0, 0]
         denominator = (x.T @ x)[0, 0]
         S0 = W.sum()
+        if name == "L": #Laplacians are considered self normalized so no division by S0, (for them S0 == 0)
+            S0 = 1
+            
         morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
 
     return morans
