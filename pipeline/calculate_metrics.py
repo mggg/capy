@@ -11,6 +11,7 @@ import functools
 import sys
 import scipy.sparse
 import numpy as np
+import traceback
 
 def main(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
@@ -24,6 +25,11 @@ def main(
                 print("filename,cbsa_code,error", file=f)
             print(f"{filename},{os.path.basename(filename).split('_')[1]},{e}", file=f)
         print(filename, e, file=sys.stderr)
+
+
+
+
+
 
 
 def run_metrics(
@@ -42,6 +48,7 @@ def run_metrics(
     e_assort, he_assort = assortativity(graph, x_col, y_col)
     capy_metrics["e_assort"] = e_assort
     capy_metrics["he_assort"] = he_assort
+
 
     for lam in [0, 0.5, 1, 2, 10, None]: 
         lam_str = "lim" if lam is None else str(lam)
@@ -67,15 +74,16 @@ def run_metrics(
                                                  capy_metrics[f"skew'_self_exact_{lam_str}"])
 
     for p in [1, 2, 10]:
-        capy_metrics["dissimilarity"] = dissimilarity(graph, x_col, y_col, p)
+        string = str(p)
+        capy_metrics[f"dissimilarity_{string}"] = dissimilarity(graph, x_col, y_col, p)
 
 
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
-    capy_metrics["moran_A"] = moran(graph, x_col, y_col)["moran_A"]
-    capy_metrics["moran_P"] = moran(graph, x_col, y_col)["moran_P"]
-    capy_metrics["moran_L"] = moran(graph, x_col, y_col)["moran_L"]
-    capy_metrics["moran_W"] = moran(graph, x_col, y_col)["moran_W"]
+    capy_metrics["moran_A"] = moran(graph, x_col, tot_col)["moran_A"]
+    capy_metrics["moran_P"] = moran(graph, x_col, tot_col)["moran_P"]
+    capy_metrics["moran_L"] = moran(graph, x_col, tot_col)["moran_L"]
+    capy_metrics["moran_M"] = moran(graph, x_col, tot_col)["moran_M"]
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -224,7 +232,7 @@ def half_edge(
 def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
     #determine node majorities
     for node in graph.nodes():
-        threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) * 2
+        threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
         if graph.nodes[node][x_col] >= threshold: #so ties break in favor of x_col
             graph.nodes[node]["x_maj"] = 1
             graph.nodes[node]["y_maj"] = 0
@@ -232,8 +240,22 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
             graph.nodes[node]["x_maj"] = 0
             graph.nodes[node]["y_maj"] = 1
     
-    e_assort = 0.5 * (skew_exact(graph, "x_maj", "y_maj") + skew_exact(graph, "y_maj", "x_maj"))
-    he_assort = 0.5 * (skew_prime_exact(graph, "x_maj", "y_maj") + skew_prime_exact(graph, "y_maj", "x_maj"))
+    #calculating E, He assortativity scores
+    try:
+        e_assort = 0.5 * (
+            skew_exact(graph, "x_maj", "y_maj", 0) + #zero lambdas strictly speaking superfluous
+            skew_exact(graph, "y_maj", "x_maj", 0)
+        )
+    except ZeroDivisionError: #if there are no x majority units, then <<x,x>> = ,x,y. = <<x,x>> + <x,y> = 0
+        e_assort = np.nan
+
+    try:
+        he_assort = 0.5 * (
+            skew_prime_exact(graph, "x_maj", "y_maj", 0) +
+            skew_prime_exact(graph, "y_maj", "x_maj", 0)
+        )
+    except ZeroDivisionError:
+        he_assort = np.nan
     return e_assort, he_assort
 
 @functools.cache
@@ -244,7 +266,7 @@ def property_sum(graph: gerrychain.Graph, col: str) -> float:
     return cummulative
 
 
-def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: int) -> float:
+def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: float) -> float:
     x_bar = property_sum(graph, x_col)
     p_bar = x_bar + property_sum(graph, y_col)
 
@@ -256,7 +278,7 @@ def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: int) -> fl
             - (node_total * x_bar)
         ) ** (p)
 
-    return (1 / (2 * x_bar * (p_bar - x_bar))) * (summation ** (1 / p))
+    return (1 / ((2 ** (1 / p)) * (x_bar * (p_bar - x_bar)))) * (summation ** (1 / p))
 
 
 def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
