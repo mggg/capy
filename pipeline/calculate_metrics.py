@@ -320,7 +320,7 @@ def gini(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
 def make_adj_weights(graph: gerrychain.Graph):
     #TODO: check_order
     nodes = list(graph.nodes())
-    A = nx.adjacency_matrix(graph, nodelist=nodes)
+    A = nx.adjacency_matrix(graph, nodelist=nodes).tocsr()
     degrees = np.array([graph.degree(n) for n in nodes])    
     D = scipy.sparse.diags(degrees)
 
