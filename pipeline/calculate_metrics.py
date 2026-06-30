@@ -28,10 +28,6 @@ def main(
 
 
 
-
-
-
-
 def run_metrics(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
@@ -80,10 +76,17 @@ def run_metrics(
 
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
-    capy_metrics["moran_A"] = moran(graph, x_col, tot_col)["moran_A"]
-    capy_metrics["moran_P"] = moran(graph, x_col, tot_col)["moran_P"]
-    capy_metrics["moran_L"] = moran(graph, x_col, tot_col)["moran_L"]
-    capy_metrics["moran_M"] = moran(graph, x_col, tot_col)["moran_M"]
+
+    moran_cont = moran(graph, x_col, tot_col)
+
+    capy_metrics["moran_A"] = moran_cont["moran_A"]
+    capy_metrics["moran_P"] = moran_cont["moran_P"]
+    capy_metrics["moran_L"] = moran_cont["moran_L"]
+    capy_metrics["moran_M"] = moran_cont["moran_M"]
+
+    morans_dist = moran_dist(graph, x_col, tot_col, [inv_dist, inv_dist_square])
+    capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
+    capy_metrics["moran_D_2"] = morans_dist["moran_inv_dist_square"]
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -372,5 +375,68 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     return morans
 
 
+
+def inv_dist(x1, x2, y1, y2):
+    d = np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+    return 1/d
+
+def inv_dist_square(x1, y1, x2, y2):
+    d = (x1 - x2)**2 + (y1 - y2)**2
+    return 1 / d
+
+def make_dist_weights(graph: Gerrychain.graph, dist_funcs: list):
+
+    weights = []
+    names = []
+
+    for func in dist_funcs:
+        array = np.zeros((len(graph), len(graph)))
+        nodes = list(graph.nodes())
+        for i, i_node in enumerate(nodes):
+            for j, j_node in enumerate(nodes):
+                if i == j:
+                    array[i, j] = 0
+                else:
+                    array[i, j] = func(
+                        graph.nodes[i_node]["centroid_x"],
+                        graph.nodes[i_node]["centroid_y"],
+                        graph.nodes[j_node]["centroid_x"],
+                        graph.nodes[j_node]["centroid_y"]
+                        )
+                
+        array = array / array.sum(axis = 1, keepdims=True) #row standardize
+        array = scipy.sparse.csr_array(array)
+        weights.append((array))
+        names.append(func.__name__)
+    
+    return weights, names
+
+def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: list) -> float:
+    shares = np.array([
+        graph.nodes[node][x_col] / graph.nodes[node][tot_col]
+        for node in graph.nodes()
+        ])
+
+    shares -= shares.mean()
+
+    x = scipy.sparse.csr_matrix(shares).T
+    
+    Ws, names = make_dist_weights(graph, dist_funcs)
+
+    morans = {}
+
+    for W, name in zip(Ws, names):
+        numerator = (x.T @ W @ x)[0, 0]
+        denominator = (x.T @ x)[0, 0]
+        S0 = W.sum()
+
+        morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
+
+    return morans
+        
+
+
 if __name__ == "__main__":
     typer.run(main)
+
+

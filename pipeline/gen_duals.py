@@ -21,6 +21,13 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
         shp["geometry"] = shp["geometry"].buffer(0)
         graph = gerrychain.Graph.from_geodataframe(shp)
 
+
+    centroids = shp.geometry.centroid
+
+    for idx in shp.index:
+        graph.nodes[idx]["centroid_x"] = centroids.loc[idx].x
+        graph.nodes[idx]["centroid_y"] = centroids.loc[idx].y
+
     graph.to_json(output_orig)
 
     connected_graph = connect_components(shp, graph, attr)

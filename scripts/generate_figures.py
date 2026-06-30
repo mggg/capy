@@ -104,7 +104,9 @@ def main(
             "moran_A",	
             "moran_P",	
             "moran_L",	
-            "moran_M"
+            "moran_M",
+            "moran_D_1",
+            "moran_D_2"
             ]
         
         for metric in metrics:
