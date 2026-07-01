@@ -9,13 +9,19 @@ import functools
 
 
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
-POPULATION_SUM_COLS = ("WHITE", "BLACK", "AMIN", "ASIAN", "2MORE", "TOTPOP", "POC")
+POPULATION_SUM_COLS = ("WHITE", "BLACK", "TOTPOP", "POC")
 
 
 def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
 
-    try: #fixes invalid geometry, Chatgpt said .make_valid() is preferable to buffer.(0)
+    if shp.crs is None:
+        raise ValueError(f"Shapefile {filename} has no CRS defined. Please define a CRS before proceeding.")
+
+    utm_crs = shp.estimate_utm_crs()
+    shp = shp.to_crs(utm_crs)
+
+    try:
         graph = gerrychain.Graph.from_geodataframe(shp)
     except:
         shp["geometry"] = shp["geometry"].buffer(0)

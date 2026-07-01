@@ -26,7 +26,7 @@ def main(tracts_file: str, cbsa_glob: str, output_dir: str, prefix: str = ""):
         cbsa_boundary = union_geometry(cbsa_gdf)
 
         tract_indices = tract_points.sindex.query(
-            cbsa_boundary, predicate="contains")
+            cbsa_boundary, predicate="covers")
         cbsa_tracts = tracts_gdf.iloc[sorted(tract_indices)]
 
         if len(cbsa_tracts) != 0:

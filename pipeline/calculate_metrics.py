@@ -60,8 +60,8 @@ def run_metrics(
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
     capy_metrics["total_poc"] = property_sum(graph, "POC")
     capy_metrics["total_black"] = property_sum(graph, "BLACK")
-    capy_metrics["total_asian"] = property_sum(graph, "ASIAN")
-    capy_metrics["total_amin"] = property_sum(graph, "AMIN")
+    # capy_metrics["total_asian"] = property_sum(graph, "ASIAN")
+    # capy_metrics["total_amin"] = property_sum(graph, "AMIN")
     capy_metrics["total_x"] = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
     capy_metrics["total_y"] = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
 
