@@ -25,13 +25,13 @@ python pipeline/overlaps.py \
     --prefix "block_2020_"
 
 python pipeline/overlaps.py \
-    "Chicago_Maup_Data/block groups/blk_grps_joined_2010/blk_grps_joined_2010.shp" \
+    "Chicago_Maup_Data/block groups/bg_joined_2010/bg_joined_2010.shp" \
     "cbsas/defs/9618502_16980_march_2020.shp" \
     chicago-maup \
     --prefix "bg_2010_"
     
 python pipeline/overlaps.py \
-    "Chicago_Maup_Data/block groups/blk_grps_joined_2020/blk_grps_joined_2020.shp" \
+    "Chicago_Maup_Data/block groups/bg_joined_2020/bg_joined_2020.shp" \
     "cbsas/defs/9618502_16980_march_2020.shp" \
     chicago-maup \
     --prefix "bg_2020_"
