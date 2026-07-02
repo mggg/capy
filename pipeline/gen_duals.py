@@ -14,6 +14,7 @@ POPULATION_SUM_COLS = ("WHITE", "BLACK", "AMIN", "ASIAN", "2MORE", "TOTPOP", "PO
 
 def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
+    shp = shp.tocrs("esri:102003") #so distances are in meters
 
     try: #fixes invalid geometry, Chatgpt said .make_valid() is preferable to buffer.(0)
         graph = gerrychain.Graph.from_geodataframe(shp)
