@@ -366,9 +366,7 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
     for name, W in zip(names, weights):
         numerator = (x.T @ W @ x)[0, 0]
         denominator = (x.T @ x)[0, 0]
-        S0 = W.sum()
-        if name == "L": #Laplacians are considered self normalized so no division by S0, (for them S0 == 0)
-            S0 = 1
+        S0 = abs(W).sum()
             
         morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
 
@@ -428,7 +426,7 @@ def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: li
     for W, name in zip(Ws, names):
         numerator = (x.T @ W @ x)[0, 0]
         denominator = (x.T @ x)[0, 0]
-        S0 = W.sum()
+        S0 = abs(W).sum()
 
         morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
 
