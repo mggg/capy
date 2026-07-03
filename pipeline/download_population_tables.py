@@ -5,12 +5,15 @@ from pathlib import Path
 from typing import List, Optional
 
 from census import Census
+from census.core import CensusException
 from ipumspy import AggregateDataExtract, IpumsApiClient, NhgisDataset
 import pandas as pd
 import typer
 
 
 OUTPUT_DIR = Path("census_raw/population")
+NHGIS_EXTRACTS_DIR = Path("census_raw/population/ipums_population_extracts")
+DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
 
 STATES = [
     "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
@@ -176,13 +179,38 @@ def load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
+def require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise ValueError(f"{name} is required; set it in the environment or .env.")
+    return value
+
+
 def selected_states(states: Optional[str]) -> List[str]:
     if states is None:
         return STATES
     return [state.strip().zfill(2) for state in states.split(",") if state.strip()]
 
 
-def geoid(df: pd.DataFrame, cols: tuple) -> pd.Series:
+def parse_years(years: Optional[str], year_values: Optional[List[int]]) -> List[int]:
+    if year_values:
+        return year_values
+    if years:
+        return [int(year) for year in years.replace(",", " ").split()]
+    return DEFAULT_YEARS
+
+
+def normalized_geoid_part(df: pd.DataFrame, col: str, width: int, year: int) -> pd.Series:
+    text = df[col].astype(str).str.strip()
+    if col == "tract" and year == 2000:
+        short = text.str.len() < width
+        normalized = text.str.zfill(width)
+        normalized.loc[short] = text.loc[short].str.zfill(4).str.ljust(width, "0")
+        return normalized
+    return text.str.zfill(width)
+
+
+def geoid(df: pd.DataFrame, cols: tuple, year: int) -> pd.Series:
     widths = {
         "state": 2,
         "county": 3,
@@ -192,15 +220,79 @@ def geoid(df: pd.DataFrame, cols: tuple) -> pd.Series:
     }
     out = pd.Series([""] * len(df), index=df.index)
     for col in cols:
-        out = out + df[col].astype(str).str.zfill(widths[col])
+        out = out + normalized_geoid_part(df, col, widths[col], year)
     return out
+
+
+def fetch_county_scoped_census_rows(
+    table,
+    variables: List[str],
+    config: dict,
+    state: str,
+    progress: bool = True,
+) -> list:
+    counties = table.get(
+        ["NAME"],
+        geo={"for": "county:*", "in": f"state:{state}"},
+    )
+    rows = []
+    for index, county in enumerate(counties, start=1):
+        county_fips = county["county"]
+        if progress:
+            print(
+                f"  state {state} county {county_fips} ({index}/{len(counties)})",
+                flush=True,
+            )
+        rows.extend(
+            table.get(
+                variables,
+                geo={
+                    "for": config["census_for"],
+                    "in": f"state:{state} county:{county_fips} tract:*",
+                },
+            )
+        )
+    return rows
+
+
+def fetch_census_state_rows(
+    table,
+    variables: List[str],
+    config: dict,
+    state: str,
+    progress: bool = True,
+) -> list:
+    if config["label"] == "blocks":
+        return fetch_county_scoped_census_rows(
+            table, variables, config, state, progress=progress
+        )
+
+    geo = {
+        "for": config["census_for"],
+        "in": config["census_in"].format(state=state),
+    }
+    if config["label"] == "block_groups":
+        try:
+            return table.get(variables, geo=geo)
+        except CensusException as exc:
+            if progress:
+                print(
+                    "  state-wide block group query failed; "
+                    f"falling back to county-by-county: {exc}",
+                    flush=True,
+                )
+            return fetch_county_scoped_census_rows(
+                table, variables, config, state, progress=progress
+            )
+
+    return table.get(variables, geo=geo)
 
 
 def fetch_census(year: int, level: str, states: List[str], output_dir: Path) -> Path:
     if year not in CENSUS_COLUMNS:
         raise ValueError(f"{year} is not configured for the Census API path.")
 
-    api_key = os.environ["CENSUS_API_KEY"]
+    api_key = require_env("CENSUS_API_KEY")
     census = Census(key=api_key, year=year)
     config = LEVELS[level]
 
@@ -214,40 +306,18 @@ def fetch_census(year: int, level: str, states: List[str], output_dir: Path) -> 
 
     rows = []
     for state in states:
-        if config["label"] in ("blocks", "block_groups"):
-            counties = table.get(
-                ["NAME"],
-                geo={"for": "county:*", "in": f"state:{state}"},
-            )
-            for county in counties:
-                rows.extend(
-                    table.get(
-                        variables,
-                        geo={
-                            "for": config["census_for"],
-                            "in": (
-                                f"state:{state} county:{county['county']} tract:*"
-                            ),
-                        },
-                    )
-                )
-        else:
-            rows.extend(
-                table.get(
-                    variables,
-                    geo={
-                        "for": config["census_for"],
-                        "in": config["census_in"].format(state=state),
-                    },
-                )
-            )
+        print(
+            f"Fetching {year} {config['label']} population for state {state}",
+            flush=True,
+        )
+        rows.extend(fetch_census_state_rows(table, variables, config, state))
 
     if not rows:
         raise ValueError(f"Census returned no rows for {year} {config['label']}.")
 
     df = pd.DataFrame(rows).rename(columns=columns)
     df.insert(0, "YEAR", year)
-    df.insert(1, "GEOID", geoid(df, config["geoid_cols"]))
+    df.insert(1, "GEOID", geoid(df, config["geoid_cols"], year))
 
     population_cols = list(columns.values())
     df[population_cols] = df[population_cols].astype(int)
@@ -273,7 +343,7 @@ def fetch_nhgis(year: int, level: str, output_dir: Path, work_dir: Path) -> Path
             f"{year} {dataset['dataset']} does not support {config['label']}."
         )
 
-    api_key = os.environ["IPUMS_API_KEY"]
+    api_key = require_env("IPUMS_API_KEY")
     client = IpumsApiClient(api_key)
 
     extract = AggregateDataExtract(
@@ -291,10 +361,18 @@ def fetch_nhgis(year: int, level: str, output_dir: Path, work_dir: Path) -> Path
     )
 
     submitted = client.submit_extract(extract)
+    print(
+        f"Waiting for NHGIS {year} {config['label']} population extract",
+        flush=True,
+    )
     client.wait_for_extract(submitted, timeout=10800)
 
     work_dir.mkdir(parents=True, exist_ok=True)
     existing_zips = set(work_dir.glob("*.zip"))
+    print(
+        f"Downloading NHGIS {year} {config['label']} population extract",
+        flush=True,
+    )
     client.download_extract(submitted, download_dir=work_dir)
 
     zip_files = sorted(
@@ -327,10 +405,11 @@ def fetch_nhgis(year: int, level: str, output_dir: Path, work_dir: Path) -> Path
 
 def main(
     level: str = typer.Option("tracts", help="tracts, block_groups, blocks, or counties"),
-    years: Optional[List[int]] = typer.Option(None, "--year", "-y"),
+    years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."),
+    year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
     states: Optional[str] = typer.Option(None, help="Comma-separated state FIPS codes"),
     output_dir: Path = typer.Option(OUTPUT_DIR),
-    work_dir: Path = typer.Option(Path("census_raw/ipums_extracts")),
+    work_dir: Path = typer.Option(NHGIS_EXTRACTS_DIR),
     env_file: Path = typer.Option(Path(".env")),
 ) -> None:
     load_dotenv(env_file)
@@ -338,7 +417,7 @@ def main(
     if level not in LEVELS:
         raise ValueError(f"Unsupported level {level}. Use one of: {sorted(LEVELS)}")
 
-    run_years = years or [1980, 1990, 2000, 2010, 2020]
+    run_years = parse_years(years, year_values)
     state_fips = selected_states(states)
 
     for year in run_years:
