@@ -11,17 +11,35 @@ import functools
 import sys
 
 
+def study_area_code_from_filename(filename: str) -> str:
+    output_stem = os.path.basename(filename)
+    if "_in_" not in output_stem or "_vintage" not in output_stem:
+        parts = output_stem.split("_")
+        return parts[1] if len(parts) > 1 else output_stem
+
+    output_stem = output_stem.split("_vintage", 1)[0]
+    study_area_and_dates = output_stem.split("_in_", 1)[-1]
+    study_area_identity = study_area_and_dates.rsplit("_", 3)[0]
+    return study_area_identity.rsplit("_", 1)[-1]
+
+
 def main(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
     try:
         run_metrics(filename, x_col, y_col, tot_col, headers_only)
     except ZeroDivisionError as e:
-        with open("outputs/metric_failures.csv", "a+") as f:
+        metric_failures_file = os.environ.get(
+            "METRIC_FAILURES_FILE", "outputs/metric_failures.csv"
+        )
+        metric_failures_dir = os.path.dirname(metric_failures_file)
+        if metric_failures_dir:
+            os.makedirs(metric_failures_dir, exist_ok=True)
+        with open(metric_failures_file, "a+") as f:
             f.seek(0, os.SEEK_END)
             if f.tell() == 0:
                 print("filename,cbsa_code,error", file=f)
-            print(f"{filename},{os.path.basename(filename).split('_')[1]},{e}", file=f)
+            print(f"{filename},{study_area_code_from_filename(filename)},{e}", file=f)
         print(filename, e, file=sys.stderr)
 
 
