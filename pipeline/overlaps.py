@@ -5,6 +5,7 @@ import geopandas as gpd
 import sys
 from pathlib import Path
 
+
 # for flexibility with different versions of geopandas
 def union_geometry(gdf: gpd.GeoDataFrame):
     geometry = gdf.geometry
@@ -13,35 +14,72 @@ def union_geometry(gdf: gpd.GeoDataFrame):
     return geometry.unary_union
 
 
-def main(tracts_file: str, cbsa_glob: str, output_dir: str, prefix: str = ""):
+def output_stem(
+    study_area_file: str,
+    prefix: str,
+    census_geography_type: str,
+    census_geography_year: str,
+    definition_vintage: str,
+) -> str:
+    study_area_stem = Path(study_area_file).stem
+    if census_geography_type and census_geography_year and definition_vintage:
+        vintage_suffix = f"_{definition_vintage}"
+        if not study_area_stem.endswith(vintage_suffix):
+            raise ValueError(
+                f"{study_area_file} does not end with vintage {definition_vintage}"
+            )
+        study_area_identity = study_area_stem.removesuffix(vintage_suffix)
+        return (
+            f"{prefix}{census_geography_type}_in_{study_area_identity}_"
+            f"{census_geography_year}_{definition_vintage}_vintage"
+        )
+    return f"{prefix}{study_area_stem}_geographies"
+
+
+def main(
+    census_geographies_file: str,
+    study_area_glob: str,
+    output_dir: str,
+    prefix: str = "",
+    census_geography_type: str = "",
+    census_geography_year: str = "",
+    definition_vintage: str = "",
+):
     """
-    Writes tracts whose representative points fall within each CBSA.
+    Writes census geographies whose representative points fall within each study area.
     """
-    tracts_gdf = gpd.read_file(tracts_file)
-    tract_points = tracts_gdf.geometry.representative_point()
-    all_tracts_area = union_geometry(tracts_gdf).area
+    census_geographies = gpd.read_file(census_geographies_file)
+    geography_points = census_geographies.geometry.representative_point()
+    all_geographies_area = union_geometry(census_geographies).area
 
-    for cbsa_file in tqdm.tqdm(sorted(glob.glob(cbsa_glob))):
-        cbsa_gdf = gpd.read_file(cbsa_file).to_crs(tracts_gdf.crs)
-        cbsa_boundary = union_geometry(cbsa_gdf)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    for study_area_file in tqdm.tqdm(sorted(glob.glob(study_area_glob))):
+        study_area_gdf = gpd.read_file(study_area_file).to_crs(census_geographies.crs)
+        study_area_boundary = union_geometry(study_area_gdf)
 
-        tract_indices = tract_points.sindex.query(
-            cbsa_boundary, predicate="covers")
-        cbsa_tracts = tracts_gdf.iloc[sorted(tract_indices)]
+        geography_indices = geography_points.sindex.query(
+            study_area_boundary, predicate="covers")
+        selected_geographies = census_geographies.iloc[sorted(geography_indices)]
 
-        if len(cbsa_tracts) != 0:
-            cbsa_name = Path(cbsa_file).stem
-            cbsa_tracts.to_file(
-                f"{output_dir}/{prefix}{cbsa_name}_cbsa_tracts.shp")
-            cbsa_tracts_area = union_geometry(cbsa_tracts).area
+        if len(selected_geographies) != 0:
+            selected_geographies_stem = output_stem(
+                study_area_file,
+                prefix,
+                census_geography_type,
+                census_geography_year,
+                definition_vintage,
+            )
+            selected_geographies.to_file(
+                f"{output_dir}/{selected_geographies_stem}.shp")
+            selected_area = union_geometry(selected_geographies).area
             print(
-                f"{tracts_file}, {cbsa_file}, {all_tracts_area}, "
-                f"{cbsa_tracts_area}, {cbsa_tracts_area/all_tracts_area}")
+                f"{census_geographies_file}, {study_area_file}, {all_geographies_area}, "
+                f"{selected_area}, {selected_area/all_geographies_area}")
         else:
             print(
                 "empty overlaps computed:",
-                tracts_file,
-                cbsa_file,
+                census_geographies_file,
+                study_area_file,
                 output_dir,
                 file=sys.stderr)
 
