@@ -12,6 +12,7 @@ POPULATION_SUM_COLS = ("WHITE", "BLACK", "TOTPOP", "POC")
 
 def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
+    shp = shp.tocrs("esri:102003") #so distances are in meters
 
     # ignore warning about NA values in population columns. These are fine.
     warnings.filterwarnings("ignore", message=".*NA values found in column.*")
@@ -27,6 +28,13 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
     except:
         shp["geometry"] = shp["geometry"].buffer(0)
         graph = gerrychain.Graph.from_geodataframe(shp)
+
+
+    centroids = shp.geometry.centroid
+
+    for idx in shp.index:
+        graph.nodes[idx]["centroid_x"] = centroids.loc[idx].x
+        graph.nodes[idx]["centroid_y"] = centroids.loc[idx].y
 
     graph.to_json(output_orig)
 
