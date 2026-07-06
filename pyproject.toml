@@ -3,17 +3,22 @@ name = "capy"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
+package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.9"
-pandas = "^1.4.3"
-geopandas = "^0.11.0"
+python = ">=3.10,<4.0"
+pandas = "^2.2.3"
+geopandas = "^1.0"
+fiona = "^1.10"
+shapely = "^2.0"
 us = "^2.0.2"
 pydantic = "^1.9.1"
 xlrd = "^2.0.1"
-typer-cli = "^0.0.12"
+typer = "^0.16.0"
 tqdm = "^4.64.0"
-Rtree = "^1.0.0"
+Rtree = "^1.4"
+census = "^0.8.27"
+ipumspy = {version = "^0.8.2", python = ">=3.10,<4.0"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"

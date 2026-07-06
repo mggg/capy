@@ -37,7 +37,7 @@ def create_diverse_grids():
 
 def create_diverse_graphs():
     yield from create_diverse_grids()
-    for filename in glob.glob("cbsas/**/*connected.json"):
+    for filename in glob.glob("study_areas/**/*connected.json"):
         yield gerrychain.Graph.from_json(filename)
 
 

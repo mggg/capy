@@ -3,20 +3,27 @@ import typer
 import warnings
 import gerrychain
 import networkx as nx
-from itertools import product
-import tqdm
-import functools
+from shapely.strtree import STRtree
 
 
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
-POPULATION_SUM_COLS = ("WHITE", "BLACK", "AMIN", "ASIAN", "2MORE", "TOTPOP", "POC")
+POPULATION_SUM_COLS = ("WHITE", "BLACK", "TOTPOP", "POC")
 
 
 def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
     shp = gpd.read_file(filename)
     shp = shp.tocrs("esri:102003") #so distances are in meters
 
-    try: #fixes invalid geometry, Chatgpt said .make_valid() is preferable to buffer.(0)
+    # ignore warning about NA values in population columns. These are fine.
+    warnings.filterwarnings("ignore", message=".*NA values found in column.*")
+
+    if shp.crs is None:
+        raise ValueError(f"Shapefile {filename} has no CRS defined. Please define a CRS before proceeding.")
+
+    utm_crs = shp.estimate_utm_crs()
+    shp = shp.to_crs(utm_crs)
+
+    try:
         graph = gerrychain.Graph.from_geodataframe(shp)
     except:
         shp["geometry"] = shp["geometry"].buffer(0)
@@ -107,7 +114,7 @@ def distance(shp: gpd.GeoDataFrame, geoid_1: str, geoid_2: str, attr: str = "GIS
 
 
 def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
-    distance_cache = {}
+    geom_by_geoid = dict(zip(shp[attr], shp.geometry))
     while nx.algorithms.components.number_connected_components(graph) != 1:
         print(
             "Connected components:",
@@ -129,27 +136,21 @@ def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str
 
             cc_geoids.append(geoids)
 
-        # Find shortest path, very inefficient O(n^2)
-        min_distance = None
-        min_pair = None
+        # Find the nearest pair between the two components using a spatial index.
         assert len(cc_geoids) == 2
-        for geoid_pair in tqdm.tqdm(
-            product(cc_geoids[0], cc_geoids[1]),
-            total=len(cc_geoids[0]) * len(cc_geoids[1]),
-        ):
-            geoid_1, geoid_2 = geoid_pair
-
-            if geoid_pair in distance_cache:
-                calc_distance = distance_cache[geoid_pair]
-            else:
-                calc_distance = distance(shp, geoid_1, geoid_2, attr)
-
-            distance_cache[geoid_pair] = calc_distance
-            distance_cache[tuple(reversed(geoid_pair))] = calc_distance
-
-            if min_distance is None or calc_distance < min_distance:
-                min_distance = calc_distance
-                min_pair = (geoid_1, geoid_2)
+        component_geoms = [geom_by_geoid[geoid] for geoid in cc_geoids[0]]
+        island_geoms = [geom_by_geoid[geoid] for geoid in cc_geoids[1]]
+        tree = STRtree(component_geoms)
+        pairs, distances = tree.query_nearest(
+            island_geoms,
+            return_distance=True,
+            all_matches=False,
+        )
+        assert len(distances) > 0
+        best_index = min(range(len(distances)), key=lambda index: distances[index])
+        island_index = pairs[0][best_index]
+        component_index = pairs[1][best_index]
+        min_pair = (cc_geoids[0][component_index], cc_geoids[1][island_index])
 
         assert min_pair is not None
         graph.add_edge(geoid_node_mapping[min_pair[0]], geoid_node_mapping[min_pair[1]])

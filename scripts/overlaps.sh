@@ -1,7 +1,22 @@
-echo "filename, target_name, source_area, overlap_area, overlap_percentage" > outputs/coverage_stats.csv
-python pipeline/overlaps.py processed/2020_tracts.shp 'cbsas/defs/*.shp' cbsas/2020 >> outputs/coverage_stats.csv
-python pipeline/overlaps.py processed/2010_tracts.shp 'cbsas/defs/*.shp' cbsas/2010 >> outputs/coverage_stats.csv
-python pipeline/overlaps.py processed/2000_tracts.shp 'cbsas/defs/*.shp' cbsas/2000 >> outputs/coverage_stats.csv
-python pipeline/overlaps.py processed/1990_tracts.shp 'cbsas/defs/*.shp' cbsas/1990 >> outputs/coverage_stats.csv
-python pipeline/overlaps.py processed/1980_tracts.shp 'cbsas/defs/*.shp' cbsas/1980 >> outputs/coverage_stats.csv
-python pipeline/overlaps.py processed/1970_tracts.shp 'cbsas/defs/*.shp' cbsas/1970 >> outputs/coverage_stats.csv
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+. scripts/pipeline_config.sh
+
+COVERAGE_STATS_FILE="${RUN_OUTPUT_DIR}/coverage_stats.csv"
+
+mkdir -p "${RUN_OUTPUT_DIR}"
+
+echo "filename, target_name, source_area, overlap_area, overlap_percentage" > "${COVERAGE_STATS_FILE}"
+
+parallel --bar --keep-order \
+    "mkdir -p \"study_areas/{}\" && python pipeline/overlaps.py \
+        \"census_geographies/{}_${CENSUS_GEOGRAPHY_TYPE}.shp\" \
+        \"study_areas/definitions/${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}.shp\" \
+        \"study_areas/{}\" \
+        --census-geography-type \"${CENSUS_GEOGRAPHY_TYPE}\" \
+        --census-geography-year \"{}\" \
+        --definition-vintage \"${STUDY_AREA_DEFINITION_VINTAGE}\"" \
+    ::: ${CENSUS_GEOGRAPHY_YEARS} \
+    >> "${COVERAGE_STATS_FILE}"

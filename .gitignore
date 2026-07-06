@@ -170,6 +170,9 @@ cython_debug/
 /nhgis/
 /processed/
 /cbsas/
+/census_geographies/
+/study_areas/
 /figures/
 /new-york-swaps/
 /outputs/
+/census_raw/
