@@ -31,34 +31,39 @@ year_list_contains() {
     return 1
 }
 
+calculate_csv() {
+    local output_file="$1"; shift
+    python pipeline/calculate_metrics.py "" "$@" --headers-only > "${output_file}"
+    for year in ${CENSUS_GEOGRAPHY_YEARS}; do
+        find "study_areas/${year}" -type f \
+            -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
+            parallel --bar python pipeline/calculate_metrics.py {} "$@" >> "${output_file}"
+    done
+}
+
 # Set up folder structure.
 bash scripts/setup.sh
 
+# Save a log of the run configuration
 RUN_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 export METRIC_FAILURES_FILE="${RUN_OUTPUT_DIR}/metric_failures.csv"
 {
-    echo "start_timestamp=${RUN_STARTED_AT}"
     echo "run_name=${RUN_NAME}"
-    echo "run_output_dir=${RUN_OUTPUT_DIR}"
+    echo "start_timestamp=${RUN_STARTED_AT}"
     echo ""
     echo "graph_area_type=${STUDY_AREA_TYPE}"
     echo "nodes_area_type=${CENSUS_GEOGRAPHY_TYPE}"
     echo ""
-    echo "study_area_vintage=${STUDY_AREA_VINTAGE}"
-    echo "study_area_definition_vintage=${STUDY_AREA_DEFINITION_VINTAGE}"
     echo "study_area_source_file=${STUDY_AREA_SOURCE_FILE:-}"
-    echo "study_area_definition_geography_type=${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}"
-    echo "study_area_definition_geography_year=${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
-    echo "study_area_definition_geographies=${STUDY_AREA_DEFINITION_GEOGRAPHIES}"
-    echo "study_area_definition_glob=study_areas/definitions/${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}.shp"
     echo ""
     echo "census_geography_years=${CENSUS_GEOGRAPHY_YEARS}"
-    echo "reference_census_geography_year=${REFERENCE_CENSUS_GEOGRAPHY_YEAR}"
-    echo "reference_overlap=${REFERENCE_OVERLAP}"
+
 } > "${RUN_OUTPUT_DIR}/run.log"
 
 # Download and join population values to census geography shapefiles.
 build_geography_inputs "${CENSUS_GEOGRAPHY_TYPE}" "${CENSUS_GEOGRAPHY_YEARS}"
+# Only download study-area-definition geographies separately when they differ from
+# the census geography type/year already fetched above (avoids a redundant download).
 if [ "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" != "${CENSUS_GEOGRAPHY_TYPE}" ] ||
     ! year_list_contains "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}" ${CENSUS_GEOGRAPHY_YEARS}; then
     build_geography_inputs \
@@ -80,28 +85,14 @@ for year in ${CENSUS_GEOGRAPHY_YEARS}; do
 done |
     parallel --bar python pipeline/gen_duals.py {} {.}_orig.json {.}_connected.json
 
-# Calculate metrics, but first generate headers.
-python pipeline/calculate_metrics.py "study_areas/${REFERENCE_CENSUS_GEOGRAPHY_YEAR}/${REFERENCE_OVERLAP}_connected.json" BLACK WHITE TOTPOP --headers-only > "${RUN_OUTPUT_DIR}/white_black.csv"
-for year in ${CENSUS_GEOGRAPHY_YEARS}; do
-    find "study_areas/${year}" \
-        -type f \
-        -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
-        parallel --bar python pipeline/calculate_metrics.py {} BLACK WHITE TOTPOP >> "${RUN_OUTPUT_DIR}/white_black.csv"
-done
-
-python pipeline/calculate_metrics.py "study_areas/${REFERENCE_CENSUS_GEOGRAPHY_YEAR}/${REFERENCE_OVERLAP}_connected.json" POC WHITE TOTPOP --headers-only > "${RUN_OUTPUT_DIR}/white_poc.csv"
-for year in ${CENSUS_GEOGRAPHY_YEARS}; do
-    find "study_areas/${year}" \
-        -type f \
-        -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
-        parallel --bar python pipeline/calculate_metrics.py {} POC WHITE TOTPOP >> "${RUN_OUTPUT_DIR}/white_poc.csv"
-done
+# Calculate metrics.
+calculate_csv "${RUN_OUTPUT_DIR}/white_black.csv" BLACK WHITE TOTPOP
+calculate_csv "${RUN_OUTPUT_DIR}/white_poc.csv"   POC   WHITE TOTPOP
 
 # Generate figures under the configured run output. The figure script enriches
 # raw metric CSVs with study-area metadata as needed.
-python pipeline/generate_figures.py \
-    --filename "${RUN_OUTPUT_DIR}/white_poc.csv" \
-    --prefix "white_poc_${OUTPUT_SUFFIX}"
-python pipeline/generate_figures.py \
-    --filename "${RUN_OUTPUT_DIR}/white_black.csv" \
-    --prefix "white_black_${OUTPUT_SUFFIX}"
+for metric in white_black white_poc; do
+    python pipeline/generate_figures.py \
+        --filename "${RUN_OUTPUT_DIR}/${metric}.csv" \
+        --prefix "${metric}_${OUTPUT_SUFFIX}"
+done

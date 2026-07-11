@@ -420,10 +420,21 @@ def main(
     run_years = parse_years(years, year_values)
     state_fips = selected_states(states)
 
+    config = LEVELS[level]
     for year in run_years:
         if year in NHGIS_DATASETS:
+            output_path = output_dir / f"nhgis_{year}_{config['label']}.csv"
+            if output_path.exists():
+                print(f"Skipping existing {output_path}", flush=True)
+                print(output_path)
+                continue
             path = fetch_nhgis(year, level, output_dir, work_dir / str(year))
         elif year in CENSUS_COLUMNS:
+            output_path = output_dir / f"census_{year}_{config['label']}.csv"
+            if output_path.exists():
+                print(f"Skipping existing {output_path}", flush=True)
+                print(output_path)
+                continue
             path = fetch_census(year, level, state_fips, output_dir)
         else:
             raise ValueError(f"No source is configured for {year}")
