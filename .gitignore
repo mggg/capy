@@ -164,7 +164,7 @@ cython_debug/
 #.idea/
 
 # macOS
-.DS_Store
+**/.DS_Store
 
 # Project data and generated files
 /nhgis/
