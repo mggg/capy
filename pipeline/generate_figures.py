@@ -1,14 +1,40 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import pandas as pd
-import seaborn as sns
 import typer
 
 try:
     from .parse_output import enrich_metrics
 except ImportError:
     from parse_output import enrich_metrics
+
+# Okabe-Ito colorblind-safe palette, extended to 10
+PALETTE = [
+    "#0072b2",  # blue
+    "#e69f00",  # amber
+    "#009e73",  # green
+    "#cc79a7",  # mauve
+    "#56b4e9",  # sky
+    "#d55e00",  # vermillion
+    "#f0e442",  # yellow
+    "#000000",  # black
+    "#999999",  # gray
+    "#44aa99",  # teal
+]
+
+GRID_METRICS = {
+    "moran_P": "Moran's I (P Matrix)",
+    "dissimilarity_1": "Dissimilarity",
+    "half_edge_1": "Half Edge (λ=1)",
+}
+
+
+def _short_name(cbsa_title: str) -> str:
+    """'Atlanta-Sandy Springs-Alpharetta, GA' → 'Atlanta, GA'"""
+    city_part, _, state = cbsa_title.rpartition(", ")
+    return f"{city_part.split('-')[0]}, {state}"
 
 
 METRICS = ["e_assort",
@@ -87,8 +113,7 @@ METRICS = ["e_assort",
             "half_edge_exact_lim",
             "dissimilarity_1",
             "dissimilarity_2",	
-            "dissimilarity_10",	
-            "frey",	
+            "dissimilarity_10",
             "gini",	
             "moran_A",	
             "moran_P",	
@@ -97,12 +122,188 @@ METRICS = ["e_assort",
             "moran_D_1",
             "moran_D_2"
             "moran_A_white",	
-            "moran_P_white",	
+            "moran_P_white",
             "moran_L_white",
             "moran_M_white",
             "moran_D_1_white",
             "moran_D_2_white"
             ]
+
+def _apply_panel_style(ax, years: list, ylim: tuple) -> None:
+    """Apply shared panel style: background, gridlines, spines, ticks, y-limits."""
+    BG_PANEL = "#ececec"
+    ax.set_facecolor(BG_PANEL)
+    ax.set_box_aspect(1)
+    ax.grid(axis="y", color="white", linewidth=1.3, zorder=0)
+    ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
+    ax.tick_params(length=0, labelsize=8, labelcolor="#444444")
+    ax.set_xticks(years)
+    ax.set_xticklabels([str(y) for y in years], fontsize=8)
+    ax.set_xlabel("Census year", fontsize=8, color="#555555", labelpad=4)
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+
+
+def plot_grid_top10(
+    df: pd.DataFrame,
+    prefix: str,
+    month_year: str,
+    output_dir: Path,
+    n: int = 10,
+) -> None:
+    BG = "#fafafa"
+    month_year_df = df[df["definition_month_year"] == month_year]
+    top_n_metros = list(month_year_df["cbsa_title"].drop_duplicates()[:n])
+    plot_df = (
+        month_year_df[month_year_df["cbsa_title"].isin(top_n_metros)]
+        .sort_values(["cbsa_title", "year"])
+    )
+
+    available = [m for m in GRID_METRICS if m in plot_df.columns]
+    if not available:
+        return
+
+    color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
+    years = sorted(plot_df["year"].unique())
+    n_cols = len(available)
+
+    fig, axes = plt.subplots(1, n_cols, figsize=(5 * n_cols, 5), facecolor=BG, sharey=False)
+    if n_cols == 1:
+        axes = [axes]
+
+    for ax, metric in zip(axes, available):
+        # _apply_panel_style(ax, years, (0.4, 0.9))
+        _apply_panel_style(ax, years, None)
+        ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
+        for cbsa in top_n_metros:
+            cbsa_df = plot_df[plot_df["cbsa_title"] == cbsa]
+            ax.plot(
+                cbsa_df["year"], cbsa_df[metric],
+                color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
+            )
+
+    pair_label = "White–Black" if "black" in prefix else "White–POC"
+    fig.suptitle(
+        f"Segregation over time: {pair_label}",
+        fontsize=14, fontweight="bold", color="#111111", y=1.04,
+    )
+    fig.text(
+        0.5, 0.97,
+        f"Top {n} U.S. metros by 2020 population · Census tracts within CBSAs",
+        ha="center", fontsize=9, color="#555555",
+    )
+
+    handles = [
+        plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(c))
+        for c in top_n_metros
+    ]
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        ncol=min(5, len(top_n_metros)),
+        bbox_to_anchor=(0.5, -0.13),
+        frameon=False,
+        fontsize=8,
+        handlelength=1.5,
+        columnspacing=1.0,
+        labelcolor="#333333",
+    )
+    fig.text(
+        0.5, -0.22,
+        "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
+        "Sources: Decennial census via Census API and NHGIS; Census Bureau TIGER/Line shapefiles.",
+        ha="center", fontsize=7, color="#383838", linespacing=1.6,
+    )
+
+    grid_dir = output_dir / "grid_lineplots"
+    grid_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        grid_dir / f"{prefix}_top10.png",
+        dpi=150, bbox_inches="tight", facecolor=BG,
+    )
+    plt.close(fig)
+
+
+def plot_grid_all(
+    df: pd.DataFrame,
+    prefix: str,
+    month_year: str,
+    output_dir: Path,
+) -> None:
+    BG = "#fafafa"
+    month_year_df = df[df["definition_month_year"] == month_year]
+
+    available = [m for m in GRID_METRICS if m in month_year_df.columns]
+    if not available:
+        return
+
+    years = sorted(month_year_df["year"].unique())
+    all_cbsas = month_year_df["cbsa_title"].unique()
+
+    yearly_mean = month_year_df.groupby("year")[list(available)].mean().reindex(years)
+
+    n_cols = len(available)
+    fig, axes = plt.subplots(1, n_cols, figsize=(5 * n_cols, 5), facecolor=BG, sharey=False)
+    if n_cols == 1:
+        axes = [axes]
+
+    for ax, metric in zip(axes, available):
+        _apply_panel_style(ax, years, None)
+        ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
+
+        for cbsa in all_cbsas:
+            cbsa_df = month_year_df[month_year_df["cbsa_title"] == cbsa].sort_values("year")
+            ax.plot(
+                cbsa_df["year"], cbsa_df[metric],
+                color="#aaaaaa", linewidth=0.7, alpha=0.4, zorder=1,
+            )
+        ax.plot(
+            yearly_mean.index, yearly_mean[metric],
+            color="#0072b2", linewidth=2.4, marker="o", markersize=5, zorder=3,
+        )
+
+    pair_label = "White–Black" if "black" in prefix else "White–POC"
+    fig.suptitle(
+        f"Segregation over time: {pair_label}",
+        fontsize=14, fontweight="bold", color="#111111", y=1.04,
+    )
+    fig.text(
+        0.5, 0.95,
+        f"All U.S. CBSAs · Census tracts in CBSAs · Mean across all CBSAs in blue",
+        ha="center", fontsize=9, color="#555555",
+    )
+
+    handles = [
+        plt.Line2D([0], [0], color="#aaaaaa", linewidth=1.5, alpha=0.6, label="Individual CBSA"),
+        plt.Line2D([0], [0], color="#0072b2", linewidth=2.4, marker="o", markersize=5, label="Mean across all CBSAs"),
+    ]
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        ncol=2,
+        bbox_to_anchor=(0.5, -0.08),
+        frameon=False,
+        fontsize=8,
+        handlelength=1.5,
+        columnspacing=1.5,
+        labelcolor="#333333",
+    )
+    fig.text(
+        0.5, -0.16,
+        "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
+        "Sources: Decennial census via Census API and NHGIS; Census Bureau TIGER/Line shapefiles.",
+        ha="center", fontsize=7, color="#383838", linespacing=1.6,
+    )
+
+    grid_dir = output_dir / "grid_lineplots"
+    grid_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        grid_dir / f"{prefix}_all_cbsa.png",
+        dpi=150, bbox_inches="tight", facecolor=BG,
+    )
+    plt.close(fig)
+
 
 def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
     required = {"definition_month_year", "year", "cbsa_title", "total_population_2020"}
@@ -118,34 +319,76 @@ def main(
 ):
     output_dir = Path(filename).parent / "figures"
     output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "lineplots").mkdir(exist_ok=True)
 
     df = ensure_metadata(pd.read_csv(filename))
     df = df.sort_values("total_population_2020", ascending=False)
 
+    BG = "#fafafa"
+    pair_label = "White–Black" if "black" in prefix else "White–POC"
+
     for month_year in set(df["definition_month_year"]):
         month_year_df = df[df["definition_month_year"] == month_year]
+        # vintage_label = month_year.replace("_", " ").title()
 
-        top_n_metros = set(month_year_df["cbsa_title"].drop_duplicates()[:n])
+        top_n_metros = list(month_year_df["cbsa_title"].drop_duplicates()[:n])
         top_n_df = month_year_df[
-            month_year_df["cbsa_title"].apply(lambda x: x in top_n_metros)
+            month_year_df["cbsa_title"].isin(top_n_metros)
         ].sort_values(["cbsa_title", "year"])
 
-        sns.set_theme(rc={"figure.figsize": (10, 4)})
+        color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
+        years = sorted(top_n_df["year"].unique())
+
         for metric in METRICS:
             if metric not in top_n_df.columns:
                 continue
-            ax = sns.lineplot(
-                data=top_n_df,
-                y=metric,
-                x="year",
-                hue="cbsa_title",
-                legend=True,
+
+            fig, ax = plt.subplots(figsize=(6, 6), facecolor=BG)
+            _apply_panel_style(ax, years, None)
+
+            for cbsa in top_n_metros:
+                cbsa_df = top_n_df[top_n_df["cbsa_title"] == cbsa]
+                ax.plot(
+                    cbsa_df["year"], cbsa_df[metric],
+                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
+                )
+
+            display_label = GRID_METRICS.get(metric, metric.replace("_", " ").title())
+            ax.set_title(display_label, fontsize=13, fontweight="bold", pad=10, color="#111111")
+            fig.suptitle(
+                f"Segregation over time: {pair_label}",
+                fontsize=14, fontweight="bold", color="#111111", y=1.04,
             )
-            ax.set_xticks(sorted(top_n_df["year"].unique()))
-            plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-            plt.tight_layout()
-            plt.savefig(output_dir / f"{prefix}_{month_year}_{metric}.png")
-            plt.close()
+            fig.text(
+                0.5, 0.99,
+                f"Top {n} U.S. metros by 2020 population · Census tracts in CBSAs",
+                ha="center", fontsize=9, color="#555555",
+            )
+
+            handles = [
+                plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(c))
+                for c in top_n_metros
+            ]
+            fig.legend(
+                handles=handles,
+                loc="lower center",
+                ncol=min(5, len(top_n_metros)),
+                bbox_to_anchor=(0.5, -0.1),
+                frameon=False,
+                fontsize=8,
+                handlelength=1.5,
+                columnspacing=1.0,
+                labelcolor="#333333",
+            )
+
+            fig.savefig(
+                output_dir / "lineplots" / f"{prefix}_{metric}.png",
+                dpi=150, bbox_inches="tight", facecolor=BG,
+            )
+            plt.close(fig)
+
+        plot_grid_top10(df, prefix, month_year, output_dir, n)
+        plot_grid_all(df, prefix, month_year, output_dir)
 
 
 if __name__ == "__main__":
