@@ -53,13 +53,12 @@ def _build_metric_labels() -> dict:
     labels.update({
         "e_assort": ("Assortativity", "Edge"),
         "he_assort": ("Assortativity", "Half-edge"),
-        "frey": ("Frey Index", ""),
         "gini": ("Gini Coefficient", ""),
     })
     for suffix, subtitle in [
         ("A", "Adjacency"), ("P", "Adjacency normalized (P-matrix)"),
         ("L", "Laplacian"), ("M", "Metropolis (M-matrix)"),
-        ("D_1", "Degree-weighted (d=1)"), ("D_2", "Degree-weighted (d=2)"),
+        ("D_1", "Inverse distance"), ("D_2", "Inverse distance squared"),
     ]:
         labels[f"moran_{suffix}"] = ("Moran's I", subtitle)
         labels[f"moran_{suffix}_white"] = ("Moran's I (White)", subtitle)
