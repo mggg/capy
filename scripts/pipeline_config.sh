@@ -31,6 +31,18 @@ case "${CENSUS_GEOGRAPHY_TYPE}" in
         ;;
 esac
 
+if [ "${CENSUS_GEOGRAPHY_TYPE}" = "block_groups" ]; then
+    filtered_years=""
+    for y in ${CENSUS_GEOGRAPHY_YEARS}; do
+        if [ "${y}" = "1980" ]; then
+            echo "Warning: Skipping 1980 for CENSUS_GEOGRAPHY_TYPE=block_groups — NHGIS does not publish 1980 block group boundary shapefiles." >&2
+        else
+            filtered_years="${filtered_years:+${filtered_years} }${y}"
+        fi
+    done
+    CENSUS_GEOGRAPHY_YEARS="${filtered_years}"
+fi
+
 STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE:-counties}"
 
 case "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" in
