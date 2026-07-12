@@ -18,7 +18,7 @@ PALETTE = [
     "#cc79a7",  # mauve
     "#56b4e9",  # sky
     "#d55e00",  # vermillion
-    "#f0e442",  # yellow
+    "#c3ba32",  # yellow
     "#000000",  # black
     "#999999",  # gray
     "#44aa99",  # teal
@@ -29,6 +29,42 @@ GRID_METRICS = {
     "dissimilarity_1": "Dissimilarity",
     "half_edge_1": "Half Edge (λ=1)",
 }
+
+
+def _build_metric_labels() -> dict:
+    lam_display = {"0": "λ=0", "0.5": "λ=0.5", "1": "λ=1", "2": "λ=2", "10": "λ=10", "lim": "λ=∞"}
+    bases = {
+        "skew_self":   "Skew (self)",
+        "skew_other":  "Skew (other)",
+        "edge":        "Edge",
+        "skew'_self":  "Skew′ (self)",
+        "skew'_other": "Skew′ (other)",
+        "half_edge":   "Half Edge",
+    }
+    labels = {}
+    for lam, lam_label in lam_display.items():
+        for base, title in bases.items():
+            labels[f"{base}_{lam}"] = (title, lam_label)
+            labels[f"{base}_exact_{lam}"] = (title, f"Exact counts; {lam_label}")
+    _dissim_labels = {1: "L1 norm (standard)", 2: "L2 norm", 10: "L10 norm"}
+    for p in [1, 2, 10]:
+        labels[f"dissimilarity_{p}"] = ("Dissimilarity", _dissim_labels[p])
+    labels.update({
+        "e_assort": ("Assortativity", "Edge"),
+        "he_assort": ("Assortativity", "Half-edge"),
+        "frey": ("Frey Index", ""),
+        "gini": ("Gini Coefficient", ""),
+    })
+    for suffix, subtitle in [
+        ("A", "Adjacency"), ("P", "Adjacency normalized (P-matrix)"),
+        ("L", "Laplacian"), ("M", "Metropolis (M-matrix)"),
+        ("D_1", "Degree-weighted (d=1)"), ("D_2", "Degree-weighted (d=2)"),
+    ]:
+        labels[f"moran_{suffix}"] = ("Moran's I", subtitle)
+        labels[f"moran_{suffix}_white"] = ("Moran's I (White)", subtitle)
+    return labels
+
+METRIC_LABELS = _build_metric_labels()
 
 
 def _short_name(cbsa_title: str) -> str:
@@ -173,7 +209,7 @@ def plot_grid_top10(
         axes = [axes]
 
     for ax, metric in zip(axes, available):
-        # _apply_panel_style(ax, years, (0.4, 0.9))
+        # _apply_panel_style(ax, years, (-1, 0.92))
         _apply_panel_style(ax, years, None)
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
         for cbsa in top_n_metros:
@@ -212,7 +248,7 @@ def plot_grid_top10(
     fig.text(
         0.5, -0.22,
         "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
-        "Sources: Decennial census via Census API and NHGIS; Census Bureau TIGER/Line shapefiles.",
+        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (1980-1990).",
         ha="center", fontsize=7, color="#383838", linespacing=1.6,
     )
 
@@ -292,7 +328,7 @@ def plot_grid_all(
     fig.text(
         0.5, -0.16,
         "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
-        "Sources: Decennial census via Census API and NHGIS; Census Bureau TIGER/Line shapefiles.",
+        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (1980-1990).",
         ha="center", fontsize=7, color="#383838", linespacing=1.6,
     )
 
@@ -303,6 +339,109 @@ def plot_grid_all(
         dpi=150, bbox_inches="tight", facecolor=BG,
     )
     plt.close(fig)
+
+
+def plot_family_grids(
+    df: pd.DataFrame,
+    prefix: str,
+    month_year: str,
+    output_dir: Path,
+    n: int = 10,
+    n_cols: int = 6,
+) -> None:
+    BG = "#fafafa"
+    month_year_df = df[df["definition_month_year"] == month_year]
+    top_n_metros = list(month_year_df["cbsa_title"].drop_duplicates()[:n])
+    plot_df = (
+        month_year_df[month_year_df["cbsa_title"].isin(top_n_metros)]
+        .sort_values(["cbsa_title", "year"])
+    )
+
+    color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
+    years = sorted(plot_df["year"].unique())
+    pair_label = "White–Black" if "black" in prefix else "White–POC"
+
+    # Group available metrics by family title from METRIC_LABELS.
+    families: dict = {}
+    for metric in METRICS:
+        if metric not in plot_df.columns:
+            continue
+        title, subtitle = METRIC_LABELS.get(metric, (metric.replace("_", " ").title(), ""))
+        families.setdefault(title, []).append((metric, subtitle))
+
+    family_dir = output_dir / "metric_family_grids"
+    family_dir.mkdir(parents=True, exist_ok=True)
+
+    handles = [
+        plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(c))
+        for c in top_n_metros
+    ]
+
+    for family_title, members in families.items():
+        n_metrics = len(members)
+        cols = min(n_metrics, n_cols)
+        rows = (n_metrics + cols - 1) // cols
+
+        fig, axes = plt.subplots(
+            rows, cols,
+            figsize=(5 * cols, 5 * rows),
+            facecolor=BG,
+            sharey=False,
+            squeeze=False,
+        )
+
+        for idx, (metric, subtitle) in enumerate(members):
+            ax = axes[idx // cols][idx % cols]
+            _apply_panel_style(ax, years, None)
+            ax.set_title(
+                subtitle if subtitle else family_title,
+                fontsize=10, fontweight="bold", pad=8, color="#111111",
+            )
+            for cbsa in top_n_metros:
+                cbsa_df = plot_df[plot_df["cbsa_title"] == cbsa]
+                ax.plot(
+                    cbsa_df["year"], cbsa_df[metric],
+                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
+                )
+
+        for idx in range(n_metrics, rows * cols):
+            axes[idx // cols][idx % cols].set_visible(False)
+
+        SUPTITLE_Y = 1.02
+        fig.suptitle(
+            f"{family_title} · Segregation over time: {pair_label}",
+            fontsize=14, fontweight="bold", color="#111111", y=SUPTITLE_Y,
+        )
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            ncol=min(5, len(top_n_metros)),
+            bbox_to_anchor=(0.5, -0.03),
+            frameon=False,
+            fontsize=8,
+            handlelength=1.5,
+            columnspacing=1.0,
+            labelcolor="#333333",
+        )
+        # Anchor subtitle a constant 20pt below the suptitle centre, converting
+        # points → figure-fraction so it stays visually fixed across row counts.
+        subtitle_y = SUPTITLE_Y - 20 / (72 * fig.get_figheight())
+        fig.text(
+            0.5, subtitle_y,
+            f"Top {n} U.S. metros by 2020 population · Census tracts in CBSAs",
+            ha="center", va="top", fontsize=9, color="#555555",
+        )
+
+        safe_name = (
+            family_title.lower()
+            .replace("'", "").replace("(", "").replace(")", "")
+            .replace(" ", "_")
+        )
+        fig.savefig(
+            family_dir / f"{prefix}_{safe_name}.png",
+            dpi=150, bbox_inches="tight", facecolor=BG,
+        )
+        plt.close(fig)
 
 
 def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
@@ -353,14 +492,18 @@ def main(
                     color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
                 )
 
-            display_label = GRID_METRICS.get(metric, metric.replace("_", " ").title())
-            ax.set_title(display_label, fontsize=13, fontweight="bold", pad=10, color="#111111")
+            title, subtitle = METRIC_LABELS.get(metric, (metric.replace("_", " ").title(), ""))
+            ax.set_title(title, fontsize=13, fontweight="bold",
+                         pad=30 if subtitle else 10, color="#111111")
+            if subtitle:
+                ax.text(0.5, 1.04, subtitle, transform=ax.transAxes,
+                        ha="center", va="bottom", fontsize=9, color="#777777")
             fig.suptitle(
                 f"Segregation over time: {pair_label}",
-                fontsize=14, fontweight="bold", color="#111111", y=1.04,
+                fontsize=14, fontweight="bold", color="#111111", y=1.06,
             )
             fig.text(
-                0.5, 0.99,
+                0.5, 1,
                 f"Top {n} U.S. metros by 2020 population · Census tracts in CBSAs",
                 ha="center", fontsize=9, color="#555555",
             )
@@ -389,6 +532,7 @@ def main(
 
         plot_grid_top10(df, prefix, month_year, output_dir, n)
         plot_grid_all(df, prefix, month_year, output_dir)
+        plot_family_grids(df, prefix, month_year, output_dir, n)
 
 
 if __name__ == "__main__":

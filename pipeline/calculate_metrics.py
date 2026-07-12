@@ -25,11 +25,37 @@ def study_area_code_from_filename(filename: str) -> str:
     return study_area_identity.rsplit("_", 1)[-1]
 
 
+def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
+    keys = ["filename", "x_col", "y_col", "tot_col", "angle_1", "angle_2", "e_assort", "he_assort"]
+    for lam in [0, 0.5, 1, 2, 10, None]:
+        s = "lim" if lam is None else str(lam)
+        keys += [
+            f"skew_self_{s}", f"skew_other_{s}", f"edge_{s}",
+            f"skew'_self_{s}", f"skew'_other_{s}", f"half_edge_{s}",
+            f"skew_self_exact_{s}", f"skew_other_exact_{s}", f"edge_exact_{s}",
+            f"skew'_self_exact_{s}", f"skew'_other_exact_{s}", f"half_edge_exact_{s}",
+        ]
+    for p in [1, 2, 10]:
+        keys.append(f"dissimilarity_{p}")
+    keys += [
+        "frey", "gini",
+        "moran_A", "moran_P", "moran_L", "moran_M",
+        "moran_D_1", "moran_D_2",
+        "total_population", "total_white", "total_poc", "total_black",
+        "total_x", "total_y",
+        "total_nodes", "total_edges",
+    ]
+    return ",".join(keys)
+
+
 def main(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
+    if headers_only:
+        print(build_headers(x_col, y_col, tot_col))
+        return
     try:
-        run_metrics(filename, x_col, y_col, tot_col, headers_only)
+        run_metrics(filename, x_col, y_col, tot_col)
     except ZeroDivisionError as e:
         metric_failures_file = os.environ.get(
             "METRIC_FAILURES_FILE", "outputs/metric_failures.csv"
@@ -46,9 +72,7 @@ def main(
 
 
 
-def run_metrics(
-    filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
-):
+def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     graph = gerrychain.Graph.from_json(filename)
 
     capy_metrics = {}
@@ -118,13 +142,7 @@ def run_metrics(
     capy_metrics["total_nodes"] = len(graph.nodes())
     capy_metrics["total_edges"] = len(graph.edges())
 
-    capy_metrics_keys = ",".join(map(str, list(capy_metrics.keys())))
-    capy_metrics_values = ",".join(map(str, list(capy_metrics.values())))
-
-    if headers_only:
-        print(capy_metrics_keys)
-    else:
-        print(capy_metrics_values)
+    print(",".join(map(str, list(capy_metrics.values()))))
 
 
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
@@ -400,7 +418,7 @@ def inv_dist_square(x1, y1, x2, y2):
     d = (x1 - x2)**2 + (y1 - y2)**2
     return 1 / d
 
-def make_dist_weights(graph: Gerrychain.graph, dist_funcs: list):
+def make_dist_weights(graph: gerrychain.graph, dist_funcs: list):
 
     weights = []
     names = []
