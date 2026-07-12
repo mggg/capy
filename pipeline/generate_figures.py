@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -187,6 +188,8 @@ def plot_grid_top10(
     month_year: str,
     output_dir: Path,
     n: int = 10,
+    geography_label: str = "tracts",
+    fixed_y: bool = False,
 ) -> None:
     BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
@@ -203,14 +206,14 @@ def plot_grid_top10(
     color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
     years = sorted(plot_df["year"].unique())
     n_cols = len(available)
+    ylim = (plot_df[available].min().min(), plot_df[available].max().max()) if fixed_y else None
 
     fig, axes = plt.subplots(1, n_cols, figsize=(5 * n_cols, 5), facecolor=BG, sharey=False)
     if n_cols == 1:
         axes = [axes]
 
     for ax, metric in zip(axes, available):
-        # _apply_panel_style(ax, years, (-1, 0.92))
-        _apply_panel_style(ax, years, None)
+        _apply_panel_style(ax, years, ylim)
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
         for cbsa in top_n_metros:
             cbsa_df = plot_df[plot_df["cbsa_title"] == cbsa]
@@ -219,14 +222,14 @@ def plot_grid_top10(
                 color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
             )
 
-    pair_label = "White–Black" if "black" in prefix else "White–POC"
+    pair_label = "White–Black" if prefix.startswith("wb") else "White–POC"
     fig.suptitle(
         f"Segregation over time: {pair_label}",
         fontsize=14, fontweight="bold", color="#111111", y=1.04,
     )
     fig.text(
         0.5, 0.97,
-        f"Top {n} U.S. metros by 2020 population · Census tracts within CBSAs",
+        f"Top {n} U.S. metros by 2020 population · Census {geography_label} within CBSAs",
         ha="center", fontsize=9, color="#555555",
     )
 
@@ -266,6 +269,8 @@ def plot_grid_all(
     prefix: str,
     month_year: str,
     output_dir: Path,
+    geography_label: str = "tracts",
+    fixed_y: bool = False,
 ) -> None:
     BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
@@ -276,6 +281,7 @@ def plot_grid_all(
 
     years = sorted(month_year_df["year"].unique())
     all_cbsas = month_year_df["cbsa_title"].unique()
+    ylim = (month_year_df[available].min().min(), month_year_df[available].max().max()) if fixed_y else None
 
     yearly_mean = month_year_df.groupby("year")[list(available)].mean().reindex(years)
 
@@ -285,7 +291,7 @@ def plot_grid_all(
         axes = [axes]
 
     for ax, metric in zip(axes, available):
-        _apply_panel_style(ax, years, None)
+        _apply_panel_style(ax, years, ylim)
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
 
         for cbsa in all_cbsas:
@@ -299,14 +305,14 @@ def plot_grid_all(
             color="#0072b2", linewidth=2.4, marker="o", markersize=5, zorder=3,
         )
 
-    pair_label = "White–Black" if "black" in prefix else "White–POC"
+    pair_label = "White–Black" if prefix.startswith("wb") else "White–POC"
     fig.suptitle(
         f"Segregation over time: {pair_label}",
         fontsize=14, fontweight="bold", color="#111111", y=1.04,
     )
     fig.text(
         0.5, 0.95,
-        f"All U.S. CBSAs · Census tracts in CBSAs · Mean across all CBSAs in blue",
+        f"All U.S. CBSAs · Census {geography_label} in CBSAs · Mean across all CBSAs in blue",
         ha="center", fontsize=9, color="#555555",
     )
 
@@ -348,6 +354,8 @@ def plot_family_grids(
     output_dir: Path,
     n: int = 10,
     n_cols: int = 6,
+    geography_label: str = "tracts",
+    fixed_y: bool = False,
 ) -> None:
     BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
@@ -359,7 +367,7 @@ def plot_family_grids(
 
     color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
     years = sorted(plot_df["year"].unique())
-    pair_label = "White–Black" if "black" in prefix else "White–POC"
+    pair_label = "White–Black" if prefix.startswith("wb") else "White–POC"
 
     # Group available metrics by family title from METRIC_LABELS.
     families: dict = {}
@@ -381,6 +389,8 @@ def plot_family_grids(
         n_metrics = len(members)
         cols = min(n_metrics, n_cols)
         rows = (n_metrics + cols - 1) // cols
+        family_metrics = [m for m, _ in members]
+        ylim = (plot_df[family_metrics].min().min(), plot_df[family_metrics].max().max()) if fixed_y else None
 
         fig, axes = plt.subplots(
             rows, cols,
@@ -392,7 +402,7 @@ def plot_family_grids(
 
         for idx, (metric, subtitle) in enumerate(members):
             ax = axes[idx // cols][idx % cols]
-            _apply_panel_style(ax, years, None)
+            _apply_panel_style(ax, years, ylim)
             ax.set_title(
                 subtitle if subtitle else family_title,
                 fontsize=10, fontweight="bold", pad=8, color="#111111",
@@ -428,7 +438,7 @@ def plot_family_grids(
         subtitle_y = SUPTITLE_Y - 20 / (72 * fig.get_figheight())
         fig.text(
             0.5, subtitle_y,
-            f"Top {n} U.S. metros by 2020 population · Census tracts in CBSAs",
+            f"Top {n} U.S. metros by 2020 population · Census {geography_label} in CBSAs",
             ha="center", va="top", fontsize=9, color="#555555",
         )
 
@@ -444,6 +454,15 @@ def plot_family_grids(
         plt.close(fig)
 
 
+def _shorten_prefix(prefix: str) -> str:
+    return (
+        prefix
+        .replace("white_black", "wb")
+        .replace("white_poc", "wpoc")
+        .replace("block_groups", "bg")
+    )
+
+
 def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
     required = {"definition_month_year", "year", "cbsa_title", "total_population_2020"}
     if required.issubset(df.columns):
@@ -455,7 +474,19 @@ def main(
     filename: str = "outputs/white_poc_parsed.csv",
     n: int = 10,
     prefix: str = "white_poc",
+    geography_type: Optional[str] = None,
+    fixed_y: bool = False,
 ):
+    if geography_type is None:
+        for geo in ("block_groups", "blocks", "tracts", "counties"):
+            if geo in prefix:
+                geography_type = geo
+                break
+        else:
+            geography_type = "tracts"
+    geography_label = geography_type.replace("_", " ")
+
+    prefix = _shorten_prefix(prefix)
     output_dir = Path(filename).parent / "figures"
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "lineplots").mkdir(exist_ok=True)
@@ -464,7 +495,7 @@ def main(
     df = df.sort_values("total_population_2020", ascending=False)
 
     BG = "#fafafa"
-    pair_label = "White–Black" if "black" in prefix else "White–POC"
+    pair_label = "White–Black" if prefix.startswith("wb") else "White–POC"
 
     for month_year in set(df["definition_month_year"]):
         month_year_df = df[df["definition_month_year"] == month_year]
@@ -504,7 +535,7 @@ def main(
             )
             fig.text(
                 0.5, 1,
-                f"Top {n} U.S. metros by 2020 population · Census tracts in CBSAs",
+                f"Top {n} U.S. metros by 2020 population · Census {geography_label} in CBSAs",
                 ha="center", fontsize=9, color="#555555",
             )
 
@@ -530,9 +561,9 @@ def main(
             )
             plt.close(fig)
 
-        plot_grid_top10(df, prefix, month_year, output_dir, n)
-        plot_grid_all(df, prefix, month_year, output_dir)
-        plot_family_grids(df, prefix, month_year, output_dir, n)
+        plot_grid_top10(df, prefix, month_year, output_dir, n, geography_label=geography_label, fixed_y=fixed_y)
+        plot_grid_all(df, prefix, month_year, output_dir, geography_label=geography_label, fixed_y=fixed_y)
+        plot_family_grids(df, prefix, month_year, output_dir, n, geography_label=geography_label, fixed_y=fixed_y)
 
 
 if __name__ == "__main__":
