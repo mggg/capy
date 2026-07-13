@@ -50,12 +50,14 @@ def run_metrics(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
     graph = gerrychain.Graph.from_json(filename)
-
+   
     capy_metrics = {}
     capy_metrics["filename"] = filename
     capy_metrics["x_col"] = x_col
     capy_metrics["y_col"] = y_col
     capy_metrics["tot_col"] = tot_col
+
+
     capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
     capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) #rationale seems to be to cache these for the later calculations?
     
@@ -152,16 +154,6 @@ def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
         second_summation += int(graph.nodes[neighbor][x_col]) * int(
             graph.nodes[node][y_col])
 
-    # wrong? old version below counts each undirected edge twice because every neighbor pair
-    # is visited once from each endpoint.
-    # for node in graph.nodes():
-    #     for neighbor in graph.neighbors(node):
-    #         second_summation += int(graph.nodes[node][x_col]) * int(
-    #             graph.nodes[neighbor][y_col]
-    #         )
-    #         second_summation += int(graph.nodes[neighbor][x_col]) * int(
-    #             graph.nodes[node][y_col]
-    #         )
 
     return (first_summation, second_summation)
 
@@ -193,16 +185,6 @@ def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) ->
         second_summation += int(graph.nodes[neighbor][x_col]) * int(
             graph.nodes[node][y_col])
 
-    # wrong? old version below counts each undirected edge twice because every neighbor pair
-    # is visited once from each endpoint.
-    # for node in graph.nodes():
-    #     for neighbor in graph.neighbors(node):
-    #         second_summation += int(graph.nodes[node][x_col]) * int(
-    #             graph.nodes[neighbor][y_col]
-    #         )
-    #         second_summation += int(graph.nodes[neighbor][x_col]) * int(
-    #             graph.nodes[node][y_col]
-    #         )
 
     return (first_summation, second_summation)
 
@@ -253,7 +235,8 @@ def half_edge(
 def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
     #determine node majorities
     for node in graph.nodes():
-        threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
+        threshold = property_sum(graph, x_col) / (property_sum(graph, x_col) + property_sum(graph, y_col))
+        #threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
         if graph.nodes[node][x_col] >= threshold: #so ties break in favor of x_col
             graph.nodes[node]["x_maj"] = 1
             graph.nodes[node]["y_maj"] = 0

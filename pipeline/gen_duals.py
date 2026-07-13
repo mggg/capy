@@ -20,17 +20,14 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
     if shp.crs is None:
         raise ValueError(f"Shapefile {filename} has no CRS defined. Please define a CRS before proceeding.")
 
-    utm_crs = shp.estimate_utm_crs()
-    shp = shp.to_crs(utm_crs)
+    # Compute centroids in esri:102003 so they align with the on-disk shapefiles.
+    centroids = shp.geometry.centroid
 
     try:
         graph = gerrychain.Graph.from_geodataframe(shp)
     except:
         shp["geometry"] = shp["geometry"].buffer(0)
         graph = gerrychain.Graph.from_geodataframe(shp)
-
-
-    centroids = shp.geometry.centroid
 
     for idx in shp.index:
         graph.nodes[idx]["centroid_x"] = centroids.loc[idx].x
