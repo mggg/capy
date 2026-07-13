@@ -8,14 +8,27 @@ pytest
 ## Reproducing
 First, install the [dependencies](#dependencies).
 
-Next, download the [nhgis](https://nhgis.org) race and shapefile data for Census tracts (from 1970-2020 inclusive) into the `nhgis` folder.
+Raw Census inputs are downloaded into `census_raw/`. Population and geography data come from two sources:
+
+- 1980 and 1990: NHGIS via the IPUMS API.
+- 2000, 2010, and 2020: Census API/TIGER downloads.
+
+Set API keys in your shell before downloading data:
+```
+export CENSUS_API_KEY="..."
+export IPUMS_API_KEY="..."
+```
+
+The pipeline is configured through environment variables consumed by `scripts/pipeline_config.sh`.
+The default run uses CBSA study areas and tract nodes for 2020, 2010, 2000, 1990, and 1980.
+CBSA source spreadsheets live in `study_area_sources/`.
 
 Finally, run the reproduce script to rerun the analysis pipeline:
 ```
-bash reproduce.sh
+bash scripts/reproduce.sh
 ```
 
-Your outputs will be in the `outputs/` folder.
+Your outputs will be in a run-specific folder under `outputs/`, with figures in that folder's `figures/` subdirectory.
 
 ### Dependencies
 Python deps are managed via Poetry. Install Python `3.9.10`, then install the Python deps by running:
