@@ -1,0 +1,9 @@
+run_name=tracts_in_cbsa
+start_timestamp=2026-07-12T17:27:51Z
+
+graph_area_type=cbsa
+nodes_area_type=tracts
+
+study_area_source_file=study_area_sources/list1_march_2020.xls
+
+census_geography_years=2020 2010 2000 1990 1980

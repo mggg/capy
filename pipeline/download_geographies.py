@@ -427,6 +427,14 @@ def main(
     run_years = parse_years(years, year_values)
 
     for year in run_years:
+        if year == 1980 and LEVELS[level]["label"] == "block_groups":
+            print(
+                f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group "
+                "boundary shapefiles. Block groups were not standardized as a nationwide "
+                "geographic unit until 1990.",
+                flush=True,
+            )
+            continue
         if year in (1980, 1990):
             year_work_dir = work_dir / str(year) / level_label
             path = existing_nhgis_zip(year_work_dir)
