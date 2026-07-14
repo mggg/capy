@@ -50,7 +50,12 @@ def run_metrics(
     filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
 ):
     graph = gerrychain.Graph.from_json(filename)
-   
+
+    for node in graph.nodes():
+        graph.nodes[node]["white_plus_black"] = (
+            int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
+        )
+
     capy_metrics = {}
     capy_metrics["filename"] = filename
     capy_metrics["x_col"] = x_col
@@ -97,14 +102,14 @@ def run_metrics(
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
 
-    moran_cont = moran(graph, x_col, tot_col)
+    moran_cont = moran(graph, x_col, "white_plus_black")
 
     capy_metrics["moran_A"] = moran_cont["moran_A"]
     capy_metrics["moran_P"] = moran_cont["moran_P"]
     capy_metrics["moran_L"] = moran_cont["moran_L"]
     capy_metrics["moran_M"] = moran_cont["moran_M"]
 
-    morans_dist = moran_dist(graph, x_col, tot_col, [inv_dist, inv_dist_square])
+    morans_dist = moran_dist(graph, x_col, "white_plus_black", [inv_dist, inv_dist_square])
     capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
     capy_metrics["moran_D_2"] = morans_dist["moran_inv_dist_square"]
 
