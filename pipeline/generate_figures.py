@@ -156,14 +156,7 @@ METRICS = ["e_assort",
             "moran_L",
             "moran_M",
             "moran_D_1",
-            "moran_D_2"
-            "moran_A_white",	
-            "moran_P_white",
-            "moran_L_white",
-            "moran_M_white",
-            "moran_D_1_white",
-            "moran_D_2_white"
-            ]
+            "moran_D_2"]
 
 def _apply_panel_style(ax, years: list, ylim: tuple) -> None:
     """Apply shared panel style: background, gridlines, spines, ticks, y-limits."""
