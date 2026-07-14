@@ -2,7 +2,7 @@ import os
 import pytest
 import zipfile
 
-from pipeline.download_geographies import (
+from pipeline.download.download_geographies import (
     LEVELS,
     OUTPUT_DIR,
     census_output_exists,
@@ -124,7 +124,7 @@ def test_download_replaces_existing_zip(tmp_path, monkeypatch):
         return destination.stat().st_size
 
     monkeypatch.setattr(
-        "pipeline.download_geographies.download_to_file",
+        "pipeline.download.download_geographies.download_to_file",
         fake_download_to_file,
     )
 
@@ -148,10 +148,10 @@ def test_download_retries_partial_result(tmp_path, monkeypatch):
             return destination.stat().st_size
 
     monkeypatch.setattr(
-        "pipeline.download_geographies.download_to_file",
+        "pipeline.download.download_geographies.download_to_file",
         fake_download_to_file,
     )
-    monkeypatch.setattr("pipeline.download_geographies.time.sleep", lambda seconds: None)
+    monkeypatch.setattr("pipeline.download.download_geographies.time.sleep", lambda seconds: None)
 
     download("https://example.test/geography.zip", zip_path)
 
@@ -163,7 +163,7 @@ def test_download_to_file_rejects_short_response(tmp_path, monkeypatch):
     def fake_get(*args, **kwargs):
         return FakeResponse([b"short"], content_length=100)
 
-    monkeypatch.setattr("pipeline.download_geographies.requests.get", fake_get)
+    monkeypatch.setattr("pipeline.download.download_geographies.requests.get", fake_get)
 
     with pytest.raises(IncompleteDownloadError, match="retrieval incomplete"):
         download_to_file("https://example.test/geography.zip", tmp_path / "out.zip")
@@ -205,9 +205,9 @@ def test_fetch_census_skips_existing_state_outputs(tmp_path, monkeypatch):
     def fake_extract_zip(zip_path, destination):
         (destination / f"{zip_path.stem}.shp").touch()
 
-    monkeypatch.setattr("pipeline.download_geographies.STATE_FIPS", ["01", "02"])
-    monkeypatch.setattr("pipeline.download_geographies.download", fake_download)
-    monkeypatch.setattr("pipeline.download_geographies.extract_zip", fake_extract_zip)
+    monkeypatch.setattr("pipeline.download.download_geographies.STATE_FIPS", ["01", "02"])
+    monkeypatch.setattr("pipeline.download.download_geographies.download", fake_download)
+    monkeypatch.setattr("pipeline.download.download_geographies.extract_zip", fake_extract_zip)
 
     assert fetch_census(2000, "block_groups", tmp_path) == output_path
 
@@ -220,5 +220,5 @@ def test_fetch_census_skips_existing_state_outputs(tmp_path, monkeypatch):
 
 def test_geography_nhgis_extracts_live_under_geographies_raw_dir():
     assert str(OUTPUT_DIR / "ipums_geography_extracts" / "1990" / "block_groups") == (
-        "census_raw/geographies/ipums_geography_extracts/1990/block_groups"
+        "data/raw/geographies/ipums_geography_extracts/1990/block_groups"
     )

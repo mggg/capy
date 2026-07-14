@@ -2,7 +2,7 @@ import geopandas as gpd
 import networkx as nx
 from shapely.geometry import Point
 
-from pipeline.gen_duals import connect_components
+from pipeline.build.gen_duals import connect_components
 
 
 def test_connect_components_adds_nearest_bridge():

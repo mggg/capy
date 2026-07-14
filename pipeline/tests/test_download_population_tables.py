@@ -2,8 +2,8 @@ from census.core import CensusException
 
 import pandas as pd
 
-from pipeline.download_population_tables import LEVELS, fetch_census_state_rows, geoid
-from pipeline.download_population_tables import NHGIS_EXTRACTS_DIR
+from pipeline.download.download_population_tables import LEVELS, fetch_census_state_rows, geoid
+from pipeline.download.download_population_tables import NHGIS_EXTRACTS_DIR
 
 
 class FakeTable:
@@ -111,4 +111,4 @@ def test_2000_geoid_preserves_integer_and_decimal_tracts():
 
 
 def test_population_nhgis_extracts_default_is_under_population_raw_dir():
-    assert str(NHGIS_EXTRACTS_DIR) == "census_raw/population/ipums_population_extracts"
+    assert str(NHGIS_EXTRACTS_DIR) == "data/raw/population/ipums_population_extracts"

@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
-from pipeline.build_census_geographies import (
+from pipeline.build.build_census_geographies import (
     is_original_tract_family_shapefile,
     nhgis_extract_dirs,
     read_census_population,

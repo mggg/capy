@@ -58,7 +58,7 @@ def main(
         run_metrics(filename, x_col, y_col, tot_col)
     except ZeroDivisionError as e:
         metric_failures_file = os.environ.get(
-            "METRIC_FAILURES_FILE", "outputs/metric_failures.csv"
+            "METRIC_FAILURES_FILE", "data/outputs/metric_failures.csv"
         )
         metric_failures_dir = os.path.dirname(metric_failures_file)
         if metric_failures_dir:

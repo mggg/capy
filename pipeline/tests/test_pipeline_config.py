@@ -7,7 +7,7 @@ def source_config(command: str, extra_env: dict | None = None):
     for name in list(env):
         if name.startswith("STUDY_AREA") or name.startswith("CENSUS_GEOGRAPHY"):
             env.pop(name)
-    env["STUDY_AREA_SOURCE_FILE"] = "study_area_sources/list1_march_2020.xls"
+    env["STUDY_AREA_SOURCE_FILE"] = "data/interim/study_area_sources/list1_march_2020.xls"
     if extra_env:
         env.update(extra_env)
 

@@ -8,13 +8,13 @@ build_geography_inputs() {
     local geography_type="$1"
     local geography_years="$2"
 
-    python pipeline/download_population_tables.py \
+    python pipeline/download/download_population_tables.py \
         --level "${geography_type}" \
         --years "${geography_years}"
-    python pipeline/download_geographies.py \
+    python pipeline/download/download_geographies.py \
         --level "${geography_type}" \
         --years "${geography_years}"
-    python pipeline/build_census_geographies.py \
+    python pipeline/build/build_census_geographies.py \
         --level "${geography_type}" \
         --years "${geography_years}"
 }
@@ -33,11 +33,11 @@ year_list_contains() {
 
 calculate_csv() {
     local output_file="$1"; shift
-    python pipeline/calculate_metrics.py "" "$@" --headers-only > "${output_file}"
+    python pipeline/metrics/calculate_metrics.py "" "$@" --headers-only > "${output_file}"
     for year in ${CENSUS_GEOGRAPHY_YEARS}; do
-        find "study_areas/${year}" -type f \
+        find "data/interim/study_areas/${year}" -type f \
             -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
-            parallel --bar python pipeline/calculate_metrics.py {} "$@" >> "${output_file}"
+            parallel --bar python pipeline/metrics/calculate_metrics.py {} "$@" >> "${output_file}"
     done
 }
 
@@ -79,11 +79,11 @@ bash scripts/overlaps.sh
 
 # Generate dual graphs.
 for year in ${CENSUS_GEOGRAPHY_YEARS}; do
-    find "study_areas/${year}" \
+    find "data/interim/study_areas/${year}" \
         -type f \
         -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.shp"
 done |
-    parallel --bar python pipeline/gen_duals.py {} {.}_orig.json {.}_connected.json
+    parallel --bar python pipeline/build/gen_duals.py {} {.}_orig.json {.}_connected.json
 
 # Calculate metrics.
 calculate_csv "${RUN_OUTPUT_DIR}/white_black.csv" BLACK WHITE TOTPOP
@@ -92,7 +92,7 @@ calculate_csv "${RUN_OUTPUT_DIR}/white_poc.csv"   POC   WHITE TOTPOP
 # Generate figures under the configured run output. The figure script enriches
 # raw metric CSVs with study-area metadata as needed.
 for metric in white_black white_poc; do
-    python pipeline/generate_figures.py \
+    python pipeline/viz/generate_figures.py \
         --filename "${RUN_OUTPUT_DIR}/${metric}.csv" \
         --prefix "${metric}_${STUDY_AREA_TYPE}_${CENSUS_GEOGRAPHY_TYPE}" \
         --geography-type "${CENSUS_GEOGRAPHY_TYPE}"

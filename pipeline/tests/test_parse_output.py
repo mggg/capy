@@ -1,6 +1,6 @@
 import json
 
-from pipeline.parse_output import definition_json_for_output, output_name_parts, parse_cbsa
+from pipeline.metrics.parse_output import definition_json_for_output, output_name_parts, parse_cbsa
 
 
 def test_output_name_parts_for_configured_study_area_layout():
@@ -20,7 +20,7 @@ def test_definition_json_for_configured_study_area_layout():
 
     assert (
         definition_json_for_output(filename)
-        == "study_areas/definitions/cbsa_35620_march_2020.json"
+        == "data/interim/study_areas/definitions/cbsa_35620_march_2020.json"
     )
 
 

@@ -5,9 +5,12 @@ import pandas as pd
 import typer
 
 try:
-    from . import definitions
+    from pipeline.utils import definitions
 except ImportError:
-    import definitions
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from pipeline.utils import definitions
 
 
 def parse_cbsa(config_loc: str) -> definitions.CBSA:
@@ -57,10 +60,10 @@ def definition_json_for_output(filename: str) -> str:
     if "_in_" in output_stem and output_stem.endswith("_vintage"):
         study_area_identity, _, definition_vintage = output_name_parts(filename)
         definition_stem = f"{study_area_identity}_{definition_vintage}"
-        return f"study_areas/definitions/{definition_stem}.json"
+        return f"data/interim/study_areas/definitions/{definition_stem}.json"
 
     tokens = output_stem.split("_")
-    return f"cbsas/defs/{'_'.join(tokens[:4])}.json"
+    return f"data/interim/cbsas/defs/{'_'.join(tokens[:4])}.json"
 
 
 def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:

@@ -11,10 +11,10 @@ mkdir -p "${RUN_OUTPUT_DIR}"
 echo "filename, target_name, source_area, overlap_area, overlap_percentage" > "${COVERAGE_STATS_FILE}"
 
 parallel --bar --keep-order \
-    "mkdir -p \"study_areas/{}\" && python pipeline/overlaps.py \
-        \"census_geographies/{}_${CENSUS_GEOGRAPHY_TYPE}.shp\" \
-        \"study_areas/definitions/${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}.shp\" \
-        \"study_areas/{}\" \
+    "mkdir -p \"data/interim/study_areas/{}\" && python pipeline/build/overlaps.py \
+        \"data/interim/census_geographies/{}_${CENSUS_GEOGRAPHY_TYPE}.shp\" \
+        \"data/interim/study_areas/definitions/${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}.shp\" \
+        \"data/interim/study_areas/{}\" \
         --census-geography-type \"${CENSUS_GEOGRAPHY_TYPE}\" \
         --census-geography-year \"{}\" \
         --definition-vintage \"${STUDY_AREA_DEFINITION_VINTAGE}\"" \

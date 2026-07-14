@@ -7,9 +7,12 @@ import pandas as pd
 import typer
 
 try:
-    from .parse_output import enrich_metrics
+    from pipeline.metrics.parse_output import enrich_metrics
 except ImportError:
-    from parse_output import enrich_metrics
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from pipeline.metrics.parse_output import enrich_metrics
 
 # Okabe-Ito colorblind-safe palette, extended to 10
 PALETTE = [
@@ -463,7 +466,7 @@ def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(
-    filename: str = "outputs/white_poc_parsed.csv",
+    filename: str = "data/outputs/white_poc_parsed.csv",
     n: int = 10,
     prefix: str = "white_poc",
     geography_type: Optional[str] = None,

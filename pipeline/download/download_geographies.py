@@ -10,7 +10,7 @@ import requests
 import typer
 
 
-OUTPUT_DIR = Path("census_raw/geographies")
+OUTPUT_DIR = Path("data/raw/geographies")
 DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
 DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 DOWNLOAD_TIMEOUT = (20, 180)
@@ -415,7 +415,7 @@ def main(
     years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."),
     year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
     output_dir: Path = typer.Option(OUTPUT_DIR),
-    work_dir: Path = typer.Option(Path("census_raw/geographies/ipums_geography_extracts")),
+    work_dir: Path = typer.Option(Path("data/raw/geographies/ipums_geography_extracts")),
     env_file: Path = typer.Option(Path(".env")),
 ) -> None:
     load_dotenv(env_file)
