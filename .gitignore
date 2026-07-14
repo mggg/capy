@@ -167,12 +167,9 @@ cython_debug/
 **/.DS_Store
 
 # Project data and generated files
-/nhgis/
-/processed/
 /cbsas/
 /census_geographies/
 /study_areas/
-/figures/
-/new-york-swaps/
-/outputs/
 /census_raw/
+/data/
+/archive/
