@@ -1,4 +1,4 @@
-from pipeline.metrics.calculate_metrics import (
+from pipeline.metrics import (
     angle_1,
     angle_2,
     property_sum,
@@ -37,7 +37,7 @@ def create_diverse_grids():
 
 def create_diverse_graphs():
     yield from create_diverse_grids()
-    for filename in glob.glob("data/interim/study_areas/**/*connected.json"):
+    for filename in glob.glob("data/processed/dual_graphs/**/*connected.json"):
         yield gerrychain.Graph.from_json(filename)
 
 
