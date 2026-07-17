@@ -42,7 +42,8 @@ def plot_grid_top10(
         axes = [axes]
 
     for ax, metric in zip(axes, available):
-        _apply_panel_style(ax, years, ylim)
+        y_range = plot_df[metric].max() - plot_df[metric].min()
+        _apply_panel_style(ax, years, ylim, y_range=y_range)
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
         for cbsa in top_n_metros:
             cbsa_df = plot_df[plot_df["cbsa_title"] == cbsa]
@@ -80,7 +81,7 @@ def plot_grid_top10(
     fig.text(
         0.5, -0.22,
         "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
-        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (1980-1990).",
+        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (before 2000).",
         ha="center", fontsize=7, color="#383838", linespacing=1.6,
     )
 

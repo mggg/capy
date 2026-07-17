@@ -18,7 +18,7 @@ from pipeline.utils.visualization_settings import (
     _short_name,
 )
 from pipeline.visualization.plot_family_grids import plot_family_grids
-from pipeline.visualization.plot_grid_all import plot_grid_all
+from pipeline.visualization.plot_single_metric import plot_single_metric
 from pipeline.visualization.plot_grid_top10 import plot_grid_top10
 
 
@@ -30,7 +30,7 @@ def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(
-    filename: str = "outputs/white_poc_parsed.csv",
+    filename: str = "outputs/tracts_in_cbsa/white_poc.csv",
     n: int = 10,
     prefix: str = "white_poc",
     geography_type: Optional[str] = None,
@@ -72,7 +72,8 @@ def main(
                 continue
 
             fig, ax = plt.subplots(figsize=(6, 6), facecolor=BG)
-            _apply_panel_style(ax, years, None)
+            y_range = top_n_df[metric].max() - top_n_df[metric].min()
+            _apply_panel_style(ax, years, None, y_range=y_range)
 
             for cbsa in top_n_metros:
                 cbsa_df = top_n_df[top_n_df["cbsa_title"] == cbsa]
@@ -120,7 +121,7 @@ def main(
             plt.close(fig)
 
         plot_grid_top10(df, prefix, month_year, output_dir, n, geography_label=geography_label, fixed_y=fixed_y)
-        plot_grid_all(df, prefix, month_year, output_dir, geography_label=geography_label, fixed_y=fixed_y)
+        plot_single_metric(df, prefix, month_year, output_dir, geography_label=geography_label, fixed_y=fixed_y)
         plot_family_grids(df, prefix, month_year, output_dir, n, geography_label=geography_label, fixed_y=fixed_y)
 
 

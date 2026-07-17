@@ -66,7 +66,8 @@ def plot_family_grids(
 
         for idx, (metric, subtitle) in enumerate(members):
             ax = axes[idx // cols][idx % cols]
-            _apply_panel_style(ax, years, ylim)
+            y_range = plot_df[metric].max() - plot_df[metric].min()
+            _apply_panel_style(ax, years, ylim, y_range=y_range)
             ax.set_title(
                 subtitle if subtitle else family_title,
                 fontsize=10, fontweight="bold", pad=8, color="#111111",

@@ -6,7 +6,7 @@ import pandas as pd
 from pipeline.utils.visualization_settings import GRID_METRICS, _apply_panel_style
 
 
-def plot_grid_all(
+def plot_single_metric(
     df: pd.DataFrame,
     prefix: str,
     month_year: str,
@@ -14,6 +14,8 @@ def plot_grid_all(
     geography_label: str = "tracts",
     fixed_y: bool = False,
 ) -> None:
+    MIN_POPULATION = 100_000
+
     BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
 
@@ -22,7 +24,15 @@ def plot_grid_all(
         return
 
     years = sorted(month_year_df["year"].unique())
-    all_cbsas = month_year_df["cbsa_title"].unique()
+
+    cbsa_year_counts = month_year_df.groupby("cbsa_title")["year"].nunique()
+    complete_cbsas = cbsa_year_counts[cbsa_year_counts == len(years)].index
+    cbsa_pop = month_year_df.drop_duplicates("cbsa_title").set_index("cbsa_title")["total_population_2020"]
+    eligible_cbsas = complete_cbsas[cbsa_pop.reindex(complete_cbsas).fillna(0) >= MIN_POPULATION]
+
+    month_year_df = month_year_df[month_year_df["cbsa_title"].isin(eligible_cbsas)]
+    all_cbsas = eligible_cbsas
+
     ylim = (month_year_df[available].min().min(), month_year_df[available].max().max()) if fixed_y else None
 
     yearly_mean = month_year_df.groupby("year")[list(available)].mean().reindex(years)
@@ -33,7 +43,8 @@ def plot_grid_all(
         axes = [axes]
 
     for ax, metric in zip(axes, available):
-        _apply_panel_style(ax, years, ylim)
+        y_range = month_year_df[metric].max() - month_year_df[metric].min()
+        _apply_panel_style(ax, years, ylim, y_range=y_range)
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
 
         for cbsa in all_cbsas:
@@ -54,7 +65,7 @@ def plot_grid_all(
     )
     fig.text(
         0.5, 0.95,
-        f"All U.S. CBSAs · Census {geography_label} in CBSAs · Mean across all CBSAs in blue",
+        f"U.S. CBSAs ≥100k pop., present in all years · Census {geography_label} in CBSAs · Mean in blue",
         ha="center", fontsize=9, color="#555555",
     )
 
@@ -76,7 +87,7 @@ def plot_grid_all(
     fig.text(
         0.5, -0.16,
         "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
-        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (1980-1990).",
+        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (before 2000).",
         ha="center", fontsize=7, color="#383838", linespacing=1.6,
     )
 
