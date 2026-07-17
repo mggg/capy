@@ -7,12 +7,12 @@ def source_config(command: str, extra_env: dict | None = None):
     for name in list(env):
         if name.startswith("STUDY_AREA") or name.startswith("CENSUS_GEOGRAPHY"):
             env.pop(name)
-    env["STUDY_AREA_SOURCE_FILE"] = "data/interim/study_area_sources/list1_march_2020.xls"
+    env["STUDY_AREA_SOURCE_FILE"] = "data/raw/study_area_sources/list1_march_2020.xls"
     if extra_env:
         env.update(extra_env)
 
     return subprocess.run(
-        ["bash", "-c", f". scripts/pipeline_config.sh; {command}"],
+        ["bash", "-c", f'_config="$(poetry run python scripts/resolve_config.py)" || exit 1; eval "${{_config}}"; {command}'],
         check=False,
         capture_output=True,
         text=True,
@@ -34,4 +34,4 @@ def test_cbsa_is_not_a_definition_geography_type():
     )
 
     assert result.returncode == 1
-    assert "For STUDY_AREA_TYPE=cbsa, use counties" in result.stderr
+    assert "Unsupported STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE='cbsa'" in result.stderr

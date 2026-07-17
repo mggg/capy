@@ -129,6 +129,13 @@ def load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
+def require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise ValueError(f"{name} is required; set it in the environment or .env.")
+    return value
+
+
 def parse_years(years: Optional[str], year_values: Optional[List[int]]) -> List[int]:
     if year_values:
         return year_values
@@ -355,7 +362,7 @@ def fetch_nhgis(
     level: str,
     work_dir: Path,
 ) -> Path:
-    api_key = os.environ["IPUMS_API_KEY"]
+    api_key = require_env("IPUMS_API_KEY")
     client = IpumsApiClient(api_key)
     config = LEVELS[level]
     shapefiles = nhgis_shapefiles(client, year, level)

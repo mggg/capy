@@ -19,8 +19,9 @@ tqdm = "^4.64.0"
 Rtree = "^1.4"
 census = "^0.8.27"
 ipumspy = {version = "^0.8.2", python = ">=3.10,<4.0"}
+pyyaml = "^6.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.1.2"
 
 [tool.pytest.ini_options]
