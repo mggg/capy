@@ -35,10 +35,20 @@ def create_diverse_grids():
     yield from create_odd_grids()
 
 
+_real_graph_files = sorted(
+    glob.glob("data/processed/dual_graphs/**/*connected.json", recursive=True)
+)
+
+
 def create_diverse_graphs():
     yield from create_diverse_grids()
-    for filename in glob.glob("data/processed/dual_graphs/**/*connected.json"):
+    for filename in _real_graph_files:
         yield gerrychain.Graph.from_json(filename)
+
+
+def test_real_graph_files_present():
+    if not _real_graph_files:
+        pytest.skip("No processed dual graphs found in data/processed/dual_graphs/ — file-based test cases are omitted")
 
 
 def give_random_weights(
@@ -66,7 +76,7 @@ def give_checkerboard_pattern(grid: gerrychain.Graph, low_val=40, high_val=60):
 
 
 @pytest.mark.parametrize("graph", create_diverse_graphs())
-def test_propsition_1_c(graph):
+def test_proposition_1_c(graph):
     give_random_weights(graph, "x_col", 10, 10)
     give_random_weights(graph, "y_col", 10, 10)
 
@@ -89,8 +99,8 @@ def test_uniform_graph_moran(graph):
         graph.nodes[node]["uniform_weight"] = 100
         graph.nodes[node]["total_weight"] = 100
 
-    # Should raise a divide by zero error (undefined)
-    with pytest.raises(Exception):
+    # Should raise — Moran's I is undefined when all values are identical (zero variance)
+    with pytest.raises(ZeroDivisionError):
         moran(graph, "uniform_weight", "total_weight")
 
 

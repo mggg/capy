@@ -34,9 +34,9 @@ def test_build_county_definitions(tmp_path):
     build_county_definitions(str(source), str(output_dir), "2020")
 
     definition_json = output_dir / "county_06037_2020.json"
-    definition_shp = output_dir / "county_06037_2020.shp"
+    definition_gpkg = output_dir / "county_06037_2020.gpkg"
     assert definition_json.exists()
-    assert definition_shp.exists()
+    assert definition_gpkg.exists()
 
     data = json.loads(definition_json.read_text())
     assert data["cbsa_code"] == "06037"
