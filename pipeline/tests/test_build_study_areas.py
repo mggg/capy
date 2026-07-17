@@ -3,7 +3,7 @@ import json
 import geopandas as gpd
 from shapely.geometry import Polygon
 
-from pipeline.build.build_study_areas import build_county_definitions
+from pipeline.preprocessing.study_areas import build_county_definitions
 
 
 def test_build_county_definitions(tmp_path):
