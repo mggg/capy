@@ -525,8 +525,8 @@ def write_processed(
     level_label: str,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{year}_{level_label}.shp"
-    gdf.to_file(output_path)
+    output_path = output_dir / f"{year}_{level_label}.gpkg"
+    gdf.to_file(output_path, driver="GPKG")
     return output_path
 
 

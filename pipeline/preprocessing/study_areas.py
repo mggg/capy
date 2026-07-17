@@ -19,7 +19,7 @@ def cbsa_to_dict(cbsa: CBSA) -> dict:
 
 def main(
     filename: str = "",
-    definition_geographies: str = "data/processed/census_geographies/2020_tracts.shp",
+    definition_geographies: str = "data/processed/census_geographies/2020_tracts.gpkg",
     output_dir: str = "data/processed/study_area_definitions",
     study_area_type: str = "cbsa",
     definition_vintage: str = "",
@@ -65,7 +65,7 @@ def main(
         output_stem = f"{study_area_type}_{cbsa_code}_{definition_vintage}"
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(cbsa_to_dict(cbsa), w)
-        cbsa.geometry.to_file(f"{output_dir}/{output_stem}.shp")
+        cbsa.geometry.to_file(f"{output_dir}/{output_stem}.gpkg", driver="GPKG")
 
 
 def fetch_metro_areas(filename) -> pd.DataFrame:
@@ -177,7 +177,7 @@ def build_county_definitions(
 
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(cbsa_to_dict(study_area), w)
-        county_gdf.to_file(f"{output_dir}/{output_stem}.shp")
+        county_gdf.to_file(f"{output_dir}/{output_stem}.gpkg", driver="GPKG")
 
 
 if __name__ == "__main__":

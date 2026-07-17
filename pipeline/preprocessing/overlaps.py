@@ -70,11 +70,7 @@ def main(
                 definition_vintage,
             )
             selected_geographies.to_file(
-                f"{output_dir}/{selected_geographies_stem}.shp")
-            selected_area = union_geometry(selected_geographies).area
-            print(
-                f"{census_geographies_file}, {study_area_file}, {all_geographies_area}, "
-                f"{selected_area}, {selected_area/all_geographies_area}")
+                f"{output_dir}/{selected_geographies_stem}.gpkg", driver="GPKG")
         else:
             print(
                 "empty overlaps computed:",
