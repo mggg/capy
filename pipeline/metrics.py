@@ -108,14 +108,14 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
                                                  capy_metrics[f"skew'_self_{lam_str}"])    
 
 
-        capy_metrics[f"skew_self_exact_{lam_str}"] = skew(graph, x_col, y_col, lam = lam)
-        capy_metrics[f"skew_other_exact_{lam_str}"] = skew(graph, y_col, x_col, lam = lam)
-        capy_metrics[f"edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew_other_exact_{lam_str}"] + 
+        capy_metrics[f"skew_self_exact_{lam_str}"] = skew_exact(graph, x_col, y_col, lam = lam)
+        capy_metrics[f"skew_other_exact_{lam_str}"] = skew_exact(graph, y_col, x_col, lam = lam)
+        capy_metrics[f"edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew_other_exact_{lam_str}"] +
                                                  capy_metrics[f"skew_self_exact_{lam_str}"])
 
-        capy_metrics[f"skew'_self_exact_{lam_str}"] = skew_prime(graph, x_col, y_col, lam = lam)
-        capy_metrics[f"skew'_other_exact_{lam_str}"] = skew_prime(graph, y_col, x_col, lam = lam)
-        capy_metrics[f"half_edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew'_other_exact_{lam_str}"] + 
+        capy_metrics[f"skew'_self_exact_{lam_str}"] = skew_prime_exact(graph, x_col, y_col, lam = lam)
+        capy_metrics[f"skew'_other_exact_{lam_str}"] = skew_prime_exact(graph, y_col, x_col, lam = lam)
+        capy_metrics[f"half_edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew'_other_exact_{lam_str}"] +
                                                  capy_metrics[f"skew'_self_exact_{lam_str}"])
 
     for p in [1, 2, 10]:
@@ -372,7 +372,7 @@ def make_adj_weights(graph: gerrychain.Graph):
 
     return A, P, L, M
 
-def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> dict:
     shares = np.array([
         graph.nodes[node][x_col] / graph.nodes[node][tot_col]
         for node in graph.nodes()
@@ -382,6 +382,12 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
 
     x = scipy.sparse.csr_matrix(shares).T
 
+    denominator = (x.T @ x)[0, 0]
+    if denominator == 0:
+        raise ZeroDivisionError(
+            "Moran's I is undefined when all node shares are identical (zero variance)"
+        )
+
     weights = make_adj_weights(graph)
     names = ["A", "P", "L", "M"]
 
@@ -389,16 +395,14 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
 
     for name, W in zip(names, weights):
         numerator = (x.T @ W @ x)[0, 0]
-        denominator = (x.T @ x)[0, 0]
         S0 = abs(W).sum()
-            
         morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
 
     return morans
 
 
 
-def inv_dist(x1, x2, y1, y2):
+def inv_dist(x1, y1, x2, y2):
     d = np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
     return 1/d
 

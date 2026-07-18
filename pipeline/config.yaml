@@ -7,7 +7,7 @@
 study_area_type: cbsa
 
 # Valid values: tracts, block_groups, blocks, counties
-census_geography_type: tracts
+census_geography_type: blocks
 
 census_geography_years:
   - 2020

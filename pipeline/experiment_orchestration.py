@@ -99,7 +99,7 @@ def validate_config(cfg: dict[str, Any]) -> dict[str, Any]:
     def_type = r["study_area_definition_geography_type"]
     r.setdefault(
         "study_area_definition_geographies",
-        str(_REPO_ROOT / "data/processed/census_geographies" / f"{def_year}_{def_type}.shp"),
+        str(_REPO_ROOT / "data/processed/census_geographies" / f"{def_year}_{def_type}.gpkg"),
     )
 
     run_name = r.get("run_name") or r.get("name") or (
@@ -196,16 +196,11 @@ def run_preprocessing_stage(cfg: dict[str, Any]) -> None:
     vintage = cfg["study_area_definition_vintage"]
     output_dir = Path(cfg["run_output_dir"])
 
-    coverage_file = output_dir / "coverage_stats.csv"
-    coverage_file.write_text(
-        "filename, target_name, source_area, overlap_area, overlap_percentage\n"
-    )
-
-    def _overlap(year: str) -> str:
-        return _run_capture(_py(
+    def _overlap(year: str) -> None:
+        _run(_py(
             "pipeline/preprocessing/overlaps.py",
-            f"data/processed/census_geographies/{year}_{geo_type}.shp",
-            f"data/processed/study_area_definitions/{study_area_type}_*_{vintage}.shp",
+            f"data/processed/census_geographies/{year}_{geo_type}.gpkg",
+            f"data/processed/study_area_definitions/{study_area_type}_*_{vintage}.gpkg",
             f"data/processed/clipped_geographies/{year}",
             "--census-geography-type", geo_type,
             "--census-geography-year", year,
@@ -213,10 +208,9 @@ def run_preprocessing_stage(cfg: dict[str, Any]) -> None:
         ))
 
     with ThreadPoolExecutor() as pool:
-        futures = {pool.submit(_overlap, y): y for y in cfg["census_geography_years"]}
-        with open(coverage_file, "a") as f:
-            for future in as_completed(futures):
-                f.write(future.result())
+        futures = [pool.submit(_overlap, y) for y in cfg["census_geography_years"]]
+        for future in as_completed(futures):
+            future.result()
 
 
 def run_graph_stage(cfg: dict[str, Any]) -> None:
@@ -224,25 +218,25 @@ def run_graph_stage(cfg: dict[str, Any]) -> None:
     study_area_type = cfg["study_area_type"]
     vintage = cfg["study_area_definition_vintage"]
 
-    shapefiles: list[str] = []
+    geo_files: list[str] = []
     for year in cfg["census_geography_years"]:
         pattern = str(
             _REPO_ROOT / "data/processed/clipped_geographies" / year
-            / f"{geo_type}_in_{study_area_type}_*_{year}_{vintage}_vintage.shp"
+            / f"{geo_type}_in_{study_area_type}_*_{year}_{vintage}_vintage.gpkg"
         )
-        shapefiles.extend(glob.glob(pattern))
+        geo_files.extend(glob.glob(pattern))
 
-    def _build_graph(shp: str) -> None:
-        shp_rel = _rel(shp)
-        year = Path(shp_rel).parent.name
-        stem_name = Path(shp_rel).stem
+    def _build_graph(geo_file: str) -> None:
+        geo_rel = _rel(geo_file)
+        year = Path(geo_rel).parent.name
+        stem_name = Path(geo_rel).stem
         dual_dir = f"data/processed/dual_graphs/{year}"
-        _run(_py("pipeline/graphs.py", shp_rel,
+        _run(_py("pipeline/graphs.py", geo_rel,
                  f"{dual_dir}/{stem_name}_orig.json",
                  f"{dual_dir}/{stem_name}_connected.json"))
 
     with ThreadPoolExecutor() as pool:
-        futures = [pool.submit(_build_graph, shp) for shp in shapefiles]
+        futures = [pool.submit(_build_graph, geo_file) for geo_file in geo_files]
         for future in as_completed(futures):
             future.result()
 

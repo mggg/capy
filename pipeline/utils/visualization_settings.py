@@ -10,7 +10,7 @@ PALETTE = [
     "#c3ba32",  # yellow
     "#000000",  # black
     "#999999",  # gray
-    "#44aa99",  # teal
+    "#871769",  # teal
 ]
 
 GRID_METRICS = {
@@ -92,7 +92,15 @@ def _short_name(cbsa_title: str) -> str:
     return f"{city_part.split('-')[0]}, {state}"
 
 
-def _apply_panel_style(ax, years: list, ylim: tuple) -> None:
+_NARROW_Y_THRESHOLD = 0.1
+
+
+def _y_formatter(y_range: float) -> mticker.Formatter:
+    fmt = "%.3f" if y_range < _NARROW_Y_THRESHOLD else "%.2f"
+    return mticker.FormatStrFormatter(fmt)
+
+
+def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf")) -> None:
     BG_PANEL = "#ececec"
     ax.set_facecolor(BG_PANEL)
     ax.set_box_aspect(1)
@@ -102,7 +110,7 @@ def _apply_panel_style(ax, years: list, ylim: tuple) -> None:
     ax.set_xticks(years)
     ax.set_xticklabels([str(y) for y in years], fontsize=8)
     ax.set_xlabel("Census year", fontsize=8, color="#555555", labelpad=4)
-    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
+    ax.yaxis.set_major_formatter(_y_formatter(y_range))
     if ylim is not None:
         ax.set_ylim(*ylim)
 

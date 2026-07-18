@@ -18,9 +18,9 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
     warnings.filterwarnings("ignore", message=".*NA values found in column.*")
 
     if shp.crs is None:
-        raise ValueError(f"Shapefile {filename} has no CRS defined. Please define a CRS before proceeding.")
+        raise ValueError(f"{filename} has no CRS defined. Please define a CRS before proceeding.")
 
-    # Compute centroids in esri:102003 so they align with the on-disk shapefiles.
+    # Compute centroids in esri:102003 so distances are in meters.
     centroids = shp.geometry.centroid
 
     try:
