@@ -230,10 +230,11 @@ def read_nhgis_1980_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
 def read_nhgis_1990_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
     race_cols = [f"ET2{i:03d}" for i in range(1, 11)]
     require_columns(df, ["GISJOIN", "STATEA", "COUNTYA"] + race_cols, path)
+    gisjoin = df["GISJOIN"].astype(str)
     return pd.DataFrame(
         {
-            "JOIN_KEY": df["GISJOIN"],
-            "GISJOIN": df["GISJOIN"],
+            "JOIN_KEY": gisjoin,
+            "GISJOIN": gisjoin,
             "STATEFP": df["STATEA"].str.zfill(2),
             "COUNTYFP": df["COUNTYA"].str.zfill(3),
             "WHITE": to_int(df["ET2001"]),
@@ -477,14 +478,19 @@ def read_nhgis_geography(
     )
 
 
+TARGET_CRS = "esri:102003"  # USA Contiguous Albers Equal Area Conic; meters
+
+
 def read_geography(
     year: int,
     geographies_dir: Path,
     level_label: str,
 ) -> gpd.GeoDataFrame:
     if year in (1980, 1990):
-        return read_nhgis_geography(year, geographies_dir, level_label)
-    return read_census_geography(year, geographies_dir, level_label)
+        gdf = read_nhgis_geography(year, geographies_dir, level_label)
+    else:
+        gdf = read_census_geography(year, geographies_dir, level_label)
+    return gdf.to_crs(TARGET_CRS)
 
 
 def join_population(
@@ -505,7 +511,10 @@ def join_population(
 
     missing = merged["TOTPOP"].isna().sum()
     if missing:
-        if missing / len(merged) > 0.01:
+        # Blocks include many water-only and unpopulated geographic areas that have
+        # no row in the population CSV; a high miss rate is expected and not an error.
+        threshold = 0.50 if level_label == "blocks" else 0.01
+        if missing / len(merged) > threshold:
             raise ValueError(
                 f"{year}: {missing} {level_label} geometries did not match "
                 "population rows."
@@ -545,6 +554,13 @@ def main(
     run_years = parse_years(years, year_values)
 
     for year in run_years:
+        if year == 1980 and level_label in ("block_groups", "blocks"):
+            print(
+                f"Skipping 1980 {level_label}: NHGIS does not publish 1980 "
+                "block group or block boundary shapefiles.",
+                flush=True,
+            )
+            continue
         print(f"Processing {year} {level_label}")
         pop = read_population(year, population_dir, level_label)
         gdf = read_geography(year, geographies_dir, level_label)

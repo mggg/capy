@@ -67,7 +67,7 @@ def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["year"] = df["filename"].apply(lambda x: int(output_name_parts(x)[1]))
     df["cbsa_title"] = cbsa_infos.apply(lambda x: x.cbsa_title)
-    df["cbsa_code"] = cbsa_infos.apply(lambda x: x.cbsa_code)
+    df["cbsa_code"] = cbsa_infos.apply(lambda x: x.area_code)
     df["total_population_2020"] = cbsa_infos.apply(lambda x: x.total_population)
 
     return df

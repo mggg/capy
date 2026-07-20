@@ -42,7 +42,7 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
         "moran_A", "moran_P", "moran_L", "moran_M",
         "moran_D_1", "moran_D_2",
         "total_population", "total_white", "total_poc", "total_black",
-        "total_x", "total_y",
+        "share_x", "share_y",
         "total_nodes", "total_edges",
     ]
     return ",".join(keys)
@@ -143,8 +143,8 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["total_black"] = property_sum(graph, "BLACK")
     # capy_metrics["total_asian"] = property_sum(graph, "ASIAN")
     # capy_metrics["total_amin"] = property_sum(graph, "AMIN")
-    capy_metrics["total_x"] = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
-    capy_metrics["total_y"] = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
+    capy_metrics["share_x"] = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
+    capy_metrics["share_y"] = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
 
     capy_metrics["total_nodes"] = len(graph.nodes())
     capy_metrics["total_edges"] = len(graph.edges())

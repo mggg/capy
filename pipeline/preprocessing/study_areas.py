@@ -100,7 +100,7 @@ def create_metro_mappings(metro_areas: pd.DataFrame) -> dict[str, CBSA]:
             metro_mappings[cbsa_code].component_counties_fips.append(fips_code)
         else:
             metro_mappings[cbsa_code] = CBSA(
-                cbsa_code=cbsa_code,
+                area_code=cbsa_code,
                 cbsa_title=cbsa_title,
                 component_counties_fips=[fips_code],
                 total_population=None,
@@ -166,7 +166,7 @@ def build_county_definitions(
             crs=counties.crs,
         )
         study_area = CBSA(
-            cbsa_code=county_fips,
+            area_code=county_fips,
             cbsa_title=county_title(county),
             component_counties_fips=[county_fips],
             total_population=(

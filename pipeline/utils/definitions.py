@@ -8,7 +8,7 @@ class CBSA(pydantic.BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    cbsa_code: str
+    area_code: str
     cbsa_title: str
     component_counties_fips: List[str]
     total_population: Optional[int] = None
