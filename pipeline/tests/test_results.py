@@ -36,7 +36,7 @@ def test_parse_cbsa_accepts_json_encoded_definition(tmp_path):
         json.dumps(
             json.dumps(
                 {
-                    "cbsa_code": "39460",
+                    "area_code": "39460",
                     "cbsa_title": "Punta Gorda, FL",
                     "component_counties_fips": ["12015"],
                     "total_population": 186847,
@@ -47,5 +47,5 @@ def test_parse_cbsa_accepts_json_encoded_definition(tmp_path):
 
     cbsa = parse_cbsa(str(path))
 
-    assert cbsa.cbsa_code == "39460"
+    assert cbsa.area_code == "39460"
     assert cbsa.cbsa_title == "Punta Gorda, FL"

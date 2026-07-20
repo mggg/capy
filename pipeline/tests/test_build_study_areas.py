@@ -39,7 +39,7 @@ def test_build_county_definitions(tmp_path):
     assert definition_gpkg.exists()
 
     data = json.loads(definition_json.read_text())
-    assert data["cbsa_code"] == "06037"
+    assert data["area_code"] == "06037"
     assert data["cbsa_title"] == "Los Angeles County"
     assert data["component_counties_fips"] == ["06037"]
     assert data["total_population"] == 100
