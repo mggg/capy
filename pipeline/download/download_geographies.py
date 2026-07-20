@@ -434,11 +434,11 @@ def main(
     run_years = parse_years(years, year_values)
 
     for year in run_years:
-        if year == 1980 and LEVELS[level]["label"] == "block_groups":
+        if year == 1980 and LEVELS[level]["label"] in ("block_groups", "blocks"):
             print(
                 f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group "
-                "boundary shapefiles. Block groups were not standardized as a nationwide "
-                "geographic unit until 1990.",
+                "or block boundary shapefiles. These were not standardized as nationwide "
+                "geographic units until 1990.",
                 flush=True,
             )
             continue

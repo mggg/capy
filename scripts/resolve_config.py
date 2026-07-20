@@ -46,10 +46,10 @@ def main() -> None:
 
     years_raw = os.environ.get("CENSUS_GEOGRAPHY_YEARS", "")
     years = years_raw.split() if years_raw else [str(y) for y in cfg["census_geography_years"]]
-    if census_geography_type == "block_groups" and "1980" in years:
+    if census_geography_type in ("block_groups", "blocks") and "1980" in years:
         print(
-            "Warning: Skipping 1980 for CENSUS_GEOGRAPHY_TYPE=block_groups — "
-            "NHGIS does not publish 1980 block group boundary shapefiles.",
+            f"Warning: Skipping 1980 for CENSUS_GEOGRAPHY_TYPE={census_geography_type} — "
+            "NHGIS does not publish 1980 block group or block boundary shapefiles.",
             file=sys.stderr,
         )
         years = [y for y in years if y != "1980"]
@@ -99,7 +99,7 @@ def main() -> None:
 
     study_area_definition_geographies = os.environ.get(
         "STUDY_AREA_DEFINITION_GEOGRAPHIES",
-        f"data/processed/census_geographies/{study_area_definition_geography_year}_{study_area_definition_geography_type}.shp",
+        f"data/processed/census_geographies/{study_area_definition_geography_year}_{study_area_definition_geography_type}.gpkg",
     )
 
     run_name = os.environ.get("RUN_NAME", f"{census_geography_type}_in_{study_area_type}")
