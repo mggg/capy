@@ -2,7 +2,7 @@
 
 This directory preserves the original workflow used to produce the figures and
 results in the initial paper submission.  It predates the automated pipeline
-(`pipeline/orchestration.py`) and was executed manually — city-by-city via
+(`pipeline/experiment_orchestration.py`) and was executed manually — city-by-city via
 Jupyter notebooks and standalone shell scripts rather than through a unified
 experiment config.
 
