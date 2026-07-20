@@ -89,7 +89,7 @@ bash "${SCRIPT_DIR}/overlaps.sh"
 _build_graph() {
     local shp="$1"
     local stem
-    stem="$(basename "${shp%.shp}")"
+    stem="$(basename "${shp%.gpkg}")"
     local dual_dir
     dual_dir="data/processed/dual_graphs/$(basename "$(dirname "$shp")")"
     poetry run python pipeline/graphs.py "$shp" "${dual_dir}/${stem}_orig.json" "${dual_dir}/${stem}_connected.json"
@@ -99,7 +99,7 @@ export -f _build_graph
 for year in "${census_geography_years[@]}"; do
     find "data/processed/clipped_geographies/${year}" \
         -type f \
-        -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.shp"
+        -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.gpkg"
 done |
     parallel --bar _build_graph {}
 
