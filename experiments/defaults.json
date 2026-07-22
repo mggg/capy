@@ -1,0 +1,7 @@
+{
+  "study_area_type": "cbsa",
+  "census_geography_type": "tracts",
+  "census_geography_years": [2020, 2010, 2000, 1990, 1980],
+  "study_area_vintage": 2020,
+  "study_area_definition_geography_type": "counties"
+}

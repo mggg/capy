@@ -1,0 +1,22 @@
+# Pipeline configuration.
+# Set a value here to change the default for the runs.
+# Any value can also be overridden at runtime by setting the corresponding
+# environment variable (same name, uppercased) before calling reproduce.sh.
+
+# Valid values: cbsa, county
+study_area_type: cbsa
+
+# Valid values: tracts, block_groups, blocks, counties
+census_geography_type: blocks
+
+census_geography_years:
+  - 2020
+  - 2010
+  - 2000
+  - 1990
+  - 1980
+
+study_area_vintage: 2020
+
+# For cbsa study areas, use counties.
+study_area_definition_geography_type: counties
