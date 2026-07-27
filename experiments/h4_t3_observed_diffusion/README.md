@@ -23,7 +23,7 @@ They are manual for now. Cluster and core tracts are taken from `data/candidate_
 ## Metrics
 
 ### Cluster center
-For a search area A, Black population \(B_i\), and graph distance \(d(i,j)\) (n of edges between i and j): we go over all nodes j in the core cluster and find the j with minimum distance * Black population. This j is the centroid:
+For a search area A, Black population \(B_i\), and graph distance \(d(i,j)\) (n of edges between i and j): we go over all nodes j in the cluster and find the j with minimum i-distance * Black_i population. This j is the centroid:
 
 $$
 c = \operatorname*{arg\,min}_{j \in A}

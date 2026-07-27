@@ -1,17 +1,17 @@
 # Calculate metrics for one (for now manually selected) cluster-year area and save
 from pathlib import Path
-from os import mkdir
 import gerrychain
 import networkx as nx
 import pandas as pd
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
-SELECTIONS = EXPERIMENT_DIR / "data" / "candidate_tracts.csv"
+SELECTIONS = EXPERIMENT_DIR / "data" / "manual_cluster_tracts.csv"
 GRAPH_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "dual_graphs"
+OUTPUT = EXPERIMENT_DIR / "data" / "cluster_metrics.csv"
+OUTPUTS_DIR = Path(__file__).resolve().parent / "outputs"
 
 
-def calculate_cluster_metrics(
-    graph, gisjoins, core_gisjoins):
+def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
@@ -20,8 +20,8 @@ def calculate_cluster_metrics(
         The dual graph for the CBSA and year of interest.
     gisjoins: list of str
         The GISJOINs of the tracts in the catchment.
-    core_gisjoins: list of str
-        The GISJOINs of the tracts in the core.
+    # core_gisjoins: list of str
+    #     The GISJOINs of the tracts in the core.
     Returns
     -------
     dict
@@ -62,7 +62,7 @@ def calculate_cluster_metrics(
 
 
 output_rows = []
-selection_df = pd.read_csv(SELECTIONS, dtype={"cbsa": str, "year": int, "cluster": str, "gisjoin": str, "is_core": str})
+selection_df = pd.read_csv(SELECTIONS, dtype={"cbsa": str, "year": int, "cluster": str, "gisjoin": str}) #, "is_core": str})
 
 for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "cluster"], sort=True):
     print(f"Calculating metrics for CBSA {cbsa}, year {year}, cluster {cluster}.")
@@ -75,23 +75,21 @@ for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "clust
     graph = gerrychain.Graph.from_json(matches[0])
 
     # Determine which tracts in the catchment area are part of the core cluster
-    is_core = group["is_core"].astype(str).str.lower().eq("true")
+    # is_core = group["is_core"].astype(str).str.lower().eq("true")
     # Threshold used to define the catchment area is the same for all tracts, so just take the 1st value
-    catchment_threshold = group["catchment_threshold"].iloc[0]
+    # catchment_threshold = group["catchment_threshold"].iloc[0]
     # Core tracts IDs:
-    core_gisjoins = group.loc[is_core, "gisjoin"].tolist()
+    # core_gisjoins = group.loc[is_core, "gisjoin"].tolist()
 
-    metrics = calculate_cluster_metrics(graph, group["gisjoin"].tolist(), core_gisjoins)
+    metrics = calculate_cluster_metrics(graph, group["gisjoin"].tolist()) #, core_gisjoins)
     
-    output_rows.append(
-        {"cbsa": cbsa,
-            "year": year,
-            "cluster": cluster,
-            "catchment_threshold": catchment_threshold,
-            **metrics})
+    output_rows.append({"cbsa": cbsa,
+                        "year": year,
+                        "cluster": cluster,
+                        # "catchment_threshold": catchment_threshold,
+                        **metrics})
 
 
-    mkdir("outputs") if not Path("outputs").exists() else None
-    pd.DataFrame(output_rows).sort_values(["cbsa", "cluster", "year"]).to_csv(
-        "../data/cluster_metrics.csv", index=False)
-    print(f"Wrote {len(output_rows)} cluster-year rows to data/cluster_metrics.csv")
+    OUTPUTS_DIR.mkdir(exist_ok=True)
+    pd.DataFrame(output_rows).sort_values(["cbsa", "cluster", "year"]).to_csv(OUTPUT, index=False)
+    print(f"Wrote {len(output_rows)} cluster-year rows to {OUTPUT}")

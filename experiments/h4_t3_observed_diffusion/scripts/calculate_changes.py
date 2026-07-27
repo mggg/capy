@@ -1,6 +1,5 @@
 """Compare consecutive decades of observed Black population cluster metrics."""
 
-import argparse
 from pathlib import Path
 import pandas as pd
 
@@ -19,7 +18,7 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05):
         for previous, current in zip(records, records[1:]):
             print(f"Comparing {previous['year']} to {current['year']} of {cbsa} {cluster}")
             mass_change = current["area_black_population"] - previous["area_black_population"]
-            mass_change_fraction = mass_change / previous["area_black_population"]
+            mass_change_fraction = mass_change / previous["area_black_population"] if previous["area_black_population"] != 0 else float("nan")
             spread_change = current["spread"] - previous["spread"]
             spread_change_fraction = (spread_change / previous["spread"] if previous["spread"] != 0 
                                       else float("nan"))
@@ -51,7 +50,7 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05):
                     "to_spread": current["spread"],
                     "spread_change_edges": spread_change,
                     "spread_change_fraction": spread_change_fraction,
-                    "diffusion": change_type == "diffusion",
+                    "diffusion": change_type.startswith("diffusion"),
                     "change_type": change_type})
     return pd.DataFrame(rows)
 
