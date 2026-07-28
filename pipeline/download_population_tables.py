@@ -80,6 +80,21 @@ LEVELS = {
         "census_in": "state:{state}",
         "geoid_cols": ("state", "county"),
     },
+    "place": {
+        "label": "places",
+        "nhgis": "place",
+        "census_for": "place:*",
+        "census_in": "state:{state}",
+        "geoid_cols": ("state", "place"),
+    },
+
+    "places": {
+        "label": "places",
+        "nhgis": "place",
+        "census_for": "place:*",
+        "census_in": "state:{state}",
+        "geoid_cols": ("state", "place"),
+    },
 }
 
 CENSUS_COLUMNS = {
@@ -217,6 +232,7 @@ def geoid(df: pd.DataFrame, cols: tuple, year: int) -> pd.Series:
         "tract": 6,
         "block group": 1,
         "block": 4,
+        "place": 5
     }
     out = pd.Series([""] * len(df), index=df.index)
     for col in cols:
@@ -422,6 +438,10 @@ def main(
 
     config = LEVELS[level]
     for year in run_years:
+        if config["label"] == "places" and year != 2020:
+            print(f"Skipping {year} places: only 2020 is used in the pipeline.")
+            continue
+
         if year in NHGIS_DATASETS:
             output_path = output_dir / f"nhgis_{year}_{config['label']}.csv"
             if output_path.exists():

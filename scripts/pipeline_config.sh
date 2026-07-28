@@ -5,19 +5,20 @@
 #   CENSUS_GEOGRAPHY_TYPE: tracts, block_groups, blocks, counties
 #   STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE: counties
 
-STUDY_AREA_TYPE="${STUDY_AREA_TYPE:-cbsa}"
-CENSUS_GEOGRAPHY_TYPE="${CENSUS_GEOGRAPHY_TYPE:-tracts}"
+STUDY_AREA_TYPE="${STUDY_AREA_TYPE:-max_county}"
+CENSUS_GEOGRAPHY_TYPE="${CENSUS_GEOGRAPHY_TYPE:-block_groups}"
 CENSUS_GEOGRAPHY_YEARS="${CENSUS_GEOGRAPHY_YEARS:-2020 2010 2000 1990 1980}"
 STUDY_AREA_VINTAGE="${STUDY_AREA_VINTAGE:-2020}"
-# export CENSUS_API_KEY=""
-# export IPUMS_API_KEY=""
+
+export CENSUS_API_KEY="7e1b79ce2adac634987a423b6d7fb99510fee50e"
+export IPUMS_API_KEY="59cba10d8a5da536fc06b59d4c5f972caa484c759b4cecb5b1a6e076"
 
 
 case "${STUDY_AREA_TYPE}" in
     counties) STUDY_AREA_TYPE="county" ;;
-    cbsa|county) ;;
+    cbsa|county|max_county|max_city) ;;
     *)
-        echo "Unsupported STUDY_AREA_TYPE=${STUDY_AREA_TYPE}. Use cbsa, county, or counties." >&2
+        echo "Unsupported STUDY_AREA_TYPE=${STUDY_AREA_TYPE}. Use cbsa, max_county, max_city, county, or counties." >&2
         exit 1
         ;;
 esac
@@ -46,23 +47,29 @@ if [ "${CENSUS_GEOGRAPHY_TYPE}" = "block_groups" ]; then
     CENSUS_GEOGRAPHY_YEARS="${filtered_years}"
 fi
 
-STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE:-counties}"
+
+if [ "${STUDY_AREA_TYPE}" = "max_city" ]; then
+    STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE:-places}"
+else
+    STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE:-counties}"
+fi
 
 case "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" in
-    tracts|block_groups|blocks|counties) ;;
+    tracts|block_groups|blocks|counties|places) ;;
     tract) STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="tracts" ;;
     block_group) STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="block_groups" ;;
     block) STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="blocks" ;;
     county) STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="counties" ;;
+    places) STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE="places" ;;
     *)
-        echo "Unsupported STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE=${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}. Use tracts, block_groups, blocks, or counties. For STUDY_AREA_TYPE=cbsa, use counties." >&2
+        echo "Unsupported STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE=${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}. Use tracts, block_groups, blocks, places, or counties. For STUDY_AREA_TYPE=cbsa, use counties." >&2
         exit 1
         ;;
 esac
 
 STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR="${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR:-${STUDY_AREA_VINTAGE}}"
 
-if [ "${STUDY_AREA_TYPE}" = "cbsa" ]; then
+if [ "${STUDY_AREA_TYPE}" = "cbsa" ] || [ "${STUDY_AREA_TYPE}" = "max_county" ] || [ "${STUDY_AREA_TYPE}" = "max_city" ]; then
     STUDY_AREA_SOURCE_PATTERN="${STUDY_AREA_SOURCE_PATTERN:-list1_*_${STUDY_AREA_VINTAGE}.xls}"
 
     if [ -z "${STUDY_AREA_SOURCE_FILE:-}" ]; then

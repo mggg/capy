@@ -34,7 +34,8 @@ year_list_contains() {
 calculate_csv() {
     local output_file="$1"; shift
     python pipeline/calculate_metrics.py "" "$@" --headers-only > "${output_file}"
-    for year in ${CENSUS_GEOGRAPHY_YEARS}; do
+    IFS=' ' read -ra _years <<< "${CENSUS_GEOGRAPHY_YEARS}"
+    for year in "${_years[@]}"; do
         find "study_areas/${year}" -type f \
             -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
             parallel --bar python pipeline/calculate_metrics.py {} "$@" >> "${output_file}"
@@ -78,7 +79,8 @@ bash scripts/build_study_areas.sh
 bash scripts/overlaps.sh
 
 # Generate dual graphs.
-for year in ${CENSUS_GEOGRAPHY_YEARS}; do
+IFS=' ' read -ra _years <<< "${CENSUS_GEOGRAPHY_YEARS}"
+for year in "${_years[@]}"; do
     find "study_areas/${year}" \
         -type f \
         -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.shp"

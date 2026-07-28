@@ -20,6 +20,7 @@ PART_WIDTHS = {
     "tract": 6,
     "block_group": 1,
     "block": 4,
+    "place": 5,
 }
 
 PART_COLUMNS = {
@@ -28,6 +29,7 @@ PART_COLUMNS = {
     "tract": ["TRACTCE", "TRACTCE20", "TRACTCE10", "TRACTCE00"],
     "block_group": ["BLKGRPCE", "BLKGRPCE20", "BLKGRPCE10", "BLKGRPCE00"],
     "block": ["BLOCKCE", "BLOCKCE20", "BLOCKCE10", "BLOCKCE00"],
+    "place": ["PLACEFP"]
 }
 
 POPULATION_PART_COLUMNS = {
@@ -36,6 +38,7 @@ POPULATION_PART_COLUMNS = {
     "tract": "tract",
     "block_group": "block group",
     "block": "block",
+    "place": "place",
 }
 
 LEVELS = {
@@ -70,6 +73,16 @@ LEVELS = {
         "label": "blocks",
         "parts": ("state", "county", "tract", "block"),
         "width": 15,
+    },
+    "place": {
+        "label": "places",
+        "parts": ("state", "place"),
+        "width": 7,
+    },
+    "places": {
+        "label": "places",
+        "parts": ("state", "place"),
+        "width": 7,
     },
 }
 
