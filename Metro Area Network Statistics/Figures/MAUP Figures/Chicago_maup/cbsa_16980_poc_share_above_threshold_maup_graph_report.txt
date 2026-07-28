@@ -6,11 +6,11 @@ Graph report — Chicago-Naperville-Elgin, IL-IN-WI
 Graph Structure
   Year   Nodes   Edges
 ----------------------
-  1980    1657    4155
-  1990    1921    4869
-  2000    2047    5314
-  2010    2203    5832
-  2020    2327    6181
+  1980    1657    4134
+  1990    1921    4846
+  2000    2047    5226
+  2010    2203    5741
+  2020    2327    6098
 
 Black Share  (BLACK / (BLACK + WHITE))
   Year        Mean      Median         Min         Max         Std
@@ -44,10 +44,10 @@ POC Share Excess (≥ mean)
 Graph Structure
   Year   Nodes   Edges
 ----------------------
-  1990    7113   18951
-  2000    6561   17632
-  2010    6571   17680
-  2020    6856   18454
+  1990    7113   18776
+  2000    6561   17482
+  2010    6571   17572
+  2020    6856   18363
 
 Black Share  (BLACK / (BLACK + WHITE))
   Year        Mean      Median         Min         Max         Std
