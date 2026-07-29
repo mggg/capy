@@ -1,3 +1,4 @@
+import argparse
 import io
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -11,14 +12,19 @@ from PIL import Image
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
 
-CBSA_selections = pd.read_csv(
-    EXPERIMENT_DIR / "data" / "manual_cluster_tracts.csv",
+parser = argparse.ArgumentParser()
+parser.add_argument("--cbsa", default="16980")
+parser.add_argument("--cluster", default="cluster_1")
+args = parser.parse_args()
+CBSA = args.cbsa
+CLUSTER = args.cluster
+
+CBSA_selections = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv",
     dtype={'cbsa': str, 'gisjoin': str})
-CBSA_metrics = pd.read_csv(
-    EXPERIMENT_DIR / "data" / "cluster_metrics.csv",
+CBSA_metrics = pd.read_csv(EXPERIMENT_DIR / "data" / "cluster_metrics.csv",
     dtype={'cbsa': str, 'center_gisjoin': str})
-CBSA_selections = CBSA_selections[CBSA_selections['cbsa'] == '16980']
-CBSA_metrics = CBSA_metrics[CBSA_metrics['cbsa'] == '16980']
+CBSA_selections = CBSA_selections[(CBSA_selections['cbsa'] == CBSA) & (CBSA_selections['cluster'] == CLUSTER)]
+CBSA_metrics = CBSA_metrics[(CBSA_metrics['cbsa'] == CBSA) & (CBSA_metrics['cluster'] == CLUSTER)]
 years = sorted(CBSA_metrics['year'].unique())
 
 max_black_count = CBSA_selections["black_population"].max()
@@ -30,17 +36,15 @@ cmap = plt.cm.Blues
 
 gdfs = {
     year: gpd.read_file(
-        GEO_DIR / str(year) / f'tracts_in_cbsa_16980_{year}_march_2020_vintage.gpkg')
-    for year in years
-}
+        GEO_DIR / str(year) / f'tracts_in_cbsa_{CBSA}_{year}_march_2020_vintage.gpkg')
+    for year in years}
 
 # Compute a fixed bounding box across all years so the map doesn't shift between frames
 all_cluster_gdfs = [
     gdfs[year].merge(
         CBSA_selections[CBSA_selections['year'] == year][['gisjoin']],
         left_on='GISJOIN', right_on='gisjoin', how='inner')
-    for year in years
-]
+    for year in years]
 combined = gpd.GeoDataFrame(pd.concat(all_cluster_gdfs, ignore_index=True))
 minx, miny, maxx, maxy = combined.total_bounds
 pad_x = (maxx - minx) * 0.03
@@ -142,7 +146,7 @@ for year in years:
         Line2D([0], [0], color='tomato', marker='*', markersize=13,
                linestyle='None', label='Selected medoid')]
     fig.legend(handles=legend_items, loc='upper left', bbox_to_anchor=(0.05, 0.89), fontsize=9, frameon=False)
-    fig.suptitle('Chicago South Side cluster and Black-population-weighted medoids')
+    fig.suptitle(f'CBSA {CBSA} — {CLUSTER} and Black-population-weighted medoids')
 
     color_scale = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     fig.colorbar(color_scale, ax=ax_map, label="Log(Black population + 1)",
@@ -156,7 +160,7 @@ for year in years:
     buf.close()
     plt.close(fig)
 
-gif_path = EXPERIMENT_DIR / "figures" / "chicago_cluster_choropleth_decades.gif"
+gif_path = EXPERIMENT_DIR / "figures" / f"cbsa{CBSA}_{CLUSTER}_choropleth_decades.gif"
 gif_path.parent.mkdir(exist_ok=True)
 frames[0].save(
     gif_path,

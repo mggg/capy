@@ -1,3 +1,4 @@
+import argparse
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
@@ -9,14 +10,21 @@ from pathlib import Path
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--cbsa", default="16980")
+parser.add_argument("--cluster", default="south_side")
+args = parser.parse_args()
+CBSA = args.cbsa
+CLUSTER = args.cluster
+
 CBSA_selections = pd.read_csv(
     EXPERIMENT_DIR / "data" / "manual_cluster_tracts.csv",
     dtype={'cbsa': str, 'gisjoin': str})
 CBSA_metrics = pd.read_csv(
     EXPERIMENT_DIR / "data" / "cluster_metrics.csv",
     dtype={'cbsa': str, 'center_gisjoin': str})
-CBSA_selections = CBSA_selections[CBSA_selections['cbsa'] == '16980']
-CBSA_metrics = CBSA_metrics[CBSA_metrics['cbsa'] == '16980']
+CBSA_selections = CBSA_selections[(CBSA_selections['cbsa'] == CBSA) & (CBSA_selections['cluster'] == CLUSTER)]
+CBSA_metrics = CBSA_metrics[(CBSA_metrics['cbsa'] == CBSA) & (CBSA_metrics['cluster'] == CLUSTER)]
 years = sorted(CBSA_metrics['year'].unique())
 # colors = {'hyde_park': "#b82ca5", 'austin': "#d69169"}
 
@@ -28,7 +36,7 @@ cmap = plt.cm.Blues
 fig, axes = plt.subplots(1, len(years), figsize=(20, 7))
 
 for ax, year in zip(axes, years):
-    geo_path = GEO_DIR / str(year) / f'tracts_in_cbsa_16980_{year}_march_2020_vintage.gpkg'
+    geo_path = GEO_DIR / str(year) / f'tracts_in_cbsa_{CBSA}_{year}_march_2020_vintage.gpkg'
     gdf = gpd.read_file(geo_path)
 
     year_selections = CBSA_selections[CBSA_selections['year'] == year]
@@ -83,14 +91,14 @@ legend_items = [
     Line2D([0], [0], color='black', marker='*', markersize=13,
            linestyle='None', label='Selected medoid')]
 fig.legend(handles=legend_items, loc='lower center', ncol=3)
-fig.suptitle('Chicago South Side cluster and Black-population-weighted medoids')
+fig.suptitle(f'CBSA {CBSA} — {CLUSTER} and Black-population-weighted medoids')
 fig.tight_layout(rect=(0, 0.08, 1, 0.94))
 
 color_scale = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 fig.colorbar(color_scale, ax=axes, label="Black population share",
              fraction=0.025, pad=0.02)
 
-figure_path = EXPERIMENT_DIR / "figures" / "chicago_cluster_choropleth_all_years.png"
+figure_path = EXPERIMENT_DIR / "figures" / f"cbsa{CBSA}_{CLUSTER}_choropleth_all_years.png"
 figure_path.parent.mkdir(exist_ok=True)
 fig.savefig(figure_path, dpi=200, bbox_inches='tight')
 plt.show()
