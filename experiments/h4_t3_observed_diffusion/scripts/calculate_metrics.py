@@ -34,7 +34,6 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
     selected_nodes = [nodes_by_gisjoin[g] for g in gisjoins if g in nodes_by_gisjoin]
     if not selected_nodes:
         raise ValueError("No GISJOINs matched the graph — cluster-year has no valid tracts.")
-    # core_nodes = [nodes_by_gisjoin[gisjoin] for gisjoin in core_gisjoins]
 
     area_black_population = sum(int(graph.nodes[node]["BLACK"]) for node in selected_nodes)
     area_total_population = sum(int(graph.nodes[node]["TOTPOP"]) for node in selected_nodes)
