@@ -22,25 +22,25 @@ They are manual for now. Cluster and core tracts are taken from `data/candidate_
 
 ## Metrics
 
-### Cluster center
-For a search area A, Black population \(B_i\), and graph distance \(d(i,j)\) (n of edges between i and j): we go over all nodes j in the cluster and find the j with minimum i-distance * Black_i population. This j is the centroid:
+### Cluster medoid
+For a search area $A$, Black population in a tract $B_i$, and graph distance $d(i,j)$: we go over all nodes $j$ in the area and find the $j$ with minimum $i$-distance * $Black_i$ population. This $j$ is the medoid:
 
 $$
-c = \operatorname*{arg\,min}_{j \in A}
+m = \operatorname*{arg\,min}_{j \in A}
 \sum_{i \in A} B_i d(i,j)
 $$
 
-The center is recalculated independently in every decade.
+$m$ is recalculated independently in every decade.
 
 ### Mass
 
-Mass is just the $\sum(B_i)$.
+Mass is just the $\sum(B_i)$ in the area.
 
 ### Spread
 
-Spread is the mean distance from the center over all $B_i$:
+Spread is the mean distance from the medoid over all $B_i$:
 
 $$
-\frac{\sum_i B_i d(i,c)}{\sum_i B_i}
+\frac{\sum_i B_i d(i,m)}{\sum_i B_i}
 $$
 
