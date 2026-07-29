@@ -54,7 +54,7 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
     selected_subgraph = graph.subgraph(selected_nodes)
     return {
         "tract_count": len(selected_nodes),
-        "component_count": nx.number_connected_components(selected_subgraph), # should be 1
+        "component_count": nx.number_connected_components(selected_subgraph), # should be 1, but if using "orig.json" not guaranteed
         "area_black_population": area_black_population,
         "area_total_population": area_total_population,
         "area_black_share": area_black_population / area_total_population,
@@ -64,17 +64,13 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
         "center_geoid": graph.nodes[best_center].get("GEOID")}
 
 
-# SKIP = {("37980", 1980, "south")}
-
 output_rows = []
 selection_df = pd.read_csv(SELECTIONS, dtype={"cbsa": str, "year": int, "cluster": str, "gisjoin": str}) #, "is_core": str})
 
 for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "cluster"], sort=True):
-    # if (cbsa, year, cluster) in SKIP:
-    #     print(f"Skipping CBSA {cbsa}, year {year}, cluster {cluster} (bad CSV).")
-    #     continue
     print(f"Calculating metrics for CBSA {cbsa}, year {year}, cluster {cluster}.")
     # find and read the dual graph for this CBSA and year:
+    # USING "_ORIG.JSONS" TEMPORARILY!
     matches = sorted(
             (GRAPH_DIR / str(year)).glob(
                 f"tracts_in_cbsa_{cbsa}_{year}_*_orig.json"))
@@ -82,19 +78,11 @@ for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "clust
         raise FileNotFoundError(f"Expected one connected graph for CBSA {cbsa} in {year}, but found {len(matches)}.")
     graph = gerrychain.Graph.from_json(matches[0])
 
-    # Determine which tracts in the catchment area are part of the core cluster
-    # is_core = group["is_core"].astype(str).str.lower().eq("true")
-    # Threshold used to define the catchment area is the same for all tracts, so just take the 1st value
-    # catchment_threshold = group["catchment_threshold"].iloc[0]
-    # Core tracts IDs:
-    # core_gisjoins = group.loc[is_core, "gisjoin"].tolist()
-
-    metrics = calculate_cluster_metrics(graph, group["gisjoin"].tolist()) #, core_gisjoins)
+    metrics = calculate_cluster_metrics(graph, group["gisjoin"].tolist())
     
     output_rows.append({"cbsa": cbsa,
                         "year": year,
-                        "cluster": cluster,
-                        # "catchment_threshold": catchment_threshold,
+                        "cluster": cluster
                         **metrics})
 
 
