@@ -357,7 +357,7 @@ def make_adj_weights(graph: gerrychain.Graph):
     D_inv = scipy.sparse.diags(inv_degrees)
 
     P = D_inv @ A
-    L = D - A
+    L = A - D
 
     A_coo = A.tocoo()
     rows = A_coo.row
