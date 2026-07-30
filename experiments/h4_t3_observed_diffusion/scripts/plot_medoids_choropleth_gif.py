@@ -13,17 +13,32 @@ EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--cbsa", default="16980")
-parser.add_argument("--cluster", default="cluster_1")
+parser.add_argument("--cluster_title", default="South Side",
+                    help="Cluster title, e.g. 'South Side' or 'Philadelphia, Germantown'")
 args = parser.parse_args()
-CBSA = args.cbsa
-CLUSTER = args.cluster
+CLUSTER_TITLE = args.cluster_title
 
-CBSA_selections = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv",
-    dtype={'cbsa': str, 'gisjoin': str})
+# Build a lookup that accepts both plain titles ("Germantown") and
+# city-prefixed titles ("Philadelphia, Germantown") as used in cluster_changes.csv
+_CBSA_CITY = {"16980": "Chicago", "37980": "Philadelphia"}
+_all = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv",
+                   dtype={'cbsa': str, 'gisjoin': str})
+_title_map = {}
+for _, r in _all[["cbsa", "cluster", "cluster_title"]].drop_duplicates().iterrows():
+    _title_map[r["cluster_title"]] = (r["cbsa"], r["cluster"])
+    city = _CBSA_CITY.get(r["cbsa"], "")
+    if city:
+        _title_map[f"{city}, {r['cluster_title']}"] = (r["cbsa"], r["cluster"])
+
+if CLUSTER_TITLE not in _title_map:
+    raise ValueError(
+        f"Unknown --cluster_title {CLUSTER_TITLE!r}. "
+        f"Available: {sorted(_title_map)}")
+CBSA, CLUSTER = _title_map[CLUSTER_TITLE]
+
+CBSA_selections = _all[(_all['cbsa'] == CBSA) & (_all['cluster'] == CLUSTER)]
 CBSA_metrics = pd.read_csv(EXPERIMENT_DIR / "data" / "cluster_metrics.csv",
     dtype={'cbsa': str, 'center_gisjoin': str})
-CBSA_selections = CBSA_selections[(CBSA_selections['cbsa'] == CBSA) & (CBSA_selections['cluster'] == CLUSTER)]
 CBSA_metrics = CBSA_metrics[(CBSA_metrics['cbsa'] == CBSA) & (CBSA_metrics['cluster'] == CLUSTER)]
 years = sorted(CBSA_metrics['year'].unique())
 
@@ -146,7 +161,7 @@ for year in years:
         Line2D([0], [0], color='tomato', marker='*', markersize=13,
                linestyle='None', label='Selected medoid')]
     fig.legend(handles=legend_items, loc='upper left', bbox_to_anchor=(0.05, 0.89), fontsize=9, frameon=False)
-    fig.suptitle(f'CBSA {CBSA} — {CLUSTER} and Black-population-weighted medoids')
+    fig.suptitle(f'CBSA {CBSA} — {CLUSTER_TITLE}')
 
     color_scale = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     fig.colorbar(color_scale, ax=ax_map, label="Log(Black population + 1)",
@@ -160,7 +175,8 @@ for year in years:
     buf.close()
     plt.close(fig)
 
-gif_path = EXPERIMENT_DIR / "figures" / f"cbsa{CBSA}_{CLUSTER}_choropleth_decades.gif"
+figure_title = CLUSTER_TITLE.replace(' ', '_').replace(',', '').lower()
+gif_path = EXPERIMENT_DIR / "figures" / f"{figure_title}_choropleth_decades.gif"
 gif_path.parent.mkdir(exist_ok=True)
 frames[0].save(
     gif_path,

@@ -6,19 +6,20 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from pathlib import Path
+from shapely.ops import unary_union as _shapely_union
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--cbsa", default="16980")
-parser.add_argument("--cluster", default="south_side")
+parser.add_argument("--cbsa", default="37980")
+parser.add_argument("--cluster", default="cluster_1")
 args = parser.parse_args()
 CBSA = args.cbsa
 CLUSTER = args.cluster
 
 CBSA_selections = pd.read_csv(
-    EXPERIMENT_DIR / "data" / "manual_cluster_tracts.csv",
+    EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv",
     dtype={'cbsa': str, 'gisjoin': str})
 CBSA_metrics = pd.read_csv(
     EXPERIMENT_DIR / "data" / "cluster_metrics.csv",
@@ -51,6 +52,10 @@ for ax, year in zip(axes, years):
     cluster_gdf.plot(ax=ax, color=cluster_gdf['face_color'].tolist(),
                      edgecolor='grey', linewidth=0.2)
 
+    # Cluster boundary — unary_union merges all tracts; .boundary shows outer edge + hole rings
+    gpd.GeoSeries([cluster_gdf.geometry.unary_union], crs=cluster_gdf.crs).boundary.plot(
+        ax=ax, color='black', linewidth=1.5, zorder=4)
+
     # Medoid star and annotation
     for _, row in CBSA_metrics[CBSA_metrics['year'] == year].iterrows():
         cluster = row['cluster']
@@ -73,10 +78,10 @@ for ax, year in zip(axes, years):
         bp = medoid_data['black_population'].iloc[0]
         bs = medoid_data['black_share'].iloc[0]
         # if cluster == 'hyde_park':
-        ax.annotate(
-            f"Medoid's Black population: {bp} ({bs:.1%})",
-            xy=(1, 0), xycoords='axes fraction',
-            ha='right', va='top', fontsize=10, color='black')
+        # ax.annotate(
+        #     f"Medoid's Black population: {bp} ({bs:.1%})",
+        #     xy=(1, 0), xycoords='axes fraction',
+        #     ha='right', va='top', fontsize=10, color='black')
         # else:
         #     ax.annotate(
         #         f"\n\n{cluster}: {bp} ({bs:.1%})",
@@ -91,14 +96,18 @@ legend_items = [
     Line2D([0], [0], color='black', marker='*', markersize=13,
            linestyle='None', label='Selected medoid')]
 fig.legend(handles=legend_items, loc='lower center', ncol=3)
-fig.suptitle(f'CBSA {CBSA} — {CLUSTER} and Black-population-weighted medoids')
+_cluster_title = (CBSA_selections["cluster_title"].iloc[0]
+                  if "cluster_title" in CBSA_selections.columns and len(CBSA_selections) > 0
+                  else CLUSTER)
+fig.suptitle(f'CBSA {CBSA} — {_cluster_title} and Black-population-weighted medoids')
 fig.tight_layout(rect=(0, 0.08, 1, 0.94))
 
 color_scale = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
 fig.colorbar(color_scale, ax=axes, label="Black population share",
              fraction=0.025, pad=0.02)
 
-figure_path = EXPERIMENT_DIR / "figures" / f"cbsa{CBSA}_{CLUSTER}_choropleth_all_years.png"
+figure_title = _cluster_title.replace(' ', '_').replace(',', '').lower()
+figure_path = EXPERIMENT_DIR / "figures" / f"{figure_title}_choropleth_all_years.png"
 figure_path.parent.mkdir(exist_ok=True)
 fig.savefig(figure_path, dpi=200, bbox_inches='tight')
 plt.show()

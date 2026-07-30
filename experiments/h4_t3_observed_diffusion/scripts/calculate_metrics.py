@@ -64,8 +64,14 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
         "center_geoid": graph.nodes[best_center].get("GEOID")}
 
 
+selection_df = pd.read_csv(SELECTIONS, dtype={"cbsa": str, "year": int, "cluster": str, "gisjoin": str})
+
+_titles = (selection_df[["cbsa", "cluster", "cluster_title"]].drop_duplicates()
+           if "cluster_title" in selection_df.columns
+           else pd.DataFrame(columns=["cbsa", "cluster", "cluster_title"]))
+CLUSTER_TITLE = {(r["cbsa"], r["cluster"]): r["cluster_title"] for _, r in _titles.iterrows()}
+
 output_rows = []
-selection_df = pd.read_csv(SELECTIONS, dtype={"cbsa": str, "year": int, "cluster": str, "gisjoin": str}) #, "is_core": str})
 
 for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "cluster"], sort=True):
     print(f"Calculating metrics for CBSA {cbsa}, year {year}, cluster {cluster}.")
@@ -82,7 +88,8 @@ for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "clust
     
     output_rows.append({"cbsa": cbsa,
                         "year": year,
-                        "cluster": cluster
+                        "cluster": cluster,
+                        "cluster_title": CLUSTER_TITLE.get((cbsa, cluster), cluster),
                         **metrics})
 
 

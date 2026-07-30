@@ -10,7 +10,9 @@ OUTPUT = EXPERIMENT_DIR / "data" / "cluster_changes.csv"
 mass_tolerance = 0.05  # fraction of previous decade's mass that is considered "stable"
 
 
-def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05):
+def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05, cluster_title_map: dict = None):
+    if cluster_title_map is None:
+        cluster_title_map = {}
     rows = []
     for (cbsa, cluster), group in metrics.groupby(["cbsa", "cluster"], sort=True):
         group = group.sort_values("year")
@@ -37,6 +39,7 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05):
 
             rows.append({"cbsa": cbsa,
                     "cluster": cluster,
+                    "cluster_title": cluster_title_map.get((str(cbsa), cluster), cluster),
                     "from_year": previous["year"],
                     "to_year": current["year"],
                     "from_center_gisjoin": previous["center_gisjoin"],
@@ -56,7 +59,14 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05):
 
 
 metrics = pd.read_csv(INPUT, dtype={"cbsa": str, "cluster": str, "center_gisjoin": str})
-changes = calculate_changes(metrics, mass_tolerance=mass_tolerance)
+
+_auto = pd.read_csv(INPUT.parent / "auto_cluster_tracts.csv", dtype={"cbsa": str})
+CLUSTER_TITLE = {
+    (r["cbsa"], r["cluster"]): r["cluster_title"]
+    for _, r in _auto[["cbsa", "cluster", "cluster_title"]].drop_duplicates().iterrows()
+}
+
+changes = calculate_changes(metrics, mass_tolerance=mass_tolerance, cluster_title_map=CLUSTER_TITLE)
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 changes.to_csv(OUTPUT, index=False)
 print(f"Wrote {len(changes)} decade comparisons to {OUTPUT}")
