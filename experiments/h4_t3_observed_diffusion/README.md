@@ -8,9 +8,9 @@ population clusters:
 
 It uses the existing tract network in `data/rpocessed/dual_graphs/YEAR/*_connected.json` graphs for 1980, 1990, 2000, 2010, and 2020. Network distance is unweighted shortest-path length, measured in tract-adjacency edges.
 
-## Current area of search definition
+## Current extent of cluster definition
 
-They are manual for now. Cluster and core tracts are taken from `data/candidate_tracts.csv` as supplied. It's a list of tracts chosen to be in the area, and it needs to have the following columns: 
+Take the graph of a city and create a subgraph by removing every node whose black share is below rho. On this new subgraph, take the two connected components that have the highest number of nodes. These are the two clusters for the city. To reflect it back to previous years. Let any tract that is at least 50% covered by the cluster be part of the cluster for that year.
 
 | Column | How the notebook uses it |
 |---|---|
