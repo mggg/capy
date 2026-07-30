@@ -72,30 +72,10 @@ def add_population_attrs(graph: gerrychain.Graph, target, source):
 
 
 def contract_zero_nodes(graph: gerrychain.Graph):
-    for node in graph.nodes():
-        if node_contraction_population(graph, node) == 0:
-            max_seen = 0
-            max_neighbor = None
-
-            for neighbor in graph.neighbors(node):
-                pop = node_contraction_population(graph, neighbor)
-                if max_seen < pop or max_seen == 0:
-                    max_seen = pop
-                    max_neighbor = neighbor
-
-            if max_neighbor is not None:
-                print("contracted", node, max_neighbor)
-                add_population_attrs(graph, max_neighbor, node)
-                nx.contracted_nodes(graph, max_neighbor, node, self_loops=False, copy=False)
-
-                # Clean up attributes so GerryChain can serialize to JSON
-                del graph.nodes[max_neighbor]["contraction"][node]["geometry"]
-                for new_neighbor in graph.neighbors(max_neighbor):
-                    edge = graph.edges[(max_neighbor, new_neighbor)]
-                    if "contraction" in edge:
-                        del edge["contraction"]
-
-                return graph
+    zero_nodes = [n for n in graph.nodes() if node_contraction_population(graph, n) == 0]
+    for node in zero_nodes:
+        print("dropped", node)
+    graph.remove_nodes_from(zero_nodes)
     return graph
 
 
