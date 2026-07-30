@@ -21,7 +21,11 @@ def study_area_code_from_filename(filename: str) -> str:
 
     output_stem = output_stem.split("_vintage", 1)[0]
     study_area_and_dates = output_stem.split("_in_", 1)[-1]
-    study_area_identity = study_area_and_dates.rsplit("_", 3)[0]
+    tokens = study_area_and_dates.split("_")
+    if tokens[-2].isdigit() and len(tokens[-2]) == 4:
+        study_area_identity = "_".join(tokens[:-2])
+    else:
+        study_area_identity = "_".join(tokens[:-3])
     return study_area_identity.rsplit("_", 1)[-1]
 
 

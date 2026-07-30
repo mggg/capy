@@ -57,6 +57,8 @@ LEVELS = {
     },
     "block": {"label": "blocks", "nhgis_levels": ["block"], "census": "block"},
     "blocks": {"label": "blocks", "nhgis_levels": ["block"], "census": "block"},
+    "place": {"label": "places", "census": "place"},
+    "places": {"label": "places", "census": "place"},
 }
 
 CENSUS_TIGER_URLS = {
@@ -113,6 +115,10 @@ CENSUS_TIGER_URLS = {
             "https://www2.census.gov/geo/tiger/TIGER2020/TABBLOCK20/"
             "tl_2020_{state}_tabblock20.zip"
         ],
+        "place": [
+            "https://www2.census.gov/geo/tiger/TIGER2020/PLACE/"
+            "tl_2020_{state}_place.zip"
+        ]
     },
 }
 
@@ -434,7 +440,10 @@ def main(
     run_years = parse_years(years, year_values)
 
     for year in run_years:
-        if year == 1980 and LEVELS[level]["label"] in ("block_groups", "blocks"):
+        if year != 2020 and LEVELS[level]["label"] == "places":
+            print(f"Skipping {year} places: only 2020 is used in the pipeline.")
+            continue
+        if year == 1980 and LEVELS[level]["label"] == ("block_groups", "blocks"):
             print(
                 f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group "
                 "or block boundary shapefiles. These were not standardized as nationwide "

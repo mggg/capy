@@ -31,8 +31,10 @@ def main() -> None:
     study_area_type = os.environ.get("STUDY_AREA_TYPE", str(cfg["study_area_type"]))
     study_area_type = _normalize(
         study_area_type,
-        {"counties": "county"},
-        {"cbsa", "county"},
+        {"counties": "county",
+        "max_counties": "max_county",
+        "max_cities": "max_city"},
+        {"cbsa", "county", "max_city", "max_county"},
         "STUDY_AREA_TYPE",
     )
 
@@ -59,12 +61,14 @@ def main() -> None:
 
     study_area_definition_geography_type = os.environ.get(
         "STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE",
-        str(cfg.get("study_area_definition_geography_type", "counties")),
-    )
+        str(cfg.get("study_area_definition_geography_type", 
+                    "places" if study_area_type == "max_city" else "counties")),
+        )
+     
     study_area_definition_geography_type = _normalize(
         study_area_definition_geography_type,
-        {"tract": "tracts", "block_group": "block_groups", "block": "blocks", "county": "counties"},
-        {"tracts", "block_groups", "blocks", "counties"},
+        {"tract": "tracts", "block_group": "block_groups", "block": "blocks", "county": "counties", "place": "places"},
+        {"tracts", "block_groups", "blocks", "counties", "places"},
         "STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE",
     )
 
@@ -73,12 +77,12 @@ def main() -> None:
     )
 
     study_area_source_pattern = os.environ.get(
-        "STUDY_AREA_SOURCE_PATTERN", f"list1_*_{study_area_vintage}.xls"
+        "STUDY_AREA_SOURCE_PATTERN", f"list1_{study_area_vintage}.xls"
     )
     study_area_source_file = os.environ.get("STUDY_AREA_SOURCE_FILE", "")
     study_area_definition_vintage = os.environ.get("STUDY_AREA_DEFINITION_VINTAGE", "")
 
-    if study_area_type == "cbsa":
+    if study_area_type in ("cbsa", "max_city", "max_county"):
         if not study_area_source_file:
             matches = sorted(glob.glob(f"data/raw/study_area_sources/{study_area_source_pattern}"))
             if not matches:
