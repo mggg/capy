@@ -232,7 +232,7 @@ def build_max_county_definitions(
             crs=counties.crs,
         )
         study_area = CBSA(
-            cbsa_code=county_fips,
+            area_code=county_fips,
             cbsa_title=county_title(max_county),
             component_counties_fips=[county_fips],
             total_population=(
@@ -243,7 +243,7 @@ def build_max_county_definitions(
 
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(cbsa_to_dict(study_area), w)
-        county_gdf.to_file(f"{output_dir}/{output_stem}.shp")
+        county_gdf.to_file(f"{output_dir}/{output_stem}.gpkg", driver= "GPKG")
 
 
 def build_max_city_definitions(
@@ -278,7 +278,7 @@ def build_max_city_definitions(
         output_stem = f"max_city_{max_place['GEOID'].iloc[0]}_{definition_vintage}"
 
         study_area = CBSA(
-            cbsa_code=max_place["GEOID"].iloc[0],
+            area_code=max_place["GEOID"].iloc[0],
             cbsa_title=str(max_place["NAMELSAD"].iloc[0]),
             component_counties_fips=[max_place["GEOID"].iloc[0]],
             total_population=(
@@ -289,7 +289,7 @@ def build_max_city_definitions(
 
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(cbsa_to_dict(study_area), w)
-        max_place.to_file(f"{output_dir}/{output_stem}.shp")
+        max_place.to_file(f"{output_dir}/{output_stem}.gpkg", driver = "GPKG")
 
 
 if __name__ == "__main__":

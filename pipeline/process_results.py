@@ -36,10 +36,18 @@ def output_name_parts(filename: str):
     if "_in_" in output_stem and output_stem.endswith("_vintage"):
         output_stem = output_stem.removesuffix("_vintage")
         _, study_area_and_dates = output_stem.split("_in_", 1)
-        study_area_identity, geography_year, month, vintage_year = (
-            study_area_and_dates.rsplit("_", 3)
-        )
-        return study_area_identity, geography_year, f"{month}_{vintage_year}"
+        tokens = study_area_and_dates.split("_")
+        if tokens[-2].isdigit() and len(tokens[-2]) == 4:
+            # single-part vintage (e.g. "2020")
+            vintage = tokens[-1]
+            geography_year = tokens[-2]
+            study_area_identity = "_".join(tokens[:-2])
+        else:
+            # two-part vintage (e.g. "March_2020")
+            vintage = f"{tokens[-2]}_{tokens[-1]}"
+            geography_year = tokens[-3]
+            study_area_identity = "_".join(tokens[:-3])
+        return study_area_identity, geography_year, vintage
 
     geography_year = Path(filename).parent.name
     tokens = output_stem.split("_")
