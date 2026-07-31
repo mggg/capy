@@ -18,7 +18,7 @@ if [ "${STUDY_AREA_TYPE}" = "cbsa" ] || [ "${STUDY_AREA_TYPE}" = "max_county" ] 
         --output-dir "data/processed/study_area_definitions" \
         --study-area-type "${STUDY_AREA_TYPE}" \
         --definition-vintage "${STUDY_AREA_DEFINITION_VINTAGE}" \
-        --cbsa-geographies "census_geographies/${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}_counties.shp" 
+        --cbsa-geographies "data/processed/census_geographies/${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}_counties.gpkg"
 
 else
     poetry run python pipeline/preprocessing/study_areas.py \
