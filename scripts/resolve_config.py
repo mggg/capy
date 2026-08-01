@@ -73,7 +73,7 @@ def main() -> None:
     )
 
     study_area_source_pattern = os.environ.get(
-        "STUDY_AREA_SOURCE_PATTERN", f"list1_*_{study_area_vintage}.xls"
+        "STUDY_AREA_SOURCE_PATTERN", f"list1_*{study_area_vintage}.xls"
     )
     study_area_source_file = os.environ.get("STUDY_AREA_SOURCE_FILE", "")
     study_area_definition_vintage = os.environ.get("STUDY_AREA_DEFINITION_VINTAGE", "")

@@ -79,6 +79,10 @@ if [ "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" != "${CENSUS_GEOGRAPHY_TYPE}" ] |
         "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
 fi
 
+if [ "${STUDY_AREA_TYPE}" = "max_city" ]; then
+    build_geography_inputs "counties" "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
+fi
+
 # Generate study area definition shapefiles.
 bash "${SCRIPT_DIR}/build_study_areas.sh"
 
