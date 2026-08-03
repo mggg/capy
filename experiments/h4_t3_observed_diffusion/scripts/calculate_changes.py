@@ -14,11 +14,11 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05, clust
     if cluster_title_map is None:
         cluster_title_map = {}
     rows = []
-    for (cbsa, cluster), group in metrics.groupby(["cbsa", "cluster"], sort=True):
+    for (area_code, cluster), group in metrics.groupby(["area_code", "cluster"], sort=True):
         group = group.sort_values("year")
         records = list(group.to_dict("records"))
         for previous, current in zip(records, records[1:]):
-            print(f"Comparing {previous['year']} to {current['year']} of {cbsa} {cluster}")
+            print(f"Comparing {previous['year']} to {current['year']} of {area_code} {cluster}")
             mass_change = current["area_black_population"] - previous["area_black_population"]
             mass_change_fraction = mass_change / previous["area_black_population"] if previous["area_black_population"] != 0 else float("nan")
             spread_change = current["spread"] - previous["spread"]
@@ -37,9 +37,9 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05, clust
             else:
                 change_type = "no_spread_change"
 
-            rows.append({"cbsa": cbsa,
+            rows.append({"area_code": area_code,
                     "cluster": cluster,
-                    "cluster_title": cluster_title_map.get((str(cbsa), cluster), cluster),
+                    "cluster_title": cluster_title_map.get((str(area_code), cluster), cluster),
                     "from_year": previous["year"],
                     "to_year": current["year"],
                     "from_center_gisjoin": previous["center_gisjoin"],
@@ -58,12 +58,12 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05, clust
     return pd.DataFrame(rows)
 
 
-metrics = pd.read_csv(INPUT, dtype={"cbsa": str, "cluster": str, "center_gisjoin": str})
+metrics = pd.read_csv(INPUT, dtype={"area_code": str, "cluster": str, "center_gisjoin": str})
 
-_auto = pd.read_csv(INPUT.parent / "auto_cluster_tracts.csv", dtype={"cbsa": str})
+_auto = pd.read_csv(INPUT.parent / "auto_cluster_tracts.csv", dtype={"area_code": str})
 CLUSTER_TITLE = {
-    (r["cbsa"], r["cluster"]): r["cluster_title"]
-    for _, r in _auto[["cbsa", "cluster", "cluster_title"]].drop_duplicates().iterrows()
+    (r["area_code"], r["cluster"]): r["cluster_title"]
+    for _, r in _auto[["area_code", "cluster", "cluster_title"]].drop_duplicates().iterrows()
 }
 
 changes = calculate_changes(metrics, mass_tolerance=mass_tolerance, cluster_title_map=CLUSTER_TITLE)

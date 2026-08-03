@@ -1,4 +1,4 @@
-# Calculate metrics for one (for now manually selected) cluster-year area and save
+# Calculate metrics for cluster-years area and save
 from pathlib import Path
 import gerrychain
 import networkx as nx
@@ -64,35 +64,32 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
         "center_geoid": graph.nodes[best_center].get("GEOID")}
 
 
-selection_df = pd.read_csv(SELECTIONS, dtype={"cbsa": str, "year": int, "cluster": str, "gisjoin": str})
+selection_df = pd.read_csv(SELECTIONS, dtype={"area_code": str, "year": int, "cluster": str, "gisjoin": str})
 
-_titles = (selection_df[["cbsa", "cluster", "cluster_title"]].drop_duplicates()
+_titles = (selection_df[["area_code", "cluster", "cluster_title"]].drop_duplicates()
            if "cluster_title" in selection_df.columns
-           else pd.DataFrame(columns=["cbsa", "cluster", "cluster_title"]))
-CLUSTER_TITLE = {(r["cbsa"], r["cluster"]): r["cluster_title"] for _, r in _titles.iterrows()}
+           else pd.DataFrame(columns=["area_code", "cluster", "cluster_title"]))
+CLUSTER_TITLE = {(r["area_code"], r["cluster"]): r["cluster_title"] for _, r in _titles.iterrows()}
 
 output_rows = []
 
-for (cbsa, year, cluster), group in selection_df.groupby(["cbsa", "year", "cluster"], sort=True):
-    print(f"Calculating metrics for CBSA {cbsa}, year {year}, cluster {cluster}.")
-    # find and read the dual graph for this CBSA and year:
-    # USING "_ORIG.JSONS" TEMPORARILY!
+for (area_code, year, cluster), group in selection_df.groupby(["area_code", "year", "cluster"], sort=True):
+    print(f"Calculating metrics for area_code {area_code}, year {year}, cluster {cluster}.")
     matches = sorted(
             (GRAPH_DIR / str(year)).glob(
-                f"tracts_in_cbsa_{cbsa}_{year}_*_orig.json"))
+                f"tracts_in_max_city_{area_code}_{year}_*_orig.json"))
     if len(matches) != 1:
-        raise FileNotFoundError(f"Expected one connected graph for CBSA {cbsa} in {year}, but found {len(matches)}.")
+        raise FileNotFoundError(f"Expected one city graph for area_code {area_code} in {year}, but found {len(matches)}.")
     graph = gerrychain.Graph.from_json(matches[0])
 
     metrics = calculate_cluster_metrics(graph, group["gisjoin"].tolist())
-    
-    output_rows.append({"cbsa": cbsa,
+
+    output_rows.append({"area_code": area_code,
                         "year": year,
                         "cluster": cluster,
-                        "cluster_title": CLUSTER_TITLE.get((cbsa, cluster), cluster),
+                        "cluster_title": CLUSTER_TITLE.get((area_code, cluster), cluster),
                         **metrics})
 
-
     OUTPUTS_DIR.mkdir(exist_ok=True)
-    pd.DataFrame(output_rows).sort_values(["cbsa", "cluster", "year"]).to_csv(OUTPUT, index=False)
+    pd.DataFrame(output_rows).sort_values(["area_code", "cluster", "year"]).to_csv(OUTPUT, index=False)
     print(f"Wrote {len(output_rows)} cluster-year rows to {OUTPUT}")
