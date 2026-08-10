@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from shapely.ops import unary_union
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+
 from pipeline.metrics import moran, dissimilarity, half_edge
 
 
@@ -16,7 +20,7 @@ def compute_rho(G):
 def find_graph_files(graphs_path, city_code):
     graph_files = []
     for year in range(1980, 2021, 10):
-        graph_file = graphs_path / str(year) / f"tracts_in_max_city_{city_code}_{year}_march_2020_vintage_connected.json"
+        graph_file = graphs_path / str(year) / f"tracts_in_max_city_{city_code}_{year}_2020_vintage_connected.json"
         if not graph_file.exists():
             print(f"Graph file for year {year} does not exist.")
         graph_files.append(graph_file)
