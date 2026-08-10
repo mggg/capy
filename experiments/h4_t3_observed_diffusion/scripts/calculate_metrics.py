@@ -1,50 +1,41 @@
 # Calculate metrics for cluster-years area and save
 from pathlib import Path
-import gerrychain
 import networkx as nx
 import pandas as pd
+import gerrychain
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
-# SELECTIONS = EXPERIMENT_DIR / "data" / "manual_cluster_tracts.csv"
 SELECTIONS = EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv"
+# SELECTIONS = EXPERIMENT_DIR / "data" / "cluster_graphs_buffers"
 GRAPH_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "dual_graphs"
 OUTPUT = EXPERIMENT_DIR / "data" / "cluster_metrics.csv"
-OUTPUTS_DIR = Path(__file__).resolve().parent / "outputs"
+# OUTPUTS_DIR = Path(__file__).resolve().parent / "outputs"
 
 
-def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
+def calculate_cluster_metrics(graph, gisjoins):
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
     ----------
-    graph: gerrychain.Graph
+    graph: nx Graph
         The dual graph for the CBSA and year of interest.
-    gisjoins: list of str
-        The GISJOINs of the tracts in the catchment.
     Returns
     -------
     dict
         A dictionary containing the calculated metrics for the catchment area and core cluster.
     """
-    # Translate the supplied catchment area and core GISJOINs to graph node IDs, {GISJOIN: node_id}
-    nodes_by_gisjoin = {str(attrs["GISJOIN"]): node for node, attrs in graph.nodes(data=True)}
-    missing = [g for g in gisjoins if g not in nodes_by_gisjoin]
-    if missing:
-        print(f"  Warning: skipping {len(missing)} GISJOIN(s) not found in graph: {missing}")
+    nodes_by_gisjoin = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     selected_nodes = [nodes_by_gisjoin[g] for g in gisjoins if g in nodes_by_gisjoin]
-    if not selected_nodes:
-        raise ValueError("No GISJOINs matched the graph — cluster-year has no valid tracts.")
 
     area_black_population = sum(int(graph.nodes[node]["BLACK"]) for node in selected_nodes)
     area_total_population = sum(int(graph.nodes[node]["TOTPOP"]) for node in selected_nodes)
 
-    # Test every tract and pick the graph centroid. Centroid minimizes the sum of distances to all other tracts in the catchment area, weighted by Black population.
+    # Test every tract and pick the graph centroid. Centroid minimizes the sum of distances to all other tracts in the area, weighted by Black population.
     best_center = None
     best_objective = None
     for candidate in selected_nodes:
         distances = nx.single_source_shortest_path_length(graph, candidate)
-        objective = sum(
-            int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
+        objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
         # The candidate tract itself contributes zero because its distance to itself is zero
         # tie_break = str(graph.nodes[candidate]["GISJOIN"])
         if best_objective is None or objective < best_objective: # (objective, tie_break) < (best_objective, str(graph.nodes[best_center]["GISJOIN"])):
@@ -54,7 +45,7 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
     selected_subgraph = graph.subgraph(selected_nodes)
     return {
         "tract_count": len(selected_nodes),
-        "component_count": nx.number_connected_components(selected_subgraph), # should be 1, but if using "orig.json" not guaranteed
+        "component_count": nx.number_connected_components(selected_subgraph),
         "area_black_population": area_black_population,
         "area_total_population": area_total_population,
         "area_black_share": area_black_population / area_total_population,
@@ -66,30 +57,20 @@ def calculate_cluster_metrics(graph, gisjoins): #core_gisjoins):
 
 selection_df = pd.read_csv(SELECTIONS, dtype={"area_code": str, "year": int, "cluster": str, "gisjoin": str})
 
-_titles = (selection_df[["area_code", "cluster", "cluster_title"]].drop_duplicates()
-           if "cluster_title" in selection_df.columns
-           else pd.DataFrame(columns=["area_code", "cluster", "cluster_title"]))
-CLUSTER_TITLE = {(r["area_code"], r["cluster"]): r["cluster_title"] for _, r in _titles.iterrows()}
 
 output_rows = []
 
 for (area_code, year, cluster), group in selection_df.groupby(["area_code", "year", "cluster"], sort=True):
     print(f"Calculating metrics for area_code {area_code}, year {year}, cluster {cluster}.")
     matches = sorted(
-            (GRAPH_DIR / str(year)).glob(
-                f"tracts_in_max_city_{area_code}_{year}_*_orig.json"))
+            (GRAPH_DIR / str(year)).glob(f"tracts_in_max_city_{area_code}_{year}_*_connected.json"))
     if len(matches) != 1:
         raise FileNotFoundError(f"Expected one city graph for area_code {area_code} in {year}, but found {len(matches)}.")
     graph = gerrychain.Graph.from_json(matches[0])
 
-    metrics = calculate_cluster_metrics(graph, group["gisjoin"].tolist())
+    metrics = calculate_cluster_metrics(graph, gisjoins=group["gisjoin"].tolist())
 
-    output_rows.append({"area_code": area_code,
-                        "year": year,
-                        "cluster": cluster,
-                        "cluster_title": CLUSTER_TITLE.get((area_code, cluster), cluster),
-                        **metrics})
+    output_rows.append({"area_code": area_code, "year": year, "cluster": cluster, **metrics})
 
-    OUTPUTS_DIR.mkdir(exist_ok=True)
-    pd.DataFrame(output_rows).sort_values(["area_code", "cluster", "year"]).to_csv(OUTPUT, index=False)
-    print(f"Wrote {len(output_rows)} cluster-year rows to {OUTPUT}")
+pd.DataFrame(output_rows).sort_values(["area_code", "cluster", "year"]).to_csv(OUTPUT, index=False)
+print(f"Wrote {len(output_rows)} cluster-year rows to {OUTPUT}")

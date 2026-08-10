@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent # to capy-bara/
-# sys.path.insert(0, str(ROOT)) # for pipeline.*
+sys.path.insert(0, str(ROOT)) # for pipeline.*
 sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
@@ -33,7 +33,7 @@ CLIPPED_GEO_DIR = ROOT / "data" / "processed" / "clipped_geographies"
 OUTPUT_JSON_FILES = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "cluster_graphs_buffers"
 OUTPUT_NODE_LIST = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "auto_cluster_tracts.csv"
 
-
+rows = []
 
 for CBSA in CBSA_CONFIG.keys():
     print(f'--------- Working on area ID = {CBSA} ---------')
@@ -140,10 +140,10 @@ for CBSA in CBSA_CONFIG.keys():
                 json.dump(nx.adjacency_data(G), f)
 
     # 2) alternatively and better for further calculations, save gisjoin ids
-    rows = []
     for year, clusters in graph_yearly.items():
         for label, G in clusters.items():
             for n, attrs in G.nodes(data=True):
                 rows.append({"area_code": CBSA, "year": year, "cluster": label, "gisjoin": attrs["GISJOIN"]})
-    print(f"Saving list of selected nodes to {OUTPUT_NODE_LIST}")
-    pd.DataFrame(rows).to_csv(OUTPUT_NODE_LIST, index=False)
+
+print(f"Saving list of selected nodes to {OUTPUT_NODE_LIST}")
+pd.DataFrame(rows).to_csv(OUTPUT_NODE_LIST, index=False)
