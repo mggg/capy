@@ -12,7 +12,7 @@ OUTPUT = EXPERIMENT_DIR / "data" / "cluster_metrics.csv"
 # OUTPUTS_DIR = Path(__file__).resolve().parent / "outputs"
 
 
-def calculate_cluster_metrics(graph, gisjoins):
+def calculate_cluster_spread(graph, gisjoins):
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
@@ -68,7 +68,7 @@ for (area_code, year, cluster), group in selection_df.groupby(["area_code", "yea
         raise FileNotFoundError(f"Expected one city graph for area_code {area_code} in {year}, but found {len(matches)}.")
     graph = gerrychain.Graph.from_json(matches[0])
 
-    metrics = calculate_cluster_metrics(graph, gisjoins=group["gisjoin"].tolist())
+    metrics = calculate_cluster_spread(graph, gisjoins=group["gisjoin"].tolist())
 
     output_rows.append({"area_code": area_code, "year": year, "cluster": cluster, **metrics})
 

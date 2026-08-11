@@ -60,13 +60,9 @@ def calculate_changes(metrics: pd.DataFrame, mass_tolerance: float = 0.05, clust
 
 metrics = pd.read_csv(INPUT, dtype={"area_code": str, "cluster": str, "center_gisjoin": str})
 
-_auto = pd.read_csv(INPUT.parent / "auto_cluster_tracts.csv", dtype={"area_code": str})
-CLUSTER_TITLE = {
-    (r["area_code"], r["cluster"]): r["cluster_title"]
-    for _, r in _auto[["area_code", "cluster", "cluster_title"]].drop_duplicates().iterrows()
-}
+CLUSTER_TITLE = metrics['cluster']
 
-changes = calculate_changes(metrics, mass_tolerance=mass_tolerance, cluster_title_map=CLUSTER_TITLE)
+changes = calculate_changes(metrics, mass_tolerance=mass_tolerance)
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 changes.to_csv(OUTPUT, index=False)
 print(f"Wrote {len(changes)} decade comparisons to {OUTPUT}")
