@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent # to capy-bara/
-#sys.path.insert(0, str(ROOT)) # for pipeline.*
+sys.path.insert(0, str(ROOT)) # for pipeline.*
 sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
@@ -33,14 +33,14 @@ CLIPPED_GEO_DIR = ROOT / "data" / "processed" / "clipped_geographies"
 OUTPUT_JSON_FILES = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "cluster_graphs_buffers"
 OUTPUT_NODE_LIST = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "auto_cluster_tracts.csv"
 
+rows = []
 
-for n_edges in BUFFER_LIST:
-    for CBSA in CBSA_CONFIG.keys():
-        print(f'--------- Working on area ID = {CBSA} ---------')
-        graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_2020_vintage_connected.json"
-        with open(graph_file) as f:
-            G_city_2020 = nx.adjacency_graph(json.load(f))
-        BLACK_SHARE_THRESHOLD = compute_rho(G_city_2020)
+for CBSA in CBSA_CONFIG.keys():
+    print(f'--------- Working on area ID = {CBSA} ---------')
+    graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_march_2020_vintage_connected.json"
+    with open(graph_file) as f:
+        G_city_2020 = nx.adjacency_graph(json.load(f))
+    BLACK_SHARE_THRESHOLD = compute_rho(G_city_2020)
 
         node_ids = list(G_city_2020.nodes())
         nodes_df = pd.DataFrame([G_city_2020.nodes[n] for n in node_ids], index=node_ids)
@@ -139,11 +139,11 @@ for n_edges in BUFFER_LIST:
                 with open(out, "w") as f:
                     json.dump(nx.adjacency_data(G), f)
 
-        # 2) alternatively and better for further calculations, save gisjoin ids
-        rows = []
-        for year, clusters in graph_yearly.items():
-            for label, G in clusters.items():
-                for n, attrs in G.nodes(data=True):
-                    rows.append({"area_code": CBSA, "year": year, "cluster": label, "gisjoin": attrs["GISJOIN"]})
-        print(f"Saving list of selected nodes to {OUTPUT_NODE_LIST}")
-        pd.DataFrame(rows).to_csv(OUTPUT_NODE_LIST, index=False)
+    # 2) alternatively and better for further calculations, save gisjoin ids
+    for year, clusters in graph_yearly.items():
+        for label, G in clusters.items():
+            for n, attrs in G.nodes(data=True):
+                rows.append({"area_code": CBSA, "year": year, "cluster": label, "gisjoin": attrs["GISJOIN"]})
+
+print(f"Saving list of selected nodes to {OUTPUT_NODE_LIST}")
+pd.DataFrame(rows).to_csv(OUTPUT_NODE_LIST, index=False)
