@@ -23,7 +23,7 @@ from pipeline.visualization.plot_grid_top10 import plot_grid_top10
 
 
 def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
-    required = {"definition_month_year", "year", "cbsa_title", "total_population_2020"}
+    required = {"definition_month_year", "year", "cbsa_title", "cbsa_code", "total_population_2020"}
     if required.issubset(df.columns):
         return df
     return enrich_metrics(df)
@@ -59,10 +59,11 @@ def main(
     for month_year in set(df["definition_month_year"]):
         month_year_df = df[df["definition_month_year"] == month_year]
 
-        top_n_metros = list(month_year_df["cbsa_title"].drop_duplicates()[:n])
+        top_n_metros = list(month_year_df["cbsa_code"].drop_duplicates()[:n])
+        code_to_title = month_year_df.drop_duplicates("cbsa_code").set_index("cbsa_code")["cbsa_title"]
         top_n_df = month_year_df[
-            month_year_df["cbsa_title"].isin(top_n_metros)
-        ].sort_values(["cbsa_title", "year"])
+            month_year_df["cbsa_code"].isin(top_n_metros)
+        ].sort_values(["cbsa_code", "year"])
 
         color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
         years = sorted(top_n_df["year"].unique())
@@ -76,7 +77,7 @@ def main(
             _apply_panel_style(ax, years, None, y_range=y_range)
 
             for cbsa in top_n_metros:
-                cbsa_df = top_n_df[top_n_df["cbsa_title"] == cbsa]
+                cbsa_df = top_n_df[top_n_df["cbsa_code"] == cbsa]
                 ax.plot(
                     cbsa_df["year"], cbsa_df[metric],
                     color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
@@ -99,7 +100,7 @@ def main(
             )
 
             handles = [
-                plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(c))
+                plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))
                 for c in top_n_metros
             ]
             fig.legend(

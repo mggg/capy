@@ -25,12 +25,12 @@ def plot_single_metric(
 
     years = sorted(month_year_df["year"].unique())
 
-    cbsa_year_counts = month_year_df.groupby("cbsa_title")["year"].nunique()
+    cbsa_year_counts = month_year_df.groupby("cbsa_code")["year"].nunique()
     complete_cbsas = cbsa_year_counts[cbsa_year_counts == len(years)].index
-    cbsa_pop = month_year_df.drop_duplicates("cbsa_title").set_index("cbsa_title")["total_population_2020"]
+    cbsa_pop = month_year_df.drop_duplicates("cbsa_code").set_index("cbsa_code")["total_population_2020"]
     eligible_cbsas = complete_cbsas[cbsa_pop.reindex(complete_cbsas).fillna(0) >= MIN_POPULATION]
 
-    month_year_df = month_year_df[month_year_df["cbsa_title"].isin(eligible_cbsas)]
+    month_year_df = month_year_df[month_year_df["cbsa_code"].isin(eligible_cbsas)]
     all_cbsas = eligible_cbsas
 
     ylim = (month_year_df[available].min().min(), month_year_df[available].max().max()) if fixed_y else None
@@ -48,7 +48,7 @@ def plot_single_metric(
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
 
         for cbsa in all_cbsas:
-            cbsa_df = month_year_df[month_year_df["cbsa_title"] == cbsa].sort_values("year")
+            cbsa_df = month_year_df[month_year_df["cbsa_code"] == cbsa].sort_values("year")
             ax.plot(
                 cbsa_df["year"], cbsa_df[metric],
                 color="#aaaaaa", linewidth=0.7, alpha=0.4, zorder=1,
