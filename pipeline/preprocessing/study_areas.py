@@ -225,7 +225,7 @@ def build_max_county_definitions(
         try: ##guard agains the extremely unlikely possibility of nonexistent counties in a cbsa.
             max_county = components.loc[components["TOTPOP"].idxmax()]
         except ValueError:
-            print(f"CBSA {cbsa_code} contains no counties.")
+            print(f"CBSA {cbsa_code} contains no counties.", file=sys.stderr)
             continue
         county_fips = max_county["STCNTYFP"]
 
