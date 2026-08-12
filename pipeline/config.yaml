@@ -4,10 +4,10 @@
 # environment variable (same name, uppercased) before calling reproduce.sh.
 
 # Valid values: cbsa, county
-study_area_type: max_county
+study_area_type: max_city
 
 # Valid values: tracts, block_groups, blocks, counties
-census_geography_type: tracts
+census_geography_type: blocks
 
 census_geography_years:
   - 2020
@@ -19,4 +19,4 @@ census_geography_years:
 study_area_vintage: 2020
 
 # For cbsa study areas, use counties.
-study_area_definition_geography_type: counties 
+study_area_definition_geography_type: places
