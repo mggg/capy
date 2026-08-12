@@ -72,6 +72,13 @@ def main() -> None:
         "STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE",
     )
 
+    if study_area_type == "max_city" and study_area_definition_geography_type != "places":
+        print(f"Warning: STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE={study_area_definition_geography_type!r} "
+        "is incompatible with STUDY_AREA_TYPE=max_city — switching to 'places'.",
+        file=sys.stderr)
+    
+        study_area_definition_geography_type = "places"
+
     study_area_definition_geography_year = os.environ.get(
         "STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR", study_area_vintage
     )

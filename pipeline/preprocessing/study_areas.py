@@ -222,7 +222,11 @@ def build_max_county_definitions(
 
     for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items()):
         components = counties[counties["STCNTYFP"].isin(cbsa.component_counties_fips)]
-        max_county = components.loc[components["TOTPOP"].idxmax()]
+        try: ##guard agains the extremely unlikely possibility of nonexistent counties in a cbsa.
+            max_county = components.loc[components["TOTPOP"].idxmax()]
+        except ValueError:
+            print(f"CBSA {cbsa_code} contains no counties.", file=sys.stderr)
+            continue
         county_fips = max_county["STCNTYFP"]
 
         output_stem = f"max_county_{county_fips}_{definition_vintage}"

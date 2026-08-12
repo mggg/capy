@@ -22,10 +22,11 @@ def plot_grid_top10(
 ) -> None:
     BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
-    top_n_metros = list(month_year_df["cbsa_title"].drop_duplicates()[:n])
+    top_n_metros = list(month_year_df["cbsa_code"].drop_duplicates()[:n])
+    code_to_title = month_year_df.drop_duplicates("cbsa_code").set_index("cbsa_code")["cbsa_title"]
     plot_df = (
-        month_year_df[month_year_df["cbsa_title"].isin(top_n_metros)]
-        .sort_values(["cbsa_title", "year"])
+        month_year_df[month_year_df["cbsa_code"].isin(top_n_metros)]
+        .sort_values(["cbsa_code", "year"])
     )
 
     available = [m for m in GRID_METRICS if m in plot_df.columns]
@@ -46,7 +47,7 @@ def plot_grid_top10(
         _apply_panel_style(ax, years, ylim, y_range=y_range)
         ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
         for cbsa in top_n_metros:
-            cbsa_df = plot_df[plot_df["cbsa_title"] == cbsa]
+            cbsa_df = plot_df[plot_df["cbsa_code"] == cbsa]
             ax.plot(
                 cbsa_df["year"], cbsa_df[metric],
                 color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2,
@@ -64,7 +65,7 @@ def plot_grid_top10(
     )
 
     handles = [
-        plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(c))
+        plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))
         for c in top_n_metros
     ]
     fig.legend(

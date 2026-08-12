@@ -1,10 +1,11 @@
 import geopandas as gpd
+import pandas as pd
 import typer
 import warnings
 import gerrychain
 import networkx as nx
 from shapely.strtree import STRtree
-
+from pathlib import Path 
 
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
 POPULATION_SUM_COLS = ("WHITE", "BLACK", "TOTPOP", "POC")
@@ -16,6 +17,15 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
 
     # ignore warning about NA values in population columns. These are fine.
     warnings.filterwarnings("ignore", message=".*NA values found in column.*")
+
+    right = filename.split("_in_")[1]
+    parts = right.split("_")
+    area_code = parts[2] if parts[0] == "max" else parts[1] #when the geography is 
+                                                            #cbsa, parts[1] is the code, 
+                                                            #otherwise parts[2] is for 
+                                                            #"max_city" and "max_county"
+
+
 
     if shp.crs is None:
         raise ValueError(f"{filename} has no CRS defined. Please define a CRS before proceeding.")
@@ -36,14 +46,30 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
     graph.to_json(output_orig)
 
     connected_graph = connect_components(shp, graph, attr)
+
+    zero_nodes = []
+
     while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
         node_count = len(connected_graph.nodes())
-        connected_graph = contract_zero_nodes(connected_graph)
+        connected_graph, dropped_nodes = contract_zero_nodes(connected_graph)
         if len(connected_graph.nodes()) == node_count:
             print("No more zero nodes to contract, but graph still has zero nodes. Remaining nodes:", connected_graph.nodes())
             break
+        for _, gisjoin in dropped_nodes:
+            zero_nodes.append((area_code, gisjoin))
 
     connected_graph.to_json(output_connected)
+
+    year = Path(filename).parent.name
+    stem = Path(filename).stem
+    dropped_dir = Path("data/processed/dropped_nodes") / year
+    dropped_dir.mkdir(parents=True, exist_ok=True)
+
+    if len(zero_nodes) != 0: 
+        df_zero_nodes = pd.DataFrame(zero_nodes, columns=["area_code", "id"])
+        df_zero_nodes.to_csv(
+            dropped_dir / f"{stem}.csv", index=False
+            )
 
 
 def int_attr(attrs, col: str) -> int:
@@ -73,10 +99,11 @@ def add_population_attrs(graph: gerrychain.Graph, target, source):
 
 def contract_zero_nodes(graph: gerrychain.Graph):
     zero_nodes = [n for n in graph.nodes() if node_contraction_population(graph, n) == 0]
-    for node in zero_nodes:
-        print("dropped", node)
+
+    dropped_nodes = [(n, graph.nodes[n].get("GISJOIN", n)) for n in zero_nodes]
     graph.remove_nodes_from(zero_nodes)
-    return graph
+
+    return (graph, dropped_nodes)
 
 
 def select_geom(shp: gpd.GeoDataFrame, geoid: str, attr: str = "GISJOIN"): 
