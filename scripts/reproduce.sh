@@ -113,5 +113,6 @@ for metric in white_black white_poc; do
     poetry run python pipeline/visualization/generate_figures.py \
         --filename "${RUN_OUTPUT_DIR}/${metric}.csv" \
         --prefix "${metric}_${STUDY_AREA_TYPE}_${CENSUS_GEOGRAPHY_TYPE}" \
-        --geography-type "${CENSUS_GEOGRAPHY_TYPE}"
+        --geography-type "${CENSUS_GEOGRAPHY_TYPE}" \
+        --study-area-type "${STUDY_AREA_TYPE}"
 done
