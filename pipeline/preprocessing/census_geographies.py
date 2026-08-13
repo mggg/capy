@@ -348,18 +348,16 @@ def standardize_census_geography(
     return gdf
 
 
-def read_census_geography(
-    year: int,
-    geographies_dir: Path,
-    level_label: str,
-) -> gpd.GeoDataFrame:
+def read_census_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.GeoDataFrame:
     shape_dir = geographies_dir / f"census_{year}_{level_label}"
     paths = sorted(path for path in shape_dir.glob("*.shp") if path.is_file())
     if not paths:
         raise FileNotFoundError(f"No Census {level_label} shapefiles found in {shape_dir}")
 
     frames = [gpd.read_file(path) for path in paths]
-    gdf = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=frames[0].crs)
+    crs = frames[0].crs
+    gdf = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=crs)
+    del frames  # free the list of frames now that concat is done. crucial for blocks to free the memory
     return standardize_census_geography(gdf, level_label)
 
 
