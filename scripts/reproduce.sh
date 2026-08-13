@@ -45,7 +45,7 @@ calculate_csv() {
     for year in "${census_geography_years[@]}"; do
         find "data/processed/dual_graphs/${year}" -type f \
             -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
-            parallel --bar poetry run python pipeline/metrics.py {} "$@" >> "${output_file}"
+            parallel --bar -j 6 poetry run python pipeline/metrics.py {} "$@" >> "${output_file}"
     done
 }
 
@@ -101,7 +101,7 @@ for year in "${census_geography_years[@]}"; do
         -type f \
         -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.gpkg"
 done |
-    parallel --bar _build_graph {}
+    parallel --bar -j 6 _build_graph {}
 
 # Calculate metrics.
 calculate_csv "${RUN_OUTPUT_DIR}/white_black.csv" BLACK WHITE TOTPOP
