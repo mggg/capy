@@ -12,6 +12,7 @@ def plot_single_metric(
     month_year: str,
     output_dir: Path,
     geography_label: str = "tracts",
+    area_label: str = "CBSA",
     fixed_y: bool = False,
 ) -> None:
     MIN_POPULATION = 100_000
@@ -65,7 +66,7 @@ def plot_single_metric(
     )
     fig.text(
         0.5, 0.95,
-        f"U.S. CBSAs ≥100k pop., present in all years · Census {geography_label} in CBSAs · Mean in blue",
+        f"U.S. CBSAs ≥100k pop., present in all years · Census {geography_label} in {area_label} · Mean in blue",
         ha="center", fontsize=9, color="#555555",
     )
 

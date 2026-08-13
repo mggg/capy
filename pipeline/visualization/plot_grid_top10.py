@@ -18,6 +18,7 @@ def plot_grid_top10(
     output_dir: Path,
     n: int = 10,
     geography_label: str = "tracts",
+    area_label: str = "CBSA",
     fixed_y: bool = False,
 ) -> None:
     BG = "#fafafa"
@@ -60,7 +61,7 @@ def plot_grid_top10(
     )
     fig.text(
         0.5, 0.97,
-        f"Top {n} U.S. metros by 2020 population · Census {geography_label} within CBSAs",
+        f"Top {n} U.S. metros by 2020 population · Census {geography_label} within {area_label}",
         ha="center", fontsize=9, color="#555555",
     )
 

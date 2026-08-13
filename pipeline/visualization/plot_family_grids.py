@@ -20,6 +20,7 @@ def plot_family_grids(
     n: int = 10,
     n_cols: int = 6,
     geography_label: str = "tracts",
+    area_label: str = "CBSA",
     fixed_y: bool = False,
 ) -> None:
     BG = "#fafafa"
@@ -102,7 +103,7 @@ def plot_family_grids(
         subtitle_y = SUPTITLE_Y - 20 / (72 * fig.get_figheight())
         fig.text(
             0.5, subtitle_y,
-            f"Top {n} U.S. metros by 2020 population · Census {geography_label} in CBSAs",
+            f"Top {n} U.S. metros by 2020 population · Census {geography_label} in {area_label}",
             ha="center", va="top", fontsize=9, color="#555555",
         )
 

@@ -35,7 +35,15 @@ def main(
     prefix: str = "white_poc",
     geography_type: Optional[str] = None,
     fixed_y: bool = False,
+    study_area_type: Optional[str] = None
 ):
+    if study_area_type == "max_county":
+        area_label = "Most Populous Counties within CBSAs"
+    elif study_area_type == "max_city":
+        area_label = "Most Populous Cities within CBSAs"
+    else:
+        area_label = "CBSAs"
+    
     if geography_type is None:
         for geo in ("block_groups", "blocks", "tracts", "counties"):
             if geo in prefix:
@@ -95,7 +103,7 @@ def main(
             )
             fig.text(
                 0.5, 1,
-                f"Top {n} U.S. metros by 2020 population · Census {geography_label} in CBSAs",
+                f"Top {n} U.S. metros by 2020 population · Census {geography_label} in {area_label}",
                 ha="center", fontsize=9, color="#555555",
             )
 
@@ -121,9 +129,9 @@ def main(
             )
             plt.close(fig)
 
-        plot_grid_top10(df, prefix, month_year, output_dir, n, geography_label=geography_label, fixed_y=fixed_y)
-        plot_single_metric(df, prefix, month_year, output_dir, geography_label=geography_label, fixed_y=fixed_y)
-        plot_family_grids(df, prefix, month_year, output_dir, n, geography_label=geography_label, fixed_y=fixed_y)
+        plot_grid_top10(df, prefix, month_year, output_dir, n, geography_label=geography_label, area_label= area_label, fixed_y=fixed_y)
+        plot_single_metric(df, prefix, month_year, output_dir, geography_label=geography_label, area_label= area_label, fixed_y=fixed_y)
+        plot_family_grids(df, prefix, month_year, output_dir, n, geography_label=geography_label, area_label= area_label, fixed_y=fixed_y)
 
 
 if __name__ == "__main__":
