@@ -50,7 +50,6 @@ def main(
     """
     census_geographies = gpd.read_file(census_geographies_file)
     geography_points = census_geographies.geometry.representative_point()
-    all_geographies_area = union_geometry(census_geographies).area
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     for study_area_file in tqdm.tqdm(sorted(glob.glob(study_area_glob))):
