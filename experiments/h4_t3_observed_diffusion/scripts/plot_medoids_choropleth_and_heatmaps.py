@@ -85,7 +85,7 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
     # fig.text(0.01, 0.93, "your annotation here", ha='left', fontsize=9, color='dimgrey')
     fig.suptitle(f'{city_name} — {cluster}', fontsize=14)
 
-    figure_path = EXPERIMENT_DIR / "figures" / f"{area_code}_{cluster}_choropleth_and_metrics.png"
+    figure_path = EXPERIMENT_DIR / "figures" / "metrics_heatmap_by_buffers" / f"{city_name}_{cluster}_choropleth_and_metrics.png"
     figure_path.parent.mkdir(exist_ok=True)
     fig.savefig(figure_path, dpi=200, bbox_inches='tight')
     plt.close(fig)

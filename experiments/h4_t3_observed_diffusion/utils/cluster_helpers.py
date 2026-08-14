@@ -97,7 +97,7 @@ def apply_metrics_to_cities(G, year, label, metrics_by_year=None):
     #     metrics_by_year = {}
     for node in G.nodes():
         G.nodes[node]["white_plus_black"] = int(G.nodes[node]["BLACK"]) + int(G.nodes[node]["WHITE"])
-    # drop 0-population nodes
+    # drop 0-population nodes (not needed at this point?)
     G.remove_nodes_from([n for n, d in G.nodes(data=True) if d["white_plus_black"] == 0])
 
     metrics_by_year[(year, label)] = {}
@@ -112,13 +112,10 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None):
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
-    ----------
-    graph: nx Graph
-        The dual graph for the CBSA and year of interest.
-    Returns
-    -------
-    dict
-        A dictionary containing the calculated metrics for the catchment area and core cluster.
+    graph: nx Graph. The dual graph for the CBSA and year of interest.
+    gisjoins: a list of gisjoin IDs pointing to tracts
+    Returns:
+    dict: A dictionary containing the calculated metrics for the catchment area and core cluster.
     """
     nodes_by_gisjoin = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     selected_nodes = [nodes_by_gisjoin[g] for g in gisjoins if g in nodes_by_gisjoin]
