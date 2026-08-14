@@ -16,6 +16,11 @@ def compute_rho(G):
     total_white = sum(int(attrs["WHITE"]) for _, attrs in G.nodes(data=True))
     return total_black / (total_black + total_white)
 
+def compute_mass(G):
+    """Black population of the whole graph"""
+    total_black = sum(int(attrs["BLACK"]) for _, attrs in G.nodes(data=True))
+    return total_black
+
 
 def find_graph_files(graphs_path, city_code):
     graph_files = []
@@ -101,4 +106,52 @@ def apply_metrics_to_cities(G, year, label, metrics_by_year=None):
     metrics_by_year[(year, label)]["half_edge"] = half_edge(G, "BLACK", "WHITE")
 
     return metrics_by_year
-    
+
+
+def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None):
+    """
+    Calculates metrics for one supplied cluster-year area and core cluster.
+    Parameters:
+    ----------
+    graph: nx Graph
+        The dual graph for the CBSA and year of interest.
+    Returns
+    -------
+    dict
+        A dictionary containing the calculated metrics for the catchment area and core cluster.
+    """
+    nodes_by_gisjoin = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
+    selected_nodes = [nodes_by_gisjoin[g] for g in gisjoins if g in nodes_by_gisjoin]
+
+    area_black_population = sum(int(graph.nodes[node]["BLACK"]) for node in selected_nodes)
+    area_total_population = area_black_population + sum(int(graph.nodes[node]["WHITE"]) for node in selected_nodes)
+
+    # Test every tract and pick the graph centroid. Centroid minimizes the sum of distances to all other tracts in the area, weighted by Black population.
+    # If a fixed center is supplied (e.g. the buffer=0 medoid), use it directly so the medoid doesn't drift as buffers grow.
+    nodes_by_gisjoin_lookup = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
+    if fixed_center_gisjoin is not None and fixed_center_gisjoin in nodes_by_gisjoin_lookup:
+        best_center = nodes_by_gisjoin_lookup[fixed_center_gisjoin]
+        distances = nx.single_source_shortest_path_length(graph, best_center)
+        best_objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
+    else:
+        best_center = None
+        best_objective = None
+        for candidate in selected_nodes:
+            distances = nx.single_source_shortest_path_length(graph, candidate)
+            objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
+            # The candidate tract itself contributes zero because its distance to itself is zero
+            if best_objective is None or objective < best_objective:
+                best_center = candidate
+                best_objective = objective
+
+    selected_subgraph = graph.subgraph(selected_nodes)
+    return {
+        "tract_count": len(selected_nodes),
+        "component_count": nx.number_connected_components(selected_subgraph),
+        "area_black_population": area_black_population,
+        "area_total_population": area_total_population,
+        "area_black_share": area_black_population / area_total_population,
+        "spread": best_objective / area_black_population,
+        "center_node_id": best_center,
+        "center_gisjoin": graph.nodes[best_center]["GISJOIN"],
+        "center_geoid": graph.nodes[best_center].get("GEOID")}
