@@ -16,6 +16,11 @@ def compute_rho(G):
     total_white = sum(int(attrs["WHITE"]) for _, attrs in G.nodes(data=True))
     return total_black / (total_black + total_white)
 
+def compute_mean_node_rho(G):
+    """computes the population unweighted mean of rho_i for all nodes i"""
+    for node in G.nodes:
+        G.nodes[node]["rho"] = G.nodes[node]["BLACK"]/(G.nodes[node]["WHITE"] + G.nodes[node]["BLACK"])
+    return sum(attrs["rho"] for _, attrs in G.nodes(data=True))/len(G)
 
 def find_graph_files(graphs_path, city_code):
     graph_files = []

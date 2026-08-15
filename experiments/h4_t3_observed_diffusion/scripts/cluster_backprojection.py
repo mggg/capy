@@ -46,11 +46,19 @@ CLUSTER_TITLES = {
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def compute_threshold(G):
-    """Black share of the whole graph: total BLACK / (total BLACK + total WHITE)."""
-    total_black = sum(int(attrs["BLACK"]) for _, attrs in G.nodes(data=True))
-    total_white = sum(int(attrs["WHITE"]) for _, attrs in G.nodes(data=True))
-    return total_black / (total_black + total_white)
+def compute_threshold(G, weighting = True):
+    """
+    Weighting: if true, population unweighted node mean rho, if false you get:
+    Black share of the whole graph: total BLACK / (total BLACK + total WHITE)."""
+
+    if weighting == True:
+        total_black = sum(int(attrs["BLACK"]) for _, attrs in G.nodes(data=True))
+        total_white = sum(int(attrs["WHITE"]) for _, attrs in G.nodes(data=True))
+        return total_black / (total_black + total_white)
+    else:
+        for node in G.nodes:
+            G.nodes[node]["rho"] = G.nodes[node]["BLACK"]/(G.nodes[node]["WHITE"] + G.nodes[node]["BLACK"])
+        return sum(attrs["rho"] for _, attrs in G.nodes(data=True))/len(G)
 
 
 def load_graph(json_path):
@@ -94,7 +102,7 @@ for CBSA, cfg in CBSA_CONFIG.items():
 
     graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_march_2020_vintage_orig.json"
     G_2020, _ = load_graph(graph_file)
-    BLACK_SHARE_THRESHOLD = compute_threshold(G_2020)
+    BLACK_SHARE_THRESHOLD = compute_threshold(G_2020, False)
     print(f"\n{'='*60}")
     print(f"CBSA {CBSA} ({cfg['name']})  threshold={BLACK_SHARE_THRESHOLD:.1%} (computed)")
     print('='*60)
