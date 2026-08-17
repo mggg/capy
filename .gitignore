@@ -175,3 +175,4 @@ cython_debug/
 /archive/
 /outputs/
 **/.qmd
+/experiments/h4_t3_observed_diffusion/data/
