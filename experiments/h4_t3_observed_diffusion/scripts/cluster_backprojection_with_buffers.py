@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT)) # for pipeline.*
 sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
-from utils.cluster_helpers import compute_rho, get_geoids, back_project_cluster, apply_metrics_to_cities, calculate_cluster_spread, compute_mass
+from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, apply_metrics_to_cities, calculate_cluster_spread, compute_mass
 
 
 # Config
@@ -44,7 +44,7 @@ for CBSA in CBSA_CONFIG.keys():
     graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_march_2020_vintage_connected.json"
     with open(graph_file) as f:
         G_city_2020 = nx.adjacency_graph(json.load(f))
-    BLACK_SHARE_THRESHOLD = compute_rho(G_city_2020)
+    BLACK_SHARE_THRESHOLD = compute_mean_node_rho(G_city_2020)
 
     node_ids = list(G_city_2020.nodes())
     nodes_df = pd.DataFrame([G_city_2020.nodes[n] for n in node_ids], index=node_ids)
@@ -102,7 +102,6 @@ for CBSA in CBSA_CONFIG.keys():
             else:  # MultiPolygon - buffer created from spatially disconnected pieces
                 filled = unary_union([Polygon(p.exterior) for p in dissolved.geoms])
             cluster_shapes_2020[label] = gpd.GeoDataFrame(geometry=[filled], crs=gdf.crs)
-
 
         # Apply to previous years
         # For each earlier-year tract: if `intersection_area / tract_area > OVERLAP_THRESHOLD`, it belongs to the cluster.
