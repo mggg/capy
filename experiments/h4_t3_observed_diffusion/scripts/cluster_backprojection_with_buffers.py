@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT)) # for pipeline.*
 sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
-from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, apply_metrics_to_cities, calculate_cluster_spread, compute_mass
+from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, compute_cluster_metrics, calculate_cluster_spread, compute_mass
 
 
 # Config
@@ -143,7 +143,8 @@ for CBSA in CBSA_CONFIG.keys():
                 buffered_cluster_rho = compute_rho(graph_yearly[year][label])
                 # mass = compute_mass(graph_yearly[year][label]) #
                 # calculate main metrics - moran, dissimilarity, half edge
-                metrics_by_year = apply_metrics_to_cities(G=graph_yearly[year][label], year=year, label=label, metrics_by_year=metrics_by_year)
+                metrics_by_year = compute_cluster_metrics(graph_yearly[year][label], full_graph_yearly[year],
+                                                           year=year, label=label, metrics_by_year=metrics_by_year)
                 gisjoins = [attrs["GISJOIN"] for _, attrs in graph_yearly[year][label].nodes(data=True)]
                 # calculate spread — medoid fixed to buffer=0 so it doesn't drift with buffer size
                 spread_metrics = calculate_cluster_spread(
