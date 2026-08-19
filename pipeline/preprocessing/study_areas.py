@@ -18,12 +18,11 @@ import json
 from pathlib import Path
 
 
-def main(filename: str = "data/raw/study_area_sources/list1_march_2020.xls", definition_geographies: str = None, output_dir: str = "data/processed/study_area_definitions", study_area_type: str = "cbsa", definition_vintage: str = "2020", cbsa_geographies: str = None):
+def main(filename: str = "data/raw/study_area_sources/list1_march_2020.xls", definition_geographies: str = None, output_dir: str = "data/processed/study_area_definitions", study_area_type: str = "cbsa", definition_vintage: str = "march_2020", cbsa_geographies: str = None):
     if study_area_type == "counties":
         study_area_type = "county"
     if study_area_type not in {"cbsa", "max_county", "county", "max_city"}:
-        raise ValueError(f"Unsupported study area type {study_area_type!r}. "
-            "Use 'cbsa', 'max_county', 'max_city', or 'county'.")
+        raise ValueError(f"Unsupported study area type {study_area_type}. Use 'cbsa', 'max_county', 'max_city', or 'county'.")
 
     if definition_geographies is None:
         if study_area_type == "max_city":
@@ -50,15 +49,6 @@ def main(filename: str = "data/raw/study_area_sources/list1_march_2020.xls", def
     
     if not filename:
         raise ValueError("CBSA study areas require --filename.")
-
-    source_stem = Path(filename).stem
-    if not definition_vintage:
-        if source_stem.startswith("list1_"):
-            definition_vintage = source_stem.removeprefix("list1_")
-        elif source_stem.startswith(f"{study_area_type}_"):
-            definition_vintage = source_stem.removeprefix(f"{study_area_type}_")
-        else:
-            definition_vintage = source_stem
 
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
     country = load_census_geography(definition_geographies)
