@@ -110,7 +110,7 @@ def main() -> None:
 
     study_area_definition_geographies = os.environ.get(
         "STUDY_AREA_DEFINITION_GEOGRAPHIES",
-        f"data/processed/census_geographies/{study_area_definition_geography_year}_{study_area_definition_geography_type}.gpkg",
+        f"data/processed/census_geographies/{study_area_definition_geography_type}/{study_area_definition_geography_year}_{study_area_definition_geography_type}_*.gpkg",
     )
 
     run_name = os.environ.get("RUN_NAME", f"{census_geography_type}_in_{study_area_type}")
