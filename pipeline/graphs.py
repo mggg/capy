@@ -1,38 +1,44 @@
+import glob
 import geopandas as gpd
 import pandas as pd
 import typer
 import warnings
 import gerrychain
 import networkx as nx
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from shapely.strtree import STRtree
-from pathlib import Path 
+from pathlib import Path
 
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
 POPULATION_SUM_COLS = ("WHITE", "BLACK", "TOTPOP", "POC")
 
 
-def main(filename: str, output_orig: str, output_connected: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
-    shp = gpd.read_file(filename)
-    shp = shp.to_crs("esri:102003") #so distances are in meters
+def main(input_glob: str, output_base_dir: str = "data/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
+    gpkg_files = sorted(glob.glob(input_glob))
+    worker = partial(_process_file, output_base_dir=output_base_dir, attr=attr, pop_col=pop_col)
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(worker, gpkg_files))
 
-    # ignore warning about NA values in population columns. These are fine.
+
+def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
+    year = Path(gpkg).parent.name
+    stem = Path(gpkg).stem
+    out_dir = Path(output_base_dir) / year
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    shp = gpd.read_file(gpkg)
+    shp = shp.to_crs("esri:102003")  # so distances are in meters
     warnings.filterwarnings("ignore", message=".*NA values found in column.*")
 
-    right = filename.split("_in_")[1]
+    right = gpkg.split("_in_")[1]
     parts = right.split("_")
-    area_code = parts[2] if parts[0] == "max" else parts[1] #when the geography is 
-                                                            #cbsa, parts[1] is the code, 
-                                                            #otherwise parts[2] is for 
-                                                            #"max_city" and "max_county"
-
-
+    area_code = parts[2] if parts[0] == "max" else parts[1]
 
     if shp.crs is None:
-        raise ValueError(f"{filename} has no CRS defined. Please define a CRS before proceeding.")
+        raise ValueError(f"{gpkg} has no CRS defined.")
 
-    # Compute centroids in esri:102003 so distances are in meters.
     centroids = shp.geometry.centroid
-
     try:
         graph = gerrychain.Graph.from_geodataframe(shp)
     except:
@@ -43,33 +49,27 @@ def main(filename: str, output_orig: str, output_connected: str, attr: str = "GI
         graph.nodes[idx]["centroid_x"] = centroids.loc[idx].x
         graph.nodes[idx]["centroid_y"] = centroids.loc[idx].y
 
-    graph.to_json(output_orig)
+    graph.to_json(str(out_dir / f"{stem}_orig.json"))
 
     connected_graph = connect_components(shp, graph, attr)
 
     zero_nodes = []
-
     while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
         node_count = len(connected_graph.nodes())
         connected_graph, dropped_nodes = contract_zero_nodes(connected_graph)
         if len(connected_graph.nodes()) == node_count:
-            print("No more zero nodes to contract, but graph still has zero nodes. Remaining nodes:", connected_graph.nodes())
+            print("No more zero nodes to contract. Remaining:", connected_graph.nodes())
             break
         for _, gisjoin in dropped_nodes:
             zero_nodes.append((area_code, gisjoin))
 
-    connected_graph.to_json(output_connected)
+    connected_graph.to_json(str(out_dir / f"{stem}_connected.json"))
 
-    year = Path(filename).parent.name
-    stem = Path(filename).stem
     dropped_dir = Path("data/processed/dropped_nodes") / year
     dropped_dir.mkdir(parents=True, exist_ok=True)
-
-    if len(zero_nodes) != 0: 
-        df_zero_nodes = pd.DataFrame(zero_nodes, columns=["area_code", "id"])
-        df_zero_nodes.to_csv(
-            dropped_dir / f"{stem}.csv", index=False
-            )
+    if zero_nodes:
+        pd.DataFrame(zero_nodes, columns=["area_code", "id"]).to_csv(
+            dropped_dir / f"{stem}.csv", index=False)
 
 
 def int_attr(attrs, col: str) -> int:

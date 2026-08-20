@@ -29,10 +29,8 @@ def output_stem(study_area_file: str, prefix: str, census_geography_type: str, c
     return f"{prefix}{study_area_stem}_geographies"
 
 
-def main(study_area_glob: str, output_dir: str, prefix: str = "", census_geography_type: str = "", census_geography_year: str = "", definition_vintage: str = "2020", census_geographies_dir: str = "data/processed/census_geographies"):
-    """
-    Writes census geographies whose representative points fall within each study area.
-    """
+def _run_year(study_area_glob: str, output_dir: str, prefix: str, census_geography_type: str, census_geography_year: str, definition_vintage: str, census_geographies_dir: str) -> None:
+    """Run overlap clipping for a single census geography year."""
     state_files = sorted((Path(census_geographies_dir) / census_geography_type).glob(f"{census_geography_year}_{census_geography_type}_*.gpkg"))
     # get 4 bounds of each state block collection
     state_bounds = []
@@ -44,8 +42,7 @@ def main(study_area_glob: str, output_dir: str, prefix: str = "", census_geograp
             state_bounds.append(src.bounds) # (minx, miny, maxx, maxy)
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    # for a city/CBSA file:
-    for study_area_file in tqdm.tqdm(sorted(glob.glob(study_area_glob))):
+    for study_area_file in tqdm.tqdm(sorted(glob.glob(study_area_glob)), desc=census_geography_year):
         study_area_gdf = gpd.read_file(study_area_file).to_crs("esri:102003")
         study_area_boundary = study_area_gdf.union_all()
         minx, miny, maxx, maxy = study_area_boundary.bounds
@@ -67,10 +64,19 @@ def main(study_area_glob: str, output_dir: str, prefix: str = "", census_geograp
         selected_geographies = census_geographies.iloc[sorted(geography_indices)]
 
         if len(selected_geographies) != 0:
-            selected_geographies_stem = output_stem(study_area_file, prefix, census_geography_type,census_geography_year, definition_vintage)
+            selected_geographies_stem = output_stem(study_area_file, prefix, census_geography_type, census_geography_year, definition_vintage)
             selected_geographies.to_file(f"{output_dir}/{selected_geographies_stem}.gpkg", driver="GPKG")
         else:
             print("empty overlaps computed:", census_geographies_dir, study_area_file, output_dir, file=sys.stderr)
+
+
+def main(study_area_glob: str, output_base_dir: str, prefix: str = "", census_geography_type: str = "", census_geography_years: str = "", definition_vintage: str = "2020", census_geographies_dir: str = "data/processed/census_geographies"):
+    """
+    Writes census geographies whose representative points fall within each study area,
+    for each year in census_geography_years (space-separated string).
+    """
+    for year in census_geography_years.split():
+        _run_year(study_area_glob, f"{output_base_dir}/{year}", prefix, census_geography_type, year, definition_vintage, census_geographies_dir)
 
 
 if __name__ == "__main__":

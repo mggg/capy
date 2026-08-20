@@ -12,6 +12,21 @@ import sys
 import scipy.sparse
 import numpy as np
 import traceback
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from pathlib import Path
+
+
+def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, workers: int = 6):
+    files = sorted(glob.glob(input_glob))
+    worker = partial(_process_file, x_col=x_col, y_col=y_col, tot_col=tot_col)
+    with open(output, "w") as f:
+        f.write(build_headers(x_col, y_col, tot_col) + "\n")
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for row in pool.map(worker, files):
+                if row is not None:
+                    f.write(row + "\n")
+
 
 def study_area_code_from_filename(filename: str) -> str:
     output_stem = os.path.basename(filename)
@@ -52,14 +67,9 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     return ",".join(keys)
 
 
-def main(
-    filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
-):
-    if headers_only:
-        print(build_headers(x_col, y_col, tot_col))
-        return
+def _process_file(filename: str, x_col: str, y_col: str, tot_col: str):
     try:
-        run_metrics(filename, x_col, y_col, tot_col)
+        return run_metrics(filename, x_col, y_col, tot_col)
     except ZeroDivisionError as e:
         metric_failures_file = os.environ.get(
             "METRIC_FAILURES_FILE", "outputs/metric_failures.csv"
@@ -73,7 +83,7 @@ def main(
                 print("filename,cbsa_code,error", file=f)
             print(f"{filename},{study_area_code_from_filename(filename)},{e}", file=f)
         print(filename, e, file=sys.stderr)
-
+        return None
 
 
 def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
@@ -153,7 +163,7 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["total_nodes"] = len(graph.nodes())
     capy_metrics["total_edges"] = len(graph.edges())
 
-    print(",".join(map(str, list(capy_metrics.values()))))
+    return ",".join(map(str, list(capy_metrics.values())))
 
 
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
