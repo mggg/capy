@@ -1,3 +1,7 @@
+"""
+Create dual graphs of given geometries and save: (1) the original dual graph (2) an edited graph, dropping 0-population nodes and connecting disconnected components.
+"""
+
 import glob
 import geopandas as gpd
 import pandas as pd
@@ -11,65 +15,92 @@ from shapely.strtree import STRtree
 from pathlib import Path
 
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
-POPULATION_SUM_COLS = ("WHITE", "BLACK", "TOTPOP", "POC")
 
 
-def main(input_glob: str, output_base_dir: str = "data/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
+def main(input_glob: str, output_base_dir: str = "data/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN"):
     gpkg_files = sorted(glob.glob(input_glob))
-    worker = partial(_process_file, output_base_dir=output_base_dir, attr=attr, pop_col=pop_col)
+    if not gpkg_files:
+        raise
+
+    worker = partial(_process_file, output_base_dir=output_base_dir, attr=attr)
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        list(pool.map(worker, gpkg_files))
+        results = list(pool.map(worker, gpkg_files))
+
+    # infer run output dir from the first matched file's stem:
+    # e.g. "tracts_in_max_city_35620_2020_vintage" to outputs/tracts_in_max_city/
+    stem = Path(gpkg_files[0]).stem
+    census_geography_type = stem.split("_in_", 1)[0]
+    right_parts = stem.split("_in_", 1)[1].split("_")
+    study_area_type = f"max_{right_parts[1]}" if right_parts[0] == "max" else right_parts[0]
+    dropped_nodes_dir = Path("outputs") / f"{census_geography_type}_in_{study_area_type}" / "dropped_nodes"
+
+    # aggregate dropped nodes by year and write one gpkg per year
+    by_year = {}
+    for year, dropped_gdf in results:
+        if dropped_gdf is not None:
+            by_year.setdefault(year, []).append(dropped_gdf)
+    for year, gdfs in by_year.items():
+        combined = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs)
+        dropped_nodes_dir.mkdir(parents=True, exist_ok=True)
+        combined.to_file(dropped_nodes_dir / f"dropped_nodes_{year}.gpkg", driver="GPKG")
 
 
-def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN", pop_col: str = "TOTPOP"):
+def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
+    # derive output paths from the filename:
     year = Path(gpkg).parent.name
     stem = Path(gpkg).stem
     out_dir = Path(output_base_dir) / year
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    shp = gpd.read_file(gpkg)
-    shp = shp.to_crs("esri:102003")  # so distances are in meters
-    warnings.filterwarnings("ignore", message=".*NA values found in column.*")
+    # read and reproject
+    geofile = gpd.read_file(gpkg)
+    geofile = geofile.to_crs("esri:102003") # so distances are in meters
+    warnings.filterwarnings("ignore", message=".*NA values found in column.*") # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
 
+    # extract area code from the filename
     right = gpkg.split("_in_")[1]
     parts = right.split("_")
     area_code = parts[2] if parts[0] == "max" else parts[1]
 
-    if shp.crs is None:
+    if geofile.crs is None:
         raise ValueError(f"{gpkg} has no CRS defined.")
 
-    centroids = shp.geometry.centroid
+    # build a dual graph
     try:
-        graph = gerrychain.Graph.from_geodataframe(shp)
+        graph = gerrychain.Graph.from_geodataframe(geofile)
     except:
-        shp["geometry"] = shp["geometry"].buffer(0)
-        graph = gerrychain.Graph.from_geodataframe(shp)
+        geofile["geometry"] = geofile["geometry"].buffer(0)
+        graph = gerrychain.Graph.from_geodataframe(geofile)
 
-    for idx in shp.index:
+    # attach centroid coordinates to each node
+    centroids = geofile.geometry.centroid
+    for idx in geofile.index:
         graph.nodes[idx]["centroid_x"] = centroids.loc[idx].x
         graph.nodes[idx]["centroid_y"] = centroids.loc[idx].y
 
     graph.to_json(str(out_dir / f"{stem}_orig.json"))
 
-    connected_graph = connect_components(shp, graph, attr)
+    # create an edited version of the graph:
+    # if the graph has disconnected components, add an edge across the nearest pair of geometries
+    connected_graph = connect_components(geofile, graph, attr)
 
-    zero_nodes = []
+    # remove 0-population nodes and their edges
+    dropped_indices = []
     while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
         node_count = len(connected_graph.nodes())
-        connected_graph, dropped_nodes = contract_zero_nodes(connected_graph)
+        connected_graph, dropped = contract_zero_nodes(connected_graph)
         if len(connected_graph.nodes()) == node_count:
             print("No more zero nodes to contract. Remaining:", connected_graph.nodes())
             break
-        for _, gisjoin in dropped_nodes:
-            zero_nodes.append((area_code, gisjoin))
+        dropped_indices.extend(n for n, _ in dropped)
 
     connected_graph.to_json(str(out_dir / f"{stem}_connected.json"))
 
-    dropped_dir = Path("data/processed/dropped_nodes") / year
-    dropped_dir.mkdir(parents=True, exist_ok=True)
-    if zero_nodes:
-        pd.DataFrame(zero_nodes, columns=["area_code", "id"]).to_csv(
-            dropped_dir / f"{stem}.csv", index=False)
+    if dropped_indices:
+        dropped_gdf = geofile.loc[dropped_indices].copy()
+        dropped_gdf["area_code"] = area_code
+        return year, dropped_gdf
+    return year, None
 
 
 def int_attr(attrs, col: str) -> int:
@@ -85,16 +116,10 @@ def node_contraction_population(graph: gerrychain.Graph, node) -> int:
 
 def has_zero_nodes(graph: gerrychain.Graph):
     for node in graph.nodes():
-        if node_contraction_population(graph, node) == 0:
+        node_contraction_population = sum(int_attr(graph.nodes[node], col) for col in CONTRACTION_POP_COLS)
+        if node_contraction_population == 0:
             return True
     return False
-
-
-def add_population_attrs(graph: gerrychain.Graph, target, source):
-    for col in POPULATION_SUM_COLS:
-        graph.nodes[target][col] = int_attr(graph.nodes[target], col) + int_attr(
-            graph.nodes[source], col
-        )
 
 
 def contract_zero_nodes(graph: gerrychain.Graph):
@@ -106,24 +131,10 @@ def contract_zero_nodes(graph: gerrychain.Graph):
     return (graph, dropped_nodes)
 
 
-def select_geom(shp: gpd.GeoDataFrame, geoid: str, attr: str = "GISJOIN"): 
-    filtered_geoms = shp[shp[attr] == geoid]
-    return filtered_geoms.iloc[0]["geometry"]
-
-
-def distance(shp: gpd.GeoDataFrame, geoid_1: str, geoid_2: str, attr: str = "GISJOIN"):
-    geom_1 = select_geom(shp, geoid_1, attr)
-    geom_2 = select_geom(shp, geoid_2, attr)
-    return geom_1.distance(geom_2)
-
-
-def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
-    geom_by_geoid = dict(zip(shp[attr], shp.geometry))
+def connect_components(geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
+    geom_by_geoid = dict(zip(geofile[attr], geofile.geometry))
     while nx.algorithms.components.number_connected_components(graph) != 1:
-        print(
-            "Connected components:",
-            nx.algorithms.components.number_connected_components(graph),
-        )
+        print("Connected components:", nx.algorithms.components.number_connected_components(graph))
         cc = list(nx.connected_components(graph))[:2]
         assert len(cc) == 2
         cc_geoids = []
@@ -145,11 +156,8 @@ def connect_components(shp: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str
         component_geoms = [geom_by_geoid[geoid] for geoid in cc_geoids[0]]
         island_geoms = [geom_by_geoid[geoid] for geoid in cc_geoids[1]]
         tree = STRtree(component_geoms)
-        pairs, distances = tree.query_nearest(
-            island_geoms,
-            return_distance=True,
-            all_matches=False,
-        )
+        pairs, distances = tree.query_nearest(island_geoms, return_distance=True,
+                                              all_matches=False)
         assert len(distances) > 0
         best_index = min(range(len(distances)), key=lambda index: distances[index])
         island_index = pairs[0][best_index]
