@@ -17,9 +17,9 @@ from pipeline.visualization.plot_grid_top10 import plot_grid_top10
 
 def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_type: Optional[str] = None, fixed_y: bool = False, study_area_type: Optional[str] = None):
     if study_area_type == "max_county":
-        area_label = "Most Populous Counties within CBSAs"
+        area_label = "most populous counties within CBSAs"
     elif study_area_type == "max_city":
-        area_label = "Most Populous Cities within CBSAs"
+        area_label = "most populous cities within CBSAs"
     else:
         area_label = "CBSAs"
 
@@ -79,7 +79,7 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
                         ha="center", va="bottom", fontsize=9, color="#777777")
             fig.suptitle(f"Segregation over time: {pair_label}",
                 fontsize=14, fontweight="bold", color="#111111", y=1.06)
-            fig.text(0.5, 1, f"Top {n} U.S. metros by 2020 population · Census {geography_label} in {area_label}",
+            fig.text(0.5, 1, f"Top {n} U.S. metros by 2020 population. Census {geography_label} in {area_label}",
                 ha="center", fontsize=9, color="#555555")
 
             handles = [plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))

@@ -43,13 +43,15 @@ def plot_grid_top10(df: pd.DataFrame, prefix: str, month_year: str, output_dir: 
         f"Segregation over time: {pair_label}",
         fontsize=14, fontweight="bold", color="#111111", y=1.04)
     fig.text(0.5, 0.97,
-        f"Top {n} U.S. metros by 2020 population. Census {geography_label} within {area_label}",
-        ha="center", fontsize=9, color="#555555")
+        f"Segregation metrics in top {n} {area_label} by 2020 population.", ha="center", fontsize=9, color="#555555")
 
     handles = [plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))
         for c in top_n_metros]
     fig.legend(handles=handles, loc="lower center", ncol=min(5, len(top_n_metros)), bbox_to_anchor=(0.5, -0.13), frameon=False, fontsize=8, handlelength=1.5, columnspacing=1.0, labelcolor="#333333")
-    fig.text(0.5, -0.22, "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n" "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (before 2000).", ha="center", fontsize=7, color="#383838", linespacing=1.6)
+    fig.text(0.5, -0.22,
+        f"Notes: Calculated using Census {geography_label} in {area_label}.\n"
+        "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (before 2000).",
+        ha="center", fontsize=7, color="#383838", linespacing=1.6)
 
     grid_dir = output_dir / "grid_lineplots"
     grid_dir.mkdir(parents=True, exist_ok=True)

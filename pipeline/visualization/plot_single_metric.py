@@ -8,6 +8,8 @@ from pipeline.utils.visualization_settings import GRID_METRICS, _apply_panel_sty
 
 def plot_single_metric(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:
     MIN_POPULATION = 100_000
+    if "Cities" in area_label:
+        MIN_POPULATION = 0
 
     BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
@@ -51,12 +53,18 @@ def plot_single_metric(df: pd.DataFrame, prefix: str, month_year: str, output_di
     pair_label = "White–Black" if prefix.startswith("wb") else "White–POC"
     fig.suptitle(f"Segregation over time: {pair_label}",
         fontsize=14, fontweight="bold", color="#111111", y=1.04)
-    fig.text(0.5, 0.95, f"{len(eligible_cbsas)} {area_label} ≥100k pop., present in all years. Census {geography_label} in {area_label}. Mean in blue.", ha="center", fontsize=9, color="#555555")
+    if "cities" in area_label:
+        fig.text(0.5, 0.95, f"Segregation metrics in {area_label}, present in all years ({len(eligible_cbsas)}). Mean in blue.", ha="center", fontsize=9, color="#555555")
+    else:
+        fig.text(0.5, 0.95, f"{len(eligible_cbsas)} {area_label} ≥100k pop., present in all years. Census {geography_label} in {area_label}. Mean in blue.", ha="center", fontsize=9, color="#555555")
 
-    handles = [plt.Line2D([0], [0], color="#aaaaaa", linewidth=1.5, alpha=0.6, label="Individual CBSA"),
-        plt.Line2D([0], [0], color="#0072b2", linewidth=2.4, marker="o", markersize=5, label="Mean across all CBSAs")]
+    handles = [plt.Line2D([0], [0], color="#aaaaaa", linewidth=1.5, alpha=0.6, label="Individual area"),
+        plt.Line2D([0], [0], color="#0072b2", linewidth=2.4, marker="o", markersize=5, label="Mean across all areas")]
     fig.legend(handles=handles, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.08), frameon=False, fontsize=8, handlelength=1.5, columnspacing=1.5, labelcolor="#333333")
-    fig.text(0.5, -0.16, "Notes: Moran's I uses weights matrix P. Half Edge uses λ=1.\n" "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (before 2000).", ha="center", fontsize=7, color="#383838", linespacing=1.6)
+    fig.text(0.5, -0.16,
+            f"Notes: Calculated using Census {geography_label} in {area_label}.\n"
+            # Moran's I uses weights matrix P. Half Edge uses λ=1.\n"
+             "Sources: Decennial census and TIGER/Line shapefiles via Census API (2000-2020) and NHGIS (before 2000).", ha="center", fontsize=7, color="#383838", linespacing=1.6)
 
     grid_dir = output_dir / "grid_lineplots"
     grid_dir.mkdir(parents=True, exist_ok=True)
