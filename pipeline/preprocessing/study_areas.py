@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from pipeline.utils.definitions import StudyArea
+from pipeline.utils.pipeline_log import tqdm_file
 
 import tqdm
 import pandas as pd
@@ -58,7 +59,7 @@ def main(filename: str = "data/raw/study_area_sources/list1_march_2020.xls", def
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items()):
+    for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items(), file=tqdm_file):
         cbsa = add_cbsa_pop_and_geometry(country, cbsa)
         output_stem = f"{study_area_type}_{cbsa_code}_{definition_vintage}"
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
@@ -147,7 +148,7 @@ def build_county_definitions(definition_geographies: str, output_dir: str, defin
     counties["STCNTYFP"] = counties["STATEFP"] + counties["COUNTYFP"]
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    for _, county in tqdm.tqdm(counties.iterrows(), total=len(counties)):
+    for _, county in tqdm.tqdm(counties.iterrows(), total=len(counties), file=tqdm_file):
         county_fips = county["STCNTYFP"]
         output_stem = f"county_{county_fips}_{definition_vintage}"
         county_gdf = gpd.GeoDataFrame(
@@ -179,7 +180,7 @@ def build_max_county_definitions(filename: str, definition_geographies: str, out
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items()):
+    for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items(), file=tqdm_file):
         components = counties[counties["STCNTYFP"].isin(cbsa.component_counties_fips)]
         try: ##guard agains the extremely unlikely possibility of nonexistent counties in a cbsa.
             max_county = components.loc[components["TOTPOP"].idxmax()]
@@ -219,7 +220,7 @@ def build_max_city_definitions(filename: str, definition_geographies: str, outpu
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items()):
+    for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items(), file=tqdm_file):
         components = counties[counties["STCNTYFP"].isin(cbsa.component_counties_fips)]
         cbsa_boundary = components.dissolve()
 
