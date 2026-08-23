@@ -129,15 +129,19 @@ def compute_cluster_metrics(cluster_graph, city_graph, year, label, metrics_by_y
 
     return metrics_by_year
 
-def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None):
+def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distance = "euclidean"):
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
     graph: nx Graph. The dual graph for the CBSA and year of interest.
     gisjoins: a list of gisjoin IDs pointing to tracts
+    distance: What distance function is used to calculate the spread. Can either be "graph", which 
+    uses graph distance, or "euclidean", which uses the euclidean distance between cluster centroids.
     Returns:
     dict: A dictionary containing the calculated metrics for the catchment area and core cluster.
     """
+    if distance not in ("euclidean", "graph"):
+        raise ValueError
     nodes_by_gisjoin = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     selected_nodes = [nodes_by_gisjoin[g] for g in gisjoins if g in nodes_by_gisjoin]
 
@@ -149,13 +153,35 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None):
     nodes_by_gisjoin_lookup = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     if fixed_center_gisjoin is not None and fixed_center_gisjoin in nodes_by_gisjoin_lookup:
         best_center = nodes_by_gisjoin_lookup[fixed_center_gisjoin]
-        distances = nx.single_source_shortest_path_length(graph, best_center)
+        if distance == "discrete":
+            distances = nx.single_source_shortest_path_length(graph, best_center)
+        else: 
+            cx = graph.nodes[best_center]["centroid_x"]
+            cy = graph.nodes[best_center]["centroid_y"]
+            distances = {
+                node: np.sqrt(
+                    (graph.nodes[node]["centroid_x"] - cx) ** 2 +
+                    (graph.nodes[node]["centroid_y"] - cy) ** 2
+                )
+                for node in graph.nodes()
+                }
         best_objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
     else:
         best_center = None
         best_objective = None
         for candidate in selected_nodes:
-            distances = nx.single_source_shortest_path_length(graph, candidate)
+            if distance == "discrete":
+                distances = nx.single_source_shortest_path_length(graph, candidate)
+            else:
+                cx = graph.nodes[candidate]["centroid_x"]
+                cy = graph.nodes[candidate]["centroid_y"]
+                distances = {
+                    node: np.sqrt(
+                        (graph.nodes[node]["centroid_x"] - cx) ** 2 +
+                        (graph.nodes[node]["centroid_y"] - cy) ** 2
+                    )
+                    for node in graph.nodes()
+                    }
             objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
             # The candidate tract itself contributes zero because its distance to itself is zero
             if best_objective is None or objective < best_objective:
