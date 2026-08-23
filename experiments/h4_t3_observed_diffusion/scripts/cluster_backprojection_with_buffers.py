@@ -18,11 +18,11 @@ sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for
 # from pipeline.metrics import moran, dissimilarity, half_edge
 from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, compute_cluster_metrics, calculate_cluster_spread, compute_mass
 
-
 # Config
 CBSA_CONFIG = {
-    "1714000": {"name": "Chicago"},
-    "4260000": {"name": "Philadelphia"}}
+    "1714000": {"name": "Chicago", "cluster_names": {"cluster_1": "South Side", "cluster_2": "Austin"}},
+    "4260000": {"name": "Philadelphia", "cluster_names": {"cluster_1": "Germantown", "cluster_2": "Chester"}}
+}
     # "1245000": {"name": "Miami"}}
 
 OVERLAP_THRESHOLD = 0.50
@@ -156,11 +156,13 @@ for CBSA in CBSA_CONFIG.keys():
                 # save
                 cluster_metrics_rows.append({
                     "area_code": CBSA, "city_name": CBSA_CONFIG[CBSA]["name"],
-                    "year": year, "cluster": label, "buffer_size": n_edges,
+                    "year": year, "cluster": label, "cluster_name": CBSA_CONFIG[CBSA]["cluster_names"][label],
+                    "buffer_size": n_edges,
                     "buffered_cluster_rho": buffered_cluster_rho,
                     **metrics_by_year[(year, label)],
                     **spread_metrics
                 })
+                
 
         #### Save:
         # 1) save json files, a file per graph
