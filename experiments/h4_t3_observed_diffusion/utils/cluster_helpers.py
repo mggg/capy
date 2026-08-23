@@ -159,7 +159,7 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distanc
     nodes_by_gisjoin_lookup = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     if fixed_center_gisjoin is not None and fixed_center_gisjoin in nodes_by_gisjoin_lookup:
         best_center = nodes_by_gisjoin_lookup[fixed_center_gisjoin]
-        if distance == "discrete":
+        if distance == "graph":
             distances = nx.single_source_shortest_path_length(graph, best_center)
         else: 
             cx = graph.nodes[best_center]["centroid_x"]
