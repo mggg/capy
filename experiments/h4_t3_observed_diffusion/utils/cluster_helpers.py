@@ -122,7 +122,7 @@ def compute_cluster_metrics(cluster_graph, city_graph, year, label, metrics_by_y
     metrics_by_year[(year, label)]["dissimilarity"] = dissimilarity(cluster_graph, "BLACK", "WHITE", p=1)
     metrics_by_year[(year, label)]["city_dissimilarity"] = dissimilarity(city_graph, "BLACK", "WHITE", p=1)
     metrics_by_year[(year, label)]["half_edge"] = half_edge(cluster_graph, "BLACK", "WHITE")
-    metrics_by_year[(year, label)]["half_edge"] = half_edge(city_graph, "BLACK", "WHITE")
+    metrics_by_year[(year, label)]["city_half_edge"] = half_edge(city_graph, "BLACK", "WHITE")
     metrics_by_year[(year, label)]["amplitude"] = compute_mean_node_rho(cluster_graph) - compute_mean_node_rho(city_graph)
 
     cluster_gisjoins = {attrs["GISJOIN"] for _, attrs in cluster_graph.nodes(data=True)}
