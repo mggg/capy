@@ -149,8 +149,14 @@ for CBSA in CBSA_CONFIG.keys():
                 # calculate spread — medoid fixed to buffer=0 so it doesn't drift with buffer size
                 spread_metrics = calculate_cluster_spread(
                     graph=full_graph_yearly[year], gisjoins=gisjoins,
-                    fixed_center_gisjoin=core_medoids.get((year, label)) # None on first pass (n_edges=0)
+                    fixed_center_gisjoin=core_medoids.get((year, label)),
+                    distance = "graph"  # None on first pass (n_edges=0)
                 )
+                spread_metrics_euclidean = calculate_cluster_spread(
+                    graph=full_graph_yearly[year], gisjoins=gisjoins,
+                    fixed_center_gisjoin=core_medoids.get((year, label)),
+                    distance="euclidean")
+                
                 if n_edges == 0:
                     core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
                 # save
@@ -160,8 +166,10 @@ for CBSA in CBSA_CONFIG.keys():
                     "buffer_size": n_edges,
                     "buffered_cluster_rho": buffered_cluster_rho,
                     **metrics_by_year[(year, label)],
-                    **spread_metrics
-                })
+                    **spread_metrics,
+                    **{f"euclidean_{k}": v for k, v in spread_metrics_euclidean.items()
+                        if k in ("spread", "center_node_id", "center_gisjoin", "center_geoid")}
+                    })
                 
 
         #### Save:
