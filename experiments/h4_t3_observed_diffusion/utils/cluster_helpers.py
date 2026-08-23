@@ -115,6 +115,9 @@ def compute_cluster_metrics(cluster_graph, city_graph, year, label, metrics_by_y
     #     metrics_by_year = {}
     for node in cluster_graph.nodes():
         cluster_graph.nodes[node]["white_plus_black"] = int(cluster_graph.nodes[node]["BLACK"]) + int(cluster_graph.nodes[node]["WHITE"])
+    for node in city_graph.nodes():
+        city_graph.nodes[node]["white_plus_black"] = int(city_graph.nodes[node]["BLACK"]) + int(city_graph.nodes[node]["WHITE"])
+
 
     metrics_by_year[(year, label)] = {}
     metrics_by_year[(year, label)]["moran"] = moran(cluster_graph, "BLACK", "white_plus_black")["moran_P"]
