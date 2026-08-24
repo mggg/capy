@@ -55,7 +55,8 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
     # read and reproject
     geofile = gpd.read_file(gpkg)
     geofile = geofile.to_crs("esri:102003") # so distances are in meters
-    warnings.filterwarnings("ignore", message=".*NA values found in column.*") # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
+    warnings.filterwarnings("ignore", message=".*NA values found in column.*")  # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
+    warnings.filterwarnings("ignore", message=".*Found islands.*")  # degree-0 nodes are handled explicitly by connect_components.
 
     # extract area code from the filename
     right = gpkg.split("_in_")[1]
@@ -82,18 +83,20 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
 
     # create an edited version of the graph:
     # if the graph has disconnected components, add an edge across the nearest pair of geometries
-    connected_graph = connect_components(geofile, graph, attr)
+    connected_graph, n_edges_added = connect_components(geofile, graph, attr)
 
     # remove 0-population nodes and their edges
     dropped_indices = []
     while len(connected_graph.nodes()) != 0 and has_zero_nodes(connected_graph):
         node_count = len(connected_graph.nodes())
-        connected_graph, dropped = contract_zero_nodes(connected_graph)
+        connected_graph, dropped = drop_zero_nodes(connected_graph)
         if len(connected_graph.nodes()) == node_count:
-            print("No more zero nodes to contract. Remaining:", connected_graph.nodes())
             break
         dropped_indices.extend(n for n, _ in dropped)
 
+    if n_edges_added > 0 or len(dropped_indices) > 0:
+        print(f"{stem}: +{n_edges_added} edges, {len(dropped_indices)} zero-pop nodes dropped", flush=True)
+        
     connected_graph.to_json(str(out_dir / f"{stem}_connected.json"))
 
     if dropped_indices:
@@ -122,7 +125,7 @@ def has_zero_nodes(graph: gerrychain.Graph):
     return False
 
 
-def contract_zero_nodes(graph: gerrychain.Graph):
+def drop_zero_nodes(graph: gerrychain.Graph):
     zero_nodes = [n for n in graph.nodes() if node_contraction_population(graph, n) == 0]
 
     dropped_nodes = [(n, graph.nodes[n].get("GISJOIN", n)) for n in zero_nodes]
@@ -133,8 +136,8 @@ def contract_zero_nodes(graph: gerrychain.Graph):
 
 def connect_components(geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
     geom_by_geoid = dict(zip(geofile[attr], geofile.geometry))
+    n_added = 0
     while nx.algorithms.components.number_connected_components(graph) != 1:
-        print("Connected components:", nx.algorithms.components.number_connected_components(graph))
         cc = list(nx.connected_components(graph))[:2]
         assert len(cc) == 2
         cc_geoids = []
@@ -166,9 +169,9 @@ def connect_components(geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr:
 
         assert min_pair is not None
         graph.add_edge(geoid_node_mapping[min_pair[0]], geoid_node_mapping[min_pair[1]])
-        print("Edge added:", min_pair)
+        n_added += 1
 
-    return graph
+    return graph, n_added
 
 
 if __name__ == "__main__":

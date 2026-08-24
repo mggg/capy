@@ -21,15 +21,19 @@ DOWNLOAD_HEADERS = {
     "User-Agent": "capy-bara geography downloader",
 }
 
+# See https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html
+# 50 states + DC + Puerto Rico (72). Territories 60/66/69/78 are omitted, they have no CBSA definitions.
 STATE_FIPS = [
     "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
     "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
     "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
     "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
-    "49", "50", "51", "53", "54", "55", "56",
-    "60", "66", "69", "72", "78",
+    "49", "50", "51", "53", "54", "55", "56", "72",
 ]
 
+# "census" values match the Census Bureau Data API's geography `for=` parameter: https://api.census.gov/data/2020/dec/pl/geography.json
+# "nhgis_levels" values match the `geographicLevel` field in the IPUMS NHGIS shapefiles metadata API: https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/
+# Multiple strings per level reflect label changes across decades (e.g. tracts were called Block Numbering Areas before 1990 standardization).
 LEVELS = {
     "county": {"label": "counties", "nhgis_levels": ["county"], "census": "county"},
     "counties": {"label": "counties", "nhgis_levels": ["county"], "census": "county"},
@@ -399,12 +403,15 @@ def fetch_census(year: int, level: str, output_dir: Path) -> Path:
         if "{state}" in template:
             urls = [template.format(state=state) for state in STATE_FIPS]
 
+        n_existing = 0
         for url in urls:
             if census_output_exists(url, output_path):
-                print(f"Skipping existing geography for {url}", flush=True)
+                n_existing += 1
                 continue
             zip_path = download(url, zip_dir / url.split("/")[-1])
             extract_zip(zip_path, output_path)
+        if n_existing:
+            print(f"Skipped {n_existing} already downloaded {config['label']} shapefiles for {year}", flush=True)
 
     return output_path
 
@@ -431,12 +438,11 @@ def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks,
             if path is None:
                 path = fetch_nhgis(year, level, year_work_dir)
             else:
-                print(f"Skipping existing NHGIS geography extract {path}", flush=True)
+                print(f"Skipping existing NHGIS geography {path}", flush=True)
         elif year in CENSUS_TIGER_URLS:
             path = fetch_census(year, level, output_dir)
         else:
             raise ValueError(f"No geography source is configured for {year}")
-        print(path)
 
 
 if __name__ == "__main__":

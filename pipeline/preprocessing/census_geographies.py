@@ -254,16 +254,13 @@ def read_nhgis_1990_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
     require_columns(df, ["GISJOIN", "STATEA", "COUNTYA"] + race_cols, path)
     gisjoin = df["GISJOIN"].astype(str)
     return pd.DataFrame(
-        {
-            "JOIN_KEY": gisjoin,
-            "GISJOIN": gisjoin,
-            "STATEFP": df["STATEA"].str.zfill(2),
-            "COUNTYFP": df["COUNTYA"].str.zfill(3),
-            "WHITE": to_int(df["ET2001"]),
-            "BLACK": to_int(df["ET2002"]),
-            "TOTPOP": sum(to_int(df[col]) for col in race_cols),
-        }
-    )
+        {"JOIN_KEY": gisjoin,
+        "GISJOIN": gisjoin,
+        "STATEFP": df["STATEA"].str.zfill(2),
+        "COUNTYFP": df["COUNTYA"].str.zfill(3),
+        "WHITE": to_int(df["ET2001"]),
+        "BLACK": to_int(df["ET2002"]),
+        "TOTPOP": sum(to_int(df[col]) for col in race_cols)})
 
 
 def read_census_population(df: pd.DataFrame, path: Path, year: int, level_label: str) -> pd.DataFrame:
@@ -475,16 +472,21 @@ def read_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.Ge
 
 def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_label: str) -> gpd.GeoDataFrame:
     state_fips = set(pop["STATEFP"])
+    geo_states = set(gdf["STATEFP"].unique())
     gdf = gdf[gdf["STATEFP"].isin(state_fips)].copy()
 
     merged = gdf.merge(
         pop[["JOIN_KEY", "WHITE", "BLACK", "TOTPOP", "POC"]],
-        on="JOIN_KEY",
-        how="left",
-        validate="one_to_one")
+        on="JOIN_KEY", how="left", validate="one_to_one")
 
     if len(merged) == 0:
-        print("Length of merged = 0")
+        unmatched = geo_states - state_fips
+        print(
+            f"  {year} {level_label}: join produced 0 rows — "
+            f"geography STATEFP {sorted(geo_states)} not found in population data"
+            + (f" (unmatched: {sorted(unmatched)})" if unmatched != geo_states else ""),
+            flush=True,
+        )
         return merged
     missing = merged["TOTPOP"].isna().sum()
     if missing / len(merged) > 0.3:
@@ -494,8 +496,7 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
         if level_label == "blocks" and year == 1990:
             # ~31% miss rate is expected: zero-pop blocks, alpha-suffix splits,
             # and BNA tracts are all absent from the NHGIS extract.
-            # TODO: add into log file
-            print(f"  {year}: dropping {missing:,} unmatched blocks (zero-population, BNA, or split-block suffixes — expected for 1990).", flush=True)
+            print(f"  {year}, {state_fips}: dropping {missing:,} unmatched blocks (zero-population, BNA, or split-block suffixes — expected for 1990).", flush=True)
         else:
             raise ValueError(f"{year}: {missing} {level_label} geometries did not match population rows.")
 
@@ -542,12 +543,13 @@ def main(level: str = typer.Option("tracts",
     level_label = validate_level(level)
     run_years = parse_years(years, year_values)
 
+    states_by_year: dict = {}
     for year in run_years:
         if year == 1980 and level_label in ("block_groups", "blocks"):
             print(f"Skipping 1980 {level_label}: NHGIS does not publish 1980 "
                 "block group or block boundary shapefiles.", flush=True)
             continue
-        print(f"Creating {year} {level_label} geography geopackage files")
+        print(f"Creating {year} {level_label} geography geopackage files", flush=True)
         pop = read_population(year, population_dir, level_label)
         if year in (1980, 1990):
             gdf = read_nhgis_geography(year, geographies_dir, level_label)
@@ -556,11 +558,26 @@ def main(level: str = typer.Option("tracts",
         else:
             state_iter = read_census_geography(year, geographies_dir, level_label)
 
+        n_written = 0
+        states_written: set = set()
         for state_gdf in state_iter:
             statefp = state_gdf["STATEFP"].iloc[0]
             merged = join_population(state_gdf, pop, year, level_label)
-            path = write_processed(merged, year, output_dir, level_label, statefp)
-            print(path)
+            if len(merged) == 0:
+                continue
+            write_processed(merged, year, output_dir, level_label, statefp)
+            n_written += 1
+            states_written.add(statefp)
+        states_by_year[year] = states_written
+        print(f"  {n_written} {level_label} geopackages written for {year}", flush=True)
+
+    if len(states_by_year) > 1:
+        all_states = set().union(*states_by_year.values())
+        for statefp in sorted(all_states):
+            missing_in = [y for y, states in sorted(states_by_year.items()) if statefp not in states]
+            if missing_in:
+                print(f"  Note: FIPS {statefp} has no {level_label} geopackage for {missing_in} "
+                    "(absent from source data for those years)", flush=True)
 
         # gdf = read_geography(year, geographies_dir, level_label)
         # for statefp, state_gdf in merged.groupby("STATEFP"):

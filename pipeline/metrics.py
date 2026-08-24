@@ -1,7 +1,9 @@
 import geopandas as gpd
 import typer
 import os
+import csv
 import glob
+import warnings
 import gerrychain
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -20,12 +22,18 @@ from pathlib import Path
 def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, workers: int = 6):
     files = sorted(glob.glob(input_glob))
     worker = partial(_process_file, x_col=x_col, y_col=y_col, tot_col=tot_col)
+    n_ok = 0
+    n_failed = 0
     with open(output, "w") as f:
         f.write(build_headers(x_col, y_col, tot_col) + "\n")
         with ProcessPoolExecutor(max_workers=workers) as pool:
             for row in pool.map(worker, files):
                 if row is not None:
                     f.write(row + "\n")
+                    n_ok += 1
+                else:
+                    n_failed += 1
+    print(f"Metrics calculations: {n_ok} processes succeeded, {n_failed} failed. Output: {output}", flush=True)
 
 
 def study_area_code_from_filename(filename: str) -> str:
@@ -67,32 +75,42 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     return ",".join(keys)
 
 
+FAILURE_FIELDNAMES = ["filename", "study_area_code", "x_col", "y_col", "tot_col", "error_message"]
+
+
+def write_failure(filename: str, x_col: str, y_col: str, tot_col: str, exc: Exception) -> None:
+    metric_failures_file = os.environ.get("METRIC_FAILURES_FILE", "outputs/metric_failures.csv")
+    failures_dir = os.path.dirname(metric_failures_file)
+    os.makedirs(failures_dir, exist_ok=True)
+
+    row = {"filename": filename, "study_area_code": study_area_code_from_filename(filename),
+        "x_col": x_col, "y_col": y_col, "tot_col": tot_col, "error_message": str(exc)}
+
+    # write header once
+    write_header = not os.path.exists(metric_failures_file) or os.path.getsize(metric_failures_file) == 0
+    with open(metric_failures_file, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=FAILURE_FIELDNAMES)
+        if write_header:
+            writer.writeheader()
+        writer.writerow(row)
+
+
 def _process_file(filename: str, x_col: str, y_col: str, tot_col: str):
     try:
         return run_metrics(filename, x_col, y_col, tot_col)
-    except ZeroDivisionError as e:
-        metric_failures_file = os.environ.get(
-            "METRIC_FAILURES_FILE", "outputs/metric_failures.csv"
-        )
-        metric_failures_dir = os.path.dirname(metric_failures_file)
-        if metric_failures_dir:
-            os.makedirs(metric_failures_dir, exist_ok=True)
-        with open(metric_failures_file, "a+") as f:
-            f.seek(0, os.SEEK_END)
-            if f.tell() == 0:
-                print("filename,cbsa_code,error", file=f)
-            print(f"{filename},{study_area_code_from_filename(filename)},{e}", file=f)
-        print(filename, e, file=sys.stderr)
+    except Exception as e:
+        write_failure(filename, x_col, y_col, tot_col, e)
+        print(f"FAILED {filename}: {type(e).__name__}: {e}", file=sys.stderr)
         return None
 
 
 def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
+    warnings.filterwarnings("ignore", message=".*Found islands.*")  # degree-0 nodes are handled by connect_components in graphs.py.
     graph = gerrychain.Graph.from_json(filename)
 
     for node in graph.nodes():
         graph.nodes[node]["white_plus_black"] = (
-            int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
-        )
+            int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col]))
 
     capy_metrics = {}
     capy_metrics["filename"] = filename
