@@ -23,7 +23,7 @@ CBSA_CONFIG = {
     "1714000": {"name": "Chicago", "cluster_names": {"cluster_1": "South Side", "cluster_2": "Austin"}},
     "4260000": {"name": "Philadelphia", "cluster_names": {"cluster_1": "Germantown", "cluster_2": "Chester"}}
 }
-    # "1245000": {"name": "Miami"}}
+# "1245000": {"name": "Miami"}}
 
 OVERLAP_THRESHOLD = 0.50
 YEARS = [1980, 1990, 2000, 2010, 2020]
@@ -69,6 +69,9 @@ for CBSA in CBSA_CONFIG.keys():
 
     # medoids fixed at buffer=0 so they don't drift as rings are added
     core_medoids = {}  # (year, label) -> center_gisjoin from buffer=0
+    euclidean_core_medoids = {}
+    core_spreads = {}
+    core_euclidean_spreads = {}
 
     # add buffers to them
     for n_edges in BUFFER_LIST:
@@ -154,17 +157,23 @@ for CBSA in CBSA_CONFIG.keys():
                 )
                 spread_metrics_euclidean = calculate_cluster_spread(
                     graph=full_graph_yearly[year], gisjoins=gisjoins,
-                    fixed_center_gisjoin=core_medoids.get((year, label)),
+                    fixed_center_gisjoin=euclidean_core_medoids.get((year, label)),
                     distance="euclidean")
                 
                 if n_edges == 0:
                     core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
+                    euclidean_core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
+                    core_spreads[(year, label)] = spread_metrics["spread"]
+                    core_euclidean_spreads[(year, label)] = spread_metrics_euclidean["spread"]
+
                 # save
                 cluster_metrics_rows.append({
                     "area_code": CBSA, "city_name": CBSA_CONFIG[CBSA]["name"],
                     "year": year, "cluster": label, "cluster_name": CBSA_CONFIG[CBSA]["cluster_names"][label],
                     "buffer_size": n_edges,
                     "buffered_cluster_rho": buffered_cluster_rho,
+                    "core_spread": core_spreads[(year, label)],
+                    "core_euclidean_spread": core_euclidean_spreads[(year, label)],
                     **metrics_by_year[(year, label)],
                     **spread_metrics,
                     **{f"euclidean_{k}": v for k, v in spread_metrics_euclidean.items()
