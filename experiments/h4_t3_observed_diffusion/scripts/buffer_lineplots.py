@@ -22,6 +22,8 @@ for cluster in clusters:
     cluster_metrics = metrics[(metrics["city_name"] == cluster[0]) & (metrics["cluster"] == cluster[1])]
     for metric in METRICS:
         fig, ax = plt.subplots(figsize=(8, 6))
+        if metric[0] != "local_moran":
+            ax.plot(cluster_metrics["year"], cluster_metrics[f"city_{metric[0]}"], color="red", marker='o', markersize=4, linewidth=1.5, label = "city wide")
         for i in range(11):
             buffer_metrics = cluster_metrics[cluster_metrics["buffer_size"] == i]
             ax.plot(buffer_metrics["year"], buffer_metrics[metric[0]], color=colors[i], marker='o', markersize=4, linewidth=1.5, label = f"{i}")
