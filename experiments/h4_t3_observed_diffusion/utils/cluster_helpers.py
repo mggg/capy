@@ -118,6 +118,7 @@ def compute_cluster_metrics(cluster_graph, city_graph, year, label, metrics_by_y
     for node in city_graph.nodes():
         city_graph.nodes[node]["white_plus_black"] = int(city_graph.nodes[node]["BLACK"]) + int(city_graph.nodes[node]["WHITE"])
 
+    city_mean_node_rho = compute_mean_node_rho(city_graph)
 
     metrics_by_year[(year, label)] = {}
     metrics_by_year[(year, label)]["moran"] = moran(cluster_graph, "BLACK", "white_plus_black")["moran_P"]
@@ -126,12 +127,21 @@ def compute_cluster_metrics(cluster_graph, city_graph, year, label, metrics_by_y
     metrics_by_year[(year, label)]["city_dissimilarity"] = dissimilarity(city_graph, "BLACK", "WHITE", p=1)
     metrics_by_year[(year, label)]["half_edge"] = half_edge(cluster_graph, "BLACK", "WHITE")
     metrics_by_year[(year, label)]["city_half_edge"] = half_edge(city_graph, "BLACK", "WHITE")
-    metrics_by_year[(year, label)]["amplitude"] = compute_mean_node_rho(cluster_graph) - compute_mean_node_rho(city_graph)
+    metrics_by_year[(year, label)]["amplitude"] = compute_mean_node_rho(cluster_graph) - city_mean_node_rho
 
     cluster_gisjoins = {attrs["GISJOIN"] for _, attrs in cluster_graph.nodes(data=True)}
     metrics_by_year[(year, label)]["local_moran"] = local_moran(city_graph, cluster_gisjoins)
 
 
+    dropoff = 0
+    nodes_by_gisjoin = {str(attrs["GISJOIN"]): n for n, attrs in city_graph.nodes(data=True)}
+    selected_nodes = {nodes_by_gisjoin[g] for g in cluster_gisjoins if g in nodes_by_gisjoin}
+    for node in selected_nodes:
+        for neighbor in city_graph.neighbors(node):
+            if neighbor not in selected_nodes:
+                dropoff += (city_graph.nodes[neighbor]["rho"] - city_mean_node_rho) \
+                        * (city_graph.nodes[node]["rho"] - city_mean_node_rho)
+    metrics_by_year[(year, label)]["dropoff"] = dropoff
 
     return metrics_by_year
 

@@ -74,7 +74,10 @@ for CBSA in CBSA_CONFIG.keys():
     core_euclidean_spreads = {}
     core_nball_spreads = {}
     core_euclidean_nball_spreads = {}
+    core_amplitudes = {}
+    core_dropoffs = {}
 
+    
     # add buffers to them
     for n_edges in BUFFER_LIST:
         print(f"   adding {n_edges}")
@@ -169,6 +172,9 @@ for CBSA in CBSA_CONFIG.keys():
                     core_euclidean_spreads[(year, label)] = spread_metrics_euclidean["spread"]
                     core_nball_spreads[(year, label)] = spread_metrics["n_ball_spread"]
                     core_euclidean_nball_spreads[(year, label)] = spread_metrics_euclidean["n_ball_spread"]
+                    core_amplitudes[(year, label)] = metrics_by_year[(year, label)]["amplitude"]
+                    core_dropoffs[(year, label)] = metrics_by_year[(year, label)]["dropoff"]
+
 
 
                 # save
@@ -181,6 +187,8 @@ for CBSA in CBSA_CONFIG.keys():
                     "core_euclidean_spread": core_euclidean_spreads[(year, label)],
                     "core_n_ball_spread": core_nball_spreads[(year, label)],
                     "euclidean_core_n_ball_spread": core_euclidean_nball_spreads[(year, label)],
+                    "core_amplitude": core_amplitudes[(year, label)],
+                    "core_dropoff": core_dropoffs[(year, label)],
                     **spread_metrics,
                     **{f"euclidean_{k}": v for k, v in spread_metrics_euclidean.items()
                         if k in ("spread", "n_ball_spread", "center_node_id", "center_gisjoin", "center_geoid")},
@@ -205,7 +213,8 @@ for CBSA in CBSA_CONFIG.keys():
                         "year": year, "cluster": label, "buffer_size": n_edges,
                         "gisjoin": attrs["GISJOIN"],
                         "black_population": attrs["BLACK"], "white_population": attrs["WHITE"], "total_population": attrs["TOTPOP"],
-                        "black_share": (attrs["BLACK"] / (attrs["BLACK"] + attrs["WHITE"])) })
+                        "black_share": (attrs["BLACK"] / (attrs["BLACK"] + attrs["WHITE"])),
+                        })
 
 print(f"Saving list of selected nodes to {OUTPUT_NODE_LIST}")
 pd.DataFrame(buffered_cluster_rows).to_csv(OUTPUT_NODE_LIST, index=False)
