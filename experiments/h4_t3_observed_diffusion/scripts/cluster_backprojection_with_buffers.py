@@ -16,14 +16,14 @@ sys.path.insert(0, str(ROOT)) # for pipeline.*
 sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
-from utils.cluster_helpers import compute_rho, get_geoids, back_project_cluster, apply_metrics_to_cities, calculate_cluster_spread, compute_mass
-
+from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, compute_cluster_metrics, calculate_cluster_spread, compute_mass
 
 # Config
 CBSA_CONFIG = {
-    "1714000": {"name": "Chicago"},
-    "4260000": {"name": "Philadelphia"}}
-    # "1245000": {"name": "Miami"}}
+    "1714000": {"name": "Chicago", "cluster_names": {"cluster_1": "South Side", "cluster_2": "Austin"}},
+    "4260000": {"name": "Philadelphia", "cluster_names": {"cluster_1": "Germantown", "cluster_2": "Chester"}}
+}
+# "1245000": {"name": "Miami"}}
 
 OVERLAP_THRESHOLD = 0.50
 YEARS = [1980, 1990, 2000, 2010, 2020]
@@ -44,7 +44,7 @@ for CBSA in CBSA_CONFIG.keys():
     graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_march_2020_vintage_connected.json"
     with open(graph_file) as f:
         G_city_2020 = nx.adjacency_graph(json.load(f))
-    BLACK_SHARE_THRESHOLD = compute_rho(G_city_2020)
+    BLACK_SHARE_THRESHOLD = compute_mean_node_rho(G_city_2020)
 
     node_ids = list(G_city_2020.nodes())
     nodes_df = pd.DataFrame([G_city_2020.nodes[n] for n in node_ids], index=node_ids)
@@ -69,6 +69,9 @@ for CBSA in CBSA_CONFIG.keys():
 
     # medoids fixed at buffer=0 so they don't drift as rings are added
     core_medoids = {}  # (year, label) -> center_gisjoin from buffer=0
+    euclidean_core_medoids = {}
+    core_spreads = {}
+    core_euclidean_spreads = {}
 
     # add buffers to them
     for n_edges in BUFFER_LIST:
@@ -102,7 +105,6 @@ for CBSA in CBSA_CONFIG.keys():
             else:  # MultiPolygon - buffer created from spatially disconnected pieces
                 filled = unary_union([Polygon(p.exterior) for p in dissolved.geoms])
             cluster_shapes_2020[label] = gpd.GeoDataFrame(geometry=[filled], crs=gdf.crs)
-
 
         # Apply to previous years
         # For each earlier-year tract: if `intersection_area / tract_area > OVERLAP_THRESHOLD`, it belongs to the cluster.
@@ -144,23 +146,40 @@ for CBSA in CBSA_CONFIG.keys():
                 buffered_cluster_rho = compute_rho(graph_yearly[year][label])
                 # mass = compute_mass(graph_yearly[year][label]) #
                 # calculate main metrics - moran, dissimilarity, half edge
-                metrics_by_year = apply_metrics_to_cities(G=graph_yearly[year][label], year=year, label=label, metrics_by_year=metrics_by_year)
+                metrics_by_year = compute_cluster_metrics(graph_yearly[year][label], full_graph_yearly[year],
+                                                           year=year, label=label, metrics_by_year=metrics_by_year)
                 gisjoins = [attrs["GISJOIN"] for _, attrs in graph_yearly[year][label].nodes(data=True)]
                 # calculate spread — medoid fixed to buffer=0 so it doesn't drift with buffer size
                 spread_metrics = calculate_cluster_spread(
                     graph=full_graph_yearly[year], gisjoins=gisjoins,
-                    fixed_center_gisjoin=core_medoids.get((year, label)) # None on first pass (n_edges=0)
+                    fixed_center_gisjoin=core_medoids.get((year, label)),
+                    distance = "graph"  # None on first pass (n_edges=0)
                 )
+                spread_metrics_euclidean = calculate_cluster_spread(
+                    graph=full_graph_yearly[year], gisjoins=gisjoins,
+                    fixed_center_gisjoin=euclidean_core_medoids.get((year, label)),
+                    distance="euclidean")
+                
                 if n_edges == 0:
                     core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
+                    euclidean_core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
+                    core_spreads[(year, label)] = spread_metrics["spread"]
+                    core_euclidean_spreads[(year, label)] = spread_metrics_euclidean["spread"]
+
                 # save
                 cluster_metrics_rows.append({
                     "area_code": CBSA, "city_name": CBSA_CONFIG[CBSA]["name"],
-                    "year": year, "cluster": label, "buffer_size": n_edges,
+                    "year": year, "cluster": label, "cluster_name": CBSA_CONFIG[CBSA]["cluster_names"][label],
+                    "buffer_size": n_edges,
                     "buffered_cluster_rho": buffered_cluster_rho,
+                    "core_spread": core_spreads[(year, label)],
+                    "core_euclidean_spread": core_euclidean_spreads[(year, label)],
                     **metrics_by_year[(year, label)],
-                    **spread_metrics
-                })
+                    **spread_metrics,
+                    **{f"euclidean_{k}": v for k, v in spread_metrics_euclidean.items()
+                        if k in ("spread", "center_node_id", "center_gisjoin", "center_geoid")}
+                    })
+                
 
         #### Save:
         # 1) save json files, a file per graph

@@ -2,13 +2,13 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from shapely.ops import unary_union
+import numpy as np
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from pipeline.metrics import moran, dissimilarity, half_edge
-
 
 def compute_rho(G):
     """Black share of the whole graph: total BLACK / (total BLACK + total WHITE)"""
@@ -30,12 +30,11 @@ def compute_mass(G):
 def find_graph_files(graphs_path, city_code):
     graph_files = []
     for year in range(1980, 2021, 10):
-        graph_file = graphs_path / str(year) / f"tracts_in_max_city_{city_code}_{year}_2020_vintage_connected.json"
+        graph_file = graphs_path / str(year) / f"tracts_in_max_city_{city_code}_{year}_march_2020_vintage_connected.json"
         if not graph_file.exists():
             print(f"Graph file for year {year} does not exist.")
         graph_files.append(graph_file)
     return graph_files
-
 
 def add_border_hops(G_city, n_edges=1):
     cluster_city_nodes = set(G_city.nodes) # local copy
@@ -43,7 +42,6 @@ def add_border_hops(G_city, n_edges=1):
         cluster_city_nodes.update(# expand the copy, not the original
             neighbor for n in list(cluster_city_nodes) for neighbor in G_city_2020.neighbors(n))
     return G_city.subgraph(cluster_city_nodes).copy()
-
 
 def plot_graph(G):
     pos = {node: (data["centroid_x"], data["centroid_y"]) for node, data in G.nodes(data=True)}
@@ -66,7 +64,6 @@ def plot_graph(G):
     ax.set_ylabel("centroid_y")
     plt.show()
 
-
 def get_geoids(gdf):
     """Extract GEOIDs from a GDF regardless of year-specific column naming."""
     if "GEOID" in gdf.columns:
@@ -76,7 +73,6 @@ def get_geoids(gdf):
     county = next(c for c in gdf.columns if c.startswith("COUNTYFP"))
     tract = next(c for c in gdf.columns if c.startswith("TRACTCE"))
     return set((gdf[state] + gdf[county] + gdf[tract]).astype(str))
-
 
 def back_project_cluster(gdf_cluster_2020, gdf_target, overlap_threshold=0.50):
     """
@@ -96,32 +92,62 @@ def back_project_cluster(gdf_cluster_2020, gdf_target, overlap_threshold=0.50):
         .drop(columns=["_tract_area", "_inter_area", "_overlap"])
         .copy())
 
+def local_moran(graph, cluster_gisjoins):
+    shares = np.array([
+        graph.nodes[node]["BLACK"] / (graph.nodes[node]["BLACK"] + graph.nodes[node]["WHITE"])
+        for node in graph.nodes()
+    ])
+    shares -= shares.mean()
+    node_to_i = {node: i for i, node in enumerate(graph.nodes())}
 
-def apply_metrics_to_cities(G, year, label, metrics_by_year=None):
+    top_sum = 0
+    bottom_sum = 0
+    for i, node in enumerate(graph.nodes()):
+        bottom_sum += shares[i] ** 2
+        if graph.nodes[node]["GISJOIN"] in cluster_gisjoins:
+            for nbr in graph.neighbors(node):
+                top_sum += shares[i] * shares[node_to_i[nbr]]
+    
+    return len(graph)/len(graph.edges()) * (top_sum / bottom_sum)
+
+def compute_cluster_metrics(cluster_graph, city_graph, year, label, metrics_by_year=None):
     # if metrics_by_year is None:
     #     metrics_by_year = {}
-    for node in G.nodes():
-        G.nodes[node]["white_plus_black"] = int(G.nodes[node]["BLACK"]) + int(G.nodes[node]["WHITE"])
-    # drop 0-population nodes (not needed at this point?)
-    G.remove_nodes_from([n for n, d in G.nodes(data=True) if d["white_plus_black"] == 0])
+    for node in cluster_graph.nodes():
+        cluster_graph.nodes[node]["white_plus_black"] = int(cluster_graph.nodes[node]["BLACK"]) + int(cluster_graph.nodes[node]["WHITE"])
+    for node in city_graph.nodes():
+        city_graph.nodes[node]["white_plus_black"] = int(city_graph.nodes[node]["BLACK"]) + int(city_graph.nodes[node]["WHITE"])
+
 
     metrics_by_year[(year, label)] = {}
-    metrics_by_year[(year, label)]["moran"] = moran(G, "BLACK", "white_plus_black")["moran_P"]
-    metrics_by_year[(year, label)]["dissimilarity"] = dissimilarity(G, "BLACK", "WHITE", p=1)
-    metrics_by_year[(year, label)]["half_edge"] = half_edge(G, "BLACK", "WHITE")
+    metrics_by_year[(year, label)]["moran"] = moran(cluster_graph, "BLACK", "white_plus_black")["moran_P"]
+    metrics_by_year[(year, label)]["city_moran"] = moran(city_graph, "BLACK", "white_plus_black")["moran_P"]
+    metrics_by_year[(year, label)]["dissimilarity"] = dissimilarity(cluster_graph, "BLACK", "WHITE", p=1)
+    metrics_by_year[(year, label)]["city_dissimilarity"] = dissimilarity(city_graph, "BLACK", "WHITE", p=1)
+    metrics_by_year[(year, label)]["half_edge"] = half_edge(cluster_graph, "BLACK", "WHITE")
+    metrics_by_year[(year, label)]["city_half_edge"] = half_edge(city_graph, "BLACK", "WHITE")
+    metrics_by_year[(year, label)]["amplitude"] = compute_mean_node_rho(cluster_graph) - compute_mean_node_rho(city_graph)
+
+    cluster_gisjoins = {attrs["GISJOIN"] for _, attrs in cluster_graph.nodes(data=True)}
+    metrics_by_year[(year, label)]["local_moran"] = local_moran(city_graph, cluster_gisjoins)
+
+
 
     return metrics_by_year
 
-
-def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None):
+def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distance = "euclidean"):
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
     graph: nx Graph. The dual graph for the CBSA and year of interest.
     gisjoins: a list of gisjoin IDs pointing to tracts
+    distance: What distance function is used to calculate the spread. Can either be "graph", which 
+    uses graph distance, or "euclidean", which uses the euclidean distance between cluster centroids.
     Returns:
     dict: A dictionary containing the calculated metrics for the catchment area and core cluster.
     """
+    if distance not in ("euclidean", "graph"):
+        raise ValueError
     nodes_by_gisjoin = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     selected_nodes = [nodes_by_gisjoin[g] for g in gisjoins if g in nodes_by_gisjoin]
 
@@ -133,13 +159,35 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None):
     nodes_by_gisjoin_lookup = {str(attrs["GISJOIN"]): n for n, attrs in graph.nodes(data=True)}
     if fixed_center_gisjoin is not None and fixed_center_gisjoin in nodes_by_gisjoin_lookup:
         best_center = nodes_by_gisjoin_lookup[fixed_center_gisjoin]
-        distances = nx.single_source_shortest_path_length(graph, best_center)
+        if distance == "graph":
+            distances = nx.single_source_shortest_path_length(graph, best_center)
+        else: 
+            cx = graph.nodes[best_center]["centroid_x"]
+            cy = graph.nodes[best_center]["centroid_y"]
+            distances = {
+                node: np.sqrt(
+                    (graph.nodes[node]["centroid_x"] - cx) ** 2 +
+                    (graph.nodes[node]["centroid_y"] - cy) ** 2
+                )
+                for node in graph.nodes()
+                }
         best_objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
     else:
         best_center = None
         best_objective = None
         for candidate in selected_nodes:
-            distances = nx.single_source_shortest_path_length(graph, candidate)
+            if distance == "graph":
+                distances = nx.single_source_shortest_path_length(graph, candidate)
+            else:
+                cx = graph.nodes[candidate]["centroid_x"]
+                cy = graph.nodes[candidate]["centroid_y"]
+                distances = {
+                    node: np.sqrt(
+                        (graph.nodes[node]["centroid_x"] - cx) ** 2 +
+                        (graph.nodes[node]["centroid_y"] - cy) ** 2
+                    )
+                    for node in graph.nodes()
+                    }
             objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
             # The candidate tract itself contributes zero because its distance to itself is zero
             if best_objective is None or objective < best_objective:
