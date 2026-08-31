@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
-DIFFUSION_METRIC = 'euclidean_spread' #other options include 'core_spread', 'core_euclidean_spread', or 'euclidean_spread'
+DIFFUSION_METRIC = 'core_n_ball_spread' #other options include 'core_spread', 'core_euclidean_spread', or 'euclidean_spread'
 
 
 df = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_metrics.csv")
