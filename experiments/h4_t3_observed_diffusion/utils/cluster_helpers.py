@@ -172,9 +172,11 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distanc
                 for node in graph.nodes()
                 }
         best_objective = sum(int(graph.nodes[node]["BLACK"]) * distances[node] for node in selected_nodes)
+        best_distances = distances
     else:
         best_center = None
         best_objective = None
+        best_distances = None
         for candidate in selected_nodes:
             if distance == "graph":
                 distances = nx.single_source_shortest_path_length(graph, candidate)
@@ -193,8 +195,20 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distanc
             if best_objective is None or objective < best_objective:
                 best_center = candidate
                 best_objective = objective
+                best_distances = distances
+
+    #nball spread
+    ball_target = 0.9 * area_black_population
+    current_ball = 0
+    n_ball_spread = None
+    for node in sorted(selected_nodes, key=lambda node: best_distances[node]):
+        current_ball += int(graph.nodes[node]["BLACK"])
+        if current_ball >= ball_target:
+            n_ball_spread = best_distances[node]
+            break
 
     selected_subgraph = graph.subgraph(selected_nodes)
+
     return {
         "tract_count": len(selected_nodes),
         "component_count": nx.number_connected_components(selected_subgraph),
@@ -202,6 +216,7 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distanc
         "area_total_population": area_total_population,
         "area_black_share": area_black_population / area_total_population,
         "spread": best_objective / area_black_population,
+        "n_ball_spread": n_ball_spread,
         "center_node_id": best_center,
         "center_gisjoin": graph.nodes[best_center]["GISJOIN"],
         "center_geoid": graph.nodes[best_center].get("GEOID")}

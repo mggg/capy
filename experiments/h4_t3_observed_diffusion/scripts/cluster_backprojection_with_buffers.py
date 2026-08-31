@@ -72,6 +72,8 @@ for CBSA in CBSA_CONFIG.keys():
     euclidean_core_medoids = {}
     core_spreads = {}
     core_euclidean_spreads = {}
+    core_nball_spreads = {}
+    core_euclidean_nball_spreads = {}
 
     # add buffers to them
     for n_edges in BUFFER_LIST:
@@ -162,9 +164,12 @@ for CBSA in CBSA_CONFIG.keys():
                 
                 if n_edges == 0:
                     core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
-                    euclidean_core_medoids[(year, label)] = spread_metrics["center_gisjoin"]
+                    euclidean_core_medoids[(year, label)] = spread_metrics_euclidean["center_gisjoin"]
                     core_spreads[(year, label)] = spread_metrics["spread"]
                     core_euclidean_spreads[(year, label)] = spread_metrics_euclidean["spread"]
+                    core_nball_spreads[(year, label)] = spread_metrics["n_ball_spread"]
+                    core_euclidean_nball_spreads[(year, label)] = spread_metrics_euclidean["n_ball_spread"]
+
 
                 # save
                 cluster_metrics_rows.append({
@@ -174,10 +179,12 @@ for CBSA in CBSA_CONFIG.keys():
                     "buffered_cluster_rho": buffered_cluster_rho,
                     "core_spread": core_spreads[(year, label)],
                     "core_euclidean_spread": core_euclidean_spreads[(year, label)],
-                    **metrics_by_year[(year, label)],
+                    "core_n_ball_spread": core_nball_spreads[(year, label)],
+                    "euclidean_core_n_ball_spread": core_euclidean_nball_spreads[(year, label)],
                     **spread_metrics,
                     **{f"euclidean_{k}": v for k, v in spread_metrics_euclidean.items()
-                        if k in ("spread", "center_node_id", "center_gisjoin", "center_geoid")}
+                        if k in ("spread", "n_ball_spread", "center_node_id", "center_gisjoin", "center_geoid")},
+                    **metrics_by_year[(year, label)]
                     })
                 
 
