@@ -44,11 +44,13 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     keys += [
         "frey", "gini",
         "moran_A", "moran_P", "moran_L", "moran_M",
+        "aspatial_entropy", "entropy_A", "entropy_P", "entropy_M",
+        "aspatial_interaction", "interaction_A", "interaction_P", "interaction_M",
         "moran_D_1", "moran_D_2",
         "total_population", "total_white", "total_poc", "total_black",
         "share_x", "share_y",
         "total_nodes", "total_edges",
-    ]
+        ]
     return ",".join(keys)
 
 
@@ -136,6 +138,18 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["moran_P"] = moran_cont["moran_P"]
     capy_metrics["moran_L"] = moran_cont["moran_L"]
     capy_metrics["moran_M"] = moran_cont["moran_M"]
+
+    A, P, L, M, I = make_adj_weights(graph)
+
+    capy_metrics["aspatial_entropy"] = spatial_entropy(graph, I, x_col, "white_plus_black")
+    capy_metrics["entropy_A"] = spatial_entropy(graph, A, x_col, "white_plus_black")
+    capy_metrics["entropy_P"] = spatial_entropy(graph, P, x_col, "white_plus_black")
+    capy_metrics["entropy_M"] = spatial_entropy(graph, M, x_col, "white_plus_black")
+
+    capy_metrics["aspatial_interaction"] = spatial_interaction(graph, I, x_col, "white_plus_black")
+    capy_metrics["interaction_A"] = spatial_interaction(graph, A, x_col, "white_plus_black")
+    capy_metrics["interaction_P"] = spatial_interaction(graph, P, x_col, "white_plus_black")    
+    capy_metrics["interaction_M"] = spatial_interaction(graph, M, x_col, "white_plus_black")
 
     morans_dist = moran_dist(graph, x_col, "white_plus_black", [inv_dist, inv_dist_square])
     capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
@@ -374,7 +388,9 @@ def make_adj_weights(graph: gerrychain.Graph):
     diag = 1 - np.asarray(M.sum(axis=1)).ravel()
     M = M + scipy.sparse.diags(diag)
 
-    return A, P, L, M
+    I = scipy.sparse.eye(len(nodes), format='csr')
+
+    return A, P, L, M, I
 
 def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> dict:
     shares = np.array([
@@ -463,7 +479,71 @@ def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: li
         morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
 
     return morans
-        
+
+def h(x):
+    with np.errstate(divide='ignore', invalid='ignore'):
+        result = -x * np.log(x) - (1-x) * np.log(1-x)
+    return np.where((x == 0) | (x == 1), 0.0, result)
+
+def r(x):
+    return x * (1-x)
+
+def spatial_entropy(graph, Weights, x_col, tot_col, measure = "aspatial"):
+    xvec =  np.array([graph.nodes[node][x_col] for node in graph.nodes])
+    xvec_twiddle = Weights @ xvec
+
+    tvec =  np.array([graph.nodes[node][tot_col] for node in graph.nodes])
+    tvec_twiddle = Weights @ tvec
+
+    rho = np.sum(xvec) / np.sum(tvec)
+
+    rhovec_twiddle = xvec_twiddle / tvec_twiddle
+    expectation = 0
+
+    if measure == "aspatial":
+        for i in range(len(tvec)):
+            expectation += tvec[i]/np.sum(tvec) * h(rhovec_twiddle[i])
+    elif measure == "spatial":
+        row_sums = np.abs(Weights.sum(axis=1) - 1)
+        col_sums = np.abs(Weights.sum(axis=0) - 1)
+        if row_sums.max() > 1e-6 or col_sums.max() > 1e-6:
+            raise ValueError("For spatial measure, weights must be bistochastic")
+        for i in range(len(tvec)):
+            expectation += tvec_twiddle[i]/np.sum(tvec_twiddle) * h(rhovec_twiddle[i])
+    else:
+        raise ValueError("measure must be 'spatial' or 'aspatial'")
+
+    return 1-(expectation / h(rho))
+
+def spatial_interaction(graph, Weights, x_col, tot_col, measure = "aspatial"):
+    xvec =  np.array([graph.nodes[node][x_col] for node in graph.nodes])
+    xvec_twiddle = Weights @ xvec
+
+    tvec =  np.array([graph.nodes[node][tot_col] for node in graph.nodes])
+    tvec_twiddle = Weights @ tvec
+
+    rho = np.sum(xvec) / np.sum(tvec)
+
+    rhovec_twiddle = xvec_twiddle / tvec_twiddle
+    expectation = 0
+
+    if measure == "aspatial":
+        for i in range(len(tvec)):
+            expectation += tvec[i]/np.sum(tvec) * r(rhovec_twiddle[i])
+    elif measure == "spatial":
+        row_sums = np.abs(Weights.sum(axis=1) - 1)
+        col_sums = np.abs(Weights.sum(axis=0) - 1)
+        if row_sums.max() > 1e-6 or col_sums.max() > 1e-6:
+            raise ValueError("For spatial measure, weights must be bistochastic")
+        for i in range(len(tvec)):
+            expectation += tvec_twiddle[i]/np.sum(tvec_twiddle) * r(rhovec_twiddle[i])
+    else:
+        raise ValueError("measure must be 'spatial' or 'aspatial'")
+
+    return 1-(expectation / r(rho))
+    
+
+
 
 
 if __name__ == "__main__":

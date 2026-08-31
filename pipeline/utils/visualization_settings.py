@@ -13,11 +13,15 @@ PALETTE = [
     "#871769",  # teal
 ]
 
+
 GRID_METRICS = {
-    "moran_P": "Moran's I (P Matrix)",
-    "dissimilarity_1": "Dissimilarity",
     "half_edge_1": "Half Edge (λ=1)",
+    "aspatial_entropy":      "Aspatial Entropy",
+    "entropy_A":             "Spatial Entropy (Adjacency)",
+    "entropy_P":             "Spatial Entropy (P-matrix)",
+    "entropy_M":             "Spatial Entropy (Metropolis)",
 }
+
 
 
 def _build_metric_labels() -> dict:
@@ -39,9 +43,18 @@ def _build_metric_labels() -> dict:
     for p in [1, 2, 10]:
         labels[f"dissimilarity_{p}"] = ("Dissimilarity", _dissim_labels[p])
     labels.update({
-        "e_assort": ("Assortativity", "Edge"),
+        "aspatial_entropy":      ("Aspatial Entropy",    ""),
+        "entropy_A":             ("Spatial Entropy",     "Adjacency"),
+        "entropy_P":             ("Spatial Entropy",     "P-matrix"),
+        "entropy_M":             ("Spatial Entropy",     "Metropolis"),
+        "aspatial_interaction":  ("Aspatial Interaction", ""),
+        "interaction_A":         ("Spatial Interaction", "Adjacency"),
+        "interaction_P":         ("Spatial Interaction", "P-matrix"),
+        "interaction_M":         ("Spatial Interaction", "Metropolis"),
+        "e_assort":  ("Assortativity", "Edge"),
         "he_assort": ("Assortativity", "Half-edge"),
-        "gini": ("Gini Coefficient", ""),
+        "gini":      ("Gini Coefficient", ""),
+
     })
     for suffix, subtitle in [
         ("A", "Adjacency"), ("P", "Adjacency normalized (P-matrix)"),
@@ -84,6 +97,8 @@ METRICS = [
     "dissimilarity_1", "dissimilarity_2", "dissimilarity_10",
     "gini",
     "moran_A", "moran_P", "moran_L", "moran_M", "moran_D_1", "moran_D_2",
+    "aspatial_entropy", "entropy_A", "entropy_P", "entropy_M",
+    "aspatial_interaction", "interaction_A", "interaction_P", "interaction_M",
 ]
 
 
