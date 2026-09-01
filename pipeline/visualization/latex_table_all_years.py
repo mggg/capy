@@ -157,11 +157,11 @@ def build_table(
         )
 
     lines = [
-        r"\begin{table}[htbp]",
-        r"  \centering",
+        # r"\begin{table}[htbp]",
+        # r"  \centering",
+        f"  \\begin{{longtable}}{{{col_spec}}}",
         f"  \\caption{{{caption}}}",
         f"  \\label{{tab:{input_csv.stem}_{rank_by}_{rank_year}_all_years}}",
-        f"  \\begin{{tabular}}{{{col_spec}}}",
         r"    \toprule"]
 
     # Header row with cmidrules under each year group.
@@ -177,8 +177,8 @@ def build_table(
 
     lines += [
         r"    \bottomrule",
-        r"  \end{tabular}",
-        r"\end{table}"]
+        r"  \end{longtable}"]
+        # r"\end{table}"]
 
     latex = "\n".join(lines) + "\n"
 

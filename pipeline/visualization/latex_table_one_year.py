@@ -15,10 +15,10 @@ from pipeline.utils.visualization_settings import _short_name
 # Input CSV (relative to repo root, where the script is invoked from).
 INPUT_CSV = Path("outputs/tracts_in_cbsa/white_black.csv")
 
-RANK_BY = "area_title" #"total_population" # any metric column, or "area_title" for alphabetical order
+RANK_BY = "half_edge_1" #"total_population" # any metric column, or "area_title" for alphabetical order
 # Set to None to derive from COLUMNS (or fall back to the raw column name).
-RANK_LABEL = "population size"  # None to auto; ignored when RANK_BY = "area_title"
-RANK_ASCENDING = True # or False; set True for ascending / A to Z when sorting alphabetically
+RANK_LABEL = "Capy"  # None to auto; ignored when RANK_BY = "area_title"
+RANK_ASCENDING = False # or False; set True for ascending / A to Z when sorting alphabetically
 
 # ── alphabetical variant (uncomment to use) ───────────────────────────────────
 # RANK_BY        = "area_title"
@@ -31,11 +31,10 @@ YEAR_FILTER = 2020  # e.g. 1980 | 1990 | 2000 | 2010 | 2020 | None
 
 # Columns to show. Keys are CSV column names, values are
 # the LaTeX column headers printed in the table.
-COLUMNS = {"half_edge_1": r"Capy ($\lambda=1$)",
-    "moran_P": r"Moran's I (P)",
+COLUMNS = {"half_edge_1": r"Capy",
+    "moran_P": r"Moran's I",
     "dissimilarity_1": "Dissimilarity",
-    "total_population": "Population"
-    }
+    "total_population": "Population"}
 
 DECIMAL_PLACES = 3
 
@@ -62,7 +61,7 @@ def _escape_latex(text: str) -> str:
 def _auto_output_path(input_csv: Path, rank_by: str, year: int | None, n: int) -> Path:
     stem = input_csv.stem
     year_tag = f"_{year}" if year is not None else "_all_years"
-    return input_csv.parent / f"latex_tables/{stem}_table_{rank_by}{year_tag}_top{n}.tex"
+    return input_csv.parent / f"latex_tables/{stem}_by_{rank_by}{year_tag}_top{n}.tex"
 
 
 def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label: str | None = RANK_LABEL, rank_ascending: bool = RANK_ASCENDING, top_n: int = TOP_N, year_filter: int | None = YEAR_FILTER, columns: dict[str, str] = COLUMNS, decimal_places: int = DECIMAL_PLACES, column_decimals: dict[str, int] = COLUMN_DECIMALS, output_tex: Path | None = OUTPUT_TEX) -> Path:
@@ -112,11 +111,11 @@ def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label:
         )
 
     lines = [
-        r"\begin{table}[htbp]",
-        r"  \centering",
+        # r"\begin{table}[htbp]",
+        # r"  \centering",
+        f"  \\begin{{longtable}}{{{col_spec}}}",
         f"  \\caption{{{caption}}}",
         f"  \\label{{tab:{input_csv.stem}_{rank_by}_{year_note.replace(' ', '_')}}}",
-        f"  \\begin{{tabular}}{{{col_spec}}}",
         r"    \toprule",
     ]
 
@@ -124,6 +123,7 @@ def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label:
     header_cells = " & ".join(f"\\textbf{{{h}}}" for h in col_headers)
     lines.append(f"    {header_cells} \\\\")
     lines.append(r"    \midrule")
+    lines.append(r"    \endhead")
 
     # Data rows
     for _, row in display.iterrows():
@@ -132,8 +132,8 @@ def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label:
 
     lines += [
         r"    \bottomrule",
-        r"  \end{tabular}",
-        r"\end{table}"]
+        r"  \end{longtable}"]
+        # r"\end{table}"]
 
     latex = "\n".join(lines) + "\n"
 
