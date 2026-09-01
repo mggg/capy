@@ -69,22 +69,22 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
                 cbsa_df = top_n_df[top_n_df["area_code"] == cbsa]
                 ax.plot(
                     cbsa_df["year"], cbsa_df[metric],
-                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2)
+                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2, alpha=0.8)
 
             title, subtitle = METRIC_LABELS.get(metric, (metric.replace("_", " ").title(), ""))
-            ax.set_title(title, fontsize=13, fontweight="bold",
-                         pad=30 if subtitle else 10, color="#111111")
-            if subtitle:
-                ax.text(0.5, 1.04, subtitle, transform=ax.transAxes,
-                        ha="center", va="bottom", fontsize=9, color="#777777")
-            fig.suptitle(f"Segregation over time: {pair_label}",
-                fontsize=14, fontweight="bold", color="#111111", y=1.06)
-            fig.text(0.5, 1, f"Top {n} U.S. metros by 2020 population. Census {geography_label} in {area_label}",
-                ha="center", fontsize=9, color="#555555")
+            # ax.set_title(title, fontsize=13, fontweight="bold",
+            #              pad=30 if subtitle else 10, color="#111111")
+            # if subtitle:
+            #     ax.text(0.5, 1.04, subtitle, transform=ax.transAxes,
+            #             ha="center", va="bottom", fontsize=9, color="#777777")
+            # fig.suptitle(f"Segregation over time: {pair_label}",
+            #     fontsize=14, fontweight="bold", color="#111111", y=1.06)
+            # fig.text(0.5, 1, f"Top {n} U.S. metros by 2020 population. Census {geography_label} in {area_label}",
+            #     ha="center", fontsize=9, color="#555555")
 
             handles = [plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))
                 for c in top_n_metros]
-            fig.legend(handles=handles, loc="lower center", ncol=min(5, len(top_n_metros)), bbox_to_anchor=(0.5, -0.1), frameon=False, fontsize=8, handlelength=1.5, columnspacing=1.0, labelcolor="#333333")
+            fig.legend(handles=handles, loc="lower center", ncol=min(5, len(top_n_metros)), bbox_to_anchor=(0.5, -0.05), frameon=False, fontsize=8, handlelength=1.5, columnspacing=1.0, labelcolor="#333333")
 
             fig.savefig(output_dir / "lineplots" / f"{prefix}_{metric}.png",
                 dpi=150, bbox_inches="tight", facecolor=BG)

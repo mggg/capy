@@ -1,16 +1,23 @@
 import matplotlib.ticker as mticker
 
 PALETTE = [
-    "#0072b2",  # blue
-    "#e69f00",  # amber
-    "#009e73",  # green
-    "#cc79a7",  # mauve
+    # "#0072b2",  # blue
+    # "#e69f00",  # amber
+    # "#009e73",  # green
+    # "#cc79a7",  # mauve
+    # "#d55e00",  # vermillion
+    # "#c3ba32",  # yellow
+    # "#871769",  # teal
+    "#8db600",
+    "#1560bd",
+    "#ffb7c5",
+    "#ffa812",
+    "#006b3c",
+    "#69359c",
+    "#d11a42",
     "#56b4e9",  # sky
-    "#d55e00",  # vermillion
-    "#c3ba32",  # yellow
     "#000000",  # black
     "#999999",  # gray
-    "#871769",  # teal
 ]
 
 GRID_METRICS = {
@@ -101,7 +108,7 @@ def _y_formatter(y_range: float) -> mticker.Formatter:
 
 
 def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf")) -> None:
-    BG_PANEL = "#ececec"
+    BG_PANEL = "#f0f0f0"
     ax.set_facecolor(BG_PANEL)
     ax.set_box_aspect(1)
     ax.grid(axis="y", color="white", linewidth=1.3, zorder=0)
@@ -109,7 +116,6 @@ def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf
     ax.tick_params(length=0, labelsize=8, labelcolor="#444444")
     ax.set_xticks(years)
     ax.set_xticklabels([str(y) for y in years], fontsize=8)
-    ax.set_xlabel("Census year", fontsize=8, color="#555555", labelpad=4)
     ax.yaxis.set_major_formatter(_y_formatter(y_range))
     if ylim is not None:
         ax.set_ylim(*ylim)

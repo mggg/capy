@@ -55,7 +55,7 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
                 cbsa_df = plot_df[plot_df["area_code"] == cbsa]
                 ax.plot(
                     cbsa_df["year"], cbsa_df[metric],
-                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2)
+                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2, alpha=0.8)
 
         for idx in range(n_metrics, rows * cols):
             axes[idx // cols][idx % cols].set_visible(False)
