@@ -13,13 +13,23 @@ import pandas as pd
 from pipeline.process_results import enrich_metrics
 from pipeline.utils.visualization_settings import PALETTE
 
-CSV = Path("outputs/tracts_in_cbsa/white_poc.csv")
-OUT = Path("outputs/tracts_in_cbsa/figures/rho_vs_metrics.png")
+# CSV = Path("outputs/tracts_in_cbsa/white_poc.csv")
+path_to_file = "outputs/tracts_in_cbsa/white_black.csv"
+CSV = Path(path_to_file)
 
 # ── data ──────────────────────────────────────────────────────────────────────
 df = enrich_metrics(pd.read_csv(CSV))
-# ρ = POC / (POC + White) — the minority share entering the Half Edge formula
-df["rho"] = df["total_poc"] / (df["total_poc"] + df["total_white"])
+# ρ = minority / (minority + White). the minority share for the Half Edge formula
+if "white_poc" in path_to_file:
+    df["rho"] = df["total_poc"] / (df["total_poc"] + df["total_white"])
+    OUT = Path("outputs/tracts_in_cbsa/figures/rho_vs_metrics_quadratic_wpoc.png")
+    print('White-POC metrics')
+elif "white_black" in path_to_file:
+    df["rho"] = df["total_black"] / (df["total_black"] + df["total_white"])
+    OUT = Path("outputs/tracts_in_cbsa/figures/rho_vs_metrics_quadratic_wb.png")
+    print('White-Black metrics')
+else:
+    raise
 
 # ── palette ───────────────────────────────────────────────────────────────────
 BG = "#fcfcfb"
@@ -29,14 +39,17 @@ MUTED = "#898781"
 GRID = "#e1e0d9"
 
 YEARS = sorted(df["year"].unique())
-YEAR_COLORS = {1980: '#0072b2',
-               1990: '#009e73',
+YEAR_COLORS = {1980: '#1560bd',
+               1990: '#006b3c',
+               2000: "#8db600",
+               2010: "#ffa812",
+               2020: "#d11a42"
             #    2000: '#c3ba32',
             #    2010: '#e69f00',
             #    2020: '#d55e00'
-                2000: '#e69f00',
-                2010: "#d55e00",
-                2020: '#871769'
+                # 2000: '#e69f00',
+                # 2010: "#d55e00",
+                # 2020: '#871769'
                } #{year: PALETTE[i] for i, year in enumerate(YEARS)}
 
 # ── filter: CBSAs present in all 5 decades with population > 100K ────────────
@@ -56,10 +69,10 @@ n_cbsas = len(valid_cbsas)
 # ── panels definition ─────────────────────────────────────────────────────────
 # hline_y: reference value to draw a muted horizontal line; None = skip
 PANELS = [
-    dict(col="half_edge_1", title="Half Edge (λ = 1)",
+    dict(col="half_edge_1", title="Capy",
          range_label="Range: 0 (checkerboard) to 1 (perfect segregation)",
-         hline_y=0.5, hline_label="Uniform distribution (HE = 0.5)"),
-    dict(col="moran_P", title="Moran's I (row-standardized adjacency)",
+         hline_y=0.5, hline_label="Uniform distribution (Capy = 0.5)"),
+    dict(col="moran_P", title="Moran's I",
          range_label="Range: −1 (checkerboard) to 1 (perfect segregation)",
          hline_y=0.0, hline_label="No spatial autocorrelation (I = 0)"),
     dict(col="dissimilarity_1", title="Dissimilarity",
@@ -76,6 +89,7 @@ for ax, panel in zip(axes, PANELS):
     ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
     ax.grid(color=GRID, linewidth=0.8, zorder=0)
     ax.tick_params(length=0, labelsize=8, labelcolor=SECONDARY)
+    # ax.set_box_aspect(1)
 
     # scatter + line of best fit per year
     for year in YEARS:
@@ -98,28 +112,27 @@ for ax, panel in zip(axes, PANELS):
     col_min = df[col].min()
     ax.axhline(col_min, color=PRIMARY_INK, linewidth=1.2, linestyle="--", zorder=3)
     ref_handles.append(mlines.Line2D([], [], color=PRIMARY_INK, linewidth=1.4,
-                       linestyle="--", label=f"Data min ({col_min:.3f})"))
+                       linestyle="--", label=f"Data min ({col_min:.2f})"))
 
     ax.legend(handles=ref_handles, loc="upper right", frameon=True,
               framealpha=0.92, edgecolor=GRID, fontsize=7.5,
               labelcolor=SECONDARY, handlelength=1.6,
               handletextpad=0.5, labelspacing=0.3)
 
-    ax.set_xlabel("Minority share (POC / POC+White)", fontsize=10,
+    ax.set_xlabel("Minority share"# (POC / POC+White)"
+                  , fontsize=10,
                   color=SECONDARY, labelpad=6)
     ax.set_ylabel(panel["title"], fontsize=10, color=SECONDARY, labelpad=6)
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_title(panel["title"], fontsize=11, fontweight="bold",
-                 color=PRIMARY_INK, pad=23)
+    # ax.set_xlim(-0.02, 1.02)
+    # ax.set_title(panel["title"], fontsize=11, fontweight="bold", color=PRIMARY_INK, pad=23)
     ax.text(0.5, 1.02, panel["range_label"], transform=ax.transAxes,
             ha="center", va="bottom", fontsize=7.5, color=MUTED)
 
 # title and subtitles
-fig.suptitle("Minority share vs segregation metrics across CBSAs",
-             fontsize=13, fontweight="bold", color=PRIMARY_INK, y=1.03)
-fig.text(0.5, 0.97,
-         f"White-POC metrics, 1980-2020. {n_cbsas} CBSAs present in all decades with population > 100K",
-         ha="center", fontsize=8.5, color=MUTED)
+# fig.suptitle("Minority share vs segregation metrics across CBSAs", fontsize=13, fontweight="bold", color=PRIMARY_INK, y=1.03)
+# fig.text(0.5, 0.97,
+#          f"White-POC metrics, 1980-2020. {n_cbsas} CBSAs present in all decades with population > 100K",
+#          ha="center", fontsize=8.5, color=MUTED)
 
 
 
