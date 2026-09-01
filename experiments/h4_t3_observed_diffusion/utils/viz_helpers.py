@@ -79,7 +79,7 @@ def panel_radial(ax, coords, share, rmax, reach, title, label_rings=(5, 10)):
     xy = np.array([coords[n] for n in coords])
     c  = np.array([share[n]  for n in coords])
     sc = ax.scatter(xy[:, 0], xy[:, 1], c=c, cmap=_CMAP_SHARE, vmin=0.0, vmax=1.0,
-                    s=_DOT_SIZE, lw=_DOT_RING, edgecolors=_SURFACE, zorder=3)
+                    s=_DOT_SIZE, lw=_DOT_RING, edgecolors=_SURFACE, alpha=1, zorder=3)
     ax.plot(0, 0, "*", ms=13, mfc="#eb6834", mec=_SURFACE, mew=0.8, zorder=5)
     lim = rmax + 0.8
     ax.set_xlim(-lim, lim)

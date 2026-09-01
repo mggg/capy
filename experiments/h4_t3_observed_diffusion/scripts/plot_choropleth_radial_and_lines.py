@@ -17,7 +17,6 @@ from utils.viz_helpers import bfs, bearings, radial_coords, panel_radial
 GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
 GRAPHS_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "dual_graphs"
 
-norm = mcolors.Normalize(vmin=0, vmax=1)
 cmap = plt.cm.Blues
 
 DISPLAY_BUFFER = 2
@@ -89,17 +88,23 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
 
     rmax = max(rd['reach'] for rd in radial_by_year.values()) if radial_by_year else 1
 
-    # layout: 3 rows
-    fig = plt.figure(figsize=(20, 15))
-    outer_gs = gridspec.GridSpec(3, 1, height_ratios=[3.5, 2.5, 1.5], figure=fig, hspace=0.45)
-    top_gs = gridspec.GridSpecFromSubplotSpec(1, len(years), subplot_spec=outer_gs[0], wspace=0.02)
-    mid_gs = gridspec.GridSpecFromSubplotSpec(1, len(years), subplot_spec=outer_gs[1], wspace=0.02)
-    ax_line = fig.add_subplot(outer_gs[2])
+    # TwoSlopeNorm centered at the per-cluster median: half the colormap covers
+    # 0→median, half covers median→1, so both the buffer tracts and the core
+    # tracts get equal color resolution regardless of how skewed the distribution is
+    _shares = tracts_buf3['black_share'].dropna()
+    norm = mcolors.TwoSlopeNorm(#vcenter=_shares.median(),
+                                 vmin=0, vmax=0.8)
 
-    axes = [fig.add_subplot(top_gs[0, i]) for i in range(len(years))]
-    rad_axes = [fig.add_subplot(mid_gs[0, i]) for i in range(len(years))]
+    figure_dir = EXPERIMENT_DIR / "figures" / "metrics_panels_by_buffers"
+    figure_dir.mkdir(parents=True, exist_ok=True)
 
-    # row 1: choropleth (unchanged)
+    fig_width = 4 * len(years)  # shared width across all three figures
+
+    # --- figure 1: choropleth ---
+    fig_choro, axes = plt.subplots(1, len(years), figsize=(fig_width, 4.5))
+    if len(years) == 1:
+        axes = [axes]
+
     for ax, year in zip(axes, years):
         year_selections = tracts_buf3[tracts_buf3['year'] == year]
         med_row = cluster_metrics[(cluster_metrics['year'] == year)
@@ -132,23 +137,55 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
         ax.set_aspect('equal')
         ax.axis('off')
 
-    axes[0].text(2.6, 1.07, "Black population share in the buffered cluster",
-                 transform=axes[0].transAxes, ha='center', va='bottom', fontsize=11, clip_on=False)
-
     color_scale = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-    fig.colorbar(color_scale, ax=axes, label="Black population share per tract", fraction=0.025, pad=0.02)
+    cbar = fig_choro.colorbar(color_scale, ax=axes, label="Black population share per tract", fraction=0.025, pad=0.02)
 
-    # row 2: radial panels (true angle from medoid)
+    # mark the median on the colorbar — with TwoSlopeNorm the median (vcenter)
+    # always sits at the visual center (y=0.5 in axes coordinates)
+    median_val = _shares.median()
+    ticks = sorted({round(t, 2) for t in cbar.get_ticks()} | {round(median_val, 2)})
+    ticks = [t for t in ticks if 0.0 <= t <= 1.0]
+    cbar.set_ticks(ticks)
+    cbar.set_ticklabels([
+        f'{t:.2f} (median)' if abs(t - median_val) < 0.005 else f'{t:.2f}'
+        for t in ticks
+    ])
+    cbar.ax.tick_params(labelsize=7)
+    cbar.ax.plot([0, 1], [0.5, 0.5], color='#444444', linewidth=1.0, linestyle='--',
+                 transform=cbar.ax.transAxes, clip_on=False)
+    fig_choro.legend(handles=[Line2D([0], [0], color='tomato', marker='*', markersize=12,
+               linestyle='None', label="Cluster medoid tract"),
+               Line2D([0], [0], color='black', markersize=12, linestyle='-',
+               label='Outline of the original cluster')],
+    loc='lower center', bbox_to_anchor=(0.5, -0.06), fontsize=9, frameon=False, ncol=2)
+    # fig_choro.suptitle(f'{city_name}, {cluster}', fontsize=14)
+
+    choro_path = figure_dir / f"{city_name}_{cluster}_choropleth.png"
+    fig_choro.savefig(choro_path, dpi=200, bbox_inches='tight')
+    plt.close(fig_choro)
+    print(f"Saved {choro_path}")
+
+    # --- figure 2: radial ---
+    fig_radial, rad_axes = plt.subplots(1, len(years), figsize=(fig_width, 4.5))
+    if len(years) == 1:
+        rad_axes = [rad_axes]
+
     for ax, year in zip(rad_axes, years):
         if year not in radial_by_year:
             ax.axis('off'); continue
         rd = radial_by_year[year]
-        panel_radial(ax, rd['coords'], rd['share'], rmax, rd['reach'], title="")
+        panel_radial(ax, rd['coords'], rd['share'], rmax, rd['reach'], title=str(year))
 
-    rad_axes[0].text(2.6, 1.08, "Radial plot, tracts at the true angle from medoid",
-                     transform=rad_axes[0].transAxes, ha='center', va='bottom', fontsize=11, clip_on=False)
+    # fig_radial.suptitle(f'{city_name}, {cluster}', fontsize=14)
 
-    # row 3: Moran's I time series, one line per buffer size; we decided to show buffer=3
+    radial_path = figure_dir / f"{city_name}_{cluster}_radial.png"
+    fig_radial.savefig(radial_path, dpi=200, bbox_inches='tight')
+    plt.close(fig_radial)
+    print(f"Saved {radial_path}")
+
+    # --- figure 3: line plot ---
+    fig_line, ax_line = plt.subplots(figsize=(fig_width, 3))
+
     # buf_sizes = sorted(cluster_metrics['buffer_size'].unique())
     buf_sizes = [3]
     # buf_colors = [cmap((i + 1) / (len(buf_sizes) + 1)) for i in range(len(buf_sizes))]
@@ -156,18 +193,22 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
     for buf, color in zip(buf_sizes, buf_colors):
         sub = cluster_metrics[cluster_metrics['buffer_size'] == buf].sort_values('year')
         ax_line.plot(sub['year'], sub['moran'], color=color,
-                     marker='o', markersize=4, linewidth=1.2) #, label=f"Moran's I, buffer size: {buf}")
+                     marker='o', markersize=4, linewidth=2) #, label=f"Moran's I, buffer size: {buf}")
         # ax_line.plot(sub['year'], sub['half_edge'], color='tomato', marker='o', markersize=4, linewidth=1.2, label=f"Half Edge, buffer size: {buf}")
 
     ax_line2 = ax_line.twinx()
     ax_line2.plot(sub['year'], sub['half_edge'], color='tomato',
-                marker='o', markersize=4, linewidth=1.2,)# label=f"Half Edge, buffer size: {buf}")
-    ax_line2.set_ylabel("Half Edge", fontsize=9, color = 'tomato')
+                marker='o', markersize=4, linewidth=2, alpha = 0.8)# label=f"Half Edge, buffer size: {buf}")
+    ax_line2.set_ylabel("Capy", fontsize=9, color='tomato', labelpad=-15)
 
     # ax_line.set_xlabel("Year", fontsize=9)
-    ax_line.set_ylabel("Moran's I", fontsize=9, color="#073874")
-    ax_line.set_title(f"Moran's I and Capy", fontsize=11, loc='center', pad = 10)
+    ax_line.set_ylabel("Moran's I", fontsize=9, color="#073874", labelpad=-15)
+    # ax_line.set_title(f"Moran's I and Capy", fontsize=11, loc='center', pad=10)
 
+    ax_line.set_yticks([sub['moran'].min(), sub['moran'].max()],
+                       labels=[f"{sub['moran'].min():.2f}", f"{sub['moran'].max():.2f}"])
+    ax_line2.set_yticks([sub['half_edge'].min(), sub['half_edge'].max()],
+                        labels=[f"{sub['half_edge'].min():.2f}", f"{sub['half_edge'].max():.2f}"])
     ax_line.tick_params(axis='y', colors='#094996', size=2)
     ax_line2.tick_params(axis='y', colors='tomato', size=2)
     # h1, l1 = ax_line.get_legend_handles_labels()
@@ -179,21 +220,9 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
     # ax_line.legend(fontsize=7, ncol=min(len(buf_sizes), 6), loc='best', frameon=False)
 
     ax_line2.spines[['top', 'bottom', 'left', 'right']].set_edgecolor('#cccccc')
+    # fig_line.suptitle(f'{city_name}, {cluster}', fontsize=14)
 
-    fig.legend(handles=[Line2D([0], [0], color='tomato', marker='*', markersize=12,
-               linestyle='None', label="Cluster medoid tract"),
-               Line2D([0], [0], color='black', markersize=12, linestyle='-',
-               label='Outline of the original cluster')],
-    loc='upper left', bbox_to_anchor=(0.37, 0.95), fontsize=9, frameon=False, ncol=2)
-
-    fig.suptitle(f'{city_name}, {cluster}', fontsize=14)
-    fig.text(0.5, 0.962,
-             f"Buffer size {DISPLAY_BUFFER} shown. Cluster boundary defined by edge-distance in the 2020 dual graph, back-projected geometrically to each decade.",
-             ha='center', va='top', fontsize=8, color="#474747")
-
-    figure_path = (EXPERIMENT_DIR / "figures" / "metrics_heatmap_by_buffers"
-                   / f"{city_name}_{cluster}_choropleth_radial_morans.png")
-    figure_path.parent.mkdir(exist_ok=True)
-    fig.savefig(figure_path, dpi=200, bbox_inches='tight')
-    plt.close(fig)
-    print(f"Saved {figure_path}")
+    lines_path = figure_dir / f"{city_name}_{cluster}_lines.png"
+    fig_line.savefig(lines_path, dpi=200, bbox_inches='tight')
+    plt.close(fig_line)
+    print(f"Saved {lines_path}")
