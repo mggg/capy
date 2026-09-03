@@ -14,11 +14,12 @@ _GRIDLINE     = "#e1e0d9"
 _BASELINE     = "#c3c2b7"
 _BLUE_RAMP    = [
     "#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5",
-    "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b",
+    "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", 
+    "#0d366b",
 ]
 _CMAP_SHARE   = LinearSegmentedColormap.from_list("black_share", _BLUE_RAMP)
-_DOT_SIZE     = 26
-_DOT_RING     = 0.8
+_DOT_SIZE     = 23
+_DOT_RING     = 0.2
 
 
 # ── graph ─────────────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ def panel_radial(ax, coords, share, rmax, reach, title, label_rings=(5, 10)):
     c  = np.array([share[n]  for n in coords])
     sc = ax.scatter(xy[:, 0], xy[:, 1], c=c, cmap=_CMAP_SHARE, vmin=0.0, vmax=1.0,
                     s=_DOT_SIZE, lw=_DOT_RING, edgecolors=_SURFACE, alpha=1, zorder=3)
-    ax.plot(0, 0, "*", ms=13, mfc="#eb6834", mec=_SURFACE, mew=0.8, zorder=5)
+    ax.plot(0, 0, "*", ms=10, mfc="#ff9e0c", mec=_SURFACE, mew=0.5, zorder=5)
     lim = rmax + 0.8
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)

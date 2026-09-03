@@ -31,7 +31,7 @@ def plot_grid_top10(df: pd.DataFrame, prefix: str, month_year: str, output_dir: 
     for ax, metric in zip(axes, available):
         y_range = plot_df[metric].max() - plot_df[metric].min()
         _apply_panel_style(ax, years, ylim, y_range=y_range)
-        # ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
+        ax.set_title(GRID_METRICS[metric], fontsize=11, pad=8, color="#111111")
         for cbsa in top_n_metros:
             cbsa_df = plot_df[plot_df["area_code"] == cbsa]
             ax.plot(

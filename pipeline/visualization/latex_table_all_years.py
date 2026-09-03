@@ -26,11 +26,11 @@ RANK_LABEL: str | None = None  # None → auto-derive from COLUMNS or raw name
 RANK_ASCENDING = False
 
 # ── alphabetical variant (uncomment to use) ───────────────────────────────────
-RANK_BY        = "area_title"
-RANK_LABEL     = None
-RANK_ASCENDING = True
+# RANK_BY        = "area_title"
+# RANK_LABEL     = None
+# RANK_ASCENDING = True
 
-TOP_N = 100
+TOP_N = 1000
 
 # Metric columns to show in each decade group.
 # Keys are CSV column names, values are the short LaTeX headers (year appended automatically).
@@ -159,9 +159,10 @@ def build_table(
     lines = [
         # r"\begin{table}[htbp]",
         # r"  \centering",
+        r"\setlength{\LTcapwidth}{\textwidth}",
         f"  \\begin{{longtable}}{{{col_spec}}}",
         f"  \\caption{{{caption}}}",
-        f"  \\label{{tab:{input_csv.stem}_{rank_by}_{rank_year}_all_years}}",
+        f"  \\label{{tab:{input_csv.stem}_{rank_by}_{rank_year}_all_years}}\\\\",
         r"    \toprule"]
 
     # Header row with cmidrules under each year group.
@@ -169,6 +170,7 @@ def build_table(
     lines.append(f"    {header_cells} \\\\")
     lines.extend(cmidrules)
     lines.append(r"    \midrule")
+    lines.append(r"    \endhead")
 
     # Data rows.
     for _, row in display.iterrows():

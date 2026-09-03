@@ -40,7 +40,7 @@ def plot_single_metric(df: pd.DataFrame, prefix: str, month_year: str, output_di
     for ax, metric in zip(axes, available):
         y_range = month_year_df[metric].max() - month_year_df[metric].min()
         _apply_panel_style(ax, years, ylim, y_range=y_range)
-        # ax.set_title(GRID_METRICS[metric], fontsize=11, fontweight="bold", pad=8, color="#111111")
+        ax.set_title(GRID_METRICS[metric], fontsize=11, pad=8, color="#111111")
 
         for cbsa in all_cbsas:
             cbsa_df = month_year_df[month_year_df["area_code"] == cbsa].sort_values("year")

@@ -8,6 +8,7 @@ from matplotlib.lines import Line2D
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
+from shapely.geometry import Polygon, MultiPolygon
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(EXPERIMENT_DIR))
@@ -88,12 +89,7 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
 
     rmax = max(rd['reach'] for rd in radial_by_year.values()) if radial_by_year else 1
 
-    # TwoSlopeNorm centered at the per-cluster median: half the colormap covers
-    # 0→median, half covers median→1, so both the buffer tracts and the core
-    # tracts get equal color resolution regardless of how skewed the distribution is
-    _shares = tracts_buf3['black_share'].dropna()
-    norm = mcolors.TwoSlopeNorm(#vcenter=_shares.median(),
-                                 vmin=0, vmax=0.8)
+    norm = mcolors.Normalize(vmin=0.3, vmax=1)
 
     figure_dir = EXPERIMENT_DIR / "figures" / "metrics_panels_by_buffers"
     figure_dir.mkdir(parents=True, exist_ok=True)
@@ -124,36 +120,31 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
         buf0_tracts = tract_selections[(tract_selections['year'] == year)
                                        & (tract_selections['buffer_size'] == 0)]
         buf0_gdf = gdf.merge(buf0_tracts[['gisjoin']], left_on='GISJOIN', right_on='gisjoin', how='inner')
-        gpd.GeoSeries([buf0_gdf.geometry.union_all()], crs=gdf.crs).boundary.plot(
+        union = buf0_gdf.geometry.union_all()
+        # fill interior holes by keeping only exterior rings
+        if union.geom_type == 'Polygon':
+            filled = Polygon(union.exterior)
+        elif union.geom_type == 'MultiPolygon':
+            filled = MultiPolygon([Polygon(p.exterior) for p in union.geoms])
+        else:
+            filled = union
+        gpd.GeoSeries([filled], crs=gdf.crs).boundary.plot(
             ax=ax, color='black', linewidth=1.5, zorder=4)
 
         medoid_geom = gdf.loc[gdf['GISJOIN'] == medoid_gisjoin, 'geometry']
         if not medoid_geom.empty:
             c = medoid_geom.iloc[0].centroid
-            ax.scatter(c.x, c.y, marker='*', s=50, color='tomato',
-                       edgecolor='black', linewidth=0.5, zorder=5)
+            ax.scatter(c.x, c.y, marker='*', s=40, color='#ffa812',
+                    #    edgecolor='white',
+                       linewidth=0.5, zorder=5)
 
         ax.set_title(str(year), fontsize=9)
         ax.set_aspect('equal')
         ax.axis('off')
 
     color_scale = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-    cbar = fig_choro.colorbar(color_scale, ax=axes, label="Black population share per tract", fraction=0.025, pad=0.02)
-
-    # mark the median on the colorbar — with TwoSlopeNorm the median (vcenter)
-    # always sits at the visual center (y=0.5 in axes coordinates)
-    median_val = _shares.median()
-    ticks = sorted({round(t, 2) for t in cbar.get_ticks()} | {round(median_val, 2)})
-    ticks = [t for t in ticks if 0.0 <= t <= 1.0]
-    cbar.set_ticks(ticks)
-    cbar.set_ticklabels([
-        f'{t:.2f} (median)' if abs(t - median_val) < 0.005 else f'{t:.2f}'
-        for t in ticks
-    ])
-    cbar.ax.tick_params(labelsize=7)
-    cbar.ax.plot([0, 1], [0.5, 0.5], color='#444444', linewidth=1.0, linestyle='--',
-                 transform=cbar.ax.transAxes, clip_on=False)
-    fig_choro.legend(handles=[Line2D([0], [0], color='tomato', marker='*', markersize=12,
+    fig_choro.colorbar(color_scale, ax=axes, label="Black population share per tract", fraction=0.025, pad=0.02)
+    fig_choro.legend(handles=[Line2D([0], [0], color="#ffa812",marker='*', markersize=12,
                linestyle='None', label="Cluster medoid tract"),
                Line2D([0], [0], color='black', markersize=12, linestyle='-',
                label='Outline of the original cluster')],
@@ -197,9 +188,9 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
         # ax_line.plot(sub['year'], sub['half_edge'], color='tomato', marker='o', markersize=4, linewidth=1.2, label=f"Half Edge, buffer size: {buf}")
 
     ax_line2 = ax_line.twinx()
-    ax_line2.plot(sub['year'], sub['half_edge'], color='tomato',
+    ax_line2.plot(sub['year'], sub['half_edge'], color='#ff9e0c',
                 marker='o', markersize=4, linewidth=2, alpha = 0.8)# label=f"Half Edge, buffer size: {buf}")
-    ax_line2.set_ylabel("Capy", fontsize=9, color='tomato', labelpad=-15)
+    ax_line2.set_ylabel("Capy", fontsize=9, color='#ff9e0c', labelpad=-15)
 
     # ax_line.set_xlabel("Year", fontsize=9)
     ax_line.set_ylabel("Moran's I", fontsize=9, color="#073874", labelpad=-15)
@@ -210,7 +201,7 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
     ax_line2.set_yticks([sub['half_edge'].min(), sub['half_edge'].max()],
                         labels=[f"{sub['half_edge'].min():.2f}", f"{sub['half_edge'].max():.2f}"])
     ax_line.tick_params(axis='y', colors='#094996', size=2)
-    ax_line2.tick_params(axis='y', colors='tomato', size=2)
+    ax_line2.tick_params(axis='y', colors='#ffa812', size=2)
     # h1, l1 = ax_line.get_legend_handles_labels()
     # h2, l2 = ax_line2.get_legend_handles_labels()
     # ax_line.legend(h1 + h2, l1 + l2, fontsize=7, frameon=False)

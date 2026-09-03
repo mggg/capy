@@ -21,9 +21,9 @@ PALETTE = [
 ]
 
 GRID_METRICS = {
-    "moran_P": "Moran's I (P Matrix)",
+    "moran_P": "Moran's I",
     "dissimilarity_1": "Dissimilarity",
-    "half_edge_1": "Half Edge (λ=1)",
+    "half_edge_1": "Capy",
 }
 
 
