@@ -21,15 +21,19 @@ DOWNLOAD_HEADERS = {
     "User-Agent": "capy-bara geography downloader",
 }
 
+# See https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html
+# 50 states + DC + Puerto Rico (72). Territories 60/66/69/78 are omitted, they have no CBSA definitions.
 STATE_FIPS = [
     "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
     "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
     "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
     "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
-    "49", "50", "51", "53", "54", "55", "56",
-    "60", "66", "69", "72", "78",
+    "49", "50", "51", "53", "54", "55", "56", "72",
 ]
 
+# "census" values match the Census Bureau Data API's geography `for=` parameter: https://api.census.gov/data/2020/dec/pl/geography.json
+# "nhgis_levels" values match the `geographicLevel` field in the IPUMS NHGIS shapefiles metadata API: https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/
+# Multiple strings per level reflect label changes across decades (e.g. tracts were called Block Numbering Areas before 1990 standardization).
 LEVELS = {
     "county": {"label": "counties", "nhgis_levels": ["county"], "census": "county"},
     "counties": {"label": "counties", "nhgis_levels": ["county"], "census": "county"},
@@ -331,18 +335,13 @@ def select_shapefile_names(matches: List[dict], year: int, level: str) -> List[s
     selected = {}
     for shapefile in sorted(
         matches,
-        key=lambda item: (basis_year(item), int(item.get("sequence") or 0)),
-    ):
+        key=lambda item: (basis_year(item), int(item.get("sequence") or 0))):
         selected[shapefile_key(shapefile)] = shapefile
 
     return [shapefile["name"] for shapefile in selected.values()]
 
 
-def nhgis_shapefiles(
-    client: IpumsApiClient,
-    year: int,
-    level: str,
-) -> List[str]:
+def nhgis_shapefiles(client: IpumsApiClient, year: int, level: str) -> List[str]:
     config = LEVELS[level]
 
     matches = []
@@ -363,11 +362,7 @@ def nhgis_shapefiles(
     return names
 
 
-def fetch_nhgis(
-    year: int,
-    level: str,
-    work_dir: Path,
-) -> Path:
+def fetch_nhgis(year: int, level: str, work_dir: Path) -> Path:
     api_key = require_env("IPUMS_API_KEY")
     client = IpumsApiClient(api_key)
     config = LEVELS[level]
@@ -376,8 +371,7 @@ def fetch_nhgis(
     extract = AggregateDataExtract(
         collection="nhgis",
         description=f"{year} {config['label']} shapefiles",
-        shapefiles=[Shapefile(name) for name in shapefiles],
-    )
+        shapefiles=[Shapefile(name) for name in shapefiles])
 
     submitted = client.submit_extract(extract)
     client.wait_for_extract(submitted, timeout=10800)
@@ -388,8 +382,7 @@ def fetch_nhgis(
 
     zip_files = sorted(
         set(work_dir.glob("*.zip")) - existing_zips,
-        key=lambda path: path.stat().st_mtime,
-    )
+        key=lambda path: path.stat().st_mtime)
     if not zip_files:
         raise FileNotFoundError(f"No new NHGIS zip downloaded to {work_dir}")
 
@@ -410,27 +403,20 @@ def fetch_census(year: int, level: str, output_dir: Path) -> Path:
         if "{state}" in template:
             urls = [template.format(state=state) for state in STATE_FIPS]
 
+        n_existing = 0
         for url in urls:
             if census_output_exists(url, output_path):
-                print(f"Skipping existing geography for {url}", flush=True)
+                n_existing += 1
                 continue
             zip_path = download(url, zip_dir / url.split("/")[-1])
             extract_zip(zip_path, output_path)
+        if n_existing:
+            print(f"Skipped {n_existing} already downloaded {config['label']} shapefiles for {year}", flush=True)
 
     return output_path
 
 
-def main(
-    level: str = typer.Option(
-        "tracts",
-        help="tracts, block_groups, blocks, or counties",
-    ),
-    years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."),
-    year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
-    output_dir: Path = typer.Option(OUTPUT_DIR),
-    work_dir: Path = typer.Option(Path("data/raw/geographies/ipums_geography_extracts")),
-    env_file: Path = typer.Option(Path(".env")),
-) -> None:
+def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks, or counties"), years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."), year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"), output_dir: Path = typer.Option(OUTPUT_DIR), work_dir: Path = typer.Option(Path("data/raw/geographies/ipums_geography_extracts")), env_file: Path = typer.Option(Path(".env"))) -> None:
     load_dotenv(env_file)
 
     if level not in LEVELS:
@@ -444,29 +430,19 @@ def main(
             print(f"Skipping {year} places: only 2020 is used in the pipeline.")
             continue
         if year == 1980 and LEVELS[level]["label"] == ("block_groups", "blocks"):
-            print(
-                f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group "
-                "or block boundary shapefiles. These were not standardized as nationwide "
-                "geographic units until 1990.",
-                flush=True,
-            )
+            print(f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group or block boundary shapefiles. These were not standardized as nationwide geographic units until 1990.", flush=True)
             continue
         if year in (1980, 1990):
             year_work_dir = work_dir / str(year) / level_label
             path = existing_nhgis_zip(year_work_dir)
             if path is None:
-                path = fetch_nhgis(
-                    year,
-                    level,
-                    year_work_dir,
-                )
+                path = fetch_nhgis(year, level, year_work_dir)
             else:
-                print(f"Skipping existing NHGIS geography extract {path}", flush=True)
+                print(f"Skipping existing NHGIS geography {path}", flush=True)
         elif year in CENSUS_TIGER_URLS:
             path = fetch_census(year, level, output_dir)
         else:
             raise ValueError(f"No geography source is configured for {year}")
-        print(path)
 
 
 if __name__ == "__main__":

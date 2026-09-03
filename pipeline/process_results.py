@@ -7,7 +7,7 @@ import typer
 from pipeline.utils import definitions
 
 
-def parse_cbsa(config_loc: str) -> definitions.CBSA:
+def parse_cbsa(config_loc: str) -> definitions.StudyArea:
     with open(config_loc) as f:
         data = json.load(f)
 
@@ -17,9 +17,9 @@ def parse_cbsa(config_loc: str) -> definitions.CBSA:
     data.setdefault("geometry", None)
     data.setdefault("total_population", None)
 
-    if hasattr(definitions.CBSA, "model_validate"):
-        return definitions.CBSA.model_validate(data)
-    return definitions.CBSA.parse_obj(data)
+    if hasattr(definitions.StudyArea, "model_validate"):
+        return definitions.StudyArea.model_validate(data)
+    return definitions.StudyArea.parse_obj(data)
 
 
 def _strip_graph_suffix(filename: str) -> str:
@@ -74,8 +74,8 @@ def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:
         lambda x: output_name_parts(x)[2]
     )
     df["year"] = df["filename"].apply(lambda x: int(output_name_parts(x)[1]))
-    df["cbsa_title"] = cbsa_infos.apply(lambda x: x.cbsa_title)
-    df["cbsa_code"] = cbsa_infos.apply(lambda x: x.area_code)
+    df["area_title"] = cbsa_infos.apply(lambda x: x.area_title)
+    df["area_code"] = cbsa_infos.apply(lambda x: x.area_code)
     df["total_population_2020"] = cbsa_infos.apply(lambda x: x.total_population)
 
     return df

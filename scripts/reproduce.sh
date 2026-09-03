@@ -1,114 +1,77 @@
 #!/usr/bin/env bash
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+config="$(poetry run python pipeline/config.py)" || exit 1
+eval "${config}"
 
-SCRIPT_DIR="$(
-    cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1
-    pwd -P
-)"
-TOP_DIR="$(cd -- "${SCRIPT_DIR}/.." >/dev/null 2>&1 && pwd -P)"
-cd "${TOP_DIR}"
-
-_config="$(poetry run python scripts/resolve_config.py)" || exit 1
-eval "${_config}"
-IFS=" " read -r -a census_geography_years <<< "${CENSUS_GEOGRAPHY_YEARS}"
-
-build_geography_inputs() {
-    local geography_type="$1"
-    local geography_years="$2"
-
-    poetry run python pipeline/download/download_population_tables.py \
-        --level "${geography_type}" \
-        --years "${geography_years}"
-    poetry run python pipeline/download/download_geographies.py \
-        --level "${geography_type}" \
-        --years "${geography_years}"
-    poetry run python pipeline/preprocessing/census_geographies.py \
-        --level "${geography_type}" \
-        --years "${geography_years}"
-}
-
-year_list_contains() {
-    local needle="$1"
-    shift
-    local year
-    for year in "$@"; do
-        if [ "${year}" = "${needle}" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-calculate_csv() {
-    local output_file="$1"; shift
-    poetry run python pipeline/metrics.py "" "$@" --headers-only > "${output_file}"
-    for year in "${census_geography_years[@]}"; do
-        find "data/processed/dual_graphs/${year}" -type f \
-            -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" |
-            parallel --bar -j 6 poetry run python pipeline/metrics.py {} "$@" >> "${output_file}"
-    done
-}
-
-# Set up folder structure.
-bash "${SCRIPT_DIR}/setup.sh"
+# Set up folder structure
+bash scripts/setup.sh
 
 # Save a log of the run configuration
 RUN_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+export PIPELINE_LOG_FILE="${RUN_OUTPUT_DIR}/run.log"
 export METRIC_FAILURES_FILE="${RUN_OUTPUT_DIR}/metric_failures.csv"
 {
-    echo "run_name=${RUN_NAME}"
     echo "start_timestamp=${RUN_STARTED_AT}"
-    echo ""
     echo "graph_area_type=${STUDY_AREA_TYPE}"
     echo "nodes_area_type=${CENSUS_GEOGRAPHY_TYPE}"
-    echo ""
     echo "study_area_source_file=${STUDY_AREA_SOURCE_FILE:-}"
-    echo ""
     echo "census_geography_years=${CENSUS_GEOGRAPHY_YEARS}"
+    echo ""
+} > "${PIPELINE_LOG_FILE}"
 
-} > "${RUN_OUTPUT_DIR}/run.log"
+# Write to the log file
+exec > >(tee -a "${PIPELINE_LOG_FILE}") 2>&1
 
-# Download and join population values to census geography shapefiles.
-build_geography_inputs "${CENSUS_GEOGRAPHY_TYPE}" "${CENSUS_GEOGRAPHY_YEARS}"
-# Only download study-area-definition geographies separately when they differ from
-# the census geography type/year already fetched above (avoids a redundant download).
+echo "=== 1. Download ==="
+poetry run python pipeline/download/download_population_tables.py --level "${CENSUS_GEOGRAPHY_TYPE}"
+poetry run python pipeline/download/download_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}"
+poetry run python pipeline/preprocessing/census_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}"
+
+# Only download study-area-definition geographies separately when they differ from the census geography type/year already fetched above (avoids a redundant download).
 if [ "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" != "${CENSUS_GEOGRAPHY_TYPE}" ] ||
-    ! year_list_contains "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}" "${census_geography_years[@]}"; then
-    build_geography_inputs \
-        "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" \
-        "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
+    [[ " ${CENSUS_GEOGRAPHY_YEARS} " != *" ${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR} "* ]]; then
+    poetry run python pipeline/download/download_population_tables.py \
+        --level "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" --years "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
+    poetry run python pipeline/download/download_geographies.py \
+        --level "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" --years "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
+    poetry run python pipeline/preprocessing/census_geographies.py \
+        --level "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" --years "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
 fi
 
-# Generate study area definition shapefiles.
-bash "${SCRIPT_DIR}/build_study_areas.sh"
+echo ""
+echo "=== 2. Study areas ==="
+poetry run python pipeline/preprocessing/study_areas.py \
+    ${STUDY_AREA_SOURCE_FILE:+--filename "${STUDY_AREA_SOURCE_FILE}"} \
+    --study-area-type "${STUDY_AREA_TYPE}"
+echo "Study areas are saved to `data/processed/study_area_definitions`."
 
-# Select census geographies that overlap with study area definition shapefiles.
-bash "${SCRIPT_DIR}/overlaps.sh"
+echo ""
+echo "=== 3. Overlaps ==="
+poetry run python pipeline/preprocessing/overlaps.py \
+    "data/processed/study_area_definitions/${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}.gpkg" \
+    "data/processed/clipped_geographies" \
+    --census-geography-type "${CENSUS_GEOGRAPHY_TYPE}" \
+    --census-geography-years "${CENSUS_GEOGRAPHY_YEARS}" \
+    --definition-vintage "${STUDY_AREA_DEFINITION_VINTAGE}"
 
-# Generate dual graphs.
-_build_graph() {
-    local shp="$1"
-    local stem
-    stem="$(basename "${shp%.gpkg}")"
-    local dual_dir
-    dual_dir="data/processed/dual_graphs/$(basename "$(dirname "$shp")")"
-    poetry run python pipeline/graphs.py "$shp" "${dual_dir}/${stem}_orig.json" "${dual_dir}/${stem}_connected.json"
-}
-export -f _build_graph
+echo ""
+echo "=== 4. Graphs ==="
+poetry run python pipeline/graphs.py \
+    "data/processed/clipped_geographies/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.gpkg"
 
-for year in "${census_geography_years[@]}"; do
-    find "data/processed/clipped_geographies/${year}" \
-        -type f \
-        -name "${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${year}_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.gpkg"
-done |
-    parallel --bar -j 6 _build_graph {}
+echo ""
+echo "=== 5. Metrics ==="
+poetry run python pipeline/metrics.py \
+    "data/processed/dual_graphs/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" \
+    BLACK WHITE TOTPOP "${RUN_OUTPUT_DIR}/white_black.csv"
 
-# Calculate metrics.
-calculate_csv "${RUN_OUTPUT_DIR}/white_black.csv" BLACK WHITE TOTPOP
-calculate_csv "${RUN_OUTPUT_DIR}/white_poc.csv"   POC   WHITE TOTPOP
+poetry run python pipeline/metrics.py \
+    "data/processed/dual_graphs/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" \
+    POC WHITE TOTPOP "${RUN_OUTPUT_DIR}/white_poc.csv"
 
-# Generate figures under the configured run output. The figure script enriches
-# raw metric CSVs with study-area metadata as needed.
+echo ""
+echo "=== 6. Figures ==="
 for metric in white_black white_poc; do
     poetry run python pipeline/visualization/generate_figures.py \
         --filename "${RUN_OUTPUT_DIR}/${metric}.csv" \
@@ -116,3 +79,4 @@ for metric in white_black white_poc; do
         --geography-type "${CENSUS_GEOGRAPHY_TYPE}" \
         --study-area-type "${STUDY_AREA_TYPE}"
 done
+echo "Saved to ${RUN_OUTPUT_DIR}/figures"
