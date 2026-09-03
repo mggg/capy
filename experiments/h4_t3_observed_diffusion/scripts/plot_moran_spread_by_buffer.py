@@ -5,7 +5,7 @@ from pathlib import Path
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 
 
-SEGREGATION_METRIC = "moran"
+SEGREGATION_METRIC = "half_edge"
 SPREAD_METRIC = "core_euclidean_n_ball_spread"
 SHOW_BUFFERS = [0, 1, 3, 7, 10]
 
