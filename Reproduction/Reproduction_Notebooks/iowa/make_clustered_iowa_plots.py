@@ -16,12 +16,21 @@ import warnings
 import tqdm
 from collections import deque, defaultdict
 import math
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 
 RHO = 0.3
 num_samples = 500
 num_rhos = 100
 
-def visualize_iowa(g):
+def colormap(rho):
+    cmap = LinearSegmentedColormap.from_list(
+        "rho_diverging",
+        [(0.0, "#2267BC"), (rho, "#ffffff"), (1.0, "#FFA812")]
+    )
+    norm = plt.Normalize(vmin=0, vmax=1)
+    return cmap, norm
+
+def visualize_iowa(g, rho ):
     pos = {
     node: (
         float(g.nodes[node]["INTPTLON"]),
@@ -40,13 +49,34 @@ def visualize_iowa(g):
 
     node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
 
+    cmap, norm = colormap(rho)
+    colors = cmap(norm(node_rhos))
+
+    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=colors,
+                        edgecolors='black', linewidths=0.5, ax=ax)
     nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_rhos,
-                            cmap=plt.cm.Blues, vmin=0, vmax=1,
-                            edgecolors='black', linewidths=0.5, ax=ax)
 
     ax.set_aspect('equal')
     ax.axis('off')
+
+def plot_rho_colorbar_diverging(vcenter=RHO, vmin=0, vmax=1, tick_size=10):
+    fig, ax = plt.subplots(figsize=(0.5, 4))
+    cmap, norm = colormap(vcenter)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, cax=ax)
+    cbar.ax.tick_params(labelsize=tick_size)
+    cbar.ax.set_title(r"$\rho_i$", rotation=0, fontsize=tick_size * 3, pad=10)
+
+    cbar.ax.yaxis.set_ticks_position('right')
+    cbar.ax.text(1.6, vcenter, fr"$\rho = {RHO}$", va='center', ha='left',
+             fontsize=tick_size, transform=cbar.ax.transData, clip_on=False)
+    cbar.ax.plot([0, 1.5], [vcenter, vcenter],
+             color='black', linestyle=':', linewidth=1,
+             clip_on=False, transform=cbar.ax.get_yaxis_transform())
+
+
+
+    plt.tight_layout()
 
 def populate_cluster_random(start_node, G, tot_x_pop):
     # queue for BFS
@@ -130,5 +160,8 @@ plt.tight_layout()
 plt.savefig("Reproduction/Reproduction_Figures/Iowa/capy_by_rho_onecluster_iowa.png")
 
 g_, real_rho = populate_cluster_random(seed, g, RHO* metrics.property_sum(g, "TOTPOP"))
-visualize_iowa(g_)
+visualize_iowa(g, RHO)
 plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/onecluster_iowa_visualization_rho={RHO}.png")
+
+plot_rho_colorbar_diverging(vcenter = RHO)
+plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/onecluster_rho_colorbar_rho={RHO}.png", bbox_inches='tight')
