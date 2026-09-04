@@ -11,7 +11,7 @@ from itertools import combinations
 from matplotlib.lines import Line2D
 
 
-def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_amount=0.5, label_x=None,  best_fit=True):
+def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_x = 0.5, jitter_y = 0.5, label_x=None,  best_fit=True):
 
 
     if label_x is None:
@@ -43,8 +43,8 @@ def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_amount=0.5,
         )
         
         plt.scatter(
-            ranks["rank_x"],
-            ranks[rank_col] + np.random.uniform(-jitter_amount, jitter_amount, size=len(ranks)),
+            ranks["rank_x"] + np.random.uniform(-jitter_x, jitter_x, size=len(ranks)),
+            ranks[rank_col] + np.random.uniform(-jitter_y, jitter_y, size=len(ranks)),
             label=name_dict.get(y_col, y_col),
             alpha=0.7,
             c = color_dict[y_col],

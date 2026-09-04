@@ -93,7 +93,7 @@ def plot_metrics_over_diffusion(graphs):
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(steps, capys, marker="o", label="CAPY", color="#69359c")
     ax.plot(steps[:-1], morans[:-1], marker="o", label="Moran's I (P Matrix)", color="#ffbf00")
-    ax.plot(steps, dissimilarities, marker="o", label="Dissimilarity", color="#8db600")
+    ax.plot(steps, dissimilarities, marker="o", label="Dissimilarity", color="#d11a42")
     ax.legend(loc='lower left')
 
     ax.set_ylim(-0.1, 1)

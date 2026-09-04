@@ -9,7 +9,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from itertools import product
 import tqdm
-import functools
 import sys
 import scipy.sparse
 import numpy as np
@@ -120,7 +119,7 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
 
 
     capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
-    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) #rationale seems to be to cache these for the later calculations?
+    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) 
     
     e_assort, he_assort = assortativity(graph, x_col, y_col)
     capy_metrics["e_assort"] = e_assort
@@ -196,7 +195,6 @@ def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
         return (lam * first_summation) + second_summation
 
 
-@functools.cache  # cached for speed purposes
 def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     first_summation = 0
     second_summation = 0
@@ -225,7 +223,6 @@ def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
         return 0.5 * ((lam * first_summation) + second_summation)
 
 
-@functools.cache
 def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
     first_summation = 0
     second_summation = 0
@@ -317,7 +314,6 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
         he_assort = np.nan
     return e_assort, he_assort
 
-@functools.cache
 def property_sum(graph: gerrychain.Graph, col: str) -> float:
     cummulative = 0
     for node in graph.nodes():
