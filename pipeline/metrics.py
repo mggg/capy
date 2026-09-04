@@ -1,17 +1,39 @@
 import geopandas as gpd
 import typer
 import os
+import csv
 import glob
+import warnings
 import gerrychain
 import networkx as nx
 import matplotlib.pyplot as plt
 from itertools import product
 import tqdm
-import functools
 import sys
 import scipy.sparse
 import numpy as np
 import traceback
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from pathlib import Path
+
+
+def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, workers: int = 6):
+    files = sorted(glob.glob(input_glob))
+    worker = partial(_process_file, x_col=x_col, y_col=y_col, tot_col=tot_col)
+    n_ok = 0
+    n_failed = 0
+    with open(output, "w") as f:
+        f.write(build_headers(x_col, y_col, tot_col) + "\n")
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for row in pool.map(worker, files):
+                if row is not None:
+                    f.write(row + "\n")
+                    n_ok += 1
+                else:
+                    n_failed += 1
+    print(f"Metrics calculations: {n_ok} processes succeeded, {n_failed} failed. Output: {output}", flush=True)
+
 
 def study_area_code_from_filename(filename: str) -> str:
     output_stem = os.path.basename(filename)
@@ -21,7 +43,11 @@ def study_area_code_from_filename(filename: str) -> str:
 
     output_stem = output_stem.split("_vintage", 1)[0]
     study_area_and_dates = output_stem.split("_in_", 1)[-1]
-    study_area_identity = study_area_and_dates.rsplit("_", 3)[0]
+    tokens = study_area_and_dates.split("_")
+    if tokens[-2].isdigit() and len(tokens[-2]) == 4:
+        study_area_identity = "_".join(tokens[:-2])
+    else:
+        study_area_identity = "_".join(tokens[:-3])
     return study_area_identity.rsplit("_", 1)[-1]
 
 
@@ -48,37 +74,42 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     return ",".join(keys)
 
 
-def main(
-    filename: str, x_col: str, y_col: str, tot_col: str, headers_only: bool = False
-):
-    if headers_only:
-        print(build_headers(x_col, y_col, tot_col))
-        return
-    try:
-        run_metrics(filename, x_col, y_col, tot_col)
-    except ZeroDivisionError as e:
-        metric_failures_file = os.environ.get(
-            "METRIC_FAILURES_FILE", "outputs/metric_failures.csv"
-        )
-        metric_failures_dir = os.path.dirname(metric_failures_file)
-        if metric_failures_dir:
-            os.makedirs(metric_failures_dir, exist_ok=True)
-        with open(metric_failures_file, "a+") as f:
-            f.seek(0, os.SEEK_END)
-            if f.tell() == 0:
-                print("filename,cbsa_code,error", file=f)
-            print(f"{filename},{study_area_code_from_filename(filename)},{e}", file=f)
-        print(filename, e, file=sys.stderr)
+FAILURE_FIELDNAMES = ["filename", "study_area_code", "x_col", "y_col", "tot_col", "error_message"]
 
+
+def write_failure(filename: str, x_col: str, y_col: str, tot_col: str, exc: Exception) -> None:
+    metric_failures_file = os.environ.get("METRIC_FAILURES_FILE", "outputs/metric_failures.csv")
+    failures_dir = os.path.dirname(metric_failures_file)
+    os.makedirs(failures_dir, exist_ok=True)
+
+    row = {"filename": filename, "study_area_code": study_area_code_from_filename(filename),
+        "x_col": x_col, "y_col": y_col, "tot_col": tot_col, "error_message": str(exc)}
+
+    # write header once
+    write_header = not os.path.exists(metric_failures_file) or os.path.getsize(metric_failures_file) == 0
+    with open(metric_failures_file, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=FAILURE_FIELDNAMES)
+        if write_header:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def _process_file(filename: str, x_col: str, y_col: str, tot_col: str):
+    try:
+        return run_metrics(filename, x_col, y_col, tot_col)
+    except Exception as e:
+        write_failure(filename, x_col, y_col, tot_col, e)
+        print(f"FAILED {filename}: {type(e).__name__}: {e}", file=sys.stderr)
+        return None
 
 
 def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
+    warnings.filterwarnings("ignore", message=".*Found islands.*")  # degree-0 nodes are handled by connect_components in graphs.py.
     graph = gerrychain.Graph.from_json(filename)
 
     for node in graph.nodes():
         graph.nodes[node]["white_plus_black"] = (
-            int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
-        )
+            int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col]))
 
     capy_metrics = {}
     capy_metrics["filename"] = filename
@@ -88,7 +119,7 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
 
 
     capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
-    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) #rationale seems to be to cache these for the later calculations?
+    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) 
     
     e_assort, he_assort = assortativity(graph, x_col, y_col)
     capy_metrics["e_assort"] = e_assort
@@ -149,7 +180,7 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["total_nodes"] = len(graph.nodes())
     capy_metrics["total_edges"] = len(graph.edges())
 
-    print(",".join(map(str, list(capy_metrics.values()))))
+    return ",".join(map(str, list(capy_metrics.values())))
 
 
 def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
@@ -164,7 +195,6 @@ def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
         return (lam * first_summation) + second_summation
 
 
-@functools.cache  # cached for speed purposes
 def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     first_summation = 0
     second_summation = 0
@@ -193,7 +223,6 @@ def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
         return 0.5 * ((lam * first_summation) + second_summation)
 
 
-@functools.cache
 def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
     first_summation = 0
     second_summation = 0
@@ -285,7 +314,6 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
         he_assort = np.nan
     return e_assort, he_assort
 
-@functools.cache
 def property_sum(graph: gerrychain.Graph, col: str) -> float:
     cummulative = 0
     for node in graph.nodes():

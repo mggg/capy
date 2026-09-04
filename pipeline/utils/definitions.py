@@ -5,15 +5,20 @@ from typing import List, Optional, Dict
 from pydantic import ConfigDict
 
 
-class CBSA(pydantic.BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+class StudyArea(pydantic.BaseModel):
+    class Config:
+        arbitrary_types_allowed = True
 
     area_code: str
-    cbsa_title: str
+    area_title: str
     component_counties_fips: List[str]
     total_population: Optional[int] = None
     geometry: Optional[gpd.GeoDataFrame] = None
 
 
-class CBSADict(pydantic.RootModel[Dict[str, CBSA]]):
-    pass
+if hasattr(pydantic, "RootModel"):
+    class StudyAreaDict(pydantic.RootModel[Dict[str, StudyArea]]):
+        pass
+else:
+    class StudyAreaDict(pydantic.BaseModel):
+        __root__: Dict[str, StudyArea]

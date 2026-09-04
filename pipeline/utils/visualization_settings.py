@@ -88,8 +88,8 @@ METRICS = [
 
 
 def _short_name(cbsa_title: str) -> str:
-    city_part, _, state = cbsa_title.rpartition(", ")
-    return f"{city_part.split('-')[0]}, {state}"
+    city_part, sep, state = cbsa_title.rpartition(", ")
+    return f"{city_part.split('-')[0]}, {state}" if sep else cbsa_title
 
 
 _NARROW_Y_THRESHOLD = 0.1
