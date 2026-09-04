@@ -2,6 +2,7 @@ import pydantic
 import geopandas as gpd
 from shapely.geometry import Polygon
 from typing import List, Optional, Dict
+from pydantic import ConfigDict
 
 
 class StudyArea(pydantic.BaseModel):

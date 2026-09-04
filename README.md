@@ -2,6 +2,28 @@
 
 This project downloads population and geography data from the Census Bureau API and IPUMS/NHGIS, constructs adjacency graphs where census units (e.g. tracts) within study areas (e.g. CBSAs) are connected if they share a border, and applies a battery of residential segregation metrics. The goal is to assess segregation and disagreement among metrics across geographies and decades.
 
+## Quick start to download the data and apply metrics
+
+A Census API key and IPUMS API key are required for data downloads:
+
+```bash
+export CENSUS_API_KEY="..."
+export IPUMS_API_KEY="..."
+```
+
+Install `parallel` to run the main metrics pipeline: `brew install parallel` on Mac or `sudo apt-get install parallel` on Linux.
+
+Set your run configurations in `pipeline/config.yaml`. To download the data and apply metrics run `bash scripts/reproduce.sh`.
+
+## Quick start to run experiments
+
+```bash
+make install   # install Python dependencies via Poetry
+make setup     # scaffold the data directory tree
+make run       # run the baseline experiment
+make run EXPERIMENT=h4_t3_observed_diffusion  # run a specific experiment
+```
+
 ## Folder structure
 
 ```
@@ -163,19 +185,10 @@ poetry run python pipeline/visualization/generate_figures.py \
 
 ## Dependencies
 
-Python deps are managed via Poetry:
-```
+Python deps are managed via Poetry. See `pyproject.toml` for the full list.
+
+```bash
 pip install poetry
-poetry install
-```
-
-To launch a shell with the poetry environment activated:
-```
-poetry shell
-```
-
-Set API keys in your shell before downloading data:
-```
-export CENSUS_API_KEY="..."
-export IPUMS_API_KEY="..."
+make install # equivalent to: poetry install
+poetry shell # activate the Poetry environment
 ```
