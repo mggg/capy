@@ -109,9 +109,6 @@ def share_array(G, rows, cols):
 # ══════════════════════════════════════════════════════════════════════════════
 def compute_metrics(G):
     """Compute the three display metrics; clears caches first."""
-    for fn in [m._angle_1, m._angle_2, m.property_sum]:
-        fn.cache_clear()
-
     spes = m.skew_prime_exact(G, "BLUE", "ORANGE", lam=1)
     speo = m.skew_prime_exact(G, "ORANGE",  "BLUE", lam=1)
 
