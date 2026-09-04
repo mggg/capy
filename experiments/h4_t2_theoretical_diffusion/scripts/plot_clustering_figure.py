@@ -194,7 +194,11 @@ for row_idx, (perturb_prob, row_label) in enumerate(zip(LEVELS, LEVEL_LABELS)):
         )
 
 out_stem = HERE / "clustering_figure"
+out_stem2 = "figures_hub/raina_grids/clustering_figure"
 fig.savefig(f"{out_stem}.pdf", bbox_inches="tight", facecolor="white")
 fig.savefig(f"{out_stem}.png", bbox_inches="tight", facecolor="white")
+fig.savefig(f"{out_stem2}.pdf", bbox_inches="tight", facecolor="white")
+fig.savefig(f"{out_stem2}.png", bbox_inches="tight", facecolor="white")
 print(f"Saved  {out_stem}.pdf  /  .png")
+print(f"Saved  {out_stem2}.pdf  /  .png")
 plt.show()
