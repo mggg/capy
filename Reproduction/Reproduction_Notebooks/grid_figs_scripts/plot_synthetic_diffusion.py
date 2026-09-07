@@ -1,6 +1,6 @@
 import sys, os
-sys.path.insert(0, os.path.abspath("../../.."))   # capy-bara/ → finds pipeline
-sys.path.insert(0, os.path.abspath("."))           # grid_figs_scripts/ → finds grid_figs_helpers
+sys.path.insert(0, os.path.abspath("../../.."))   
+sys.path.insert(0, os.path.abspath("."))           
 os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 import pipeline.metrics as metrics
 import networkx as nx
@@ -16,7 +16,7 @@ from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_cl
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 random.seed(53)
 
-M = 1000
+M = 1
 
 def diffuse(G, threshold):
     for node in G.graph.nodes():
@@ -92,12 +92,17 @@ def visualize_diffusion(graphs, rhos):
 
 def plot_metrics_over_diffusion(graphs):
     capys = [metrics.half_edge(G, "x_pop", "y_pop") for G in graphs]
-    morans = [metrics.moran(G, "x_pop", "tot_pop")["moran_P"] for G in graphs]
+    morans = []
+    for G in graphs:
+        try:
+            morans.append(metrics.moran(G, "x_pop", "tot_pop")["moran_P"])
+        except ZeroDivisionError:
+            morans.append(np.nan)
     dissimilarities = [metrics.dissimilarity(G, "x_pop", "y_pop", 1) for G in graphs]
     steps = list(range(len(graphs)))
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(steps, capys, marker="o", label="CAPY", color="#69359c")
+    ax.plot(steps, capys, marker="o", label="Capy", color="#69359c")
     ax.plot(steps[:-1], morans[:-1], marker="o", label="Moran's I (P Matrix)", color="#ffbf00")
     ax.plot(steps, dissimilarities, marker="o", label="Dissimilarity", color="#d11a42")
     ax.legend(loc='lower left')

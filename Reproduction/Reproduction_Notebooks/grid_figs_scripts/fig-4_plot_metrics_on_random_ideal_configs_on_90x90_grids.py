@@ -18,6 +18,7 @@ from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_cl
 METHOD = "random" # "bfs" or "random"
 num_rhos = 20
 num_samples = 5
+M = 1
 
 graphs_clust = [] 
 graphs_isol = []
@@ -29,12 +30,12 @@ for _ in range(num_samples):
     rhos = np.linspace(.1, .5, num_rhos)
 
     for rho in rhos: 
-        graphs_clust.append(generate_clust_grid(90, 90, rho, 1000, method = METHOD))
-        graphs_isol.append(generate_isol_grid(90, 90, rho, 1000))
+        graphs_clust.append(generate_clust_grid(90, 90, rho, M, method = METHOD))
+        graphs_isol.append(generate_isol_grid(90, 90, rho, M))
         xvals.append(rho)
     # accumulate as list of tuples
     for rho in rhos:
-        G, real_rho, num_components = generate_kclust_grid(90, 90, rho, 1000, k=8, method=METHOD)
+        G, real_rho, num_components = generate_kclust_grid(90, 90, rho, M, k=8, method=METHOD)
         graphs_kclust.append((G, real_rho, num_components))
 
 half_edge_clust = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_clust]

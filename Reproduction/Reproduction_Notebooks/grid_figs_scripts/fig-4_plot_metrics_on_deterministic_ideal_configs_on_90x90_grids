@@ -19,12 +19,13 @@ METHOD = "random" # "bfs" or "random"
 
 graphs_ch = []
 graphs_const = []
+M = 1
 
 rhos = np.linspace(.1, .5, 5)
 
 for rho in rhos: 
-    graphs_ch.append(generate_ch_grid(90, 90, rho, 1000))
-    graphs_const.append(generate_const_grid(90, 90, rho, 1000))
+    graphs_ch.append(generate_ch_grid(90, 90, rho, M))
+    graphs_const.append(generate_const_grid(90, 90, rho, M))
 
 half_edge_ch = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_ch]
 half_edge_const = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_const]
