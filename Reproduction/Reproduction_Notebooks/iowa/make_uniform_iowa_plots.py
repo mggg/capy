@@ -49,12 +49,12 @@ def visualize_iowa(g, rho ):
 
     node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
 
-    map, norm = colormap(rho)
+    cmap, norm = colormap(rho)
+    node_colors = [cmap(norm(r)) for r in node_rhos]
 
     nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_rhos, 
-                            vmin=0, vmax=1,
-                            edgecolors='black', linewidths=0.5, ax=ax)
+    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_colors,
+                        edgecolors='black', linewidths=0.5, ax=ax)
 
     ax.set_aspect('equal')
     ax.axis('off')
@@ -107,4 +107,4 @@ visualize_iowa(make_uniform_iowa(g, RHO), RHO)
 plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/uniform_iowa_visualization_rho={RHO}.png")
 
 plot_rho_colorbar_diverging(RHO)
-plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/blues_rho_colorbar_rho={RHO}.png")
+plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/divergent_rho_colorbar_rho={RHO}.png")

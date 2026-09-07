@@ -13,6 +13,7 @@ from collections import deque
 import warnings
 import seaborn as sns
 from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid, draw_grid_as_checkerboard
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 random.seed(53)
 
 M = 1000
@@ -56,6 +57,9 @@ def visualize_diffusion(graphs, rhos):
         rows += 1
     fig, axes = plt.subplots(rows, 5, figsize=(15, 3 *rows), squeeze = False, constrained_layout=True)
     fig.subplots_adjust(hspace=0.4)
+    diverging_cmap = LinearSegmentedColormap.from_list("rho_diverging", ["#2267BC", "#ffffff", "#FFA812"])
+    norm = TwoSlopeNorm(vmin=0, vcenter=rhos[-1], vmax=1) #diverges at the global rho, here thats rhos[-1] because the rho of the wetted region is 0 at the end of the process (this might be fragile)
+
     for i, G in enumerate(graphs):
         ax = axes[i // 5, i % 5]
 
@@ -68,7 +72,9 @@ def visualize_diffusion(graphs, rhos):
         for node in nodelist:
             grid[node[1], node[0]] = G.nodes[node]["rho"]
 
-        ax.imshow(grid, cmap="Blues", vmin=0, vmax=1, origin="lower", interpolation="nearest")     
+
+        ax.imshow(grid, cmap=diverging_cmap, norm=norm, origin="lower", interpolation="nearest")
+
         ax.set_aspect('equal')
   
         for x in range(width + 1):

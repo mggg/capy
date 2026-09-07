@@ -16,12 +16,24 @@ import warnings
 import tqdm
 from collections import deque, defaultdict
 import math
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+
 
 RHO = 0.3
 num_samples = 500
 num_rhos = 100
 
-def visualize_iowa(g):
+def colormap(rho):
+    diverging_cmap = LinearSegmentedColormap.from_list(
+    "rho_diverging",
+    ["#2267BC", "#ffffff", "#FFA812"]
+    )
+    # Norm that maps 0→left, RHO→center (white), 1→right
+    norm = TwoSlopeNorm(vmin=0, vcenter=RHO, vmax=1)
+
+    return diverging_cmap, norm
+
+def visualize_iowa(g, rho ):
     pos = {
     node: (
         float(g.nodes[node]["INTPTLON"]),
@@ -40,10 +52,13 @@ def visualize_iowa(g):
 
     node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
 
-    nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_rhos,
-                            cmap=plt.cm.Blues, vmin=0, vmax=1,
+    cmap, norm = colormap(rho)
+    node_colors = [cmap(norm(r)) for r in node_rhos]
+
+    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_colors,
                             edgecolors='black', linewidths=0.5, ax=ax)
+    nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
+    
 
     ax.set_aspect('equal')
     ax.axis('off')
@@ -130,5 +145,5 @@ plt.tight_layout()
 plt.savefig("Reproduction/Reproduction_Figures/Iowa/capy_by_rho_onecluster_iowa.png")
 
 g_, real_rho = populate_cluster_random(seed, g, RHO* metrics.property_sum(g, "TOTPOP"))
-visualize_iowa(g_)
+visualize_iowa(g_, RHO)
 plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/onecluster_iowa_visualization_rho={RHO}.png")

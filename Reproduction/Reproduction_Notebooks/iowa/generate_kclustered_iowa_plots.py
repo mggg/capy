@@ -16,12 +16,53 @@ import warnings
 import tqdm
 from collections import deque, defaultdict
 import math
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+
 
 RHO = 0.3
 K = 10
 num_samples = 500
 num_rhos = 100
 
+def colormap(rho):
+    diverging_cmap = LinearSegmentedColormap.from_list(
+    "rho_diverging",
+    ["#2267BC", "#ffffff", "#FFA812"]
+    )
+    # Norm that maps 0→left, RHO→center (white), 1→right
+    norm = TwoSlopeNorm(vmin=0, vcenter=RHO, vmax=1)
+
+    return diverging_cmap, norm
+
+def visualize_iowa(g, rho ):
+    pos = {
+    node: (
+        float(g.nodes[node]["INTPTLON"]),
+        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(g.nodes[node]["INTPTLAT"]))/2)))
+    )
+    for node in g.nodes()
+    }
+
+    pop = {
+        node: g.nodes[node]["TOTPOP"]
+        for node in g.nodes()
+    }
+
+    sizes = [pop[n] / 500 for n in g.nodes]  # adjust scaling factor
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
+
+    cmap, norm = colormap(rho)
+    node_colors = [cmap(norm(r)) for r in node_rhos]
+
+    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_colors,
+                            edgecolors='black', linewidths=0.5, ax=ax)
+    nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
+
+
+    ax.set_aspect('equal')
+    ax.axis('off')
 
 def populate_cluster_random(start_node, G, tot_x_pop):
     
@@ -68,7 +109,6 @@ def generate_kclust_grid(G, rho, k):
 
     target_pop = rho * metrics.property_sum(G, "TOTPOP") / k 
 
-    # remove seeds = random.sample(...) above the loop
 
     for _ in range(k):
         y_nodes = [node for node in G.nodes if G.nodes[node]["x_pop"] == 0]
@@ -95,40 +135,13 @@ def generate_kclust_grid(G, rho, k):
 
     return G, real_rho, components
 
-def visualize_iowa(g):
-    pos = {
-    node: (
-        float(g.nodes[node]["INTPTLON"]),
-        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(g.nodes[node]["INTPTLAT"]))/2)))
-    )
-    for node in g.nodes()
-    }
-
-    pop = {
-        node: g.nodes[node]["TOTPOP"]
-        for node in g.nodes()
-    }
-
-    sizes = [pop[n] / 500 for n in g.nodes]  # adjust scaling factor
-    fig, ax = plt.subplots(figsize=(10, 10))
-
-    node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
-
-    nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_rhos,
-                            cmap=plt.cm.Blues, vmin=0, vmax=1,
-                            edgecolors='black', linewidths=0.5, ax=ax)
-
-    ax.set_aspect('equal')
-    ax.axis('off')
-
 g = gerrychain.Graph.from_json("reproduction_data/ia_files/ia_counties_2020.json")
 for node in g.nodes():
     g.nodes[node]["x_pop"] = 0
     g.nodes[node]["y_pop"] = 0
 
 g_, real_rho, num_components = generate_kclust_grid(g, RHO, k=K)
-visualize_iowa(g_)
+visualize_iowa(g_, RHO)
 plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/multicluster_iowa_visualization_rho={RHO},k={K}.png")
 
 real_rhos = []
