@@ -167,23 +167,13 @@ cython_debug/
 **/.DS_Store
 
 # Project data and generated files
-/cbsas/
-/census_geographies/
-/study_areas/
-/census_raw/
-/data/
-/archive/
-/outputs/
-**/.qmd
-<<<<<<< Updated upstream
-/experiments/h4_t3_observed_diffusion/data/
-=======
-<<<<<<< Updated upstream
-/experiments/h4_t3_observed_diffusion/data/
-=======
-/experiments/h4_t3_observed_diffusion/data/
-experiments/h4_t2_theoretical_diffusion/figures/*.png
-experiments/h4_t3_observed_diffusion/figures/**/*.png
->>>>>>> Stashed changes
->>>>>>> Stashed changes
-/experiments/h4_t2_theoretical_diffusion/scripts/archive_diffusion_simulation
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.gpkg
+*.zip
+*.xml
