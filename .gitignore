@@ -175,4 +175,15 @@ cython_debug/
 /archive/
 /outputs/
 **/.qmd
+<<<<<<< Updated upstream
 /experiments/h4_t3_observed_diffusion/data/
+=======
+<<<<<<< Updated upstream
+/experiments/h4_t3_observed_diffusion/data/
+=======
+/experiments/h4_t3_observed_diffusion/data/
+experiments/h4_t2_theoretical_diffusion/figures/*.png
+experiments/h4_t3_observed_diffusion/figures/**/*.png
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+/experiments/h4_t2_theoretical_diffusion/scripts/archive_diffusion_simulation
