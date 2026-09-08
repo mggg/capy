@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream:pipeline/visualization/rho_half_edge.py
 """Scatter plot of ρ (POC share of POC+White) vs segregation metrics across U.S. metros."""
+=======
+"""Create a scatter plot of rho (POC share of POC+White) vs Capy across the calculated metros metrics."""
+>>>>>>> Stashed changes:pipeline/visualization/rho_vs_metrics_panel.py
 
 import sys
 from pathlib import Path
@@ -13,6 +17,7 @@ import pandas as pd
 from pipeline.process_results import enrich_metrics
 from pipeline.utils.visualization_settings import PALETTE
 
+<<<<<<< Updated upstream:pipeline/visualization/rho_half_edge.py
 CSV = Path("outputs/tracts_in_cbsa/white_poc.csv")
 OUT = Path("outputs/tracts_in_cbsa/figures/rho_vs_metrics.png")
 
@@ -23,6 +28,24 @@ df = enrich_metrics(pd.read_csv(CSV))
 df["rho"] = df["total_poc"] / (df["total_poc"] + df["total_white"])
 
 
+=======
+path_to_file = "outputs/tracts_in_cbsa/white_poc.csv"
+# path_to_file = "outputs/tracts_in_cbsa/white_black.csv"
+CSV = Path(path_to_file)
+
+df = enrich_metrics(pd.read_csv(CSV))
+# ρ = minority / (minority + White). the minority share for the Half Edge formula
+if "white_poc" in path_to_file:
+    df["rho"] = df["total_poc"] / (df["total_poc"] + df["total_white"])
+    OUT = Path("outputs/tracts_in_cbsa/figures/rho_vs_metrics_linear_wpoc.png")
+    print('White-POC metrics')
+elif "white_black" in path_to_file:
+    df["rho"] = df["total_black"] / (df["total_black"] + df["total_white"])
+    OUT = Path("outputs/tracts_in_cbsa/figures/rho_vs_metrics_linear_wb.png")
+    print('White-Black metrics')
+else:
+    raise ValueError("Unknown file")
+>>>>>>> Stashed changes:pipeline/visualization/rho_vs_metrics_panel.py
 
 BG = "#fcfcfb"
 PRIMARY_INK = "#0b0b0b"
@@ -31,11 +54,26 @@ MUTED = "#898781"
 GRID = "#e1e0d9"
 
 YEARS = sorted(df["year"].unique())
+<<<<<<< Updated upstream:pipeline/visualization/rho_half_edge.py
 YEAR_COLORS = {1980: '#0072b2',
                1990: '#009e73',
                2000: '#e69f00',
                2010: "#d55e00",
                2020: '#871769'}
+=======
+YEAR_COLORS = {1980: '#1560bd',
+               1990: '#006b3c',
+               2000: "#8db600",
+               2010: "#ffa812",
+               2020: "#d11a42"
+                # 2000: '#c3ba32',
+                # 2010: '#e69f00',
+                # 2020: '#d55e00'
+                # 2000: '#e69f00',
+                # 2010: "#d55e00",
+                # 2020: '#871769'
+               }
+>>>>>>> Stashed changes:pipeline/visualization/rho_vs_metrics_panel.py
 
 # filter: CBSAs present in all 5 decades with population > 100K
 df["area_code"] = df["filename"].str.extract(r"tracts_in_cbsa_(\d+)_")
@@ -52,14 +90,24 @@ df = df[df["area_code"].isin(valid_cbsas)]
 n_cbsas = len(valid_cbsas)
 
 # panels definition
+<<<<<<< Updated upstream:pipeline/visualization/rho_half_edge.py
 # hline_y: reference value to draw a muted horizontal line; None = skip
+=======
+# hline_y: reference value to draw a muted horizontal line. None = skip
+>>>>>>> Stashed changes:pipeline/visualization/rho_vs_metrics_panel.py
 PANELS = [
     dict(col="half_edge_1", title="Half Edge (λ = 1)",
          range_label="Range: 0 (checkerboard) to 1 (perfect segregation)",
+<<<<<<< Updated upstream:pipeline/visualization/rho_half_edge.py
          hline_y=0.5, hline_label="Uniform distribution (HE = 0.5)"),
     dict(col="moran_P", title="Moran's I (row-standardized adjacency)",
          range_label="Range: −1 (checkerboard) to 1 (perfect segregation)",
          hline_y=0.0, hline_label="No spatial autocorrelation (I = 0)"),
+=======
+         hline_y=0.5, hline_label="Uniform distribution (Capy = 0.5)"),
+    dict(col="moran_P", title="Moran's I",
+         range_label="Range: −1 (checkerboard) to 1 (perfect segregation)", hline_y=0.0, hline_label="No spatial autocorrelation (I = 0)"),
+>>>>>>> Stashed changes:pipeline/visualization/rho_vs_metrics_panel.py
     dict(col="dissimilarity_1", title="Dissimilarity",
          range_label="Range: 0 (uniform) to 1 (fully segregated)",
          hline_y=None, hline_label=None)]
@@ -71,7 +119,9 @@ fig.subplots_adjust(wspace=0.3)
 for ax, panel in zip(axes, PANELS):
     col = panel["col"]
     ax.set_facecolor(BG)
-    ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
+    ax.spines[["top", "right", "bottom"]].set_visible(False)
+    ax.spines["left"].set_color(MUTED)
+    ax.spines["left"].set_linewidth(0.9)
     ax.grid(color=GRID, linewidth=0.8, zorder=0)
     ax.tick_params(length=0, labelsize=8, labelcolor=SECONDARY)
 
@@ -103,8 +153,12 @@ for ax, panel in zip(axes, PANELS):
               labelcolor=SECONDARY, handlelength=1.6,
               handletextpad=0.5, labelspacing=0.3)
 
+<<<<<<< Updated upstream:pipeline/visualization/rho_half_edge.py
     ax.set_xlabel("Minority share (POC / POC+White)", fontsize=10,
                   color=SECONDARY, labelpad=6)
+=======
+    ax.set_xlabel("Minority share", fontsize=10, color=SECONDARY, labelpad=6)
+>>>>>>> Stashed changes:pipeline/visualization/rho_vs_metrics_panel.py
     ax.set_ylabel(panel["title"], fontsize=10, color=SECONDARY, labelpad=6)
     ax.set_xlim(-0.02, 1.02)
     ax.set_title(panel["title"], fontsize=11, fontweight="bold",
@@ -133,4 +187,4 @@ fig.legend(handles=year_handles + [fit_handle],
 OUT.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(OUT, dpi=150, bbox_inches="tight", facecolor=BG)
 plt.close(fig)
-print(f"Saved → {OUT}")
+print(f"Saved to {OUT}")
