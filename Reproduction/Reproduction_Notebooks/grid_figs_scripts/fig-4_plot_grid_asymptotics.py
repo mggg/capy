@@ -40,10 +40,10 @@ for rho in x:
     const.append(edge_a_const(rho))
     one_clust.append(edge_a_one_clust(rho))
 
-plt.plot(x, isol, label="Isolated")
-plt.plot(x, ch, label="Checkerboard")
-plt.plot(x, const, label="Constant")
-plt.plot(x, one_clust, label="One Cluster")
+plt.plot(x, isol, label="Isolated", color = "#69359c")
+plt.plot(x, ch, label="Checkerboard", color =  "#1560bd")
+plt.plot(x, const, label="Constant", color = "#ffa812")
+plt.plot(x, one_clust, label="One Cluster", color = "#006B3C")
 
 plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
 plt.xlabel("Minority Proportion")
@@ -66,10 +66,10 @@ for rho in x:
     const.append(half_edge_a_const(rho))
     one_clust.append(half_edge_a_one_clust(rho))
 
-plt.plot(x, isol, label="Isolated")
-plt.plot(x, ch, label="Checkerboard")
-plt.plot(x, const, label="Constant")
-plt.plot(x, one_clust, label="One Cluster")
+plt.plot(x, isol, label="Isolated", color = "#69359c")
+plt.plot(x, ch, label="Checkerboard", color =  "#1560bd")
+plt.plot(x, const, label="Constant", color = "#ffa812")
+plt.plot(x, one_clust, label="One Cluster", color = "#006B3C")
 
 plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
 

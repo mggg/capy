@@ -11,6 +11,8 @@ from collections import deque
 import warnings
 random.seed(42)
 import seaborn as sns
+from matplotlib.colors import ListedColormap
+
 
 def populate_ch_grid(G, rho, M, eps): #give graph x and y pop'scripts
     for node in G.graph.nodes:
@@ -219,8 +221,9 @@ def draw_grid_as_checkerboard(G_obj, id, rho, ax=None, title=""):
 
     if ax is None:
         _, ax = plt.subplots()
-    ax.imshow(grid, cmap="bwr", vmin=0, vmax=1, origin="lower",
-              interpolation="nearest")
+    cmap = ListedColormap(["#FFA812", "#006B3C"])
+    ax.imshow(grid, cmap=cmap, vmin=0, vmax=1, origin="lower", interpolation="nearest")
+
     ax.axis("off")
     plt.savefig(f"Reproduction/Reproduction_Figures/Idealized_Grids/fig-5_{id}_grid_visualization_rho={rho}.png", dpi=150, bbox_inches="tight")
     return ax

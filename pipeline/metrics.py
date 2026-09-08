@@ -109,7 +109,7 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
 
     for node in graph.nodes():
         graph.nodes[node]["white_plus_black"] = (
-            int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col]))
+            graph.nodes[node][x_col] + graph.nodes[node][y_col])
 
     capy_metrics = {}
     capy_metrics["filename"] = filename
@@ -199,14 +199,11 @@ def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
-        first_summation += int(graph.nodes[node][x_col]) * int(graph.nodes[node][y_col])
+        first_summation += graph.nodes[node][x_col] * graph.nodes[node][y_col]
 
     for node, neighbor in graph.edges():
-        second_summation += int(graph.nodes[node][x_col]) * int(
-            graph.nodes[neighbor][y_col])
-        second_summation += int(graph.nodes[neighbor][x_col]) * int(
-            graph.nodes[node][y_col])
-
+        second_summation += graph.nodes[node][x_col] * graph.nodes[neighbor][y_col]
+        second_summation += graph.nodes[neighbor][x_col] * graph.nodes[node][y_col]
 
     return (first_summation, second_summation)
 
@@ -227,15 +224,11 @@ def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) ->
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
-        first_summation += int(graph.nodes[node][x_col]) * int(
-            graph.nodes[node][y_col]
-        ) - ((int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])) * 0.5)
+        first_summation += graph.nodes[node][x_col] * graph.nodes[node][y_col] - (graph.nodes[node][x_col] + graph.nodes[node][y_col]) * 0.5
 
     for node, neighbor in graph.edges():
-        second_summation += int(graph.nodes[node][x_col]) * int(
-            graph.nodes[neighbor][y_col])
-        second_summation += int(graph.nodes[neighbor][x_col]) * int(
-            graph.nodes[node][y_col])
+        second_summation += graph.nodes[node][x_col] * graph.nodes[neighbor][y_col]
+        second_summation += graph.nodes[neighbor][x_col] * graph.nodes[node][y_col]
 
 
     return (first_summation, second_summation)
@@ -317,7 +310,7 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
 def property_sum(graph: gerrychain.Graph, col: str) -> float:
     cummulative = 0
     for node in graph.nodes():
-        cummulative += int(graph.nodes[node][col])
+        cummulative += graph.nodes[node][col]
     return cummulative
 
 
@@ -327,9 +320,9 @@ def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: float) -> 
 
     summation = 0
     for node in graph.nodes():
-        node_total = int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
+        node_total = graph.nodes[node][x_col] + graph.nodes[node][y_col]
         summation += abs(
-            (int(graph.nodes[node][x_col]) * p_bar)
+            (graph.nodes[node][x_col]) * p_bar
             - (node_total * x_bar)
         ) ** (p)
 
@@ -343,8 +336,8 @@ def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     summation = 0
     for node in graph.nodes():
         summation += abs(
-            (int(graph.nodes[node][x_col]) * y_bar)
-            - (int(graph.nodes[node][y_col]) * x_bar)
+            (graph.nodes[node][x_col] * y_bar)
+            - (graph.nodes[node][y_col] * x_bar)
         )
 
     return (1 / (2 * x_bar * y_bar)) * summation
@@ -356,16 +349,15 @@ def gini(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
 
     summation = 0
     for node in graph.nodes():
-        node_total = int(graph.nodes[node][x_col]) + int(graph.nodes[node][y_col])
+        node_total = graph.nodes[node][x_col] + graph.nodes[node][y_col]
         for other_node in graph.nodes():
-            other_node_total = int(graph.nodes[other_node][x_col]) + int(
-                graph.nodes[other_node][y_col]
-            )
+            other_node_total = graph.nodes[other_node][x_col] + graph.nodes[other_node][y_col]
+            
             summation += abs(
-                (int(graph.nodes[node][x_col]) * other_node_total)
+                (graph.nodes[node][x_col] * other_node_total)
                 - (
                     node_total
-                    * int(graph.nodes[other_node][x_col])
+                    * graph.nodes[other_node][x_col]
                 )
             )
 
