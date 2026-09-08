@@ -42,12 +42,12 @@ CENSUS_KEY = "7e1b79ce2adac634987a423b6d7fb99510fee50e"
 FIPS = 19
 
 census_2020 = Census(
-    key=CENSUS_KEY,      # We use the provided Census API key.
-    year=2020    # We specify that we would like to use the 2020 Census data.
+    key=CENSUS_KEY,      
+    year=2020    
 )
 census_2010 = Census(
-    key=CENSUS_KEY,      # We use the provided Census API key.
-    year=2010    # We specify that we would like to use the 2020 Census data.
+    key=CENSUS_KEY,      
+    year=2010    
 )
 
 # Iowa 2020 counties

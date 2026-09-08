@@ -49,12 +49,12 @@ def visualize_iowa(g, rho ):
 
     node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
 
-    map, norm = colormap(rho)
+    cmap, norm = colormap(rho)
+    node_colors = [cmap(norm(r)) for r in node_rhos]
 
     nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_rhos, 
-                            vmin=0, vmax=1,
-                            edgecolors='black', linewidths=0.5, ax=ax)
+    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_colors,
+                        edgecolors='black', linewidths=0.5, ax=ax)
 
     ax.set_aspect('equal')
     ax.axis('off')
@@ -66,13 +66,21 @@ def make_uniform_iowa(g, rho):
     return g
 
 def plot_rho_colorbar_diverging(vcenter=RHO, vmin=0, vmax=1, tick_size=10):
-    fig, ax = plt.subplots(figsize=(0.5, 4))
+    fig, ax = plt.subplots(figsize=(1.2, 4))
+    fig.subplots_adjust(right=0.4)
     cmap, norm = colormap(vcenter)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    cbar = fig.colorbar(sm, cax=ax)
+    cbar = fig.colorbar(sm, ax=ax, fraction=1.0, pad=0)
     cbar.ax.tick_params(labelsize=tick_size)
-    cbar.ax.set_title(u"\u03C1", rotation=0, fontsize=tick_size * 3, pad=10)
-    plt.tight_layout()
+    cbar.ax.set_title(r"$\rho_i$", rotation=0, fontsize=tick_size * 3, pad=10)
+    cbar.ax.yaxis.set_ticks_position('right')
+    cbar.ax.text(1.6, vcenter, fr"$\rho = {RHO}$", va='center', ha='left',
+             fontsize=tick_size, transform=cbar.ax.transData, clip_on=False)
+    cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
+    
+    ax.set_visible(False)
+
+
 
 def plot_rho_vs_capy_uniform(g):
     num_rhos = 50
@@ -107,4 +115,4 @@ visualize_iowa(make_uniform_iowa(g, RHO), RHO)
 plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/uniform_iowa_visualization_rho={RHO}.png")
 
 plot_rho_colorbar_diverging(RHO)
-plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/blues_rho_colorbar_rho={RHO}.png")
+plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/divergent_rho_colorbar_rho={RHO}.png")

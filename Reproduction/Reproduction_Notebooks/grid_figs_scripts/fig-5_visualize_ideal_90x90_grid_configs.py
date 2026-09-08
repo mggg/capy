@@ -16,8 +16,9 @@ import seaborn as sns
 from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid, draw_grid_as_checkerboard
 
 RHO = 0.3
+M = 1
 
-draw_grid_as_checkerboard(generate_ch_grid(90, 90, RHO, 1000), "checkerboard", RHO)
-draw_grid_as_checkerboard(generate_clust_grid(90, 90, RHO, 1000, method = "random"), "clustered", RHO)
-draw_grid_as_checkerboard(generate_isol_grid(90, 90, RHO, 1000), "isolated", RHO)
-draw_grid_as_checkerboard(generate_kclust_grid(90, 90, RHO, 1000, 6, method = "random")[0], "kclustered", RHO)
+draw_grid_as_checkerboard(generate_ch_grid(90, 90, RHO, M), "checkerboard", RHO)
+draw_grid_as_checkerboard(generate_clust_grid(90, 90, RHO, M, method = "random"), "clustered", RHO)
+draw_grid_as_checkerboard(generate_isol_grid(90, 90, RHO, M), "isolated", RHO)
+draw_grid_as_checkerboard(generate_kclust_grid(90, 90, RHO, M, 6, method = "random")[0], "kclustered", RHO)

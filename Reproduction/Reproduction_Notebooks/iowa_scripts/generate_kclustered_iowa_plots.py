@@ -16,12 +16,25 @@ import warnings
 import tqdm
 from collections import deque, defaultdict
 import math
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+
 
 RHO = 0.3
+K = 10
 num_samples = 500
 num_rhos = 100
 
-def visualize_iowa(g):
+def colormap(rho):
+    diverging_cmap = LinearSegmentedColormap.from_list(
+    "rho_diverging",
+    ["#2267BC", "#ffffff", "#FFA812"]
+    )
+    # Norm that maps 0→left, RHO→center (white), 1→right
+    norm = TwoSlopeNorm(vmin=0, vcenter=RHO, vmax=1)
+
+    return diverging_cmap, norm
+
+def visualize_iowa(g, rho ):
     pos = {
     node: (
         float(g.nodes[node]["INTPTLON"]),
@@ -40,20 +53,19 @@ def visualize_iowa(g):
 
     node_rhos = [g.nodes[node]["x_pop"] / g.nodes[node]["TOTPOP"] for node in g.nodes()]
 
-    nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_rhos,
-                            cmap=plt.cm.Blues, vmin=0, vmax=1,
+    cmap, norm = colormap(rho)
+    node_colors = [cmap(norm(r)) for r in node_rhos]
+
+    nx.draw_networkx_nodes(g, pos=pos, node_size=sizes, node_color=node_colors,
                             edgecolors='black', linewidths=0.5, ax=ax)
+    nx.draw_networkx_edges(g, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
+
 
     ax.set_aspect('equal')
     ax.axis('off')
 
 def populate_cluster_random(start_node, G, tot_x_pop):
-    # queue for BFS
-    for node in g.nodes:
-        G.nodes[node]["x_pop"] = 0
-        G.nodes[node]["y_pop"] = 0
-
+    
     queue = deque([start_node])
 
     visited = set()
@@ -93,7 +105,44 @@ def populate_cluster_random(start_node, G, tot_x_pop):
     
     return G, real_rho
 
+def generate_kclust_grid(G, rho, k):
+
+    target_pop = rho * metrics.property_sum(G, "TOTPOP") / k 
+
+
+    for _ in range(k):
+        y_nodes = [node for node in G.nodes if G.nodes[node]["x_pop"] == 0]
+        seed = random.choice(y_nodes)
+
+        G, cluster_rho = populate_cluster_random(seed, G, target_pop)
+
+    for node in G.nodes():
+        if G.nodes[node]["x_pop"] == 0:
+            G.nodes[node]["y_pop"] = g.nodes[node]["TOTPOP"]
+    
+    real_rho = (metrics.property_sum(G, "x_pop") / 
+                (metrics.property_sum(G, "x_pop") + 
+                 metrics.property_sum(G, "y_pop")))
+    
+    x_nodes = [
+        node for node in G.nodes()
+        if G.nodes[node]["x_pop"] > 0
+        ]
+
+    H = G.subgraph(x_nodes)
+
+    components = nx.number_connected_components(H)
+
+    return G, real_rho, components
+
 g = gerrychain.Graph.from_json("reproduction_data/ia_files/ia_counties_2020.json")
+for node in g.nodes():
+    g.nodes[node]["x_pop"] = 0
+    g.nodes[node]["y_pop"] = 0
+
+g_, real_rho, num_components = generate_kclust_grid(g, RHO, k=K)
+visualize_iowa(g_, RHO)
+plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/multicluster_iowa_visualization_rho={RHO},k={K}.png")
 
 real_rhos = []
 capys = []
@@ -108,7 +157,7 @@ for _ in range(num_samples):
 
         nodes = list(g.nodes())
         seed = random.choice(nodes)
-        g_, real_rho = populate_cluster_random(seed, g, rho* metrics.property_sum(g, "TOTPOP"))
+        g_, real_rho, num_components = generate_kclust_grid(g, rho, k=10)
         real_rhos.append(real_rho)
         capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
         morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
@@ -119,7 +168,7 @@ plt.xlabel(r'$\rho$')
 plt.ylabel("Moran's I")
 plt.xlim([0, 0.5])
 plt.tight_layout()
-plt.savefig("Reproduction/Reproduction_Figures/Iowa/moran_by_rho_onecluster_iowa.png")
+plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/moran_by_rho_multicluster_iowa_k={K}.png")
 
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, capys, s=0.1, color = "#1560bd")
@@ -127,8 +176,4 @@ plt.xlabel(r'$\rho$')
 plt.ylabel("Capy")
 plt.xlim([0, 0.5])
 plt.tight_layout()
-plt.savefig("Reproduction/Reproduction_Figures/Iowa/capy_by_rho_onecluster_iowa.png")
-
-g_, real_rho = populate_cluster_random(seed, g, RHO* metrics.property_sum(g, "TOTPOP"))
-visualize_iowa(g_)
-plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/onecluster_iowa_visualization_rho={RHO}.png")
+plt.savefig(f"Reproduction/Reproduction_Figures/Iowa/capy_by_rho_multicluster_iowa_k={K}.png")
