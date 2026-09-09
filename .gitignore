@@ -177,8 +177,10 @@ cython_debug/
 *.gpkg
 *.zip
 *.xml
-*.json
+# *.json  — kept commented out; specific generated paths are ignored below
+data/shared/processed/
 *.png
+*.tex
 
 # Archive
 archive/
