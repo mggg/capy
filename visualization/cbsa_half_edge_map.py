@@ -3,15 +3,15 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import geopandas as gpd
 import pandas as pd
 
-from pipeline.process_results import enrich_metrics
-from pipeline.utils.visualization_settings import GRID_METRICS
+from capy_core.process_results import enrich_metrics
+from visualization.visualization_settings import GRID_METRICS
 
 # ── configuration 
 YEAR = 2020  # census decade: 1980 | 1990 | 2000 | 2010 | 2020
