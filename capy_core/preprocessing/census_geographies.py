@@ -14,9 +14,9 @@ import typer
 
 
 YEARS = [1980, 1990, 2000, 2010, 2020]
-POPULATION_DIR = Path("data/raw/population")
-GEOGRAPHIES_DIR = Path("data/raw/geographies")
-OUTPUT_DIR = Path("data/processed/census_geographies")
+POPULATION_DIR = Path("data/shared/raw/population")
+GEOGRAPHIES_DIR = Path("data/shared/raw/geographies")
+OUTPUT_DIR = Path("data/shared/processed/census_geographies")
 
 PART_WIDTHS = {
     "state": 2,
@@ -553,10 +553,14 @@ def main(level: str = typer.Option("tracts",
         pop = read_population(year, population_dir, level_label)
         if year in (1980, 1990):
             gdf = read_nhgis_geography(year, geographies_dir, level_label)
-            # state_iter = gdf.to_crs(TARGET_CRS).groupby("STATEFP")
             state_iter = (group for _, group in gdf.to_crs(TARGET_CRS).groupby("STATEFP"))
         else:
-            state_iter = read_census_geography(year, geographies_dir, level_label)
+            # Census TIGER county downloads are national single files; split by STATEFP
+            # just like the NHGIS path. Per-state files (tracts, block groups) each
+            # contain only one state so the groupby is a no-op for those.
+            state_iter = (
+                group for gdf in read_census_geography(year, geographies_dir, level_label)
+                for _, group in gdf.groupby("STATEFP"))
 
         n_written = 0
         states_written: set = set()
