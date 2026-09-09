@@ -18,6 +18,12 @@ CONTRACTION_POP_COLS = ("WHITE", "BLACK")
 
 
 def main(input_glob: str, output_base_dir: str = "data/shared/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN"):
+    """Build dual adjacency graphs for all .gpkg files matching *input_glob*.
+
+    Processes files in parallel, then aggregates any dropped zero-population
+    nodes across all study areas into one .gpkg per census year under
+    ``data/shared/outputs/<geography>_in_<study_area_type>/dropped_nodes/``.
+    """
     gpkg_files = sorted(glob.glob(input_glob))
     if not gpkg_files:
         raise FileNotFoundError(f"No .gpkg files matched: {input_glob!r}")
@@ -46,6 +52,13 @@ def main(input_glob: str, output_base_dir: str = "data/shared/processed/dual_gra
 
 
 def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
+    """Process a single clipped geography .gpkg: build the dual graph, connect
+    disconnected components, drop zero-population nodes, and write both the
+    original and connected graph JSONs to *output_base_dir/<year>/*.
+
+    Returns ``(year, dropped_gdf)`` where *dropped_gdf* is a GeoDataFrame of
+    removed zero-population nodes, or ``None`` if none were dropped.
+    """
     # derive output paths from the filename:
     year = Path(gpkg).parent.name
     stem = Path(gpkg).stem
@@ -127,6 +140,11 @@ def has_zero_nodes(graph: gerrychain.Graph):
 
 
 def drop_zero_nodes(graph: gerrychain.Graph):
+    """Remove all zero-contraction-population nodes from *graph* in place.
+
+    Returns ``(graph, dropped_nodes)`` where *dropped_nodes* is a list of
+    ``(node_index, GISJOIN)`` pairs for every removed node.
+    """
     zero_nodes = [n for n in graph.nodes() if node_contraction_population(graph, n) == 0]
 
     dropped_nodes = [(n, graph.nodes[n].get("GISJOIN", n)) for n in zero_nodes]
@@ -136,6 +154,14 @@ def drop_zero_nodes(graph: gerrychain.Graph):
 
 
 def connect_components(geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
+    """Add edges until the graph has exactly one connected component.
+
+    For each disconnected pair of components, finds the geometrically nearest
+    pair of nodes (one from each component) using an STR-tree spatial index
+    and adds an edge between them. Repeats until the graph is fully connected.
+
+    Returns (graph, n_added) where n_added is the number of edges inserted.
+    """
     geom_by_geoid = dict(zip(geofile[attr], geofile.geometry))
     n_added = 0
     while nx.algorithms.components.number_connected_components(graph) != 1:

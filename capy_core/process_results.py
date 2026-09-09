@@ -8,6 +8,8 @@ from capy_core.utils import definitions
 
 
 def parse_cbsa(config_loc: str) -> definitions.StudyArea:
+    """Load a study area definition JSON and return a StudyArea object. Fills in optional fields (geometry, total_population) before parsing
+    """
     with open(config_loc) as f:
         data = json.load(f)
 
@@ -31,6 +33,10 @@ def _strip_graph_suffix(filename: str) -> str:
 
 
 def output_name_parts(filename: str):
+    """Parse a graph JSON filename into(study_area_identity, geography_year, vintage).
+
+    Supports both the current <geography>_in_<identity>_<year>_<vintage>_vintage convention and the legacy cbsa_<code>_<month>_<year> format.
+    """
     output_stem = _strip_graph_suffix(filename)
 
     if "_in_" in output_stem and output_stem.endswith("_vintage"):
@@ -58,6 +64,7 @@ def output_name_parts(filename: str):
 
 
 def definition_json_for_output(filename: str) -> str:
+    """Return the expected path to the study area definition JSON for a graph file."""
     output_stem = _strip_graph_suffix(filename)
     if "_in_" in output_stem and output_stem.endswith("_vintage"):
         study_area_identity, _, definition_vintage = output_name_parts(filename)
@@ -69,6 +76,12 @@ def definition_json_for_output(filename: str) -> str:
 
 
 def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    """Join study area metadata onto a raw metrics DataFrame.
+
+    Reads the corresponding definition JSON for each row's filename and adds
+    columns: definition_month_year, year, area_title, area_code,
+    total_population_2020.
+    """
     cbsa_infos = df["filename"].apply(definition_json_for_output).apply(parse_cbsa)
     df["definition_month_year"] = df["filename"].apply(
         lambda x: output_name_parts(x)[2]

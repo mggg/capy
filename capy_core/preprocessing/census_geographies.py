@@ -94,31 +94,43 @@ def clean_filename(value: str) -> str:
 
 
 def is_conflated_nhgis_path(path: Path) -> bool:
+    """Return True if the NHGIS path is a conflated or TL-2008 variant.
+
+    Conflated and TL-2008 shapefiles use adjusted boundaries and should be
+    skipped in favour of the original boundary shapefiles. ???
+    """
     text = clean_filename(f"{path.parent.name} {path.name}")
     return "conflated" in text or "tl2008" in text
 
 
 def is_county_sidecar_nhgis_path(path: Path) -> bool:
+    """Return True if the shapefile is a county sidecar bundled with a tract file.
+
+    NHGIS sometimes includes a companion county shapefile alongside tract
+    shapefiles (e.g. tract_county_...). These should not be treated as
+    standalone county or tract geographies.
+    """
     text = clean_filename(path.stem)
     compact = text.replace(" ", "")
-    return (
-        "tractcounty" in compact
+    return ("tractcounty" in compact
         or "countytract" in compact
         or "tract county" in text
-        or "county tract" in text
-    )
+        or "county tract" in text)
 
 
 def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
+    """Return True if path is a primary NHGIS tract or BNA shapefile for year.
+
+    Excludes conflated variants, county sidecars, and files that don't
+    contain the year string in their name.
+    """
     if path.suffix.lower() != ".shp":
         return False
 
     name = path.name.lower()
-    if (
-        str(year) not in name
+    if (str(year) not in name
         or is_conflated_nhgis_path(path)
-        or is_county_sidecar_nhgis_path(path)
-    ):
+        or is_county_sidecar_nhgis_path(path)):
         return False
 
     text = clean_filename(path.stem)
@@ -126,6 +138,7 @@ def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
 
 
 def is_block_group_name(path: Path) -> bool:
+    """Return True if the shapefile stem matches common NHGIS block-group naming patterns."""
     text = clean_filename(path.stem)
     compact = text.replace(" ", "")
     return (
@@ -133,11 +146,17 @@ def is_block_group_name(path: Path) -> bool:
         or "blckgrp" in compact
         or "blkgrp" in compact
         or ("block" in text and "group" in text)
-        or re.search(r"(^| )bg( |$)", text) is not None
-    )
+        or re.search(r"(^| )bg( |$)", text) is not None)
 
 
 def is_nhgis_shapefile_for_level(path: Path, year: str, level_label: str) -> bool:
+    """Return True if path is the correct NHGIS shapefile for year and level_label.
+
+    Applies level-specific rules: tracts accept original non-sidecar files;
+    counties accept conflated variants (often the only form available for older
+    years); block groups and blocks use name-pattern matching while excluding
+    sidecars and conflated files.
+    """
     if path.suffix.lower() != ".shp" or str(year) not in path.name.lower():
         return False
 
@@ -224,6 +243,13 @@ def sum_indexed_columns(
 
 
 def read_nhgis_1980_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
+    """Parse a 1980 NHGIS population extract into a standardised DataFrame.
+
+    Computes non-Hispanic White and Black counts by subtracting Hispanic
+    same-race counts (C9G* prefix columns) from total race counts (C9D*
+    prefix columns). Returns JOIN_KEY, GISJOIN, STATEFP, COUNTYFP,
+    WHITE, BLACK, TOTPOP.
+    """
     race_prefixes = indexed_prefixes(df, "C9D")
     hispanic_race_prefixes = indexed_prefixes(df, "C9G")
     if not race_prefixes:
@@ -250,6 +276,11 @@ def read_nhgis_1980_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
 
 
 def read_nhgis_1990_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
+    """Parse a 1990 NHGIS population extract (ET2 columns) into a standardised DataFrame.
+
+    Returns JOIN_KEY (= GISJOIN), STATEFP, COUNTYFP, WHITE (ET2001),
+    BLACK (ET2002), and TOTPOP (sum of ET2001-ET2010).
+    """
     race_cols = [f"ET2{i:03d}" for i in range(1, 11)]
     require_columns(df, ["GISJOIN", "STATEA", "COUNTYA"] + race_cols, path)
     gisjoin = df["GISJOIN"].astype(str)
@@ -264,6 +295,11 @@ def read_nhgis_1990_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
 
 
 def read_census_population(df: pd.DataFrame, path: Path, year: int, level_label: str) -> pd.DataFrame:
+    """Parse a Census API population CSV (2000-2020) into a standardised DataFrame.
+
+    Constructs JOIN_KEY from zero-padded FIPS part columns (state, county,
+    tract, etc.) and renames NH_WHITE and NH_BLACK into WHITE and BLACK.
+    """
     config = LEVELS[level_label]
     part_columns = [POPULATION_PART_COLUMNS[part] for part in config["parts"]]
     require_columns(
@@ -288,6 +324,11 @@ def read_census_population(df: pd.DataFrame, path: Path, year: int, level_label:
 
 
 def read_population(year: int, population_dir: Path, level_label: str) -> pd.DataFrame:
+    """Load the population table for year and level_label from population_dir.
+
+    Switches to the NHGIS readers for 1980/1990 and to the Census API reader
+    for 2000-2020. Appends a POC column (TOTPOP minus WHITE).
+    """
     if year in (1980, 1990):
         path = population_dir / f"nhgis_{year}_{level_label}.csv"
     else:
@@ -321,6 +362,11 @@ def geography_part(gdf: gpd.GeoDataFrame, part: str) -> pd.Series:
 
 
 def standardize_census_geography(gdf: gpd.GeoDataFrame, level_label: str) -> gpd.GeoDataFrame:
+    """Add JOIN_KEY, STATEFP, COUNTYFP, GEOID, and GISJOIN columns to a Census TIGER GeoDataFrame.
+
+    JOIN_KEY is the zero-padded concatenation of the level's FIPS parts
+    (e.g. state+county+tract for tracts). GISJOIN = 'G' + JOIN_KEY.
+    """
     config = LEVELS[level_label]
     parts = [geography_part(gdf, part) for part in config["parts"]]
     join_key = parts[0]
@@ -336,6 +382,12 @@ def standardize_census_geography(gdf: gpd.GeoDataFrame, level_label: str) -> gpd
 
 
 def read_census_geography(year, geographies_dir, level_label):
+    """Yield one reprojected GeoDataFrame per TIGER shapefile in the level directory.
+
+    Files are read from geographies_dir/census_{year}_{level_label}/.
+    Each frame is standardised (JOIN_KEY, GISJOIN, etc.) and reprojected to
+    esri:102003.
+    """
     shape_dir = geographies_dir / f"census_{year}_{level_label}"
     paths = sorted(path for path in shape_dir.glob("*.shp") if path.is_file())
     if not paths:
@@ -428,6 +480,12 @@ def nhgis_extract_dirs(geographies_dir: Path, year: int, level_label: str) -> Li
 
 
 def read_nhgis_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.GeoDataFrame:
+    """Load a 1980 or 1990 NHGIS geography shapefile extract for level_label.
+
+    Searches extract directories for *_shape.zip files, unpacks nested
+    zips into a temp directory, filters to the shapefile matching the year and
+    level, and standardises GISJOIN, STATEFP, and COUNTYFP columns.
+    """
     extract_dirs = nhgis_extract_dirs(geographies_dir, year, level_label)
     paths = []
     for extract_dir in extract_dirs:
@@ -471,6 +529,13 @@ def read_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.Ge
 
 
 def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_label: str) -> gpd.GeoDataFrame:
+    """Merge population data into a geography by JOIN_KEY.
+
+    Filters the geography to states present in the population table, performs
+    a one-to-one left join, then drops rows without a matching population
+    record. Raises ValueError if the unmatched rate exceeds 30 % (except for
+    expected BNA mismatches in 1990 blocks, those are expected).
+    """
     state_fips = set(pop["STATEFP"])
     geo_states = set(gdf["STATEFP"].unique())
     gdf = gdf[gdf["STATEFP"].isin(state_fips)].copy()
@@ -526,6 +591,7 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
 
 
 def write_processed(gdf: gpd.GeoDataFrame, year: int, output_dir: Path, level_label: str, statefp: str) -> Path:
+    """Write a state-year GeoDataFrame to output_dir/level_label/<year>_<level>_<statefp>.gpkg."""
     output_dir_by_level = output_dir / level_label
     output_dir_by_level.mkdir(parents=True, exist_ok=True)
     output_path = output_dir_by_level / f"{year}_{level_label}_{statefp}.gpkg"
@@ -533,13 +599,17 @@ def write_processed(gdf: gpd.GeoDataFrame, year: int, output_dir: Path, level_la
     return output_path
 
 
-def main(level: str = typer.Option("tracts",
-        help="tracts, block_groups, blocks, places, or counties"),
+def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks, places, or counties"),
     years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."),
     year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
     population_dir: Path = typer.Option(POPULATION_DIR),
     geographies_dir: Path = typer.Option(GEOGRAPHIES_DIR),
     output_dir: Path = typer.Option(OUTPUT_DIR)) -> None:
+    """Join population tables to geography shapefiles for each year and level.
+
+    For each year, loads the population table and the corresponding geography
+    files, merges them by JOIN_KEY, and writes one .gpkg per state into output_dir/<level_label>/. After all years, reports any states present in some years but absent in others.
+    """
     level_label = validate_level(level)
     run_years = parse_years(years, year_values)
 

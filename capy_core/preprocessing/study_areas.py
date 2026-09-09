@@ -20,6 +20,14 @@ from pathlib import Path
 
 
 def main(filename: str = "data/shared/raw/study_area_sources/list1_march_2020.xls", definition_geographies: str = None, output_dir: str = "data/shared/processed/study_area_definitions", study_area_type: str = "cbsa", definition_vintage: str = "march_2020", cbsa_geographies: str = None):
+    """Build study area definition files (.gpkg + .json) for a given study_area_type.
+
+    Switches to the appropriate builder:
+    - county: one file per county in definition_geographies.
+    - max_county: most populous component county within each CBSA.
+    - max_city: most populous Census place within each CBSA's boundary.
+    - cbsa (default): dissolved union of all component counties per CBSA.
+    """
     if study_area_type == "counties":
         study_area_type = "county"
     if study_area_type not in {"cbsa", "max_county", "county", "max_city"}:
@@ -129,6 +137,7 @@ def first_existing_column(gdf: gpd.GeoDataFrame, candidates: list[str]) -> str:
 
 
 def county_title(row: pd.Series) -> str:
+    """Return a human-readable county name, trying NAMELSAD variants then NAME."""
     for col in ("NAMELSAD", "NAMELSAD20", "NAMELSAD10", "NAMELSAD00", "NAME"):
         if col in row and pd.notna(row[col]):
             return str(row[col])
@@ -136,6 +145,7 @@ def county_title(row: pd.Series) -> str:
 
 
 def build_county_definitions(definition_geographies: str, output_dir: str, definition_vintage: str) -> None:
+    """Write one .gpkg + .json definition file per county in definition_geographies."""
     counties = load_census_geography(definition_geographies)
     state_col = first_existing_column(
         counties,
@@ -170,7 +180,7 @@ def build_county_definitions(definition_geographies: str, output_dir: str, defin
 
 
 def build_max_county_definitions(filename: str, definition_geographies: str, output_dir: str, definition_vintage: str) -> None:
-    
+    """For each CBSA, write a definition file for its most populous component county."""
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
     counties = load_census_geography(definition_geographies)
 
@@ -209,7 +219,8 @@ def build_max_county_definitions(filename: str, definition_geographies: str, out
 
 
 def build_max_city_definitions(filename: str, definition_geographies: str, output_dir: str, definition_vintage: str, cbsa_geographies: str = None) -> None:
-    
+    """For each CBSA, write a definition file for the most populous Census place whose geometry intersects the CBSA boundary.
+    """
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
     places = load_census_geography(definition_geographies).to_crs("esri:102003")
     counties = load_census_geography(cbsa_geographies).to_crs("esri:102003")

@@ -21,6 +21,12 @@ import pandas as pd
 
 
 def output_stem(study_area_file: str, prefix: str, census_geography_type: str, census_geography_year: str, definition_vintage: str) -> str:
+    """Construct the output filename stem for a clipped geography file.
+
+    For vintage-based naming produces:
+    <prefix><census_geography_type>_in_<study_area_identity>_<year>_<vintage>_vintage.
+    Falls back to <prefix><study_area_stem>_geographies if vintage parameters are absent.
+    """
     study_area_stem = Path(study_area_file).stem
     if census_geography_type and census_geography_year and definition_vintage:
         vintage_suffix = f"_{definition_vintage}"
