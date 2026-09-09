@@ -18,8 +18,9 @@ experiment config.
 ## Running
 
 Because this workflow predates the current pipeline, the scripts reference
-old paths and call modules that have since been renamed.  They are preserved
+old paths and call modules that have since been renamed (`pipeline/` →
+`capy_core/`, `experiments/` → `experiment_code/`).  They are preserved
 for historical reference; do not expect them to run without modification.
 
-For new work building on these results, use `experiments/baseline/` as a
+For new work building on these results, use `experiment_code/baseline/` as a
 starting point and the automated pipeline via `scripts/run_experiment.sh`.

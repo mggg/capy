@@ -10,10 +10,10 @@ setup:
 	bash scripts/setup.sh
 
 test:
-	poetry run pytest pipeline/tests/ -v
+	poetry run pytest capy_core/tests/ -v
 
 run: setup
-	bash scripts/run_experiment.sh experiments/$(EXPERIMENT)/config.json
+	bash scripts/run_experiment.sh experiment_code/$(EXPERIMENT)/config.json
 
 clean:
-	rm -rf outputs/
+	rm -rf data/shared/outputs/

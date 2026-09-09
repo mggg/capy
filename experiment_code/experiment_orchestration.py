@@ -15,7 +15,7 @@ from typing import Any
 import typer
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_DEFAULTS_PATH = _REPO_ROOT / "experiments" / "defaults.json"
+_DEFAULTS_PATH = _REPO_ROOT / "experiment_code" / "defaults.json"
 
 _STUDY_AREA_ALIASES: dict[str, str] = {"counties": "county"}
 _STUDY_AREA_TYPES: set[str] = {"cbsa", "county"}
@@ -81,12 +81,12 @@ def validate_config(cfg: dict[str, Any]) -> dict[str, Any]:
         if "study_area_source_file" not in r:
             pattern = r.get("study_area_source_pattern", f"list1_*_{study_area_vintage}.xls")
             matches = sorted(
-                glob.glob(str(_REPO_ROOT / "data/raw/study_area_sources" / pattern))
+                glob.glob(str(_REPO_ROOT / "data/shared/raw/study_area_sources" / pattern))
             )
             if not matches:
                 raise FileNotFoundError(
                     f"No study area source file matching {pattern!r} in "
-                    "data/raw/study_area_sources/"
+                    "data/shared/raw/study_area_sources/"
                 )
             r["study_area_source_file"] = matches[-1]
         if "study_area_definition_vintage" not in r:
@@ -99,14 +99,14 @@ def validate_config(cfg: dict[str, Any]) -> dict[str, Any]:
     def_type = r["study_area_definition_geography_type"]
     r.setdefault(
         "study_area_definition_geographies",
-        str(_REPO_ROOT / "data/processed/census_geographies" / f"{def_year}_{def_type}.gpkg"),
+        str(_REPO_ROOT / "data/shared/processed/census_geographies" / f"{def_year}_{def_type}.gpkg"),
     )
 
     run_name = r.get("run_name") or r.get("name") or (
         f"{r['census_geography_type']}_in_{r['study_area_type']}"
     )
     r["run_name"] = run_name
-    r.setdefault("run_output_dir", str(_REPO_ROOT / "outputs" / run_name))
+    r.setdefault("run_output_dir", str(_REPO_ROOT / "data" / "shared" / "outputs" / run_name))
 
     return r
 
@@ -165,25 +165,25 @@ def run_download_stage(cfg: dict[str, Any]) -> None:
     geo_type = cfg["census_geography_type"]
     years = " ".join(cfg["census_geography_years"])
 
-    _run(_py("pipeline/download/download_population_tables.py", "--level", geo_type, "--years", years))
-    _run(_py("pipeline/download/download_geographies.py", "--level", geo_type, "--years", years))
-    _run(_py("pipeline/preprocessing/census_geographies.py", "--level", geo_type, "--years", years))
+    _run(_py("capy_core/download/download_population_tables.py", "--level", geo_type, "--years", years))
+    _run(_py("capy_core/download/download_geographies.py", "--level", geo_type, "--years", years))
+    _run(_py("capy_core/preprocessing/census_geographies.py", "--level", geo_type, "--years", years))
 
     # Download definition geographies separately only when they differ from the
     # main geography type/year (avoids a redundant download in the common case).
     def_type = cfg["study_area_definition_geography_type"]
     def_year = cfg["study_area_definition_geography_year"]
     if def_type != geo_type or def_year not in cfg["census_geography_years"]:
-        _run(_py("pipeline/download/download_population_tables.py", "--level", def_type, "--years", def_year))
-        _run(_py("pipeline/download/download_geographies.py", "--level", def_type, "--years", def_year))
-        _run(_py("pipeline/preprocessing/census_geographies.py", "--level", def_type, "--years", def_year))
+        _run(_py("capy_core/download/download_population_tables.py", "--level", def_type, "--years", def_year))
+        _run(_py("capy_core/download/download_geographies.py", "--level", def_type, "--years", def_year))
+        _run(_py("capy_core/preprocessing/census_geographies.py", "--level", def_type, "--years", def_year))
 
 
 def run_preprocessing_stage(cfg: dict[str, Any]) -> None:
     study_areas_cmd = _py(
-        "pipeline/preprocessing/study_areas.py",
+        "capy_core/preprocessing/study_areas.py",
         "--definition-geographies", cfg["study_area_definition_geographies"],
-        "--output-dir", "data/processed/study_area_definitions",
+        "--output-dir", "data/shared/processed/study_area_definitions",
         "--study-area-type", cfg["study_area_type"],
         "--definition-vintage", cfg["study_area_definition_vintage"],
     )
@@ -198,10 +198,10 @@ def run_preprocessing_stage(cfg: dict[str, Any]) -> None:
 
     def _overlap(year: str) -> None:
         _run(_py(
-            "pipeline/preprocessing/overlaps.py",
-            f"data/processed/census_geographies/{year}_{geo_type}.gpkg",
-            f"data/processed/study_area_definitions/{study_area_type}_*_{vintage}.gpkg",
-            f"data/processed/clipped_geographies/{year}",
+            "capy_core/preprocessing/overlaps.py",
+            f"data/shared/processed/census_geographies/{year}_{geo_type}.gpkg",
+            f"data/shared/processed/study_area_definitions/{study_area_type}_*_{vintage}.gpkg",
+            f"data/shared/processed/clipped_geographies/{year}",
             "--census-geography-type", geo_type,
             "--census-geography-year", year,
             "--definition-vintage", vintage,
@@ -221,7 +221,7 @@ def run_graph_stage(cfg: dict[str, Any]) -> None:
     geo_files: list[str] = []
     for year in cfg["census_geography_years"]:
         pattern = str(
-            _REPO_ROOT / "data/processed/clipped_geographies" / year
+            _REPO_ROOT / "data/shared/processed/clipped_geographies" / year
             / f"{geo_type}_in_{study_area_type}_*_{year}_{vintage}_vintage.gpkg"
         )
         geo_files.extend(glob.glob(pattern))
@@ -230,8 +230,8 @@ def run_graph_stage(cfg: dict[str, Any]) -> None:
         geo_rel = _rel(geo_file)
         year = Path(geo_rel).parent.name
         stem_name = Path(geo_rel).stem
-        dual_dir = f"data/processed/dual_graphs/{year}"
-        _run(_py("pipeline/graphs.py", geo_rel,
+        dual_dir = f"data/shared/processed/dual_graphs/{year}"
+        _run(_py("capy_core/graphs.py", geo_rel,
                  f"{dual_dir}/{stem_name}_orig.json",
                  f"{dual_dir}/{stem_name}_connected.json"))
 
@@ -250,17 +250,17 @@ def run_metrics_stage(cfg: dict[str, Any]) -> None:
     json_files: list[str] = []
     for year in cfg["census_geography_years"]:
         pattern = str(
-            _REPO_ROOT / "data/processed/dual_graphs" / year
+            _REPO_ROOT / "data/shared/processed/dual_graphs" / year
             / f"{geo_type}_in_{study_area_type}_*_{year}_{vintage}_vintage_connected.json"
         )
         json_files.extend(glob.glob(pattern))
 
     def _calculate_csv(output_file: Path, *groups: str) -> None:
-        header = _run_capture(_py("pipeline/metrics.py", "", *groups, "--headers-only"))
+        header = _run_capture(_py("capy_core/metrics.py", "", *groups, "--headers-only"))
         output_file.write_text(header)
 
         def _one(jf: str) -> str:
-            return _run_capture(_py("pipeline/metrics.py", _rel(jf), *groups))
+            return _run_capture(_py("capy_core/metrics.py", _rel(jf), *groups))
 
         with ThreadPoolExecutor() as pool:
             futures = [pool.submit(_one, jf) for jf in json_files]
@@ -278,7 +278,7 @@ def run_figures_stage(cfg: dict[str, Any]) -> None:
     run_output_dir = cfg["run_output_dir"]
     for metric in ("white_black", "white_poc"):
         _run(_py(
-            "pipeline/visualization/generate_figures.py",
+            "visualization/generate_figures.py",
             "--filename", f"{run_output_dir}/{metric}.csv",
             "--prefix", f"{metric}_{study_area_type}_{geo_type}",
             "--geography-type", geo_type,
@@ -287,7 +287,7 @@ def run_figures_stage(cfg: dict[str, Any]) -> None:
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
-def run_experiment(config: str = "experiments/baseline/config.json") -> None:
+def run_experiment(config: str = "experiment_code/baseline/config.json") -> None:
     """Run the full pipeline for a given experiment config."""
     cfg = load_experiment_config(config)
     output_dir = prepare_output_directory(cfg)

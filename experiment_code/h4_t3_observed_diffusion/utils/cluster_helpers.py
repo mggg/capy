@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from pipeline.metrics import moran, dissimilarity, half_edge
+from capy_core.metrics import moran, dissimilarity, half_edge
 
 def compute_rho(G):
     """Black share of the whole graph: total BLACK / (total BLACK + total WHITE)"""
