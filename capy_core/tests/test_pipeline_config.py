@@ -1,37 +1,45 @@
-import os
-import subprocess
+import pytest
+import yaml
+
+import capy_core.config as config_module
+from capy_core.config import load_config
 
 
-def source_config(command: str, extra_env: dict | None = None):
-    env = os.environ.copy()
-    for name in list(env):
-        if name.startswith("STUDY_AREA") or name.startswith("CENSUS_GEOGRAPHY"):
-            env.pop(name)
-    env["STUDY_AREA_SOURCE_FILE"] = "data/raw/study_area_sources/list1_march_2020.xls"
-    if extra_env:
-        env.update(extra_env)
+def _load_with_study_area_type(tmp_path, study_area_type):
+    """Write a minimal config.yaml and a fake source file, then call load_config()."""
+    config_yaml = tmp_path / "config.yaml"
+    config_yaml.write_text(yaml.dump({
+        "study_area_type": study_area_type,
+        "census_geography_type": "tracts",
+        "census_geography_years": [2020],
+        "study_area_vintage": "2020",
+    }))
 
-    return subprocess.run(
-        ["bash", "-c", f'_config="$(poetry run python scripts/resolve_config.py)" || exit 1; eval "${{_config}}"; {command}'],
-        check=False,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    # Provide a fake source file so load_config doesn't raise FileNotFoundError
+    source_dir = tmp_path / "data" / "shared" / "raw" / "study_area_sources"
+    source_dir.mkdir(parents=True)
+    (source_dir / "list1_march_2020.xls").touch()
 
-
-def test_cbsa_definition_geography_defaults_to_counties():
-    result = source_config('printf "%s" "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}"')
-
-    assert result.returncode == 0
-    assert result.stdout == "counties"
+    return config_module, config_yaml, tmp_path
 
 
-def test_cbsa_is_not_a_definition_geography_type():
-    result = source_config(
-        "true",
-        {"STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE": "cbsa"},
-    )
+def test_cbsa_definition_geography_defaults_to_counties(tmp_path, monkeypatch):
+    mod, config_yaml, repo_root = _load_with_study_area_type(tmp_path, "cbsa")
+    monkeypatch.setattr(mod, "CONFIG_FILE", config_yaml)
+    monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
 
-    assert result.returncode == 1
-    assert "Unsupported STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE='cbsa'" in result.stderr
+    cfg = load_config()
+
+    assert cfg["study_area_definition_geography_type"] == "counties"
+
+
+def test_max_city_definition_geography_is_places(tmp_path, monkeypatch):
+    """study_area_type=max_city must use 'places' as definition geography, never 'cbsa'."""
+    mod, config_yaml, repo_root = _load_with_study_area_type(tmp_path, "max_city")
+    monkeypatch.setattr(mod, "CONFIG_FILE", config_yaml)
+    monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
+
+    cfg = load_config()
+
+    assert cfg["study_area_definition_geography_type"] == "places"
+    assert cfg["study_area_definition_geography_type"] != "cbsa"

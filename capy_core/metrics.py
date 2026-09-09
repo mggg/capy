@@ -78,7 +78,7 @@ FAILURE_FIELDNAMES = ["filename", "study_area_code", "x_col", "y_col", "tot_col"
 
 
 def write_failure(filename: str, x_col: str, y_col: str, tot_col: str, exc: Exception) -> None:
-    metric_failures_file = os.environ.get("METRIC_FAILURES_FILE", "outputs/metric_failures.csv")
+    metric_failures_file = os.environ.get("METRIC_FAILURES_FILE", "data/shared/outputs/metric_failures.csv")
     failures_dir = os.path.dirname(metric_failures_file)
     os.makedirs(failures_dir, exist_ok=True)
 

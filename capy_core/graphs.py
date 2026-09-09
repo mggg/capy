@@ -17,22 +17,22 @@ from pathlib import Path
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
 
 
-def main(input_glob: str, output_base_dir: str = "data/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN"):
+def main(input_glob: str, output_base_dir: str = "data/shared/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN"):
     gpkg_files = sorted(glob.glob(input_glob))
     if not gpkg_files:
-        raise
+        raise FileNotFoundError(f"No .gpkg files matched: {input_glob!r}")
 
     worker = partial(_process_file, output_base_dir=output_base_dir, attr=attr)
     with ProcessPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(worker, gpkg_files))
 
     # infer run output dir from the first matched file's stem:
-    # e.g. "tracts_in_max_city_35620_2020_vintage" to outputs/tracts_in_max_city/
+    # e.g. "tracts_in_max_city_35620_2020_vintage" to data/shared/outputs/tracts_in_max_city/
     stem = Path(gpkg_files[0]).stem
     census_geography_type = stem.split("_in_", 1)[0]
     right_parts = stem.split("_in_", 1)[1].split("_")
     study_area_type = f"max_{right_parts[1]}" if right_parts[0] == "max" else right_parts[0]
-    dropped_nodes_dir = Path("outputs") / f"{census_geography_type}_in_{study_area_type}" / "dropped_nodes"
+    dropped_nodes_dir = Path("data/shared/outputs") / f"{census_geography_type}_in_{study_area_type}" / "dropped_nodes"
 
     # aggregate dropped nodes by year and write one gpkg per year
     by_year = {}
@@ -57,6 +57,7 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
     geofile = geofile.to_crs("esri:102003") # so distances are in meters
     warnings.filterwarnings("ignore", message=".*NA values found in column.*")  # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
     warnings.filterwarnings("ignore", message=".*Found islands.*")  # degree-0 nodes are handled explicitly by connect_components.
+    warnings.filterwarnings("ignore", message=".*Found overlaps.*")  # county boundaries sometimes have slight overlaps in Census TIGER files; not a problem for graph construction.
 
     # extract area code from the filename
     right = gpkg.split("_in_")[1]

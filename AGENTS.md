@@ -4,21 +4,21 @@ This project downloads population and geography data from the Census Bureau API 
 
 ## Pipeline overview
 
-The full pipeline is driven by `scripts/reproduce.sh`. Configuration lives in `pipeline/config.yaml` and is loaded by `pipeline/config.py`. Steps run in order:
+The full pipeline is driven by `scripts/reproduce.sh`. Configuration lives in `capy_core/config.yaml` and is loaded by `capy_core/config.py`. Steps run in order:
 
 1. **`scripts/setup.sh`** — scaffolds the directory tree
-2. **`pipeline/download/download_population_tables.py`** — downloads decennial census race/ethnicity counts (TOTPOP, WHITE, BLACK, POC, etc.) via Census API; uses IPUMS/NHGIS extracts for 1980 and 1990
-3. **`pipeline/download/download_geographies.py`** — downloads TIGER/Line shapefiles (2000–2020 via Census API; 1980/1990 via IPUMS NHGIS)
-4. **`pipeline/preprocessing/census_geographies.py`** — joins population tables to shapefiles, producing one attributed shapefile per state/year/level in `data/processed/census_geographies/`
-5. **`pipeline/preprocessing/study_areas.py`** — builds study area boundary polygons (e.g. CBSA outlines from county-component `.xls` files) into `data/processed/study_area_definitions/`
-6. **`pipeline/preprocessing/overlaps.py`** — clips census geography shapefiles to each study area boundary; outputs clipped shapefiles to `data/processed/clipped_geographies/`
-7. **`pipeline/graphs.py`** — builds the dual adjacency graph from each clipped shapefile; drops zero-population nodes and ensures full connectivity; outputs `*_connected.json` files to `data/processed/dual_graphs/`
-8. **`pipeline/metrics.py`** — computes ~80 segregation metrics per study area / year from each connected graph JSON; outputs one CSV row per area; errors logged to `outputs/<run>/metric_failures.csv`
-9. **`pipeline/visualization/generate_figures.py`** — reads the metrics CSV and produces publication figures
+2. **`capy_core/download/download_population_tables.py`** — downloads decennial census race/ethnicity counts (TOTPOP, WHITE, BLACK, POC, etc.) via Census API; uses IPUMS/NHGIS extracts for 1980 and 1990
+3. **`capy_core/download/download_geographies.py`** — downloads TIGER/Line shapefiles (2000–2020 via Census API; 1980/1990 via IPUMS NHGIS)
+4. **`capy_core/preprocessing/census_geographies.py`** — joins population tables to shapefiles, producing one attributed shapefile per state/year/level in `data/processed/census_geographies/`
+5. **`capy_core/preprocessing/study_areas.py`** — builds study area boundary polygons (e.g. CBSA outlines from county-component `.xls` files) into `data/processed/study_area_definitions/`
+6. **`capy_core/preprocessing/overlaps.py`** — clips census geography shapefiles to each study area boundary; outputs clipped shapefiles to `data/processed/clipped_geographies/`
+7. **`capy_core/graphs.py`** — builds the dual adjacency graph from each clipped shapefile; drops zero-population nodes and ensures full connectivity; outputs `*_connected.json` files to `data/processed/dual_graphs/`
+8. **`capy_core/metrics.py`** — computes ~80 segregation metrics per study area / year from each connected graph JSON; outputs one CSV row per area; errors logged to `data/shared/outputs/<run>/metric_failures.csv`
+9. **`visualization/generate_figures.py`** — reads the metrics CSV and produces publication figures
 
 ## Configuration
 
-All pipeline behavior is controlled by `pipeline/config.yaml`:
+All pipeline behavior is controlled by `capy_core/config.yaml`:
 
 | Key | Example | Options |
 |---|---|---|
@@ -40,7 +40,7 @@ For `study_area_type: cbsa`, a delineation file matching `list1_*<vintage>.xls` 
 | `data/processed/study_area_definitions/` | Study area boundary `.gpkg` + metadata `.json` |
 | `data/processed/clipped_geographies/` | Census units clipped to each study area |
 | `data/processed/dual_graphs/` | Adjacency graph JSONs (`*_connected.json`) |
-| `outputs/<run_name>/` | Metric CSVs, `metric_failures.csv`, figures, `run.log` |
+| `data/shared/outputs/<run_name>/` | Metric CSVs, `metric_failures.csv`, figures, `run.log` |
 
 ## Important commands
 
@@ -52,13 +52,13 @@ bash scripts/setup.sh
 bash scripts/reproduce.sh
 
 # Download
-poetry run python pipeline/download/download_population_tables.py --level tracts --years "2020 2010 2000"
-poetry run python pipeline/download/download_geographies.py --level tracts --years "2020 2010 2000"
+poetry run python capy_core/download/download_population_tables.py --level tracts --years "2020 2010 2000"
+poetry run python capy_core/download/download_geographies.py --level tracts --years "2020 2010 2000"
 
 # Preprocessing
-poetry run python pipeline/preprocessing/census_geographies.py --level tracts --years "2020 2010 2000"
-poetry run python pipeline/preprocessing/study_areas.py --filename data/raw/study_area_sources/list1_march_2020.xls --study-area-type cbsa
-poetry run python pipeline/preprocessing/overlaps.py \
+poetry run python capy_core/preprocessing/census_geographies.py --level tracts --years "2020 2010 2000"
+poetry run python capy_core/preprocessing/study_areas.py --filename data/raw/study_area_sources/list1_march_2020.xls --study-area-type cbsa
+poetry run python capy_core/preprocessing/overlaps.py \
     "data/processed/study_area_definitions/cbsa_*_march_2020.gpkg" \
     data/processed/clipped_geographies \
     --census-geography-type tracts \
@@ -66,15 +66,15 @@ poetry run python pipeline/preprocessing/overlaps.py \
     --definition-vintage march_2020
 
 # Graphs and metrics
-poetry run python pipeline/graphs.py \
+poetry run python capy_core/graphs.py \
     "data/processed/clipped_geographies/*/tracts_in_cbsa_*_march_2020_vintage.gpkg"
-poetry run python pipeline/metrics.py \
+poetry run python capy_core/metrics.py \
     "data/processed/dual_graphs/*/tracts_in_cbsa_*_march_2020_vintage_connected.json" \
-    BLACK WHITE TOTPOP outputs/tracts_in_cbsa/white_black.csv
+    BLACK WHITE TOTPOP data/shared/outputs/tracts_in_cbsa/white_black.csv
 
 # Figures
-poetry run python pipeline/visualization/generate_figures.py \
-    --filename outputs/tracts_in_cbsa/white_black.csv \
+poetry run python visualization/generate_figures.py \
+    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv \
     --prefix white_black_cbsa_tracts \
     --geography-type tracts \
     --study-area-type cbsa
@@ -82,12 +82,12 @@ poetry run python pipeline/visualization/generate_figures.py \
 
 ## Testing / Verification
 
-- Run `pytest` to execute the test suite under `pipeline/tests/`
+- Run `pytest` to execute the test suite under `capy_core/tests/`
 - Run `bash scripts/reproduce.sh` only when full reproduction is needed
 
 ## Outputs
 
-- Metric CSVs: `outputs/<run_name>/white_black.csv`, `outputs/<run_name>/white_poc.csv`
-- Run log: `outputs/<run_name>/run.log`
-- Figures: `outputs/<run_name>/figures/`
+- Metric CSVs: `data/shared/outputs/<run_name>/white_black.csv`, `data/shared/outputs/<run_name>/white_poc.csv`
+- Run log: `data/shared/outputs/<run_name>/run.log`
+- Figures: `data/shared/outputs/<run_name>/figures/`
 - Output formats must not change.

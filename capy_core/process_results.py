@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import typer
 
-from pipeline.utils import definitions
+from capy_core.utils import definitions
 
 
 def parse_cbsa(config_loc: str) -> definitions.StudyArea:
@@ -62,10 +62,10 @@ def definition_json_for_output(filename: str) -> str:
     if "_in_" in output_stem and output_stem.endswith("_vintage"):
         study_area_identity, _, definition_vintage = output_name_parts(filename)
         definition_stem = f"{study_area_identity}_{definition_vintage}"
-        return f"data/processed/study_area_definitions/{definition_stem}.json"
+        return f"data/shared/processed/study_area_definitions/{definition_stem}.json"
 
     tokens = output_stem.split("_")
-    return f"data/processed/study_area_definitions/{'_'.join(tokens[:4])}.json"
+    return f"data/shared/processed/study_area_definitions/{'_'.join(tokens[:4])}.json"
 
 
 def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:

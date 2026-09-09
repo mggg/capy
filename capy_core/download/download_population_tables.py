@@ -11,8 +11,8 @@ import pandas as pd
 import typer
 
 
-OUTPUT_DIR = Path("data/raw/population")
-NHGIS_EXTRACTS_DIR = Path("data/raw/population/ipums_population_extracts")
+OUTPUT_DIR = Path("data/shared/raw/population")
+NHGIS_EXTRACTS_DIR = Path("data/shared/raw/population/ipums_population_extracts")
 DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
 
 # See https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html

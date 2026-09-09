@@ -1,5 +1,5 @@
 """
-The script builds study area definition files (.gpkg + .json), one per study area. It writes two files per study area into "data/processed/study_area_definitions":
+The script builds study area definition files (.gpkg + .json), one per study area. It writes two files per study area into "data/shared/processed/study_area_definitions":
 {type}_{code}_{vintage}.gpkg with the boundary geometry
 {type}_{code}_{vintage}.json with metadata (CBSA code, title, component counties, total population)
 The .gpkg files are what overlaps.py reads as study_area_glob.
@@ -8,8 +8,8 @@ The .gpkg files are what overlaps.py reads as study_area_glob.
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from pipeline.utils.definitions import StudyArea
-from pipeline.utils.pipeline_log import tqdm_file
+from capy_core.utils.definitions import StudyArea
+from capy_core.utils.pipeline_log import tqdm_file
 
 import tqdm
 import pandas as pd
@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 
 
-def main(filename: str = "data/raw/study_area_sources/list1_march_2020.xls", definition_geographies: str = None, output_dir: str = "data/processed/study_area_definitions", study_area_type: str = "cbsa", definition_vintage: str = "march_2020", cbsa_geographies: str = None):
+def main(filename: str = "data/shared/raw/study_area_sources/list1_march_2020.xls", definition_geographies: str = None, output_dir: str = "data/shared/processed/study_area_definitions", study_area_type: str = "cbsa", definition_vintage: str = "march_2020", cbsa_geographies: str = None):
     if study_area_type == "counties":
         study_area_type = "county"
     if study_area_type not in {"cbsa", "max_county", "county", "max_city"}:
@@ -27,11 +27,11 @@ def main(filename: str = "data/raw/study_area_sources/list1_march_2020.xls", def
 
     if definition_geographies is None:
         if study_area_type == "max_city":
-            definition_geographies = "data/processed/census_geographies/places/2020_places_*.gpkg"
+            definition_geographies = "data/shared/processed/census_geographies/places/2020_places_*.gpkg"
         else:
-            definition_geographies = "data/processed/census_geographies/counties/2020_counties_*.gpkg"
+            definition_geographies = "data/shared/processed/census_geographies/counties/2020_counties_*.gpkg"
     if cbsa_geographies is None and study_area_type == "max_city":
-        cbsa_geographies = "data/processed/census_geographies/counties/2020_counties_*.gpkg"
+        cbsa_geographies = "data/shared/processed/census_geographies/counties/2020_counties_*.gpkg"
 
     if study_area_type == "county":
         build_county_definitions(definition_geographies, output_dir, definition_vintage or Path(definition_geographies).stem.split("_", 1)[0])

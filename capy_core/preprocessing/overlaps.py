@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import typer
 import tqdm
 import glob
-from pipeline.utils.pipeline_log import tqdm_file
+from capy_core.utils.pipeline_log import tqdm_file
 import geopandas as gpd
 import fiona
 import pandas as pd
@@ -78,7 +78,7 @@ def _run_year(study_area_glob: str, output_dir: str, prefix: str, census_geograp
     print(f"Overlaps between node units and study area in {census_geography_year}: {n_written} written, {n_skipped} skipped (empty)", flush=True)
 
 
-def main(study_area_glob: str, output_base_dir: str, prefix: str = "", census_geography_type: str = "", census_geography_years: str = "", definition_vintage: str = "2020", census_geographies_dir: str = "data/processed/census_geographies"):
+def main(study_area_glob: str, output_base_dir: str, prefix: str = "", census_geography_type: str = "", census_geography_years: str = "", definition_vintage: str = "2020", census_geographies_dir: str = "data/shared/processed/census_geographies"):
     """
     Writes census geographies whose representative points fall within each study area,
     for each year in census_geography_years (space-separated string).

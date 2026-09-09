@@ -177,3 +177,8 @@ cython_debug/
 *.gpkg
 *.zip
 *.xml
+*.json
+*.png
+
+# Archive
+archive/

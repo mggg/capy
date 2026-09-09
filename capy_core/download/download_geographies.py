@@ -10,7 +10,7 @@ import requests
 import typer
 
 
-OUTPUT_DIR = Path("data/raw/geographies")
+OUTPUT_DIR = Path("data/shared/raw/geographies")
 DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
 DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 DOWNLOAD_TIMEOUT = (20, 180)
@@ -416,7 +416,7 @@ def fetch_census(year: int, level: str, output_dir: Path) -> Path:
     return output_path
 
 
-def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks, or counties"), years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."), year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"), output_dir: Path = typer.Option(OUTPUT_DIR), work_dir: Path = typer.Option(Path("data/raw/geographies/ipums_geography_extracts")), env_file: Path = typer.Option(Path(".env"))) -> None:
+def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks, or counties"), years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."), year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"), output_dir: Path = typer.Option(OUTPUT_DIR), work_dir: Path = typer.Option(Path("data/shared/raw/geographies/ipums_geography_extracts")), env_file: Path = typer.Option(Path(".env"))) -> None:
     load_dotenv(env_file)
 
     if level not in LEVELS:
@@ -429,7 +429,7 @@ def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks,
         if year != 2020 and LEVELS[level]["label"] == "places":
             print(f"Skipping {year} places: only 2020 is used in the pipeline.")
             continue
-        if year == 1980 and LEVELS[level]["label"] == ("block_groups", "blocks"):
+        if year == 1980 and LEVELS[level]["label"] in ("block_groups", "blocks"):
             print(f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group or block boundary shapefiles. These were not standardized as nationwide geographic units until 1990.", flush=True)
             continue
         if year in (1980, 1990):

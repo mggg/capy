@@ -1,4 +1,4 @@
-from pipeline.metrics import (
+from capy_core.metrics import (
     angle_1,
     angle_2,
     property_sum,
@@ -118,7 +118,7 @@ def test_uniform_graph_edge_and_half_edge(graph):
 
 @pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))
 def test_checkerboard_grid_moran(grid):
-    assert math.isclose(moran(grid, "x_col", "tot_col"), -1)
+    assert math.isclose(moran(grid, "x_col", "tot_col")["moran_A"], -1)
 
 
 def is_similiar(metric_1, metric_2):

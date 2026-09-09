@@ -1,12 +1,12 @@
 """
-Pipeline configuration loader. Reads pipeline/config.yaml and returns a plain dict of resolved config values.
+Pipeline configuration loader. Reads capy_core/config.yaml and returns a plain dict of resolved config values.
 
 Usage from Python:
-    from pipeline.config import load_config
+    from capy_core.config import load_config
     cfg = load_config()
 
 When run directly, prints shell export statements for use in shell scripts:
-    eval "$(poetry run python pipeline/config.py)"
+    eval "$(poetry run python capy_core/config.py)"
 """
 from __future__ import annotations
 import glob
@@ -27,7 +27,7 @@ CENSUS_GEOGRAPHY_TYPE_ALIASES = {"tract": "tracts",
 
 
 def load_config() -> dict:
-    """Load and validate pipeline/config.yaml.
+    """Load and validate capy_core/config.yaml.
 
     Returns a dict with snake_case keys and Python-native values
     (list[str] for census_geography_years, Path for run_output_dir).
@@ -58,7 +58,7 @@ def load_config() -> dict:
 
     if study_area_type in ("cbsa", "max_city", "max_county"):
         source_pattern = f"list1_*{study_area_vintage}.xls"
-        matches = sorted(glob.glob(str(REPO_ROOT / "data" / "raw" / "study_area_sources" / source_pattern)))
+        matches = sorted(glob.glob(str(REPO_ROOT / "data" / "shared" / "raw" / "study_area_sources" / source_pattern)))
         if not matches:
             raise FileNotFoundError(f"No study area source file found for study_area_type={study_area_type!r}, study_area_vintage={study_area_vintage!r}.")
         study_area_source_file = matches[-1]
@@ -66,9 +66,9 @@ def load_config() -> dict:
     else:
         study_area_definition_vintage = study_area_vintage
 
-    study_area_definition_geographies = (f"data/processed/census_geographies/{study_area_definition_geography_type}/{study_area_definition_geography_year}_{study_area_definition_geography_type}_*.gpkg")
+    study_area_definition_geographies = (f"data/shared/processed/census_geographies/{study_area_definition_geography_type}/{study_area_definition_geography_year}_{study_area_definition_geography_type}_*.gpkg")
 
-    run_output_dir = REPO_ROOT / "outputs" / f"{census_geography_type}_in_{study_area_type}"
+    run_output_dir = REPO_ROOT / "data" / "shared" / "outputs" / f"{census_geography_type}_in_{study_area_type}"
 
     return {"study_area_type": study_area_type,
         "census_geography_type": census_geography_type,

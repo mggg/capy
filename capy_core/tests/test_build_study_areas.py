@@ -3,7 +3,7 @@ import json
 import geopandas as gpd
 from shapely.geometry import Polygon
 
-from pipeline.preprocessing.study_areas import build_county_definitions
+from capy_core.preprocessing.study_areas import build_county_definitions
 
 
 def test_build_county_definitions(tmp_path):
@@ -40,6 +40,6 @@ def test_build_county_definitions(tmp_path):
 
     data = json.loads(definition_json.read_text())
     assert data["area_code"] == "06037"
-    assert data["cbsa_title"] == "Los Angeles County"
+    assert data["area_title"] == "Los Angeles County"
     assert data["component_counties_fips"] == ["06037"]
     assert data["total_population"] == 100

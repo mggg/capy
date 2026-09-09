@@ -7,7 +7,7 @@
 study_area_type: max_city
 
 # Valid values: tracts, block_groups, blocks, counties
-census_geography_type: tracts
+census_geography_type: counties
 
 census_geography_years:
   - 2020
