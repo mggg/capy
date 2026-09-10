@@ -6,3 +6,6 @@ Folders and scripts:
 + `line_plots/`: these scripts create metric line plots used in the paper.
 + `rho_vs_metrics_scatterplot/`: create scatterplots showing how areas score on a given metric vs the rho (share of the minority population) in the area. The minority population can be configured to Black or POC (Total - White).
 + `visualization_settings.py`: contains style decisions and helper functions used across the scripts in this folder.
++ `lambda_scripts/`: plots the rankings of metro areas according to capy against their rankings accoding to lambda weighted variants of capy.
++ `chicago_maup/`: plots various segregation metrics on the city of Chicago at the tract, block group, and block levels
++ `rank/`: plots the rankings of the top 100 most populous metro area of various metrics
