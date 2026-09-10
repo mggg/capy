@@ -3,7 +3,8 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root (for capy_core)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/ (for visualization)
 
 import pandas as pd
 
@@ -53,7 +54,8 @@ def _escape_latex(text: str) -> str:
 
 def _auto_output_path(input_csv: Path, rank_by: str, rank_year: int, n: int) -> Path:
     stem = input_csv.stem
-    return input_csv.parent / f"latex_tables/{stem}_table_{rank_by}_{rank_year}_top{n}_all_years.tex"
+    run_name = input_csv.parent.name  # e.g. "tracts_in_cbsa"
+    return Path("figures") / "baseline" / run_name / "latex_tables" / f"{stem}_table_{rank_by}_{rank_year}_top{n}_all_years.tex"
 
 
 def build_table(

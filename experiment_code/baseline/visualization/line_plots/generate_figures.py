@@ -2,7 +2,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root (for capy_core)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/ (for visualization)
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -37,7 +38,8 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
     geography_label = geography_type.replace("_", " ")
 
     prefix = _shorten_prefix(prefix)
-    output_dir = Path(filename).parent / "figures"
+    run_name = f"{geography_type}_in_{study_area_type or 'cbsa'}"
+    output_dir = Path("figures") / "baseline" / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "lineplots").mkdir(exist_ok=True)
 

@@ -79,4 +79,4 @@ for metric in white_black white_poc; do
         --geography-type "${CENSUS_GEOGRAPHY_TYPE}" \
         --study-area-type "${STUDY_AREA_TYPE}"
 done
-echo "Saved to ${RUN_OUTPUT_DIR}/figures"
+echo "Saved to figures/baseline/${STUDY_AREA_TYPE}_${CENSUS_GEOGRAPHY_TYPE}/"
