@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
@@ -105,6 +105,6 @@ for panel in PANELS:
         fontsize=9, frameon=False, ncol=6, labelcolor=SECONDARY, handletextpad=0.4)
 
     out = OUT_DIR / f"{prefix}_{col}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight", facecolor=BG)
+    fig.savefig(out, dpi=200, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
-    print(f"Saved → {out}")
+    print(f"Saved to {out}")
