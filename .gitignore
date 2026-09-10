@@ -179,8 +179,8 @@ cython_debug/
 *.xml
 # *.json  — kept commented out; specific generated paths are ignored below
 data/shared/processed/
-*.png
 *.tex
 
 # Archive
 archive/
+experiment_code/Misc
