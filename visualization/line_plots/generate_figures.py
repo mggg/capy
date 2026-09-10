@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,9 +10,9 @@ import typer
 
 from capy_core.process_results import enrich_metrics
 from visualization.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
-from visualization.plot_family_grids import plot_family_grids
-from visualization.plot_single_metric import plot_single_metric
-from visualization.plot_grid_top10 import plot_grid_top10
+from visualization.line_plots.plot_family_grids import plot_family_grids
+from visualization.line_plots.plot_single_metric import plot_single_metric
+from visualization.line_plots.plot_grid_top10 import plot_grid_top10
 
 
 def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_type: Optional[str] = None, fixed_y: bool = False, study_area_type: Optional[str] = None):
