@@ -1,8 +1,8 @@
 import matplotlib.ticker as mticker
 
 PALETTE = [
-    "#8db600",
     "#1560bd",
+    "#8db600",
     "#ffb7c5",
     "#ffa812",
     "#006b3c",
