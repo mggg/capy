@@ -13,9 +13,12 @@ PALETTE = [
     "#999999",  # gray
 ]
 
-RED = "#d11a42"
-BLUE = "#006b3c"# "#2267bc"
+# RED = "#d11a42"
+BLUE = "#1560bd"# "#2267bc"
 ORANGE = "#ffa812"
+
+MORAN = "#ffa812"
+CAPY = "#1560bd"
 
 GRID_METRICS = {"moran_P": "Moran's I",
     "dissimilarity_1": "Dissimilarity",

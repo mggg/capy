@@ -121,7 +121,7 @@ for x_col, y_col in pairs:
     ax.set_xlabel(DISPLAY_METRICS[x_col], fontsize=9, color=SECONDARY, labelpad=6)
     ax.set_ylabel(DISPLAY_METRICS[y_col], fontsize=9, color=SECONDARY, labelpad=6)
 
-    out_path = out_dir / f"{stem}_rank_{x_col}_vs_{y_col}.png"
+    out_path = out_dir / f"{stem}_rank_{x_col.split('_')[0]}_vs_{y_col.split('_')[0]}.png"
     fig.savefig(out_path, dpi=200, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     print(f"Saved → {out_path}")
