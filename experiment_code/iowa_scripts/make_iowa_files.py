@@ -15,6 +15,7 @@ pd.set_option('display.max_rows', 50)
 import gerrychain
 import networkx as nx
 
+#population data for 2010, and 2020
 p1_population_columns_2010 = {
     "P001003": "WHITE",      # White alone
     "P001004": "BLACK",      # Black or African American alone
@@ -38,9 +39,10 @@ p1_population_columns_2020 = {
     "P1_001N" : "TOTPOP"  #Total Population        
 }
 
-CENSUS_KEY = "7e1b79ce2adac634987a423b6d7fb99510fee50e"
-FIPS = 19
+CENSUS_KEY = #insert your key here
+FIPS = 19 #iowa fips code
 
+#load census
 census_2020 = Census(
     key=CENSUS_KEY,      
     year=2020    
@@ -50,19 +52,20 @@ census_2010 = Census(
     year=2010    
 )
 
-# Iowa 2020 counties
+#Loading Iowa 2020 county shapefiles
 ia_counties_2020 = gpd.read_file(
     "https://www2.census.gov/geo/tiger/TIGER2020/COUNTY/tl_2020_us_county.zip"
 )
 ia_counties_2020 = ia_counties_2020[ia_counties_2020["STATEFP"] == "19"]
 
 
-# Iowa 2010 counties
+# Loading Iowa 2010 county shapefiles
 ia_counties_2010 = gpd.read_file(
     "https://www2.census.gov/geo/tiger/TIGER2010/COUNTY/2010/tl_2010_us_county10.zip"
 )
 ia_counties_2010 = ia_counties_2010[ia_counties_2010["STATEFP10"] == "19"]
 
+#loading census data
 df_tracts_2010 = census_2010.pl.get(
     ("NAME", *p1_population_columns_2010),
     geo={
@@ -87,16 +90,19 @@ df_tracts_2020 = pd.DataFrame(df_tracts_2020).rename(
     columns={"NAME": "name", **p1_population_columns_2020}
 )
 
+#merging data with shapefiles
 merged_gdf = ia_counties_2010.merge(
     df_tracts_2010, left_on="COUNTYFP10", right_on="county", suffixes=("", "_df")
     )
 
+#makeing demographic dataframe columns legible for later scripts
 merged_gdf["BLACK"] = merged_gdf["BLACK"].astype(int)
 merged_gdf["WHITE"] = merged_gdf["WHITE"].astype(int)
 merged_gdf["TOTPOP"] = merged_gdf["TOTPOP"].astype(int)
 
 merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
+#downloading graph jsons and shapefiles, 2010
 merged_gdf.to_file("reproduction_data/ia_files/ia_counties_2010.shp")
 graph = gerrychain.Graph.from_wgeodataframe(merged_gdf)
 graph.to_json(str(Path("reproduction_data/ia_files/ia_counties_2010.json").resolve()))
@@ -106,13 +112,14 @@ merged_gdf = ia_counties_2020.merge(
     df_tracts_2020, left_on="COUNTYFP", right_on="county", suffixes=("", "_df")
     )
 
+#makeing demographic dataframe columns legible for later scripts
 merged_gdf["BLACK"] = merged_gdf["BLACK"].astype(int)
 merged_gdf["WHITE"] = merged_gdf["WHITE"].astype(int)
 merged_gdf["TOTPOP"] = merged_gdf["TOTPOP"].astype(int)
 
 merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
+#downloading graph jsons and shapefiles, 2010
 merged_gdf.to_file("reproduction_data/ia_files/ia_counties_2020.shp")
-
 graph = gerrychain.Graph.from_geodataframe(merged_gdf)
 graph.to_json(str(Path("reproduction_data/ia_files/ia_counties_2020.json").resolve()))

@@ -26,8 +26,8 @@ def half_edge_a_isol(rho)->float:
 
 def half_edge_a_const(rho:float)->float:
     """
-    Returns the capy value of an nxn grid where each node is either all x or all y and x nodes are distributed 
-    in a square with side length n $\sqrt(\rho) * n$ as n goes to infinity.
+    Returns the capy value of an nxn grid where each node contains rho*M members of group x and (1-rh)*M group y, 
+    where M is the node's total population as n goes to infinity.
         Args: rho, the grid's minority proportion
         Returns: the half edge value of the grid for that value of rho
     """
@@ -41,7 +41,6 @@ def half_edge_a_one_clust(rho:float)->float:
         Returns: the half edge value of the grid for that value of rho
     """
     return 1
-
 
 #plotting the image
 isol = []
