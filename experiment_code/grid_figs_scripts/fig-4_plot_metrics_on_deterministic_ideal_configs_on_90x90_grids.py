@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
-sys.path.insert(0, str(Path(__file__).parents[3]))      # for pipeline (3 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
-import pipeline.metrics as metrics
+sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (3 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
+import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,17 +15,26 @@ random.seed(42)
 import seaborn as sns
 from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid
 
-METHOD = "random" # "bfs" or "random"
+"""
+This script generates lineplots of capy versus rho for constant and checkerboard configurations for a set number of global values of rho.
+Global Parameters:
+    num_rhos: int
+        Set a number of evenly spaced rhos between .1 and .5. The script plots values of capy for checkerboard and constant configurations of those rhos
+    node_pop: int
+        How many people live in each node
+"""
+
+node_pop = 1
+num_rhos = 5
 
 graphs_ch = []
 graphs_const = []
-M = 1
 
-rhos = np.linspace(.1, .5, 5)
+rhos = np.linspace(.1, .5, num_rhos)
 
 for rho in rhos: 
-    graphs_ch.append(generate_ch_grid(90, 90, rho, M))
-    graphs_const.append(generate_const_grid(90, 90, rho, M))
+    graphs_ch.append(generate_ch_grid(90, 90, rho, node_pop))
+    graphs_const.append(generate_const_grid(90, 90, rho, node_pop))
 
 half_edge_ch = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_ch]
 half_edge_const = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_const]
@@ -36,5 +45,5 @@ plt.plot(rhos, half_edge_const, label="Constant",     marker="o", color = "#ffa8
 plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
 plt.xlabel("Minority Proportion")
 plt.ylabel("Capy")
-plt.savefig(f"Reproduction/Reproduction_Figures/Idealized_Grids/fig-4_capy_on_idealized_grids_deterministic.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"figures/idealized_grids/fig-4_capy_by_rho_90x90_deterministic_grids_nodepop={node_pop}_{num_rhos}rhos.png", dpi=150, bbox_inches="tight")
 
