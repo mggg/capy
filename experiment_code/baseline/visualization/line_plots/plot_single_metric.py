@@ -1,9 +1,20 @@
+"""
+1×N line-plot panel showing every eligible CBSA in grey with the cross-CBSA mean in blue.
+
+Eligibility: present in all census decades, population ≥ 100K (relaxed to 0 for cities).
+Only GRID_METRICS columns are plotted. Called by generate_figures.main; not intended
+to be run directly.
+
+Output: {output_dir}/grid_lineplots/{prefix}_all_cbsa.png
+"""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from visualization.visualization_settings import GRID_METRICS, _apply_panel_style
+
 
 
 def plot_single_metric(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:

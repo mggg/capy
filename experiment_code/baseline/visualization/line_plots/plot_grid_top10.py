@@ -1,3 +1,13 @@
+"""
+1×N line-plot panel of GRID_METRICS (chosen in visualization_settings.py) over time for the top-N metros by 2020 population.
+
+Each CBSA gets a distinct colour from PALETTE. Called by generate_figures.main;
+not intended to be run directly.
+
+Output: {output_dir}/grid_lineplots/{prefix}_top10.png
+"""
+
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
