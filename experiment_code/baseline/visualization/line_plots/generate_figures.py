@@ -1,3 +1,29 @@
+"""
+CLI entry point for generating all line-plot figures.
+
+Usage:
+    python generate_figures.py [--filename PATH] [--n N] [--prefix PREFIX]
+                               [--geography-type TYPE] [--study-area-type TYPE]
+                               [--fixed-y]
+
+Arguments:
+    filename        Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
+    n               Number of top metros to highlight by 2020 population (default: 10)
+    prefix          Racial-group prefix used in output filenames, e.g. white_poc or white_black
+    geography_type  Census unit label (tracts/block_groups/blocks/counties); inferred from
+                    prefix if omitted
+    study_area_type Area type label (max_county/max_city/None → CBSA); affects output paths
+                    and figure subtitles
+    fixed_y         If set, all panels in a figure share the same y-axis range
+
+For each vintage found in definition_month_year, produces figures in:
+    figures/baseline/{geography_type}_in_{study_area_type}/
+        lineplots/          — one PNG per metric, top-N metros coloured by CBSA
+        grid_lineplots/     — top-N panel and all-CBSA mean panel (GRID_METRICS only)
+        metric_family_grids/ — one grid per metric family
+"""
+
+
 import sys
 from pathlib import Path
 from typing import Optional

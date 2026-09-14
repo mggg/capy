@@ -8,6 +8,20 @@ pd.set_option('display.max_columns', None)
 import os
 os.chdir("/Users/samstephenson/Downloads/capy-bara")
 
+"""
+This script produces bar charts comparing Moran's I, Dissimilarity, and Capy at the block, block group, and tract levels for a given CBSA
+in a given decade.
+
+GLOBAL PARAMETERS:
+    CBSA: int
+        chosen the cbsa code of analysis
+    YEAR = int
+        chosen year of analysis
+"""
+CBSA = 16980 #Chicago = 16980 
+YEAR = 2020
+
+
 ###loading the data, adding columns for year and cbsa_c ode
 tract= pd.read_csv("outputs/tracts_in_cbsa/white_black.csv")
 tract["year"] = tract["filename"].str.extract(r"(\d{4})").astype(int)
@@ -32,16 +46,16 @@ block["cbsa_code"] = (
       .astype(int)
 )
 
-#getting Chicago_2020
-tract = tract[(tract["year"] == 2020) & (tract["cbsa_code"] == 16980)]
-block = block[(block["year"] == 2020) & (block["cbsa_code"] == 16980)]
-bg = bg[(bg["year"] == 2020) & (bg["cbsa_code"] == 16980)]
+#subsetting by cbsa and year
+tract = tract[(tract["year"] == YEAR) & (tract["cbsa_code"] == CBSA)]
+block = block[(block["year"] == YEAR) & (block["cbsa_code"] == CBSA)]
+bg = bg[(bg["year"] == YEAR) & (bg["cbsa_code"] == 16980)]
 
+#calculating metrics
 metrics = [
     "Capy",
     "dissimilarity",
     "Moran_P"]
-
 
 bg_values = [
     bg["half_edge_1"].iloc[0],
@@ -60,6 +74,7 @@ block_values = [
     block["moran_P"].iloc[0]
     ]
 
+#plotting
 x = np.arange(len(metrics))
 width = 0.1
 
@@ -77,4 +92,4 @@ ax.set_title("MAUP_2020-Black vs White")
 ax.legend()
 
 plt.tight_layout()
-plt.savefig("Reproduction/Reproduction_Figures/chicago_maup/chicago_maup_viz.png")
+plt.savefig(f"figures/assortativity_grids/cbsa_maup/chicago_maup_viz_in_{YEAR}_for_{CBSA}_.png")
