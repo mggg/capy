@@ -12,7 +12,34 @@ from matplotlib.lines import Line2D
 
 
 def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_x = 0.5, jitter_y = 0.5, label_x=None,  best_fit=True):
+    """
+    Plot rank-vs-rank scatterplots comparing one x metric against multiple y metrics across CBSAs.
 
+    Each CBSA is ranked independently by x_score and by each column in y_scores. The resulting
+    rank pairs are scatter-plotted with optional jitter to reduce overplotting. Multiple y metrics
+    appear as separate series on the same axes, colored by color_dict.
+
+    Parameters
+    ----------
+    x_score : str
+        Column name in df to rank CBSAs by on the x-axis.
+    y_scores : list of str
+        Column names in df to rank CBSAs by on the y-axis; each produces a separate scatter series.
+    color_dict : dict
+        Maps each y_score column name to a matplotlib color.
+    df : pd.DataFrame
+        Must contain x_score, all y_scores columns, and a "cbsa_code" column for joining ranks.
+    name_dict : dict
+        Maps column names to display labels used in the legend.
+    jitter_x : float, optional
+        Half-width of uniform jitter added to x ranks (default 0.5).
+    jitter_y : float, optional
+        Half-width of uniform jitter added to y ranks (default 0.5).
+    label_x : str or None, optional
+        X-axis label override; defaults to x_score if None.
+    best_fit : bool, optional
+        Reserved parameter; not currently used.
+    """
 
     if label_x is None:
         label_x = x_score
