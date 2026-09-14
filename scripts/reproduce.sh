@@ -73,10 +73,10 @@ poetry run python capy_core/metrics.py \
 echo ""
 echo "=== 6. Figures ==="
 for metric in white_black white_poc; do
-    poetry run python visualization/generate_figures.py \
+    poetry run python experiment_code/baseline/visualization/line_plots/generate_figures.py \
         --filename "${RUN_OUTPUT_DIR}/${metric}.csv" \
         --prefix "${metric}_${STUDY_AREA_TYPE}_${CENSUS_GEOGRAPHY_TYPE}" \
         --geography-type "${CENSUS_GEOGRAPHY_TYPE}" \
         --study-area-type "${STUDY_AREA_TYPE}"
 done
-echo "Saved to figures/baseline/${STUDY_AREA_TYPE}_${CENSUS_GEOGRAPHY_TYPE}/"
+echo "Saved to figures/baseline/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}/"
