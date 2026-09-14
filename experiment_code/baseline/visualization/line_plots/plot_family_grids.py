@@ -1,13 +1,19 @@
+import sys
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/
+
+from typing import Optional
+import typer
+from capy_core.process_results import enrich_metrics
+from visualization.visualization_settings import _shorten_prefix
 from visualization.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _short_name)
 
 
 def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, n: int = 10, n_cols: int = 6, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:
-    BG = "#fafafa"
     month_year_df = df[df["definition_month_year"] == month_year]
     top_n_metros = list(month_year_df["area_code"].drop_duplicates()[:n])
     code_to_title = month_year_df.drop_duplicates("area_code").set_index("area_code")["area_title"]
@@ -40,7 +46,6 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
         fig, axes = plt.subplots(
             rows, cols,
             figsize=(5 * cols, 5 * rows),
-            facecolor=BG,
             sharey=False,
             squeeze=False)
 
@@ -48,9 +53,6 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
             ax = axes[idx // cols][idx % cols]
             y_range = plot_df[metric].max() - plot_df[metric].min()
             _apply_panel_style(ax, years, ylim, y_range=y_range)
-            ax.set_title(
-                subtitle if subtitle else family_title,
-                fontsize=10, fontweight="bold", pad=8, color="#111111")
             for cbsa in top_n_metros:
                 cbsa_df = plot_df[plot_df["area_code"] == cbsa]
                 ax.plot(
@@ -70,5 +72,24 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
 
         safe_name = (family_title.lower().replace("'", "").replace("(", "").replace(")", "").replace(" ", "_"))
         fig.savefig(family_dir / f"{prefix}_{safe_name}.png",
-            dpi=150, bbox_inches="tight", facecolor=BG)
+            bbox_inches="tight")
         plt.close(fig)
+
+
+if __name__ == "__main__":
+    def main(filename: str, prefix: str = "white_poc",
+             study_area_type: Optional[str] = None,
+             n: int = 10, fixed_y: bool = False):
+        area_label = {"max_county": "most populous counties within CBSAs",
+                      "max_city": "most populous cities within CBSAs"}.get(study_area_type, "CBSAs")
+        geography_type = next((g for g in ("block_groups", "blocks", "tracts", "counties") if g in prefix), "tracts")
+        geography_label = geography_type.replace("_", " ")
+        prefix = _shorten_prefix(prefix)
+        output_dir = Path("figures") / "baseline" / f"{geography_type}_in_{study_area_type or 'cbsa'}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        df = enrich_metrics(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
+        month_year = df["definition_month_year"].iloc[0]
+        plot_family_grids(df, prefix, month_year, output_dir, n,
+                          geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
+
+    typer.run(main)
