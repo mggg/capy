@@ -15,6 +15,15 @@ pd.set_option('display.max_rows', 50)
 import gerrychain
 import networkx as nx
 
+"""
+This script downloads Iowa county shapefiles and Census PL 94-171 race data for 2010 and 2020, merges them into GeoDataFrames, and saves GerryChain-compatible adjacency graph JSON files and shapefiles for use in downstream Iowa experiments.
+Global Parameters:
+    CENSUS_KEY: str
+        A valid Census Bureau API key required to fetch PL 94-171 data
+    FIPS: int
+        The state FIPS code for Iowa (19)
+"""
+
 #population data for 2010, and 2020
 p1_population_columns_2010 = {
     "P001003": "WHITE",      # White alone
@@ -24,8 +33,7 @@ p1_population_columns_2010 = {
     "P001007": "NHPI",       # Native Hawaiian and Other Pacific Islander alone
     "P001008": "OTHER",     # Some Other Race alone
     "P001009": "2MORE",     # Two or more races
-    "P001001": "TOTPOP"     #Total Population
-               
+    "P001001": "TOTPOP"     #Total Population            
 }
 
 p1_population_columns_2020 = {
@@ -102,10 +110,10 @@ merged_gdf["TOTPOP"] = merged_gdf["TOTPOP"].astype(int)
 
 merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
-#downloading graph jsons and shapefiles, 2010
-merged_gdf.to_file("reproduction_data/ia_files/ia_counties_2010.shp")
+#writing graph jsons and shapefiles, 2010
+merged_gdf.to_file("rdata/experiment_specific/ia_files/ia_counties_2010.shp")
 graph = gerrychain.Graph.from_wgeodataframe(merged_gdf)
-graph.to_json(str(Path("reproduction_data/ia_files/ia_counties_2010.json").resolve()))
+graph.to_json(str(Path("data/experiment_specific/ia_files/ia_counties_2010.json").resolve()))
 
 
 merged_gdf = ia_counties_2020.merge(
@@ -119,7 +127,7 @@ merged_gdf["TOTPOP"] = merged_gdf["TOTPOP"].astype(int)
 
 merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
-#downloading graph jsons and shapefiles, 2010
-merged_gdf.to_file("reproduction_data/ia_files/ia_counties_2020.shp")
+#writing graph jsons and shapefiles, 2010
+merged_gdf.to_file("data/experiment_specific/ia_files/ia_counties_2020.shp")
 graph = gerrychain.Graph.from_geodataframe(merged_gdf)
-graph.to_json(str(Path("reproduction_data/ia_files/ia_counties_2020.json").resolve()))
+graph.to_json(str(Path("data/experiment_specific/ia_files/ia_counties_2020.json").resolve()))
