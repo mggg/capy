@@ -47,7 +47,8 @@ CMAP = mcolors.ListedColormap([ORANGE, BLUE])
 # Blue / orange: clearly distinct and CVD-safe.
 METRIC_COLORS = {"moran_P": MORAN, "half_edge_1": CAPY}
 
-plt.rcParams.update({"font.family": "sans-serif", "font.size": 7, "savefig.dpi": 300})
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                     "font.size": 14, "savefig.dpi": 300})
 
 
 # Output paths
@@ -141,125 +142,211 @@ for level, G in exemplars:
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    # ax.set_ylabel(level["label"], fontsize=8,
-    #               rotation=90, labelpad=8, color="#3a3937")
-
-    metric_lines = [f"{GRID_METRICS[k]} = {metrics[k]:.3f}"
-                    for k in GRID_METRICS if k in metrics]
-    ax.set_xlabel("\n".join(metric_lines), fontsize=5.5, linespacing=1.75,
-                  labelpad=5, color="#3a3937")
+    # Encode metric values in filename instead of annotating the figure
+    capy_val = metrics.get("half_edge_1", float("nan"))
+    moran_val = metrics.get("moran_P", float("nan"))
 
     slug = level["label"].lower().replace(" ", "_")
-    path = out_dir / f"clustering_{slug}.png"
+    capy_str  = f"{capy_val:.2f}".replace(".", "p")
+    moran_str = f"{moran_val:.2f}".replace(".", "p")
+    path = out_dir / f"clustering_{slug}_capy{capy_str}_moran{moran_str}.png"
     fig.savefig(str(path), bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"Saved {path}")
 
 
-# Metric distributions 
+# Metric distributions (v1 — overlapping histograms, both metrics on one axis)
+# Commented out in favour of v2 below (two stacked subplots, one per metric).
 
-def plot_distributions(results):
-    """One PNG per clustering level; each shows Moran's I and Capy overlapping.
-    All files share the same x-axis limits and bin edges for easy comparison.
-    Horizontal lines at the top of each panel show the theoretical range of
-    each metric: Capy [0, 1] and Moran's I [−1, 1].
+# def plot_distributions(results):
+#     """One PNG per clustering level; each shows Moran's I and Capy overlapping.
+#     All files share the same x-axis limits and bin edges for easy comparison.
+#     Horizontal lines at the top of each panel show the theoretical range of
+#     each metric: Capy [0, 1] and Moran's I [−1, 1].
+#     """
+#     metric_keys = [k for k in GRID_METRICS if k in results[0]]
+#
+#     # Global x-range across all metrics and levels, with a small margin.
+#     # Anchored to the theoretical bounds so the range lines are always visible.
+#     all_vals = [r[k] for r in results for k in metric_keys if not np.isnan(r[k])]
+#     x_min = min(min(all_vals), -1)
+#     x_max = max(max(all_vals),  1)
+#     x_pad = (x_max - x_min) * 0.05
+#     x_lim = (x_min - x_pad, x_max + x_pad)
+#
+#     # Shared bin edges — same boundaries for every histogram so bar widths match
+#     shared_bins = np.linspace(x_lim[0], x_lim[1], 91)  # 30 equal-width bins
+#
+#     # Theoretical ranges for the range-indicator lines
+#     METRIC_RANGES = {"moran_P": (-1, 1), "half_edge_1": (0, 1)}
+#     # y positions in axes fraction: Moran slightly above Capy
+#     RANGE_Y = {"moran_P": 0.94, "half_edge_1": 0.92}
+#
+#     # Legend: histogram fills first, then range lines with explicit range labels.
+#     # Line2D mimics the range-indicator lines drawn on the plot.
+#     hist_handles = [
+#         mpatches.Patch(color=METRIC_COLORS[k], alpha=0.55, label=GRID_METRICS[k])
+#         for k in metric_keys
+#     ]
+#     range_handles = [
+#         Line2D([0], [0], color=METRIC_COLORS[k], linewidth=2,
+#                solid_capstyle="round",
+#                label=f"{GRID_METRICS[k]} possible range "
+#                      f"[{METRIC_RANGES[k][0]}, {METRIC_RANGES[k][1]}]")
+#         for k in metric_keys
+#     ]
+#     legend_handles = hist_handles + range_handles
+#
+#     for level in LEVELS:
+#         fig, ax = plt.subplots(figsize=(4.0, 3.8))
+#         fig.patch.set_facecolor("white")
+#
+#         level_rows = [r for r in results if r["label"] == level["label"]]
+#         means = {}
+#         for key in metric_keys:
+#             vals = [r[key] for r in level_rows if not np.isnan(r[key])]
+#             means[key] = np.mean(vals)
+#             ax.hist(vals, bins=shared_bins, alpha=0.55, color=METRIC_COLORS[key],
+#                     edgecolor="none", label=GRID_METRICS[key])
+#
+#         # Fixed y-axis cap shared across all three histograms for comparability
+#         ax.set_ylim(0, 4000)
+#
+#         # Mean lines — thin dashed vertical, with rotated numeric annotation.
+#         # Fixed va="bottom" anchors all labels at the same y so they all rise
+#         # from the same height regardless of where the mean falls on the x-axis.
+#         for key in metric_keys:
+#             mu = means[key]
+#             color = METRIC_COLORS[key]
+#             ax.axvline(mu, color=color, linewidth=0.8, linestyle="--", alpha=0.9)
+#             ax.text(mu-0.07, 0.62, f"mean: {mu:.3f}",
+#                     transform=ax.get_xaxis_transform(),
+#                     color=color, fontsize=6, rotation=90,
+#                     ha="center", va="bottom")
+#
+#         # Range-indicator lines: x in data coords, y in axes fraction.
+#         trans = ax.get_xaxis_transform()
+#         for key in metric_keys:
+#             lo, hi = METRIC_RANGES[key]
+#             y = RANGE_Y[key]
+#             ax.plot([lo, hi], [y, y], transform=trans,
+#                     color=METRIC_COLORS[key], linewidth=2,
+#                     solid_capstyle="round", clip_on=False)
+#
+#         ax.set_xlim(x_lim)
+#         ax.tick_params(labelsize=7, color="#aaaaaa")
+#         ax.spines[["top", "right"]].set_visible(False)
+#         ax.spines[["left", "bottom"]].set_color("#cccccc")
+#
+#         slug = level["label"].lower().replace(" ", "_")
+#         path = out_dir / f"metric_distributions_{slug}.png"
+#         fig.tight_layout()
+#         fig.savefig(str(path), bbox_inches="tight", facecolor="white")
+#         plt.close(fig)
+#         print(f"Saved {path}")
+#
+#     # Standalone legend PNG
+#     leg_fig, leg_ax = plt.subplots(figsize=(8, 0.5))
+#     leg_ax.axis("off")
+#     leg_ax.legend(handles=legend_handles, ncol=len(legend_handles),
+#                   frameon=False, fontsize=7,
+#                   loc="center", bbox_to_anchor=(0.5, 0.5))
+#     leg_path = out_dir / "metric_distributions_legend.png"
+#     leg_fig.savefig(str(leg_path), bbox_inches="tight", facecolor="white")
+#     plt.close(leg_fig)
+#     print(f"Saved {leg_path}")
+
+
+# Metric distributions v2 — two stacked subplots, one per metric
+
+# Fixed x-ranges per metric (theoretical bounds).
+MORAN_XLIM = (-1, 1)
+CAPY_XLIM = (0, 1)
+
+# Bin edges for each metric. ~60 bins across the Moran range → bin width ≈ 0.033.
+# Same bin width for Capy with 30 bins across [0, 1].
+MORAN_BINS = np.linspace(-1, 1, 61)
+CAPY_BINS = np.linspace(0, 1, 31)
+
+METRIC_BINS = {"moran_P": MORAN_BINS, "half_edge_1": CAPY_BINS}
+METRIC_XLIM = {"moran_P": MORAN_XLIM, "half_edge_1": CAPY_XLIM}
+
+
+def plot_distributions_v2(results):
+    """One PNG per clustering level: two subplots stacked vertically.
+    Top subplot: Moran's I (x from −1 to 1).
+    Bottom subplot: Capy (x from 0 to 1).
+    No range-indicator lines. Mean line + rotated annotation preserved.
+    Y-axis capped at 4000 for comparability across levels.
     """
     metric_keys = [k for k in GRID_METRICS if k in results[0]]
 
-    # Global x-range across all metrics and levels, with a small margin.
-    # Anchored to the theoretical bounds so the range lines are always visible.
-    all_vals = [r[k] for r in results for k in metric_keys if not np.isnan(r[k])]
-    x_min = min(min(all_vals), -1)
-    x_max = max(max(all_vals),  1)
-    x_pad = (x_max - x_min) * 0.05
-    x_lim = (x_min - x_pad, x_max + x_pad)
-
-    # Shared bin edges — same boundaries for every histogram so bar widths match
-    shared_bins = np.linspace(x_lim[0], x_lim[1], 91)  # 30 equal-width bins
-
-    # Theoretical ranges for the range-indicator lines
-    METRIC_RANGES = {"moran_P": (-1, 1), "half_edge_1": (0, 1)}
-    # y positions in axes fraction: Moran slightly above Capy
-    RANGE_Y = {"moran_P": 0.94, "half_edge_1": 0.92}
-    # RANGE_Y = {"moran_P": -0.02, "half_edge_1": -0.035}
-
-    # Legend: histogram fills first, then range lines with explicit range labels.
-    # Line2D mimics the range-indicator lines drawn on the plot.
-    hist_handles = [
+    # Legend handles — histogram fills only (no range lines)
+    legend_handles = [
         mpatches.Patch(color=METRIC_COLORS[k], alpha=0.55, label=GRID_METRICS[k])
         for k in metric_keys
     ]
-    range_handles = [
-        Line2D([0], [0], color=METRIC_COLORS[k], linewidth=2,
-               solid_capstyle="round",
-               label=f"{GRID_METRICS[k]} possible range "
-                     f"[{METRIC_RANGES[k][0]}, {METRIC_RANGES[k][1]}]")
-        for k in metric_keys
-    ]
-    legend_handles = hist_handles + range_handles
 
     for level in LEVELS:
-        fig, ax = plt.subplots(figsize=(4.0, 3.8))
+        fig, axes = plt.subplots(2, 1, figsize=(4.0, 4.8))
         fig.patch.set_facecolor("white")
 
         level_rows = [r for r in results if r["label"] == level["label"]]
-        means = {}
-        for key in metric_keys:
+        means = {key: np.mean([r[key] for r in level_rows if not np.isnan(r[key])])
+                 for key in metric_keys}
+
+        for ax, key in zip(axes, metric_keys):
             vals = [r[key] for r in level_rows if not np.isnan(r[key])]
-            means[key] = np.mean(vals)
-            ax.hist(vals, bins=shared_bins, alpha=0.55, color=METRIC_COLORS[key],
-                    edgecolor="none", label=GRID_METRICS[key])
-
-        # Fixed y-axis cap shared across all three histograms for comparability
-        ax.set_ylim(0, 4000)
-
-        # Mean lines — thin dashed vertical, with rotated numeric annotation.
-        # Fixed va="bottom" anchors all labels at the same y so they all rise
-        # from the same height regardless of where the mean falls on the x-axis.
-        for key in metric_keys:
             mu = means[key]
-            color = METRIC_COLORS[key]
-            ax.axvline(mu, color=color, linewidth=0.8, linestyle="--", alpha=0.9)
-            ax.text(mu-0.07, 0.62, f"mean: {mu:.3f}",
-                    transform=ax.get_xaxis_transform(),
-                    color=color, fontsize=6, rotation=90,
-                    ha="center", va="bottom")
 
-        # Range-indicator lines: x in data coords, y in axes fraction.
-        # ax.get_xaxis_transform() gives exactly that blended coordinate system.
-        trans = ax.get_xaxis_transform()
-        for key in metric_keys:
-            lo, hi = METRIC_RANGES[key]
-            y = RANGE_Y[key]
-            ax.plot([lo, hi], [y, y], transform=trans,
-                    color=METRIC_COLORS[key], linewidth=2,
-                    solid_capstyle="round", clip_on=False)
+            ax.hist(vals, bins=20,#METRIC_BINS[key],
+                     alpha=0.65,
+                    color=METRIC_COLORS[key], edgecolor="none")
 
-        # ax.set_xlabel("Metric value", fontsize=8, color="#3a3937")
-        ax.set_xlim(x_lim)
-        ax.tick_params(labelsize=7, color="#aaaaaa")
-        ax.spines[["top", "right"]].set_visible(False)
-        ax.spines[["left", "bottom"]].set_color("#cccccc")
-        # ax.legend(handles=legend_handles, frameon=False, fontsize=6,
-        #           loc="upper left", bbox_to_anchor=(0, 0.9))
+            # Fixed y cap for cross-level comparability
+            ax.set_yticks([])
+            if key == "moran_P":
+                ax.set_ylim(0, 1800)
+                ax.set_xlim(-1, 1) # not the hard limit for the P matrix but the observed values do not go below -1 or above 1.
+                ax.set_xticks([-1, -0.5, 0, 0.5, 1])
+            else:
+                ax.set_ylim(0, 1800)
+                ax.set_xlim(*METRIC_XLIM[key])
+                # ax.set_xticks([0, 0.5, 1])
+            # ax.set_xlim(*METRIC_XLIM[key])
+
+            # Thin dashed mean line — no text annotation
+            ax.axvline(mu, color="#3a3937",
+                       linewidth=0.8, linestyle="--", alpha=0.9)
+
+            # ax.set_ylabel(GRID_METRICS[key], fontsize=7, color="#3a3937")
+            # ax.tick_params(labelsize=11, color=None)
+            ax.spines[["top", "right"]].set_visible(False)
+            ax.spines[["left", "bottom"]].set_color("#cccccc")
 
         slug = level["label"].lower().replace(" ", "_")
-        path = out_dir / f"metric_distributions_{slug}.png"
+        avg_capy = means.get("half_edge_1", float("nan"))
+        avg_moran = means.get("moran_P", float("nan"))
+        path = out_dir / f"metric_distributions_{slug}_ave_capy{avg_capy:.2f}_moran{avg_moran:.2f}"
+        path = str(path).replace('.', 'p')  # avoid dots in filename
+        path = f"{path}.png"
         fig.tight_layout()
         fig.savefig(str(path), bbox_inches="tight", facecolor="white")
         plt.close(fig)
         print(f"Saved {path}")
 
-    # Standalone legend PNG — all items in one horizontal row.
-    # bbox_inches="tight" crops to the legend content, so figure size only
-    # needs to be large enough for the legend not to be clipped before saving.
-    leg_fig, leg_ax = plt.subplots(figsize=(8, 0.5))
-    leg_ax.axis("off")
-    leg_ax.legend(handles=legend_handles, ncol=len(legend_handles),
-                  frameon=False, fontsize=7,
-                  loc="center", bbox_to_anchor=(0.5, 0.5))
+    # Standalone legend PNG — histogram fills only, one horizontal row.
+    # Use figlegend so matplotlib sizes the figure tightly around the legend text.
+    leg_fig = plt.figure()
+    leg = leg_fig.legend(handles=legend_handles, ncol=len(legend_handles),
+                         frameon=False, fontsize=7,
+                         loc="center", bbox_to_anchor=(0.5, 0.5))
+    leg_fig.canvas.draw()
+    bbox = leg.get_window_extent().transformed(leg_fig.dpi_scale_trans.inverted())
+    leg_fig.set_size_inches(bbox.width + 0.05, bbox.height + 0.05)
     leg_path = out_dir / "metric_distributions_legend.png"
-    leg_fig.savefig(str(leg_path), bbox_inches="tight", facecolor="white")
+    leg_fig.savefig(str(leg_path), bbox_inches="tight", pad_inches=0.02,
+                    facecolor="white")
     plt.close(leg_fig)
     print(f"Saved {leg_path}")
 
@@ -267,7 +354,6 @@ def plot_distributions(results):
 if RESULTS_PATH.exists():
     with open(RESULTS_PATH) as f:
         results = json.load(f)
-    plot_distributions(results)
+    plot_distributions_v2(results)
 else:
-    print(f"No simulation data found at {RESULTS_PATH}. "
-          f"Run simulate_grid_metrics.py first to generate the distribution plot.")
+    print(f"No simulation data found at {RESULTS_PATH}. Run simulate_grid_metrics.py first to generate the distribution plot.")

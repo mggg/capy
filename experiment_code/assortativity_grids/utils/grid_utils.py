@@ -23,7 +23,7 @@ ROWS, COLS = 10, 10
 CELL_POP = 100
 
 LEVELS = [
-    {"label": "Low clustering",    "mode": "checkerboard", "perturb_prob": 0.05},
+    {"label": "Low clustering",    "mode": "annealing"},
     {"label": "Medium clustering", "mode": "random"},
     {"label": "High clustering",   "mode": "gaussian", "sigma": 1.6}]
 
@@ -41,12 +41,78 @@ def _attach_attrs(nx_G, blue_arr, cell_pop):
 
 # Grid builders
 
-def build_grid_low(rows, cols, cell_pop=100, seed=42, perturb_prob=0.05):
+def build_grid_low(rows, cols, cell_pop=100, seed=42, n_steps=20_000, accept_prob=0.01):
     """
-    Checkerboard with raster-walk perturbation.
+    Simulated annealing that maximises cut edges (cross-group adjacencies).
+
+    Starts from a random half-blue / half-orange assignment and iteratively
+    proposes swaps between a blue node and an orange node. A swap is always
+    accepted if it increases the cut-edge count; otherwise it is accepted
+    with probability `accept_prob` so the search can escape local minima.
+
+    For a grid graph the global optimum is the checkerboard (every edge is a
+    cut edge), so the SA converges toward near-checkerboard configurations —
+    strongly negative Moran's I = low clustering. Unlike the simple
+    checkerboard-with-perturbation approach, different seeds reach different
+    convergence points, producing a natural (rather than one-sided) distribution.
+
+    Adapted from make_low_assortativity_grids.py.
+    """
+    nx_G = nx.grid_2d_graph(rows, cols)
+    nx_G = nx.convert_node_labels_to_integers(nx_G, label_attribute="grid_pos")
+    nodes = list(nx_G.nodes())
+    n = len(nodes)
+
+    rng = np.random.default_rng(seed)
+
+    # Initial assignment: exactly half blue (1), half orange (0), shuffled
+    assignment = np.zeros(n, dtype=np.int8)
+    assignment[: n // 2] = 1
+    rng.shuffle(assignment)
+
+    # colour dict for O(1) node-colour lookup during SA
+    color = dict(zip(nodes, assignment.tolist()))  # 1 = blue, 0 = orange
+
+    def _swap_delta(i, j):
+        """Change in cut-edge count from swapping the colours of nodes i and j."""
+        if color[i] == color[j]:
+            return 0
+        delta = 0
+        for u in (i, j):
+            for nbr in nx_G.neighbors(u):
+                if nbr == i or nbr == j:   # skip the i–j edge itself
+                    continue
+                # cut status before and after the swap
+                delta += int((1 - color[u]) != color[nbr]) - int(color[u] != color[nbr])
+        return delta
+
+    blue_nodes   = [nd for nd in nodes if color[nd] == 1]
+    orange_nodes = [nd for nd in nodes if color[nd] == 0]
+
+    for _ in range(n_steps):
+        i = blue_nodes  [int(rng.integers(len(blue_nodes)))]
+        j = orange_nodes[int(rng.integers(len(orange_nodes)))]
+
+        d = _swap_delta(i, j)
+        if d > 0 or rng.random() < accept_prob:
+            color[i], color[j] = color[j], color[i]
+            blue_nodes.remove(i);   blue_nodes.append(j)
+            orange_nodes.remove(j); orange_nodes.append(i)
+
+    blue_arr = np.array([cell_pop * color[nd] for nd in nodes])
+    _attach_attrs(nx_G, blue_arr, cell_pop)
+    return gerrychain.Graph(nx_G)
+
+
+def build_grid_low_simple(rows, cols, cell_pop=100, seed=42, perturb_prob=0.05):
+    """
+    Checkerboard with raster-walk perturbation (original simpler approach).
     Starts as a pure checkerboard. Each cell then adopts its predecessor's
     color with probability perturb_prob. Small p = near-perfect checkerboard
     = strongly negative Moran's I = low clustering.
+
+    Produces a one-sided distribution (hard lower bound at the checkerboard
+    minimum); preserved for reference. Use build_grid_low for simulation.
     """
     nx_G = nx.grid_2d_graph(rows, cols)
     nx_G = nx.convert_node_labels_to_integers(nx_G, label_attribute="grid_pos")
@@ -125,9 +191,8 @@ def build_grid_high(rows, cols, cell_pop=100, seed=42, sigma=1.6):
 def build_grid(level, seed, rows=ROWS, cols=COLS, cell_pop=CELL_POP):
     """Dispatch to the correct builder based on a level config dict."""
     mode = level["mode"]
-    if mode == "checkerboard":
-        return build_grid_low(rows, cols, cell_pop, seed=seed,
-                              perturb_prob=level["perturb_prob"])
+    if mode == "annealing":
+        return build_grid_low(rows, cols, cell_pop, seed=seed)
     if mode == "random":
         return build_grid_medium(rows, cols, cell_pop, seed=seed)
     if mode == "gaussian":

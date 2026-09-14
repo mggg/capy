@@ -1,4 +1,8 @@
+import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                     "font.size": 14, "savefig.dpi": 300})
 
 PALETTE = [
     "#1560bd",
@@ -21,13 +25,12 @@ GRID_METRICS = {"moran_P": "Moran's I",
 def _build_metric_labels() -> dict:
     lam_display = {"0": "λ=0", "0.5": "λ=0.5", "1": "λ=1", "2": "λ=2", "10": "λ=10", "lim": "λ=∞"}
     bases = {
-        "skew_self":   "Skew (self)",
-        "skew_other":  "Skew (other)",
-        "edge":        "Edge",
-        "skew'_self":  "Skew′ (self)",
+        "skew_self": "Skew (self)",
+        "skew_other": "Skew (other)",
+        "edge": "Edge",
+        "skew'_self": "Skew′ (self)",
         "skew'_other": "Skew′ (other)",
-        "half_edge":   "Half Edge",
-    }
+        "half_edge": "Half Edge"}
     labels = {}
     for lam, lam_label in lam_display.items():
         for base, title in bases.items():
@@ -98,17 +101,21 @@ def _y_formatter(y_range: float) -> mticker.Formatter:
     return mticker.FormatStrFormatter(fmt)
 
 
+# BG = "#fcfcfb" 
+GRID_COLOR = "#eae8e0"
+SECONDARY = "#333333"
+PRIMARY_INK = "#0b0b0b"
+
 def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf")) -> None:
-    BG_PANEL = "#f0f0f0"
-    ax.set_facecolor(BG_PANEL)
     ax.set_box_aspect(1)
-    ax.grid(axis="y", color="white", linewidth=1.3, zorder=0)
+    ax.set_axisbelow(True)
+    ax.grid(color=GRID_COLOR, linewidth=0.8)
     ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
-    ax.tick_params(length=0, labelsize=8, labelcolor="#444444")
+    ax.tick_params(length=0, labelsize=12, labelcolor=SECONDARY)
     ax.set_xticks(years)
-    ax.set_xticklabels([str(y) for y in years], fontsize=8)
-    ax.set_xlabel("Census year", fontsize=8, color="#555555", labelpad=4)
+    ax.set_xticklabels([str(y) for y in years], fontsize=12)
     ax.yaxis.set_major_formatter(_y_formatter(y_range))
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=4))
     if ylim is not None:
         ax.set_ylim(*ylim)
 
