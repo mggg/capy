@@ -1,3 +1,10 @@
+"""
+Creates a trace plot figure of all eligible census areas and shows their segregation metrics over time.
+Eligible areas are those with ≥100k population in 2020 and present in all observed years.
+
+Output: {output_dir}/grid_lineplots/{prefix}_moran_d_capy_all_cbsa.png
+"""
+
 import sys
 from pathlib import Path
 

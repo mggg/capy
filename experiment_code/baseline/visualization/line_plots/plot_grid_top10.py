@@ -1,3 +1,9 @@
+"""
+Creates a trace plot figure of top 10 most populated metros and shows their segregation metrics over time.
+
+Output: {output_dir}/grid_lineplots/{prefix}_moran_d_capy_top10.png
+"""
+
 import sys
 from pathlib import Path
 import textwrap

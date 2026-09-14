@@ -1,9 +1,8 @@
 """
-One multi-panel figure per metric family (e.g. all Capy variants, all Moran variants).
+Creates one multi-panel figure per metric family (e.g. all Capy variants, all Moran variants).
 
-Panels within a family share the same suptitle; each panel is labelled by its subtitle
-from METRIC_LABELS. Top-N metros are coloured by PALETTE. Called by generate_figures.main;
-not intended to be run directly.
+Panels within a family share the same suptitle. Each panel is labelled by its subtitle
+from METRIC_LABELS. Top-N metros are coloured by PALETTE.
 
 Output: {output_dir}/metric_family_grids/{prefix}_{family_name}.png
 """
