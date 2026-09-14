@@ -15,6 +15,9 @@ sys.path.insert(0, os.path.dirname(__file__))  # lambda_scripts dir
 from matplotlib.lines import Line2D
 from lambda_helpers import multi_rankr
 
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                    "font.size": 11, "savefig.dpi": 300})
+
 """
 This script generates rank-rank scatter plots comparing how CBSAs are ordered by half_edge at lambda=1 versus other lambda values, for the top 100 most populous areas.
 Global Parameters:
@@ -33,7 +36,8 @@ Global Parameters:
     WEIGHTS: str
         Controls which lambda values are plotted — "small" plots only lambda=0 and lambda=inf, "full" plots lambda=0, 0.5, 2, 10, and inf
 """
-
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                    "font.size": 11, "savefig.dpi": 300})
 
 COMPARISON = "black" #"black" or "poc"
 GEOGRAPHY = "tracts" #"tracts", "block_groups", or "blocks"
@@ -68,22 +72,22 @@ name_dict_small = {"half_edge_0" : r"$\lambda = 0$",
         }
 
 weights_he = ["half_edge_0", 
-        "half_edge_lim",
         "half_edge_0.5", 
         "half_edge_2", 
-        "half_edge_10",]
+        "half_edge_10",
+        "half_edge_lim",]
 
 color_dict = {"half_edge_0" :"#d11a42", 
-        "half_edge_lim" : "#1560bd",
         "half_edge_0.5" : "#ffa812", 
         "half_edge_2" : "#006b3c", 
-        "half_edge_10" : "#69359c",}
+        "half_edge_10" : "#69359c",
+        "half_edge_lim" : "#1560bd",}
 
 name_dict = {"half_edge_0" : r"$\lambda = 0$", 
-        "half_edge_lim" : r"$\lambda = \infty$",
         "half_edge_0.5" : r"$\lambda = 0.5$", 
         "half_edge_2" : r"$\lambda = 2$", 
-        "half_edge_10" : r"$\lambda = 10$",} 
+        "half_edge_10" : r"$\lambda = 10$",
+        "half_edge_lim" : r"$\lambda = \infty$",} 
 
 if WEIGHTS == "full":
         multi_rankr("half_edge_1", weights_he, color_dict, top_100, name_dict, jitter_x= JITTER_X, jitter_y = JITTER_Y)
@@ -93,4 +97,15 @@ if WEIGHTS == "small":
         n = len(top_100)
         plt.plot([1, n], [1, n], color="black", linestyle="--", linewidth=1, zorder=0)
 
-plt.savefig(f"figures/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_in_{YEAR}_with_({JITTER_X, JITTER_Y})jitter.png", dpi = 300, bbox_inches = "tight")
+handles, labels = plt.gca().get_legend_handles_labels()
+plt.legend().remove()
+
+plt.savefig(f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_({JITTER_X, JITTER_Y})jitter_mainplot.png", dpi = 300, bbox_inches = "tight")
+
+legend_fig, legend_ax = plt.subplots()
+legend_ax.axis("off")
+legend_ax.legend(handles, labels, loc="center",
+                 fontsize=8, handletextpad=0.4, borderpad=0.4)
+legend_fig.set_size_inches(2, 1)
+plt.savefig(f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_({JITTER_X, JITTER_Y})jitter_legend.png", dpi = 300, bbox_inches = "tight")
+

@@ -32,9 +32,12 @@ Global Parameters:
         How many people live in each node.
 """
 
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 11, "savefig.dpi": 300})
+
 METHOD = "random" # "bfs" or "random"
 num_rhos = 20
-num_samples = 5
+num_samples = 20
 node_pop = 1
 num_seeds = 8
 
@@ -68,6 +71,14 @@ plt.scatter(x_vals_kclust, half_edge_kclust, label="Multiple Clusters", s=10, co
 plt.scatter(xvals, half_edge_isol, label="Isolated", s=10, color="#69359c", edgecolors="black", linewidths=0.5)
 
 plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
-plt.xlabel("Minority Proportion")
-plt.ylabel("Capy")
-plt.savefig(f"figures/idealized_grids/fig-4_capy_by_rho_90x90_random_grids_{num_samples}samples_{num_rhos}rhos_{num_seeds}seeds.png", dpi=150, bbox_inches="tight")
+handles, labels = plt.gca().get_legend_handles_labels()
+plt.legend().remove() 
+plt.savefig(f"figures/idealized_grids/fig-4_capyx_v_rhoy_scatterplots_90x90_random_configs_{num_samples}samples_{num_rhos}rhos_{num_seeds}seeds_mainplot.png", dpi=300, bbox_inches="tight")
+
+legend_fig, legend_ax = plt.subplots()
+legend_ax.axis("off")
+legend_ax.legend(handles, labels, loc="center",
+                 fontsize=8, handlelength=1.5, handleheight=.75,
+                 handletextpad=0.4, borderpad=0.4)
+legend_fig.set_size_inches(1.5, .5)
+plt.savefig(f"figures/idealized_grids/fig-4_capyx_v_rhoy_scatterplots_90x90_random_configs_{num_samples}samples_{num_rhos}rhos_{num_seeds}seed_legend.png", dpi=300, bbox_inches="tight")

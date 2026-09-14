@@ -32,4 +32,4 @@ for cluster in clusters:
         ax.set_title(f"{metric[1]} by Buffer for {cluster[0]} in {cluster[1]}")
         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', borderaxespad=0, title = "Buffer Radius")
         plt.tight_layout()
-        fig.savefig(EXPERIMENT_DIR / "figures" / f"{cluster[0]}_{cluster[1]}_{metric[1]}_by_buffer.png", bbox_inches='tight')
+        fig.savefig(f"figures/buffer_lineplots/{cluster[0]}_{cluster[1]}_{metric[1]}_by_buffer.png", bbox_inches='tight')

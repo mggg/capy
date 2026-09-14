@@ -19,7 +19,6 @@ random.seed(53)
 """
 This scripts simulates diffusion from a core on grid graphs. Diffusion works according to the following algorithm:
 
-
 1. initialize by taking some graph and selecting all nodes with rho greater than or equal to some threshold as the core
 2. select all core nodes and all neighbours of the core nodes to be the "new_core". Find the total sum of x and y population in the new core and set the new core to have this population uniformly distributed across it.
 3. repeat step 2 with new core as the core. End when you reach a uniform graph
@@ -30,7 +29,6 @@ Capy, and Dissimilarity by step of diffusion.
 Global Parameters:
     node_pop: int
         the population at each node
-
 """
 
 node_pop = 1
@@ -83,6 +81,43 @@ def diffuse(graph, threshold):
         graphs.append(graph.graph.copy())
     return graphs, core_rhos
 
+def visualize_diffusion_step(graph, step):
+    """
+    Plots the polygonal grid of step i of the diffusion process
+
+    Parameters
+    ----------
+    graphs : list of nx.Graph
+        Sequence of graph snapshots from diffuse(), one per step.
+    rhos : list of float
+        Fraction of x_pop in the core region after each step,
+        parallel to graphs.
+    """
+    nodelist = list(G.nodes())
+    checker_cols = [n[0] for n in nodelist]
+    checker_rows = [n[1] for n in nodelist]
+    width  = max(checker_cols) + 1
+    height = max(checker_rows) + 1
+    grid = np.zeros((height, width))
+    for node in nodelist:
+        grid[node[1], node[0]] = G.nodes[node]["rho"]
+
+
+    ax.imshow(grid, cmap=diverging_cmap, norm=norm, origin="lower", interpolation="nearest")
+
+    ax.set_aspect('equal')
+
+    for x in range(width + 1):
+        ax.axvline(x - 0.5, color='black', linewidth=0.5)
+    for y in range(height + 1):
+        ax.axhline(y - 0.5, color='black', linewidth=0.5)
+
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(0.5)
+    ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+
+
 def visualize_diffusion(graphs, core_rhos):
     """
     Plots the polygonal grid of each step of the diffusion process
@@ -102,7 +137,7 @@ def visualize_diffusion(graphs, core_rhos):
     fig, axes = plt.subplots(rows, 5, figsize=(15, 3 *rows), squeeze = False, constrained_layout=True)
     fig.subplots_adjust(hspace=0.4)
     diverging_cmap = LinearSegmentedColormap.from_list("rho_diverging", ["#2267BC", "#ffffff", "#FFA812"])
-    norm = TwoSlopeNorm(vmin=0, vcenter=rhos[-1], vmax=1) #diverges at the global rho, here thats rhos[-1] because the rho of the core region is 0 at the end of the process (this might be fragile)
+    norm = TwoSlopeNorm(vmin=0, vcenter=core_rhos[-1], vmax=1) #diverges at the global rho, here thats rhos[-1] because the rho of the core region is 0 at the end of the process (this might be fragile)
 
     for i, G in enumerate(graphs):
         ax = axes[i // 5, i % 5]
@@ -194,26 +229,31 @@ def plot_metrics_over_diffusion_two_axes(graphs):
     cfig, ax_moran = plt.subplots(figsize=(8, 5))
     ax_capy = ax_moran.twinx()
 
-    ax_moran.plot(steps[:-1], morans[:-1], marker="o", label="Moran's I (P Matrix)", color="#ffbf00")
-    ax_capy.plot(steps, capys, marker="o", label="Capy", color="#69359c")
+    ax_moran.plot(steps[:-1], morans[:-1], marker="o", label="Moran's I", color="#d11a42")
+    ax_capy.plot(steps, capys, marker="o", label="Capy", color="#1560bd")
 
     ax_moran.set_ylim(-.2, 1)#scaled so that substantively both metrics range from slightly hyperintegrated to fully segregated
     ax_capy.set_ylim(0.4, 1)
 
-    ax_moran.tick_params(axis="y", labelcolor="#ffbf00")
-    ax_capy.tick_params(axis="y", labelcolor="#69359c")
-    ax_capy.axhline(0.5, color="black", linestyle="--", linewidth=1, label="No spatial structure (Capy = 0.5, Moran's I = 0)")
+    ax_moran.tick_params(axis="y", labelcolor="#d11a42")
+    ax_capy.tick_params(axis="y", labelcolor="#1560bd")
+    ax_capy.axhline(0.5, color="black", linestyle="--", linewidth=1, label="Capy = 0.5, Moran's I = 0")
 
     lines_m, labels_m = ax_moran.get_legend_handles_labels()
     lines_c, labels_c = ax_capy.get_legend_handles_labels()
     ax_moran.legend(lines_m + lines_c, labels_m + labels_c, loc="lower left")
 
-    ax_moran.set_ylabel("Moran's I", color="#ffbf00")
-    ax_capy.set_ylabel("Capy", color="#69359c")
-    ax_moran.set_xlabel("Steps")
+    ax_moran.legend().remove()
 
+    legend_fig, legend_ax = plt.subplots()
+    legend_ax.axis("off")
+    legend_ax.legend(lines_m + lines_c, labels_m + labels_c, loc="center",
+                    fontsize=8, handlelength=1.5, handleheight=.75,
+                    handletextpad=0.4, borderpad=0.4)
+    legend_fig.set_size_inches(3, 1)
 
     plt.tight_layout()
+    return cfig, legend_fig
 
 def generate_2_corner_grid(num_columns, num_rows, node_pop):
     """
@@ -267,17 +307,16 @@ def generate_center_grid(num_columns, num_rows, node_pop):
         G.graph.nodes[node]["y"] = node[1]
         G.graph.nodes[node]["sum"] = node[0] + node[1]
 
-    G.graph.nodes[(num_columns//2, num_rows//2)]["x_pop"] = node_pop
-    G.graph.nodes[(num_columns//2, num_rows//2)]["y_pop"] = 0
+    cx, cy = num_columns // 2, num_rows // 2
+    x_pop_offsets = {
+        (dc, dr)
+        for dc in range(-2, 2)
+        for dr in range(-2, 2)
+    }
+    for dc, dr in x_pop_offsets:
+        G.graph.nodes[(cx + dc, cy + dr)]["x_pop"] = node_pop
+        G.graph.nodes[(cx + dc, cy + dr)]["y_pop"] = 0
 
-    G.graph.nodes[(num_columns//2 -1, num_rows//2)]["x_pop"] = node_pop
-    G.graph.nodes[(num_columns//2 -1, num_rows//2)]["y_pop"] = 0
-
-    G.graph.nodes[(num_columns//2 -1, num_rows//2 -1)]["x_pop"] = node_pop
-    G.graph.nodes[(num_columns//2 -1, num_rows//2-1)]["y_pop"] = 0
-
-    G.graph.nodes[(num_columns//2, num_rows//2-1)]["x_pop"] = node_pop
-    G.graph.nodes[(num_columns//2, num_rows//2-1)]["y_pop"] = 0
 
     for node in G.graph.nodes():
         if "x_pop" not in G.graph.nodes[node]:
@@ -324,44 +363,42 @@ def generate_outer_grid(num_columns, num_rows, node_pop):
 
 ###below code creates the plots
 #2clusters-random
-G = generate_kclust_grid(10, 10, 0.3, node_pop, 3, method="random")[0]
-graphs, rhos = diffuse(G, threshold=0.3)
-visualize_diffusion(graphs, rhos)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_random_2cluster_rho=.3_graph_visualization.png", dpi=300)
-plot_metrics_over_diffusion(graphs)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_random_2cluster_rho=.3_metrics_visualization.png", dpi=300)
+#G = generate_kclust_grid(10, 10, 0.3, node_pop, 3, method="random")[0]
+#graphs, rhos = diffuse(G, threshold=0.3)
+#visualize_diffusion(graphs, rhos)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_random_2cluster_rho=p3_graph_visualization.png", dpi=300)
+#plot_metrics_over_diffusion_two_axes(graphs)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_random_2cluster_rho=p3_metrics_visualization.png", dpi=300)
 
 #1cluster-random
-G = generate_clust_grid(10, 10, 0.3, node_pop, method="random")
-graphs, rhos = diffuse(G, threshold=0.3)
-visualize_diffusion(graphs, rhos)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_random_1cluster_rho=.3_graph_visualization.png", dpi=300)
-plot_metrics_over_diffusion(graphs)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_random_1cluster_rho=.3_metrics_visualization.png", dpi=300)
+#G = generate_clust_grid(10, 10, 0.3, node_pop, method="random")
+#graphs, rhos = diffuse(G, threshold=0.3)
+#visualize_diffusion(graphs, rhos)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_random_1cluster_rho=p3_graph_visualization.png", dpi=300)
+#plot_metrics_over_diffusion_two_axes(graphs)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_random_1cluster_rho=p3_metrics_visualization.png", dpi=300)
 
 #center 4
 G = generate_center_grid(10, 10, node_pop)
 graphs, rhos = diffuse(G, threshold=0.3)
 visualize_diffusion(graphs, rhos)
 plt.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_graph_visualization.png", dpi=300)
-plot_metrics_over_diffusion(graphs)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization.png", dpi=300)
-plot_metrics_over_diffusion_two_axes(graphs)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes.png", dpi=300)
-
+main_fig, legend_fig = plot_metrics_over_diffusion_two_axes(graphs)
+main_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes.png", dpi=300, bbox_inches="tight")
+legend_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes_legend.png", dpi=300, bbox_inches="tight")
 
 #corner 4
-G = generate_2_corner_grid(10, 10, node_pop)
-graphs, rhos = diffuse(G, threshold=0.3)
-visualize_diffusion(graphs, rhos)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_2_corner_cluster_graph_visualization.png", dpi=300)
-plot_metrics_over_diffusion(graphs)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_2_corner_cluster_metrics_visualization.png", dpi=300)
+#G = generate_2_corner_grid(10, 10, node_pop)
+#graphs, rhos = diffuse(G, threshold=0.3)
+#visualize_diffusion(graphs, rhos)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_2_corner_cluster_graph_visualization.png", dpi=300)
+#plot_metrics_over_diffusion_two_axes(graphs)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_2_corner_cluster_metrics_visualization.png", dpi=300)
 
 #center 4
-G = generate_outer_grid(10, 10, node_pop)
-graphs, rhos = diffuse(G, threshold=0.3)
-visualize_diffusion(graphs, rhos)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_outer_cluster_graph_visualization.png", dpi=300)
-plot_metrics_over_diffusion(graphs)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_outer_cluster_metrics_visualization.png", dpi=300)
+#G = generate_outer_grid(10, 10, node_pop)
+#graphs, rhos = diffuse(G, threshold=0.3)
+#visualize_diffusion(graphs, rhos)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_outer_cluster_graph_visualization.png", dpi=300)
+#plot_metrics_over_diffusion_two_axes(graphs)
+#plt.savefig("figures/idealized_grids_diffusion/diffusion_outer_cluster_metrics_visualization.png", dpi=300)

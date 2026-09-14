@@ -10,6 +10,10 @@ pd.set_option('display.max_columns', None)
 from itertools import combinations
 from matplotlib.lines import Line2D
 
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                    "font.size": 11, "savefig.dpi": 300})
+
+
 
 def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_x = 0.5, jitter_y = 0.5, label_x=None,  best_fit=True):
     """
@@ -77,7 +81,4 @@ def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_x = 0.5, ji
             c = color_dict[y_col],
             s = 5
         )
-
-    plt.xlabel("Rank by CAPY")
-    plt.ylabel("Rank by Weighted CAPY")
     plt.legend()

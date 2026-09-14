@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
-sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (3 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
+sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (2 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
 import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -24,6 +24,9 @@ Global Parameters:
         How many people live in each node
 """
 
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 11, "savefig.dpi": 300})
+
 node_pop = 1
 num_rhos = 5
 
@@ -43,7 +46,16 @@ plt.plot(rhos, half_edge_ch,    label="Checkerboard", marker="o", color = "#1560
 plt.plot(rhos, half_edge_const, label="Constant",     marker="o", color = "#ffa812")
 
 plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
-plt.xlabel("Minority Proportion")
-plt.ylabel("Capy")
-plt.savefig(f"figures/idealized_grids/fig-4_capy_by_rho_90x90_deterministic_grids_nodepop={node_pop}_{num_rhos}rhos.png", dpi=150, bbox_inches="tight")
+handles, labels = plt.gca().get_legend_handles_labels()
+plt.legend().remove()
+
+plt.savefig(f"figures/idealized_grids/fig-4_capyx_v_rhoy_lineplot_90x90_deterministic_configs_nodepop={node_pop}_{num_rhos}rhos_mainplot.png", dpi=300, bbox_inches="tight")
+
+legend_fig, legend_ax = plt.subplots()
+legend_ax.axis("off")
+legend_ax.legend(handles, labels, loc="center",
+                 fontsize=8, handlelength=1.5, handleheight=.75,
+                 handletextpad=0.4, borderpad=0.4)
+legend_fig.set_size_inches(1.5, .5)
+plt.savefig(f"figures/idealized_grids/fig-4_capyx_v_rhoy_lineplot_90x90_deterministic_configs_nodepop={node_pop}_{num_rhos}rhos_legend.png", dpi=300, bbox_inches="tight")
 
