@@ -1,7 +1,7 @@
 [
   {
     "label": "Low clustering",
-    "mode": "checkerboard",
+    "mode": "annealing",
     "seed": 1000,
     "graph": {
       "directed": false,
@@ -13,8 +13,8 @@
             0,
             0
           ],
-          "BLUE": 100,
-          "ORANGE": 0,
+          "BLUE": 0,
+          "ORANGE": 100,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 0
@@ -90,8 +90,8 @@
             0,
             7
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 7
@@ -123,8 +123,8 @@
             1,
             0
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 10
@@ -288,8 +288,8 @@
             2,
             5
           ],
-          "BLUE": 100,
-          "ORANGE": 0,
+          "BLUE": 0,
+          "ORANGE": 100,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 25
@@ -365,8 +365,8 @@
             3,
             2
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 32
@@ -442,8 +442,8 @@
             3,
             9
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 39
@@ -475,8 +475,8 @@
             4,
             2
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 42
@@ -860,8 +860,8 @@
             7,
             7
           ],
-          "BLUE": 100,
-          "ORANGE": 0,
+          "BLUE": 0,
+          "ORANGE": 100,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 77
@@ -937,8 +937,8 @@
             8,
             4
           ],
-          "BLUE": 100,
-          "ORANGE": 0,
+          "BLUE": 0,
+          "ORANGE": 100,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 84
@@ -970,8 +970,8 @@
             8,
             7
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 87
@@ -981,8 +981,8 @@
             8,
             8
           ],
-          "BLUE": 100,
-          "ORANGE": 0,
+          "BLUE": 0,
+          "ORANGE": 100,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 88
@@ -992,8 +992,8 @@
             8,
             9
           ],
-          "BLUE": 0,
-          "ORANGE": 100,
+          "BLUE": 100,
+          "ORANGE": 0,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 89
@@ -1102,8 +1102,8 @@
             9,
             9
           ],
-          "BLUE": 100,
-          "ORANGE": 0,
+          "BLUE": 0,
+          "ORANGE": 100,
           "TOTAL": 100,
           "TOTPOP": 100,
           "id": 99
