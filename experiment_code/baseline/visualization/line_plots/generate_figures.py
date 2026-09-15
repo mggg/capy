@@ -36,7 +36,7 @@ import pandas as pd
 import typer
 
 from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
+from experiment_code.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
 from visualization.line_plots.plot_family_grids import plot_family_grids
 from visualization.line_plots.plot_grid_all_census_areas import plot_grid_all_census_areas
 from visualization.line_plots.plot_grid_top10 import plot_grid_top10
@@ -52,7 +52,7 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
 
     if not filename:
         run_name = f"tracts_in_{study_area_type or 'cbsa'}"
-        filename = f"outputs/{run_name}/white_poc.csv"
+        filename = f"data/shared/outputs/{run_name}/white_poc.csv"
 
     if geography_type is None:
         for geo in ("block_groups", "blocks", "tracts", "counties"):

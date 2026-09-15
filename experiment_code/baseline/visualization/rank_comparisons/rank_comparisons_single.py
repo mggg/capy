@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 import typer
 
-from visualization.visualization_settings import PALETTE, SECONDARY, GRID_COLOR
+from experiment_code.visualization_settings import PALETTE, SECONDARY, GRID_COLOR
 
 
 USED_COLS = {

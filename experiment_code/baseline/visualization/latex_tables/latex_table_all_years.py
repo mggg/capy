@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/
 import pandas as pd
 
 from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import _short_name
+from experiment_code.visualization_settings import _short_name
 
 # ── configuration ─────────────────────────────────────────────────────────────
 

@@ -1,8 +1,12 @@
+"""Shared visualization settings for all experiments."""
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
                      "font.size": 14, "savefig.dpi": 300})
+
+# Colors
 
 PALETTE = [
     "#1560bd",
@@ -17,9 +21,23 @@ PALETTE = [
     "#999999",
 ]
 
-GRID_METRICS = {"moran_P": "Moran's I",
+GRID_COLOR = "#eae8e0"
+SECONDARY = "#333333"
+PRIMARY_INK = "#0b0b0b"
+
+# Named aliases for the two main metric colors
+BLUE = "#1560bd"   # Capy
+ORANGE = "#ffa812" # Moran's I
+CAPY = BLUE
+MORAN = ORANGE
+
+# Metrics
+
+GRID_METRICS = {
+    "moran_P": "Moran's I",
     "dissimilarity_1": "Dissimilarity",
-    "half_edge_1": "Capy"}
+    "half_edge_1": "Capy",
+}
 
 
 def _build_metric_labels() -> dict:
@@ -87,10 +105,19 @@ METRICS = [
     "moran_A", "moran_P", "moran_L", "moran_M", "moran_D_1", "moran_D_2",
 ]
 
+# --- Helpers ---
 
 def _short_name(cbsa_title: str) -> str:
     city_part, sep, state = cbsa_title.rpartition(", ")
     return f"{city_part.split('-')[0]}, {state}" if sep else cbsa_title
+
+
+def _shorten_prefix(prefix: str) -> str:
+    return (
+        prefix
+        .replace("white_black", "wb")
+        .replace("white_poc", "wpoc")
+        .replace("block_groups", "bg"))
 
 
 _NARROW_Y_THRESHOLD = 0.1
@@ -100,11 +127,6 @@ def _y_formatter(y_range: float) -> mticker.Formatter:
     fmt = "%.3f" if y_range < _NARROW_Y_THRESHOLD else "%.2f"
     return mticker.FormatStrFormatter(fmt)
 
-
-# BG = "#fcfcfb" 
-GRID_COLOR = "#eae8e0"
-SECONDARY = "#333333"
-PRIMARY_INK = "#0b0b0b"
 
 def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf")) -> None:
     ax.set_box_aspect(1)
@@ -118,11 +140,3 @@ def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf
     ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=4))
     if ylim is not None:
         ax.set_ylim(*ylim)
-
-
-def _shorten_prefix(prefix: str) -> str:
-    return (
-        prefix
-        .replace("white_black", "wb")
-        .replace("white_poc", "wpoc")
-        .replace("block_groups", "bg"))

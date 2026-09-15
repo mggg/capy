@@ -1,12 +1,11 @@
 """
 Creates two figures from data produced by simulate_grid_metrics.py:
 
-  clustering_figure.{pdf,png} — 3 by 1 panel showing one exemplar map per
-      clustering level (low / medium / high). Metric values (Moran's I and
-      Capy) are shown below each panel. The exemplar grids are also saved as
+  clustering_figure.png is a 3 by 1 panel showing one exemplar map per
+      clustering level (low, medium, high). The exemplar grids are also saved as
       individual .json (gerrychain) and .png files.
 
-  metric_distributions.png — overlapping histograms of both metrics across
+  metric_distributions.png shows overlapping histograms of both metrics across
       all simulated grids.
 
 Both outputs require the files produced by simulate_grid_metrics.py:
@@ -15,7 +14,7 @@ Both outputs require the files produced by simulate_grid_metrics.py:
 
 To run:
   python experiment_code/assortativity_grids/scripts/simulate_grid_metrics.py
-  python experiment_code/assortativity_grids/scripts/plot_clustering_figure.py
+  python experiment_code/assortativity_grids/scripts/plot_grids_and_metric_histogram.py
 """
 
 import sys
@@ -36,14 +35,14 @@ for p in (str(HERE), str(PROJECT_ROOT)):
         sys.path.insert(0, p)
 
 from experiment_code.assortativity_grids.utils.grid_utils import LEVELS, compute_metrics, share_array
-from experiment_code.assortativity_grids.utils.viz_helpers import ORANGE, BLUE, GRID_METRICS, MORAN, CAPY
+from experiment_code.visualization_settings import ORANGE, BLUE, GRID_METRICS, MORAN, CAPY
 
 
 # Color maps
 # Binary map for grid panels: 0 = ORANGE, 1 = BLUE
 CMAP = mcolors.ListedColormap([ORANGE, BLUE])
 
-# Colors for the metric-distribution histograms — one per metric.
+# Colors for the metric-distribution histograms, one per metric.
 # Blue / orange: clearly distinct and CVD-safe.
 METRIC_COLORS = {"moran_P": MORAN, "half_edge_1": CAPY}
 
@@ -53,7 +52,7 @@ plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
 
 # Output paths
 
-SIM_DIR = HERE.parent.parent.parent / "figures" / "assortativity_grids" / "grids"
+SIM_DIR = HERE / "simulations"
 EXEMPLARS_PATH = SIM_DIR / "exemplar_grids.json"
 RESULTS_PATH = SIM_DIR / "metrics_results.json"
 

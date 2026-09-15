@@ -17,8 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/b
 from typing import Optional
 import typer
 from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import _shorten_prefix
-from visualization.visualization_settings import GRID_METRICS, SECONDARY, _apply_panel_style
+from experiment_code.visualization_settings import _shorten_prefix, GRID_METRICS, SECONDARY, _apply_panel_style
 
 
 def plot_grid_all_census_areas(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:

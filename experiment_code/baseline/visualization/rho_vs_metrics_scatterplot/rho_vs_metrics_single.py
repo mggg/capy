@@ -14,7 +14,7 @@ import pandas as pd
 import typer
 
 from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import GRID_COLOR, PRIMARY_INK, SECONDARY, GRID_METRICS
+from experiment_code.visualization_settings import GRID_COLOR, PRIMARY_INK, SECONDARY, GRID_METRICS
 
 
 POPULATION_THRESHOLD = 100_000 # only include CBSAs with population > 100K

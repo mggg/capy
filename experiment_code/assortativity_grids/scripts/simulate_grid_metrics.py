@@ -2,8 +2,7 @@
 Generates N_GRIDS grids at each clustering level, computes Moran's I and Capy
 for every grid, and saves the results as JSON.
 
-Output
-------
+Output:
   simulations/metrics_results.json — list of result dicts, one per grid
 
 To plot the distribution histograms, run plot_clustering_figure.py afterwards:
@@ -30,8 +29,8 @@ BASE_SEED = 1000 # seeds BASE_SEED ... BASE_SEED+N_GRIDS-1
 
 # Output paths 
 OUT_DIR = HERE.parent.parent.parent / "figures" / "assortativity_grids"
-RESULTS_PATH = OUT_DIR / "grids" / "metrics_results.json"
-EXEMPLARS_PATH = OUT_DIR / "grids" / "exemplar_grids.json"
+RESULTS_PATH = HERE / "simulations" / "metrics_results.json"
+EXEMPLARS_PATH = HERE / "simulations" / "exemplar_grids.json"
 
 
 # Simulation 
@@ -57,33 +56,29 @@ def save_results(results):
     RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(RESULTS_PATH, "w") as f:
         json.dump(results, f, indent=2)
-    print(f"Saved {len(results)} records → {RESULTS_PATH}")
+    print(f"Saved {len(results)} records to {RESULTS_PATH}")
 
 
 def save_exemplars():
-    """Build one grid per level (BASE_SEED) and save them as a JSON list.
-
-    Each entry: {"label", "mode", "seed", "graph": <node-link dict>}.
-    node_link_data preserves all node attributes (grid_pos, BLUE, ORANGE, …)
-    and round-trips cleanly; node ids stay as integers.
+    """Build one grid per level (BASE_SEED) and save them as a JSON list. They will be used for the clustering figure in plot_clustering_figure.py, as an example of each level's grid structure.
+    node_link_data preserves all node attributes (grid_pos, BLUE, ORANGE, ...)
     """
     exemplars = []
     for level in LEVELS:
         G = build_grid(level, BASE_SEED)
         exemplars.append({
             "label": level["label"],
-            "mode":  level["mode"],
-            "seed":  BASE_SEED,
-            "graph": json_graph.node_link_data(G),
-        })
+            "mode": level["mode"],
+            "seed": BASE_SEED,
+            "graph": json_graph.node_link_data(G)})
     EXEMPLARS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(EXEMPLARS_PATH, "w") as f:
         json.dump(exemplars, f, indent=2)
-    print(f"Saved exemplar grids → {EXEMPLARS_PATH}")
+    print(f"Saved exemplar grids to {EXEMPLARS_PATH}")
 
 
 if __name__ == "__main__":
-    print(f"Running simulation: {N_GRIDS} grids × {len(LEVELS)} levels "
+    print(f"Running simulation: {N_GRIDS} grids by {len(LEVELS)} levels "
           f"= {N_GRIDS * len(LEVELS)} total")
     results = run_simulation()
     save_results(results)

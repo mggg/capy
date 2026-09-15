@@ -18,8 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/
 from typing import Optional
 import typer
 from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import _shorten_prefix
-from visualization.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _short_name)
+from experiment_code.visualization_settings import _shorten_prefix, METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _short_name
 
 
 def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, n: int = 10, n_cols: int = 6, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:
