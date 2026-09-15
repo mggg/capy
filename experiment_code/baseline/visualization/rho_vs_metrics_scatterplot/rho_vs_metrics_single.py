@@ -1,4 +1,4 @@
-"""Creates scatter plots for each metric vs minority share on the tracts in CBSA level in individual files."""
+"""Creates scatter plots for each metric vs minority share on the tracts in CBSA level in individual files. For consistency with other figures, only CBSAs with population > 100K are included."""
 
 import sys
 from pathlib import Path
@@ -17,6 +17,9 @@ from capy_core.process_results import enrich_metrics
 from visualization.visualization_settings import GRID_COLOR, PRIMARY_INK, SECONDARY, GRID_METRICS
 
 
+POPULATION_THRESHOLD = 100_000 # only include CBSAs with population > 100K
+ALL_YEARS = {1980, 1990, 2000, 2010, 2020}
+
 def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -> None:
     path_to_file = filename
     CSV = Path(path_to_file)
@@ -34,21 +37,20 @@ def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -
     YEARS = sorted(df["year"].unique())
     YEAR_COLORS = {1980: '#1560bd', 1990: '#006b3c', 2000: "#8db600", 2010: "#ffa812", 2020: "#d11a42"}
 
+    # select CBSAs present in all 5 decades with population > 100K
     df["area_code"] = df["filename"].str.extract(r"tracts_in_cbsa_(\d+)_")
-    ALL_YEARS = {1980, 1990, 2000, 2010, 2020}
-    cbsas_all_years = (df.groupby("area_code")["year"]
-        .apply(lambda s: ALL_YEARS.issubset(set(s)))
-        .pipe(lambda x: x[x].index))
+    has_all_years = df.groupby("area_code")["year"].apply(lambda s: ALL_YEARS.issubset(set(s)))
+    cbsas_all_years = has_all_years[has_all_years].index
+
     min_pop = df.groupby("area_code")["total_population"].min()
-    cbsas_large = min_pop[min_pop > 100_000].index
+    cbsas_large = min_pop[min_pop > POPULATION_THRESHOLD].index
     valid_cbsas = cbsas_all_years.intersection(cbsas_large)
     df = df[df["area_code"].isin(valid_cbsas)]
 
     PANELS = [
         dict(col="half_edge_1", title="Capy"),
         dict(col="moran_P", title="Moran's I"),
-        dict(col="dissimilarity_1", title="Dissimilarity"),
-    ]
+        dict(col="dissimilarity_1", title="Dissimilarity")]
 
     OUT_DIR = Path("figures") / "baseline" / "tracts_in_cbsa" / "rho_vs_metrics"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -100,7 +102,7 @@ def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -
                   labelcolor=SECONDARY, handlelength=1.6,
                   handletextpad=0.5, labelspacing=0.3)
 
-        out = OUT_DIR / f"{prefix}_{GRID_METRICS[col].split(" ")[0].lower()}.png"
+        out = OUT_DIR / f"{prefix}_{GRID_METRICS[col].split(" ")[0].lower().replace("'", '')}.png"
         fig.savefig(out, dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved to {out}")
