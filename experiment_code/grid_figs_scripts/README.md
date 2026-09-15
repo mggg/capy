@@ -11,7 +11,7 @@ The ideal configurations are:
 It also simulates diffusion of the x population from initial configurations and plots segregation metrics over the course of the process
 
 Folders and scripts:
-+ 'fig-4_plot_grid_asymptotics.py\' Plots lineplots of capy versus rho for checkerboard, isolated, clustered, and constant configurations on an asymptotically large nxn polygonal grid.
++ 'fig-4_plot_grid_asymptotics.py' Plots lineplots of capy versus rho for checkerboard, isolated, clustered, and constant configurations on an asymptotically large nxn polygonal grid.
 + 'fig-4_plot_metric_on_deterministic_ideal_configs_on_90x90_grids.py' Plots lineplots of vapy versus rho on the checkerboard and constant configurations (both of which are deterministic versus rho)
 + 'fig-4_plot_metric_on_random_ideal_configs_on_90x90_grids.py' Plots scatterplots of capy versus rho on the isolated, clustered, and kclustered configurations for an arbirtrary number of samples of an arbitrary number of rhos.
 + 'fig-5_visualize_ideal_90x90_grid_configs.py' visualizes isolated, clusters, multiple clusters, and checkerboard configurations on a 90x90 polygonal grid

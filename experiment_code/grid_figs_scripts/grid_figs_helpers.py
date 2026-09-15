@@ -305,7 +305,7 @@ def generate_isol_grid(num_columns, num_rows, rho, node_pop):
     -------
     gerrychain.grid.Grid
     """
-
+    
     G = generate_ch_grid(num_columns, num_rows, .5, node_pop)
     nodes = list(G.graph.nodes)
     random.shuffle(nodes)
@@ -428,5 +428,7 @@ def draw_grid_as_checkerboard(graph, id, rho, ax=None, title=""):
     ax.imshow(grid, cmap=cmap, vmin=0, vmax=1, origin="lower", interpolation="nearest")
 
     ax.axis("off")
-    plt.savefig(f"figures/idealized_grids/fig-5_{id}_grid_visualization_rho={rho}.png", dpi=150, bbox_inches="tight")
+    base_file_stem = f"figures/idealized_grids/fig-5_{id}_grid_visualization_rho={rho}"
+    file_stem = base_file_stem.replace('.', 'p')
+    plt.savefig(file_stem, dpi=300, bbox_inches="tight")
     return ax

@@ -7,6 +7,9 @@ This script replicates the top right half of figure 4, in the preprint https://m
 It makes lineplots of capy score versus rho on asymptotically large nxn grids.
 """
 
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                    "font.size": 11, "savefig.dpi": 300})
+
 def half_edge_a_ch(rho)->float:
     """
     Generates capy value of a checkerboard configuration on an n by n grid as n goes to infinity. Checkerboard configurations
@@ -65,13 +68,26 @@ for rho in x:
     const.append(half_edge_a_const(rho))
     one_clust.append(half_edge_a_one_clust(rho))
 
-plt.plot(x, isol, label="Isolated", color = "#69359c")
-plt.plot(x, ch, label="Checkerboard", color =  "#1560bd")
-plt.plot(x, const, label="Constant", color = "#ffa812")
-plt.plot(x, one_clust, label="One Cluster", color = "#006B3C")
+fig, ax = plt.subplots()
 
-plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
+line_isol = ax.plot(x, isol, label="Isolated", color = "#69359c")
+line_ch = ax.plot(x, ch, label="Checkerboard", color =  "#1560bd")
+line_const = ax.plot(x, const, label="Constant", color = "#ffa812")
+line_clust = ax.plot(x, one_clust, label="One Cluster", color = "#006B3C")
 
-plt.xlabel("Minority Proportion")
-plt.ylabel("Capy")
-plt.savefig("figures/idealized_grids/fig-4_capy_by_rho_asymptotic_grids.png", dpi=150, bbox_inches="tight")
+handles, labels = plt.gca().get_legend_handles_labels()
+
+plt.savefig("figures/idealized_grids/fig-4_capyx_v_rhoy_lineplot_asymptotic_grids_mainplot.png", dpi=300, bbox_inches="tight")
+
+# Then create a separate legend-only figure:
+legend_fig, legend_ax = plt.subplots()
+legend_ax.axis("off")
+legend_ax.legend(
+    handles=handles,
+    labels=labels,
+    fontsize=8, handlelength=1.5, handleheight=.75,
+    handletextpad=0.4, borderpad=0.4,
+    loc="center"
+)
+legend_fig.set_size_inches(1.5, .5)  # tune to fit
+legend_fig.savefig("figures/idealized_grids/fig-4_capyx_v_rhoy_lineplot_asymptotic_grids_legend.png", dpi=300, bbox_inches="tight")
