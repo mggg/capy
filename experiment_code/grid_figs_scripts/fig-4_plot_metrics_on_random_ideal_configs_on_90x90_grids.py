@@ -36,10 +36,10 @@ plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting 
                     "font.size": 11, "savefig.dpi": 300})
 
 METHOD = "random" # "bfs" or "random"
-num_rhos = 20
-num_samples = 20
+num_rhos = 5
+num_samples = 3
 node_pop = 1
-num_seeds = 8
+num_seeds = 4
 
 #generating graphs
 graphs_clust = [] 
@@ -52,7 +52,10 @@ for _ in range(num_samples):
     for rho in rhos: 
         graphs_clust.append(generate_clust_grid(90, 90, rho, node_pop, method = METHOD))
         graphs_isol.append(generate_isol_grid(90, 90, rho, node_pop))
-        G, real_rho, num_components = generate_kclust_grid(90, 90, rho, node_pop, num_seeds, method=METHOD)
+        result = generate_kclust_grid(90, 90, rho, node_pop, num_seeds, method=METHOD)
+        if result is not None:
+            G, real_rho, num_components = generate_kclust_grid(90, 90, rho, node_pop, num_seeds, method=METHOD)
+            graphs_kclust.append(result)
         graphs_kclust.append((G, real_rho, num_components))
 
 half_edge_clust = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G, _ in graphs_clust]
