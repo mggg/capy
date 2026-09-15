@@ -1,5 +1,11 @@
-# Choropleth plots of clusters at selected buffer sizes.
-# Layout: rows = buffer sizes, columns = years.
+"""
+Produces a choropleth grid for each (city, cluster) pair: rows are selected
+buffer sizes (cuurrently, 0, 1, 2, 5, 10), columns are census years. Each cell shows the
+buffered cluster's tracts colored by Black population share, with the buffer=0
+outline and fixed medoid overlaid for reference. Reads from
+auto_cluster_tracts.csv and auto_cluster_metrics.csv.
+"""
+
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -8,17 +14,17 @@ import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 
-EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
-GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
+ROOT = Path(__file__).resolve().parents[3]
+GEO_DIR = ROOT / "data" / "shared" / "processed" / "clipped_geographies"
 
 SHOW_BUFFERS = [0, 1, 2, 5, 10]
 
 norm = mcolors.Normalize(vmin=0, vmax=1)
 cmap = plt.cm.Blues
 
-all_selections = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv", dtype={'area_code': str, 'gisjoin': str})
+all_selections = pd.read_csv(ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_tracts.csv", dtype={'area_code': str, 'gisjoin': str})
 all_selections['black_share'] = all_selections['black_population'] / (all_selections['black_population'] + all_selections['white_population'])
-all_metrics = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_metrics.csv", dtype={'area_code': str, 'center_gisjoin': str})
+all_metrics = pd.read_csv(ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv", dtype={'area_code': str, 'center_gisjoin': str})
 
 
 for (area_code, city_name, cluster), cluster_selections in all_selections.groupby(['area_code', 'city_name', 'cluster'], sort=True):
@@ -105,7 +111,7 @@ for (area_code, city_name, cluster), cluster_selections in all_selections.groupb
 
     fig.suptitle(f'{city_name} — {cluster}', fontsize=13, y=0.995)
 
-    figure_path = EXPERIMENT_DIR / "figures" / "choropleths_by_buffers" / f"{city_name}_{cluster}_choropleth_by_buffer.png"
+    figure_path = ROOT / "figures" / "choropleths_by_buffers" / f"{city_name}_{cluster}_choropleth_by_buffer.png"
     figure_path.parent.mkdir(exist_ok=True)
     fig.savefig(figure_path, dpi=200, bbox_inches='tight')
     plt.close(fig)

@@ -7,15 +7,19 @@ import geopandas as gpd
 from pathlib import Path
 from itertools import product
 
+"""
+Plots a user determined set of metrics (currently, Moran's I, Dissimilarity, and Sum of Local Moran's I)
+over census years for each (city, cluster) pair at a fixed buffer size, with one metric line
+per subplot and one figure per cluster. Reads from auto_cluster_metrics.csv.
+"""
 
-EXPERIMENT_DIR = EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
 
 BUFFER = 4
 METRICS = [("moran", "Moran's I"), ("dissimilarity", "Dissimilarity"),
            ("local_moran", "Sum of Local Moran's I of All Nodes in Region")]
 
-tracts = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv", dtype={'area_code': str, 'gisjoin': str})
-metrics = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_metrics.csv", dtype={'area_code': str})
+tracts = pd.read_csv("data/experiment_specific/observed_diffusion_data/auto_cluster_tracts.csv", dtype={'area_code': str, 'gisjoin': str})
+metrics = pd.read_csv("data/experiment_specific/observed_diffusion_data/auto_cluster_metrics.csv", dtype={'area_code': str})
 metrics = metrics[metrics["buffer_size"] == BUFFER]
 
 clusters = list(product(["Chicago", "Philadelphia"], ["cluster_1", "cluster_2"]))
@@ -29,4 +33,4 @@ for cluster in clusters:
     ax.set_title(f"Metrics over time for {cluster[0]} in {cluster[1]}")
     ax.legend(bbox_to_anchor=(0.5, -.1), loc='upper left', borderaxespad=0)
     plt.tight_layout()
-    fig.savefig(EXPERIMENT_DIR / "figures" / f"{cluster[0]}_{cluster[1]}_metrics.png", bbox_inches='tight')
+    fig.savefig(f"figures/misc_observed_diffusion_figs/single_lineplots/{cluster[0]}_{cluster[1]}_metrics.png", bbox_inches='tight')

@@ -6,19 +6,27 @@ import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 
+"""
+Produces a combined figure for each (city, cluster) pair: a top panel of
+choropleths (buffer=10 tracts colored by Black population share, one per census
+year) and a bottom panel of heatmaps (buffer size × year) colored by Moran's I,
+Dissimilarity, Half Edge, and Spread. Reads from auto_cluster_tracts.csv and
+auto_cluster_metrics.csv.
+"""
+
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
-GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
+GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "shared" / "processed" / "clipped_geographies"
 
 METRICS = [("moran", "Moran's I"), ("dissimilarity", "Dissimilarity"),
            ("half_edge", "Half Edge (capy)"), ("spread", "Spread")] #maybe add mass later?
 norm = mcolors.Normalize(vmin=0, vmax=1)
 cmap = plt.cm.Blues
 
-tracts = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv", dtype={'area_code': str, 'gisjoin': str})
+tracts = pd.read_csv("data/experiment_specific/observed_diffusion_data/auto_cluster_tracts.csv", dtype={'area_code': str, 'gisjoin': str})
 tracts['black_share'] = tracts['black_population'] / (tracts['black_population'] + tracts['white_population'])
 
-metrics = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_metrics.csv", dtype={'area_code': str, 'center_gisjoin': str})
+metrics = pd.read_csv("data/experiment_specific/observed_diffusion_data/auto_cluster_metrics.csv", dtype={'area_code': str})
 
 for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_code', 'city_name', 'cluster'], sort=True):
     print(f"Plotting {city_name}, {cluster}")
@@ -85,7 +93,7 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(['area_c
     # fig.text(0.01, 0.93, "your annotation here", ha='left', fontsize=9, color='dimgrey')
     fig.suptitle(f'{city_name} — {cluster}', fontsize=14)
 
-    figure_path = EXPERIMENT_DIR / "figures" / "metrics_heatmap_by_buffers" / f"{city_name}_{cluster}_choropleth_and_metrics.png"
+    figure_path = Path("figures/metrics_heatmap_by_buffers") / f"{city_name}_{cluster}_choropleth_and_metrics.png"
     figure_path.parent.mkdir(exist_ok=True)
     fig.savefig(figure_path, dpi=200, bbox_inches='tight')
     plt.close(fig)

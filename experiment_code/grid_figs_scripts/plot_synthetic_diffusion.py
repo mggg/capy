@@ -82,41 +82,31 @@ def diffuse(graph, threshold):
     return graphs, core_rhos
 
 def visualize_diffusion_step(graph, step):
-    """
-    Plots the polygonal grid of step i of the diffusion process
+    
+    fig, ax = plt.subplots(figsize=(4, 4))
+    diverging_cmap = LinearSegmentedColormap.from_list("rho_diverging", ["#2267BC", "#ffffff", "#FFA812"])
+    global_rho = sum(graph.nodes[n]["x_pop"] for n in graph.nodes()) / sum(graph.nodes[n]["tot_pop"] for n in graph.nodes())
+    norm = TwoSlopeNorm(vmin=0, vcenter=global_rho, vmax=1)
 
-    Parameters
-    ----------
-    graphs : list of nx.Graph
-        Sequence of graph snapshots from diffuse(), one per step.
-    rhos : list of float
-        Fraction of x_pop in the core region after each step,
-        parallel to graphs.
-    """
-    nodelist = list(G.nodes())
+    nodelist = list(graph.nodes())
     checker_cols = [n[0] for n in nodelist]
     checker_rows = [n[1] for n in nodelist]
     width  = max(checker_cols) + 1
     height = max(checker_rows) + 1
     grid = np.zeros((height, width))
     for node in nodelist:
-        grid[node[1], node[0]] = G.nodes[node]["rho"]
-
+        grid[node[1], node[0]] = graph.nodes[node]["rho"]
 
     ax.imshow(grid, cmap=diverging_cmap, norm=norm, origin="lower", interpolation="nearest")
-
     ax.set_aspect('equal')
-
     for x in range(width + 1):
         ax.axvline(x - 0.5, color='black', linewidth=0.5)
     for y in range(height + 1):
         ax.axhline(y - 0.5, color='black', linewidth=0.5)
-
     for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_linewidth(0.5)
     ax.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-
 
 def visualize_diffusion(graphs, core_rhos):
     """
@@ -255,15 +245,58 @@ def plot_metrics_over_diffusion_two_axes(graphs):
     plt.tight_layout()
     return cfig, legend_fig
 
+def colormap(rho):
+    """
+    Builds a diverging colormap and norm centered at rho, running from blue (rho=0) through white (rho=rho) to orange (rho=1).
+    Parameters:
+        Rho: float
+        The rho value at which the colorbar diverges
+    """
+
+    diverging_cmap = LinearSegmentedColormap.from_list(
+    "rho_diverging",
+    ["#2267BC", "#ffffff", "#FFA812"]
+    )
+    # Norm that maps 0→left, RHO→center (white), 1→right
+    norm = TwoSlopeNorm(vmin=0, vcenter=rho, vmax=1)
+
+    return diverging_cmap, norm
+
+def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
+    """
+    Produces a standalone diverging colorbar figure with a horizontal marker at vcenter labeled with the global rho value.
+    Parameters:
+        vcenter: float
+            The rho value at which the colormap centers (white); also where the dashed marker is drawn
+        vmin: float
+            Lower bound of the colorbar scale
+        vmax: float
+            Upper bound of the colorbar scale
+        tick_size: int
+            Font size for colorbar tick labels
+    """
+
+    fig, ax = plt.subplots(figsize=(1.2, 4))
+    fig.subplots_adjust(right=0.4)
+    cmap, norm = colormap(vcenter)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=ax, fraction=1.0, pad=0)
+    cbar.ax.tick_params(labelsize=tick_size)
+    cbar.ax.yaxis.set_ticks_position('right')
+    cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
+    
+    ax.set_visible(False)
+
+
 def generate_2_corner_grid(num_columns, num_rows, node_pop):
     """
     Generate a gerrychain Grid with a 2x2 block of x_pop nodes in the (0,0) corner.
 
     Parameters
     ----------
-    n, m : int
+    num_columns, num_roads : int
         Grid dimensions.
-    M : int or float
+    node_pop : int or float
         Population per node.
 
     Returns
@@ -292,9 +325,9 @@ def generate_center_grid(num_columns, num_rows, node_pop):
 
     Parameters
     ----------
-    n, m : int
+    num_columns, num_roads : int
         Grid dimensions.
-    M : int or float
+    node_pop : int or float
         Population per node.
 
     Returns
@@ -307,16 +340,17 @@ def generate_center_grid(num_columns, num_rows, node_pop):
         G.graph.nodes[node]["y"] = node[1]
         G.graph.nodes[node]["sum"] = node[0] + node[1]
 
-    cx, cy = num_columns // 2, num_rows // 2
-    x_pop_offsets = {
-        (dc, dr)
-        for dc in range(-2, 2)
-        for dr in range(-2, 2)
-    }
-    for dc, dr in x_pop_offsets:
-        G.graph.nodes[(cx + dc, cy + dr)]["x_pop"] = node_pop
-        G.graph.nodes[(cx + dc, cy + dr)]["y_pop"] = 0
+    G.graph.nodes[(num_columns//2, num_rows//2)]["x_pop"] = node_pop
+    G.graph.nodes[(num_columns//2, num_rows//2)]["y_pop"] = 0
 
+    G.graph.nodes[(num_columns//2 -1, num_rows//2)]["x_pop"] = node_pop
+    G.graph.nodes[(num_columns//2 -1, num_rows//2)]["y_pop"] = 0
+
+    G.graph.nodes[(num_columns//2 -1, num_rows//2 -1)]["x_pop"] = node_pop
+    G.graph.nodes[(num_columns//2 -1, num_rows//2-1)]["y_pop"] = 0
+
+    G.graph.nodes[(num_columns//2, num_rows//2-1)]["x_pop"] = node_pop
+    G.graph.nodes[(num_columns//2, num_rows//2-1)]["y_pop"] = 0
 
     for node in G.graph.nodes():
         if "x_pop" not in G.graph.nodes[node]:
@@ -330,9 +364,9 @@ def generate_outer_grid(num_columns, num_rows, node_pop):
 
     Parameters
     ----------
-    n, m : int
+    num_columns, num_roads : int
         Grid dimensions.
-    M : int or float
+    node_pop : int or float
         Population per node.
 
     Returns
@@ -381,11 +415,17 @@ def generate_outer_grid(num_columns, num_rows, node_pop):
 #center 4
 G = generate_center_grid(10, 10, node_pop)
 graphs, rhos = diffuse(G, threshold=0.3)
-visualize_diffusion(graphs, rhos)
-plt.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_graph_visualization.png", dpi=300)
+for i, graph in enumerate(graphs):
+    visualize_diffusion_step(graph, i)
+    plt.savefig(f"figures/idealized_grids_diffusion/diffusion_center_cluster_graph_visualizatio_step{i}.png", dpi=300)
+
 main_fig, legend_fig = plot_metrics_over_diffusion_two_axes(graphs)
 main_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes.png", dpi=300, bbox_inches="tight")
 legend_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes_legend.png", dpi=300, bbox_inches="tight")
+
+plot_rho_colorbar_diverging(0.04)
+plt.savefig(f"figures/idealized_grids_diffusions/divergent_rho_colorbar_rho=0p04.png")
+
 
 #corner 4
 #G = generate_2_corner_grid(10, 10, node_pop)

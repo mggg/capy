@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[3]
 DIFFUSION_METRIC = 'core_amplitude' #other options include 'core_spread', 'core_euclidean_spread', or 'euclidean_spread'
 SEGREGATION_METRIC = 'dissimilarity' #other options include 'gini', 'capy', or 'theil'
 
-df = pd.read_csv(EXPERIMENT_DIR / "data" / "auto_cluster_metrics.csv")
+df = pd.read_csv(ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv")
 buf0 = df[df['buffer_size'] == 0].copy()
 
 print(len(df))
@@ -62,7 +62,7 @@ ax.set_xlabel(DIFFUSION_METRIC)
 ax.set_ylabel(f"{SEGREGATION_METRIC}'s I")
 ax.set_title(f"{SEGREGATION_METRIC} vs {DIFFUSION_METRIC} by Buffer Value", fontsize=11)
 
-fig.savefig(EXPERIMENT_DIR / "figures" / f"{SEGREGATION_METRIC}_{DIFFUSION_METRIC}_correlation.png",
+fig.savefig(ROOT / "figures" / "misc_observed_diffusion_figs" / "segregation_spread_correlation" / f"{SEGREGATION_METRIC}_{DIFFUSION_METRIC}_correlation.png",
             dpi=200, bbox_inches='tight')
 plt.close(fig)
 print(f"Saved {SEGREGATION_METRIC}_{DIFFUSION_METRIC}_correlation.png")

@@ -7,15 +7,24 @@ import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 from PIL import Image
+##Slightly Deprecated
+"""
+Animates each cluster as a GIF across census decades. Each frame shows a
+choropleth of the cluster colored by log Black population with the medoid
+marked, plus a dual-axis line chart below tracking Black population mass and
+spatial spread up to that year. Reads from auto_cluster_tracts.csv and
+cluster_metrics.csv. 
+"""
 
-EXPERIMENT_DIR = Path(__file__).resolve().parent.parent
-GEO_DIR = EXPERIMENT_DIR.parent.parent / "data" / "processed" / "clipped_geographies"
+
+ROOT = Path(__file__).resolve().parents[3]
+GEO_DIR = ROOT / "data" / "shared" / "processed" / "clipped_geographies"
 
 all_selections = pd.read_csv(
-    EXPERIMENT_DIR / "data" / "auto_cluster_tracts.csv",
+    ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_tracts.csv",
     dtype={'area_code': str, 'gisjoin': str})
 all_metrics = pd.read_csv(
-    EXPERIMENT_DIR / "data" / "cluster_metrics.csv",
+    ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv",
     dtype={'area_code': str, 'center_gisjoin': str})
 
 for (area_code, cluster), cluster_selections in all_selections.groupby(['area_code', 'cluster'], sort=True):
@@ -126,7 +135,7 @@ for (area_code, cluster), cluster_selections in all_selections.groupby(['area_co
         plt.close(fig)
 
     figure_title = cluster_title.replace(' ', '_').replace(',', '').lower()
-    gif_path = EXPERIMENT_DIR / "figures" / f"{figure_title}_choropleth_decades.gif"
+    gif_path = ROOT / "figures" / "misc_observed_diffusion_figs" / "choropleth_gifs" / f"{figure_title}_choropleth_decades.gif"
     gif_path.parent.mkdir(exist_ok=True)
     frames[0].save(gif_path, save_all=True, append_images=frames[1:], loop=0, duration=1500)
     print(f"Saved to {gif_path}")
