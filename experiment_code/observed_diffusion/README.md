@@ -1,4 +1,4 @@
-# H4 T3: Observed diffusion
+# Observed diffusion
 
 This experiment measures changes in the mass and spread of four Black
 population clusters:
@@ -7,7 +7,7 @@ population clusters:
 - Philadelphia CBSA (`37980`): west of Germantown Avenue and West Philadelphia - need to confirm is these are the clusters we need
 - Adding other clusters as needed
 
-It uses the existing tract network in `data/rpocessed/dual_graphs/YEAR` graphs for 1980, 1990, 2000, 2010, and 2020. Network distance is unweighted shortest-path length, measured in tract-adjacency edges.
+It uses the existing tract network in `data/shared/processed/dual_graphs/YEAR` graphs for 1980, 1990, 2000, 2010, and 2020. Network distance is unweighted shortest-path length, measured in tract-adjacency edges.
 
 ## Current extent of cluster definition
 
