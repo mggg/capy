@@ -7,14 +7,14 @@ Usage:
                                [--fixed-y]
 
 Arguments:
-    filename        Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
-    n               Number of top metros to highlight by 2020 population (default: 10)
-    prefix          Racial-group prefix used in output filenames, e.g. white_poc or white_black
-    geography_type  Census unit label (tracts/block_groups/blocks/counties); inferred from
+    filename - Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
+    n - Number of top metros to highlight by 2020 population (default: 10)
+    prefix - Racial-group prefix used in output filenames, e.g. white_poc or white_black
+    geography_type - Census unit label (tracts/block_groups/blocks/counties); inferred from
                     prefix if omitted
-    study_area_type Area type label (max_county/max_city/None → CBSA); affects output paths
+    study_area_type - Area type label (max_county/max_city/None → CBSA); affects output paths
                     and figure subtitles
-    fixed_y         If set, all panels in a figure share the same y-axis range
+    fixed_y - If set, all panels in a figure share the same y-axis range
 
 For each vintage found in definition_month_year, produces figures in:
     figures/baseline/{geography_type}_in_{study_area_type}/
