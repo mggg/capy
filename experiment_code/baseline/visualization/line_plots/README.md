@@ -33,14 +33,16 @@ python experiment_code/baseline/visualization/line_plots/generate_figures.py \
 
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_grid_top10.py \
-    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv
+    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv \
+    --prefix white_black
 ```
 
 `plot_grid_all_census_areas.py` creates all eligible CBSAs (population >= 100k, present in all years) plots
 
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_grid_all_census_areas.py \
-    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv
+    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv \
+    --prefix white_black
 ```
 
 `plot_family_grids.py` creates one panel grid per metric family
@@ -48,4 +50,5 @@ python experiment_code/baseline/visualization/line_plots/plot_grid_all_census_ar
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_family_grids.py \
     --filename data/shared/outputs/tracts_in_cbsa/white_black.csv
+    --prefix white_black
 ```

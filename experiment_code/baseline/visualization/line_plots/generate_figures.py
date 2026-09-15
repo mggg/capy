@@ -63,7 +63,7 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
             geography_type = "tracts"
     geography_label = geography_type.replace("_", " ")
 
-    prefix = _shorten_prefix(prefix)
+    prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
     run_name = f"{geography_type}_in_{study_area_type or 'cbsa'}"
     output_dir = Path("figures") / "baseline" / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
