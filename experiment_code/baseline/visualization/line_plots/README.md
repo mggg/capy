@@ -29,21 +29,21 @@ python experiment_code/baseline/visualization/line_plots/generate_figures.py \
 
 ## Individual scripts
 
-### `plot_grid_top10.py` — top 10 most populated metros
+`plot_grid_top10.py` plots top 10 most populated metros
 
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_grid_top10.py \
     --filename data/shared/outputs/tracts_in_cbsa/white_black.csv
 ```
 
-### `plot_grid_all_census_areas.py` — all eligible CBSAs (population ≥ 100k, present in all years)
+`plot_grid_all_census_areas.py` creates all eligible CBSAs (population >= 100k, present in all years) plots
 
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_grid_all_census_areas.py \
     --filename data/shared/outputs/tracts_in_cbsa/white_black.csv
 ```
 
-### `plot_family_grids.py` — one panel grid per metric family
+`plot_family_grids.py` creates one panel grid per metric family
 
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_family_grids.py \
