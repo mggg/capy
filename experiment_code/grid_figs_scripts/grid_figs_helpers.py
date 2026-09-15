@@ -283,7 +283,12 @@ def generate_clust_grid(num_columns, num_rows, rho, node_pop, method = "bfs"):
     for node in G.graph.nodes():
         if G.graph.nodes[node]["x_pop"] == 0:
             G.graph.nodes[node]["y_pop"] = node_pop
-    return G
+    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
+                (metrics.property_sum(G.graph, "x_pop") + 
+                 metrics.property_sum(G.graph, "y_pop")))
+    return (G, real_rho)
+
+
 
 def generate_isol_grid(num_columns, num_rows, rho, node_pop):
     """
@@ -319,7 +324,10 @@ def generate_isol_grid(num_columns, num_rows, rho, node_pop):
             G.graph.nodes[node]["x_pop"] = 0
             G.graph.nodes[node]["y_pop"] = node_pop
             current_x_pop = current_x_pop - node_pop
-    return G
+    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
+                (metrics.property_sum(G.graph, "x_pop") + 
+                 metrics.property_sum(G.graph, "y_pop")))
+    return (G, real_rho)
 
 def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds, method = "bfs", blur = True):
     """
