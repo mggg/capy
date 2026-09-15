@@ -7,7 +7,7 @@ The ideal configurations are:
 + Constant: each node contains $\rhoM$ members of group x and $(1-\rho)M$ group y, where M is the node's total population
 
 Folders and scripts:
-+ `generate_kclustered_iowa_plots.py` Creates kclustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). The current code for clustered configurations attempts to populate Iowa to meet a certain target rho, however it usually overshoots. The scatterplots use the real rho.
++ `make_kclustered_iowa_plots.py` Creates kclustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). The current code for clustered configurations attempts to populate Iowa to meet a certain target rho, however it usually overshoots. The scatterplots use the real rho.
 + `make_clustered_iowa_plots/`  Creates kclustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). The current code for clustered configurations attempts to populate Iowa to meet a certain target rho, however it usually overshoots. The scatterplots use the real rho.
 + `make_iowa-files.py/` Creates the Iowa counties dual graph used in all scripts. The data is stored in data/experiment_specific/ia_files.
 + `make_iowa_isol_plots/` Creates isolated Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100).
