@@ -182,6 +182,9 @@ data/shared/processed/
 data/shared/outputs/**/*.png
 figures/baseline/**/*.png
 figures/assortativity_grids/**/*.png
+archive/
+experiment_code/observed_diffusion/archive/
+experiment_code/observed_diffusion/scripts/archive/
 *.tex
 
 # Archive

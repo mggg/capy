@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent # to capy-bara/
 sys.path.insert(0, str(ROOT)) # for pipeline.*
-sys.path.insert(0, str(ROOT / "experiments" / "h4_t3_observed_diffusion")) # for utils.*
+sys.path.insert(0, str(ROOT / "experiment_code" / "observed_diffusion")) # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
 from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, compute_cluster_metrics, calculate_cluster_spread, compute_mass
@@ -31,9 +31,9 @@ BUFFER_LIST = range(11) # buffer size
 
 DUAL_GRAPHS_DIR = ROOT / "data" / "processed" / "dual_graphs"
 CLIPPED_GEO_DIR = ROOT / "data" / "processed" / "clipped_geographies"
-OUTPUT_JSON_FILES = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "cluster_graphs_buffers"
-OUTPUT_NODE_LIST = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "auto_cluster_tracts.csv"
-OUTPUT_METRICS_LIST = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "auto_cluster_metrics.csv"
+OUTPUT_JSON_FILES = ROOT / "experiment_code" / "observed_diffusion" / "data" / "cluster_graphs_buffers"
+OUTPUT_NODE_LIST = ROOT / "experiment_code" / "observed_diffusion" / "data" / "auto_cluster_tracts.csv"
+OUTPUT_METRICS_LIST = ROOT / "experiment_code" / "observed_diffusion" / "data" / "auto_cluster_metrics.csv"
 
 buffered_cluster_rows = []
 cluster_metrics_rows = []

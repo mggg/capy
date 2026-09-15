@@ -32,7 +32,7 @@ YEARS = [1980, 1990, 2000, 2010, 2020]
 ROOT = Path("/Users/maria/Documents/capy-bara")
 DUAL_GRAPHS_DIR = ROOT / "data" / "processed" / "dual_graphs"
 CLIPPED_GEO_DIR = ROOT / "data" / "processed" / "clipped_geographies"
-OUTPUT_FILE = ROOT / "experiments" / "h4_t3_observed_diffusion" / "data" / "auto_cluster_tracts.csv"
+OUTPUT_FILE = ROOT / "experiment_code" / "observed_diffusion" / "data" / "auto_cluster_tracts.csv"
 
 CLUSTER_TITLES = {
     ("1714000", "cluster_1"): "Chicago, South Side",
