@@ -81,7 +81,7 @@ def main(
         ax.scatter(x, y, s=18, alpha=1, color=PALETTE[0], linewidths=0, zorder=2)
 
         # diagonal reference line
-        x_line = np.linspace(x.min(), x.max(), 100)
+        x_line = [x.min(), x.max()]
         ax.plot(x_line, x_line, color=SECONDARY, lw=1, alpha=0.7)
 
         # spearman correlation
