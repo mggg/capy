@@ -105,7 +105,7 @@ METRICS = [
     "moran_A", "moran_P", "moran_L", "moran_M", "moran_D_1", "moran_D_2",
 ]
 
-# --- Helpers ---
+# Helper functions
 
 def _short_name(cbsa_title: str) -> str:
     city_part, sep, state = cbsa_title.rpartition(", ")
