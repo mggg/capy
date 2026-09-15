@@ -85,14 +85,14 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
 
 
 if __name__ == "__main__":
-    def main(filename: str, prefix: str = "white_poc",
+    def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_poc.csv", prefix: str = "white_poc",
              study_area_type: Optional[str] = None,
              n: int = 10, fixed_y: bool = False):
         area_label = {"max_county": "most populous counties within CBSAs",
                       "max_city": "most populous cities within CBSAs"}.get(study_area_type, "CBSAs")
         geography_type = next((g for g in ("block_groups", "blocks", "tracts", "counties") if g in prefix), "tracts")
         geography_label = geography_type.replace("_", " ")
-        prefix = _shorten_prefix(prefix)
+        prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
         output_dir = Path("figures") / "baseline" / f"{geography_type}_in_{study_area_type or 'cbsa'}"
         output_dir.mkdir(parents=True, exist_ok=True)
         df = enrich_metrics(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
