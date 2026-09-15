@@ -32,7 +32,7 @@ Global Parameters:
 """
 
 RHO = 0.3
-num_seeds = 10
+num_seeds = 4
 num_samples = 500
 num_rhos = 100
 
@@ -155,7 +155,7 @@ def populate_cluster_random(start_node, graph, target_x_pop):
     
     return graph, real_rho
 
-def generate_kclust_grid(graph, target_rho, num_seeds):
+def generate_kclust_grid(graph, target_rho, num_seeds, max_retries = 50):
     """
     Builds a k-cluster configuration by growing num_seeds independent BFS clusters, each targeting an equal share of the total x_pop budget, then computes the achieved rho and number of connected components.
     Parameters:
@@ -173,34 +173,39 @@ def generate_kclust_grid(graph, target_rho, num_seeds):
         components: int
             Number of connected components among the x_pop-carrying nodes
     """
+    for _ in range(max_retries):
+        for node in graph.nodes():
+            graph.nodes[node]["x_pop"] = 0
+            graph.nodes[node]["y_pop"] = 0
 
-    target_pop = target_rho * metrics.property_sum(graph, "TOTPOP") / num_seeds
+        target_pop = target_rho * metrics.property_sum(graph, "TOTPOP") / num_seeds
 
+        for _ in range(num_seeds):
+            y_nodes = [node for node in graph.nodes if graph.nodes[node]["x_pop"] == 0]
+            seed = random.choice(y_nodes)
 
-    for _ in range(num_seeds):
-        y_nodes = [node for node in graph.nodes if graph.nodes[node]["x_pop"] == 0]
-        seed = random.choice(y_nodes)
+            G, cluster_rho = populate_cluster_random(seed, graph, target_pop)
 
-        G, cluster_rho = populate_cluster_random(seed, graph, target_pop)
+        for node in G.nodes():
+            if G.nodes[node]["x_pop"] == 0:
+                G.nodes[node]["y_pop"] = g.nodes[node]["TOTPOP"]
+        
+        real_rho = (metrics.property_sum(G, "x_pop") / 
+                    (metrics.property_sum(G, "x_pop") + 
+                    metrics.property_sum(G, "y_pop")))
+        
+        x_nodes = [
+            node for node in G.nodes()
+            if G.nodes[node]["x_pop"] > 0
+            ]
 
-    for node in G.nodes():
-        if G.nodes[node]["x_pop"] == 0:
-            G.nodes[node]["y_pop"] = g.nodes[node]["TOTPOP"]
-    
-    real_rho = (metrics.property_sum(G, "x_pop") / 
-                (metrics.property_sum(G, "x_pop") + 
-                 metrics.property_sum(G, "y_pop")))
-    
-    x_nodes = [
-        node for node in G.nodes()
-        if G.nodes[node]["x_pop"] > 0
-        ]
+        H = G.subgraph(x_nodes)
 
-    H = G.subgraph(x_nodes)
+        components = nx.number_connected_components(H)
+        if components > 1:
+            return G, real_rho, components
 
-    components = nx.number_connected_components(H)
-
-    return G, real_rho, components
+    return nonde
 
 #loading iowa
 g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
@@ -226,10 +231,12 @@ for _ in range(num_samples):
 
         nodes = list(g.nodes())
         seed = random.choice(nodes)
-        g_, real_rho, num_components = generate_kclust_grid(g, rho, num_seeds)
-        real_rhos.append(real_rho)
-        capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
-        morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
+        result = generate_kclust_grid(g, rho, num_seeds)
+        if result is not None:
+            g_, real_rho, num_components = result
+            real_rhos.append(real_rho)
+            capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
+            morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
 
 #plotting scatterplots
 plt.figure(figsize=(10, 10))
