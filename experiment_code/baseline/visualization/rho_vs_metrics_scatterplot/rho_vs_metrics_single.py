@@ -59,12 +59,13 @@ def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -
                       linestyle="-", linewidth=1.2, markersize=6, label=str(y))
         for y in YEARS]
     fit_handle = mlines.Line2D([], [], color=SECONDARY, linestyle="-", linewidth=1.2, label="linear fit per decade")
+    min_handle = mlines.Line2D([], [], color=PRIMARY_INK, linestyle="--", linewidth=1.2, label="data minimum")
 
     # save legend as a standalone figure
     fig_leg, ax_leg = plt.subplots(figsize=(6, 0.5))
     ax_leg.axis("off")
-    ax_leg.legend(handles=year_handles + [fit_handle],
-        loc="center", ncol=len(YEARS) + 1, frameon=False,
+    ax_leg.legend(handles=year_handles + [fit_handle, min_handle],
+        loc="center", ncol=len(YEARS) + 2, frameon=False,
         fontsize=14, labelcolor=SECONDARY, handletextpad=0.4)
     fig_leg.savefig(OUT_DIR / f"{prefix}_legend.png", bbox_inches="tight", dpi=300)
     plt.close(fig_leg)
@@ -75,13 +76,13 @@ def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -
         fig, ax = plt.subplots(figsize=(7, 6.8))
         ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
         ax.grid(color=GRID_COLOR, linewidth=0.8, zorder=0)
-        ax.tick_params(length=0, labelsize=14, labelcolor=SECONDARY)
+        ax.tick_params(length=0, labelsize=18, labelcolor=SECONDARY)
         if col == "half_edge_1":
             ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
             ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
 
         plot_df = df[["rho", col, "year"]].dropna().sample(frac=1, random_state=42)
-        ax.scatter(plot_df["rho"], plot_df[col], s=16, linewidths=0,
+        ax.scatter(plot_df["rho"], plot_df[col], s=20, linewidths=0,
             c=[YEAR_COLORS[y] for y in plot_df["year"]], zorder=2)
 
         for year in YEARS:
@@ -93,14 +94,6 @@ def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -
 
         col_min = df[col].min()
         ax.axhline(col_min, color=PRIMARY_INK, linewidth=1.2, linestyle="--", zorder=2, alpha=0.8)
-        ref_handles = [mlines.Line2D([], [], color=PRIMARY_INK, linewidth=1.4,
-                       linestyle="--",
-                        # minus signs in the label are replaced with unicode minus
-                       label=f"Data min ({col_min:.2f})".replace("-", "\u2212"))]
-        ax.legend(handles=ref_handles, loc="upper right", frameon=True,
-                  framealpha=0.92, edgecolor=GRID_COLOR, fontsize=14,
-                  labelcolor=SECONDARY, handlelength=1.6,
-                  handletextpad=0.5, labelspacing=0.3)
 
         out = OUT_DIR / f"{prefix}_{GRID_METRICS[col].split(" ")[0].lower().replace("'", '')}.png"
         fig.savefig(out, dpi=300, bbox_inches="tight")

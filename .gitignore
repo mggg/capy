@@ -183,12 +183,11 @@ data/shared/outputs/**/*.png
 figures/baseline/**/*.png
 figures/assortativity_grids/**/*.png
 archive/
-experiment_code/observed_diffusion/archive/
-experiment_code/observed_diffusion/scripts/archive/
 *.tex
 
 # Archive
 archive/
+!experiment_code/observed_diffusion/scripts/archive/
 experiment_code/Misc
 /figures/observed_diffusion/metrics_panels_by_buffers
 /figures/observed_diffusion

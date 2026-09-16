@@ -2,14 +2,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+MAIN_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 
 SEGREGATION_METRIC = "half_edge"
-SPREAD_METRIC = "spread"
+SPREAD_METRIC = "core_euclidean_n_ball_spread"
 SHOW_BUFFERS = [0, 1, 3, 7, 10]
 
-df = pd.read_csv(ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv")
+df = pd.read_csv(MAIN_DIR / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv")
 years = sorted(df['year'].unique())
 
 for (area_code, city_name, cluster), grp in df.groupby(['area_code', 'city_name', 'cluster'], sort=True):
@@ -40,7 +40,7 @@ for (area_code, city_name, cluster), grp in df.groupby(['area_code', 'city_name'
     fig.suptitle(f"{city_name} — {cluster}", fontsize=11)
     fig.tight_layout()
 
-    figure_path = ROOT / "figures" / "misc_observed_diffusion_figs" / "seg_v_spread_by_buffer" / f"{city_name}_{cluster}_{SEGREGATION_METRIC}_{SPREAD_METRIC}_by_buffer.png"
+    figure_path = MAIN_DIR / "figures" / "observed_diffusion" / f"{city_name}_{cluster}_{SEGREGATION_METRIC}_{SPREAD_METRIC}_by_buffer.png"
     figure_path.parent.mkdir(exist_ok=True)
     fig.savefig(figure_path, dpi=200, bbox_inches='tight')
     plt.close(fig)

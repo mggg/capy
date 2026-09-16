@@ -1,12 +1,13 @@
 """
-Identifies majority-Black census tract clusters in Chicago and Philadelphia, then
-expands each cluster outward by 0–10 graph-adjacency buffer steps across census
-years 1980–2020. For each (city, cluster, year, buffer) combination it computes
-segregation metrics (Moran's I, dissimilarity, half-edge) and spatial spread
-metrics (graph-distance and Euclidean spread, n-ball spread, amplitude, drop-off),
-with the cluster medoid fixed at buffer=0 so it does not drift as the buffer grows.
-Outputs auto_cluster_tracts.csv (one row per tract per buffer/year) and
-auto_cluster_metrics.csv (one row of metrics per cluster/year/buffer).
+Cluster definition and back-projection.
+This code creates black population clusters and adds buffers of various sizes to them. It outputs a csv with tract ID belonging to each buffer size, and a cluster metrics csv.
+
+For a given CBSA:
+1. Load the 2020 dual graph; find the 2 largest connected components of majority-Black tracts
+2. Map graph nodes to 2020 polygon geometries; dissolve and fill holes
+3. Back-project both clusters to 1980–2020 via areal overlap (>50% of each earlier-year tract)
+4. Check graph connectivity of the back-projected tracts in the earlier-year dual graphs
+5. Save all-years cluster membership to CSV
 """
 
 import json
@@ -20,7 +21,7 @@ from shapely.ops import unary_union
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent.parent # to capy-bara/
+ROOT = Path(__file__).resolve().parent.parent.parent.parent # to capy/
 sys.path.insert(0, str(ROOT)) # for pipeline.*
 sys.path.insert(0, str(ROOT / "experiment_code" / "observed_diffusion")) # for utils.*
 
@@ -40,6 +41,7 @@ BUFFER_LIST = range(11) # buffer size
 
 DUAL_GRAPHS_DIR = ROOT / "data" / "shared" / "processed" / "dual_graphs"
 CLIPPED_GEO_DIR = ROOT / "data" / "shared" / "processed" / "clipped_geographies"
+# OUTPUT_JSON_FILES = ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "cluster_graphs"
 OUTPUT_NODE_LIST = ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_tracts.csv"
 OUTPUT_METRICS_LIST = ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv"
 
@@ -123,7 +125,7 @@ for CBSA in CBSA_CONFIG.keys():
         # For each earlier-year tract: if `intersection_area / tract_area > OVERLAP_THRESHOLD`, it belongs to the cluster.
         cluster_yearly = {2020: cluster_gdfs_2020}
         graph_yearly = {}
-        full_graph_yearly = {}  # full city graph per year, needed for cross-cluster edge-distances
+        full_graph_yearly = {} # full city graph per year, needed for cross-cluster edge-distances
 
         for year in YEARS:
             gpkg_path = CLIPPED_GEO_DIR / str(year) / f"tracts_in_max_city_{CBSA}_{year}_march_2020_vintage.gpkg"
@@ -135,12 +137,12 @@ for CBSA in CBSA_CONFIG.keys():
                 matched["cluster"] = label
                 cluster_yearly[year][label] = matched
 
-            # full graph file - needed to calc spread
+            # full graph file - needed to calculate spread
             graph_file = DUAL_GRAPHS_DIR / str(year) / f"tracts_in_max_city_{CBSA}_{year}_march_2020_vintage_connected.json"
             with open(graph_file) as f:
                 G_year = nx.adjacency_graph(json.load(f))
 
-            full_graph_yearly[year] = G_year  # keep full graph to calculate_cluster_spread
+            full_graph_yearly[year] = G_year # keep full graph to calculate_cluster_spread
 
             # GEOID to node-id index for this year's graph
             geoid_to_node = {str(attrs["GEOID"]): n for n, attrs in G_year.nodes(data=True)}
