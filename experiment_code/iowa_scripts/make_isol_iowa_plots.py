@@ -176,8 +176,6 @@ real_rhos = []
 capys = []
 morans =[]
 
-
-
 num_samples = 500
 num_rhos = 100
 for _ in range(num_samples):
@@ -216,5 +214,3 @@ plt.savefig("figures/iowa/capy_by_rho_isol_iowa.png")
 g_, real_rho = make_random_isolated_config(g, RHO)
 visualize_iowa(g_, RHO)
 plt.savefig(f"figures/iowa/isol_iowa_visualization_rho={RHO}.png")
-
-    

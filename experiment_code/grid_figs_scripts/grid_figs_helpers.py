@@ -283,7 +283,12 @@ def generate_clust_grid(num_columns, num_rows, rho, node_pop, method = "bfs"):
     for node in G.graph.nodes():
         if G.graph.nodes[node]["x_pop"] == 0:
             G.graph.nodes[node]["y_pop"] = node_pop
-    return G
+    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
+                (metrics.property_sum(G.graph, "x_pop") + 
+                 metrics.property_sum(G.graph, "y_pop")))
+    return (G, real_rho)
+
+
 
 def generate_isol_grid(num_columns, num_rows, rho, node_pop):
     """
@@ -319,9 +324,12 @@ def generate_isol_grid(num_columns, num_rows, rho, node_pop):
             G.graph.nodes[node]["x_pop"] = 0
             G.graph.nodes[node]["y_pop"] = node_pop
             current_x_pop = current_x_pop - node_pop
-    return G
+    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
+                (metrics.property_sum(G.graph, "x_pop") + 
+                 metrics.property_sum(G.graph, "y_pop")))
+    return (G, real_rho)
 
-def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds, method = "bfs", blur = True):
+def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds, method = "bfs", blur = True, max_retries = 50):
     """
     Create an n×m gerrychain Grid with k contiguous x_pop clusters.
 
@@ -350,42 +358,44 @@ def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds,
         The populated grid, the realized global rho, and the number of connected
         x_pop components (may exceed k if clusters merge or split).
     """
+    for _ in range(max_retries):
+        G = gerrychain.grid.Grid((num_columns, num_rows))
+        for node in G.graph.nodes:
+            G.graph.nodes[node]["x"] = node[0]
+            G.graph.nodes[node]["y"] = node[1]
+            G.graph.nodes[node]["x_pop"] = 0
+            G.graph.nodes[node]["y_pop"] = 0
 
-    G = gerrychain.grid.Grid((num_columns, num_rows))
-    for node in G.graph.nodes:
-        G.graph.nodes[node]["x"] = node[0]
-        G.graph.nodes[node]["y"] = node[1]
-        G.graph.nodes[node]["x_pop"] = 0
-        G.graph.nodes[node]["y_pop"] = 0
+        target_nodes = int((target_rho * num_columns * num_rows) / num_seeds)
 
-    target_nodes = int((target_rho * num_columns * num_rows) / num_seeds)
+        for i in range(num_seeds):
+            y_nodes = [node for node in G.graph.nodes() if G.graph.nodes[node]["x_pop"] == 0]
+            seed = random.choice(y_nodes)
+            if method == "bfs":
+                G = populate_cluster_bfs(seed, G, node_pop, target_nodes*node_pop)
+            elif method == "random":
+                G = populate_cluster_random(seed, G, node_pop, target_nodes*node_pop)
 
-    for i in range(num_seeds):
-        y_nodes = [node for node in G.graph.nodes() if G.graph.nodes[node]["x_pop"] == 0]
-        seed = random.choice(y_nodes)
-        if method == "bfs":
-            G = populate_cluster_bfs(seed, G, node_pop, target_nodes*node_pop)
-        elif method == "random":
-            G = populate_cluster_random(seed, G, node_pop, target_nodes*node_pop)
+        for node in G.graph.nodes():
+            if G.graph.nodes[node]["x_pop"] == 0:
+                G.graph.nodes[node]["y_pop"] = node_pop
+        
+        real_rho = (metrics.property_sum(G.graph, "x_pop") / 
+                    (metrics.property_sum(G.graph, "x_pop") + 
+                    metrics.property_sum(G.graph, "y_pop")))
+        
+        x_nodes = [
+            node for node in G.graph.nodes()
+            if G.graph.nodes[node]["x_pop"] > 0
+            ]
 
-    for node in G.graph.nodes():
-        if G.graph.nodes[node]["x_pop"] == 0:
-            G.graph.nodes[node]["y_pop"] = node_pop
-    
-    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
-                (metrics.property_sum(G.graph, "x_pop") + 
-                 metrics.property_sum(G.graph, "y_pop")))
-    
-    x_nodes = [
-        node for node in G.graph.nodes()
-        if G.graph.nodes[node]["x_pop"] > 0
-        ]
+        H = G.graph.subgraph(x_nodes)
 
-    H = G.graph.subgraph(x_nodes)
+        components = nx.number_connected_components(H)
 
-    components = nx.number_connected_components(H)
-
-    return (G, real_rho, components)
+        if components > 1:
+            return (G, real_rho, components)
+    return None
 
 def draw_grid_as_checkerboard(graph, id, rho, ax=None, title=""):
     """

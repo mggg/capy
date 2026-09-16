@@ -29,7 +29,6 @@ Global Parameters:
         Number of evenly spaced rho values between 0.001 and 0.5 to sample over
 """
 
-
 RHO = 0.3
 num_samples = 500
 num_rhos = 100

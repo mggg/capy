@@ -29,6 +29,9 @@ RHO = 0.3
 node_pop = 1
 
 draw_grid_as_checkerboard(generate_ch_grid(90, 90, RHO, node_pop), "checkerboard", RHO)
-draw_grid_as_checkerboard(generate_clust_grid(90, 90, RHO, node_pop, method = "random"), "clustered", RHO)
-draw_grid_as_checkerboard(generate_isol_grid(90, 90, RHO, node_pop), "isolated", RHO)
-draw_grid_as_checkerboard(generate_kclust_grid(90, 90, RHO, node_pop, 6, method = "random")[0], "kclustered", RHO)
+draw_grid_as_checkerboard(generate_clust_grid(90, 90, RHO, node_pop, method="random")[0], "clustered", RHO)
+draw_grid_as_checkerboard(generate_isol_grid(90, 90, RHO, node_pop)[0], "isolated", RHO)
+result = generate_kclust_grid(90, 90, RHO, node_pop, 4, method="random", max_retries=10000)
+if result is not None:
+    draw_grid_as_checkerboard(result[0], "4clustered", RHO)
+

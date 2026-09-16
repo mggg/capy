@@ -1,4 +1,13 @@
-# This code creates black population clusters and adds buffers of various sizes to them. It outputs a csv with tract ID belonging to each buffer size, and a cluster metrics csv.
+"""
+Identifies majority-Black census tract clusters in Chicago and Philadelphia, then
+expands each cluster outward by 0–10 graph-adjacency buffer steps across census
+years 1980–2020. For each (city, cluster, year, buffer) combination it computes
+segregation metrics (Moran's I, dissimilarity, half-edge) and spatial spread
+metrics (graph-distance and Euclidean spread, n-ball spread, amplitude, drop-off),
+with the cluster medoid fixed at buffer=0 so it does not drift as the buffer grows.
+Outputs auto_cluster_tracts.csv (one row per tract per buffer/year) and
+auto_cluster_metrics.csv (one row of metrics per cluster/year/buffer).
+"""
 
 import json
 import networkx as nx
@@ -29,11 +38,10 @@ OVERLAP_THRESHOLD = 0.50
 YEARS = [1980, 1990, 2000, 2010, 2020]
 BUFFER_LIST = range(11) # buffer size
 
-DUAL_GRAPHS_DIR = ROOT / "data" / "processed" / "dual_graphs"
-CLIPPED_GEO_DIR = ROOT / "data" / "processed" / "clipped_geographies"
-OUTPUT_JSON_FILES = ROOT / "experiment_code" / "observed_diffusion" / "data" / "cluster_graphs_buffers"
-OUTPUT_NODE_LIST = ROOT / "experiment_code" / "observed_diffusion" / "data" / "auto_cluster_tracts.csv"
-OUTPUT_METRICS_LIST = ROOT / "experiment_code" / "observed_diffusion" / "data" / "auto_cluster_metrics.csv"
+DUAL_GRAPHS_DIR = ROOT / "data" / "shared" / "processed" / "dual_graphs"
+CLIPPED_GEO_DIR = ROOT / "data" / "shared" / "processed" / "clipped_geographies"
+OUTPUT_NODE_LIST = ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_tracts.csv"
+OUTPUT_METRICS_LIST = ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_metrics.csv"
 
 buffered_cluster_rows = []
 cluster_metrics_rows = []

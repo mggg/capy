@@ -81,4 +81,5 @@ def multi_rankr(x_score, y_scores, color_dict, df, name_dict, jitter_x = 0.5, ji
             c = color_dict[y_col],
             s = 5
         )
+    plt.gca().set_aspect("equal")
     plt.legend()

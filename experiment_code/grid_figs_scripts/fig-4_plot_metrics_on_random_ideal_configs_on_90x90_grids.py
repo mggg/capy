@@ -36,17 +36,15 @@ plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting 
                     "font.size": 11, "savefig.dpi": 300})
 
 METHOD = "random" # "bfs" or "random"
-num_rhos = 20
-num_samples = 20
+num_rhos = 5
+num_samples = 3
 node_pop = 1
-num_seeds = 8
+num_seeds = 4
 
 #generating graphs
 graphs_clust = [] 
 graphs_isol = []
-xvals = []
 graphs_kclust = []
-x_vals_kclust =[]
 
 for _ in range(num_samples):
     rhos = np.linspace(.1, .5, num_rhos)
@@ -54,21 +52,24 @@ for _ in range(num_samples):
     for rho in rhos: 
         graphs_clust.append(generate_clust_grid(90, 90, rho, node_pop, method = METHOD))
         graphs_isol.append(generate_isol_grid(90, 90, rho, node_pop))
-        xvals.append(rho)
-    # accumulate as list of tuples
-    for rho in rhos:
-        G, real_rho, num_components = generate_kclust_grid(90, 90, rho, node_pop, num_seeds, method=METHOD)
+        result = generate_kclust_grid(90, 90, rho, node_pop, num_seeds, method=METHOD)
+        if result is not None:
+            G, real_rho, num_components = generate_kclust_grid(90, 90, rho, node_pop, num_seeds, method=METHOD)
+            graphs_kclust.append(result)
         graphs_kclust.append((G, real_rho, num_components))
 
-half_edge_clust = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_clust]
-half_edge_isol = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G in graphs_isol]
+half_edge_clust = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G, _ in graphs_clust]
+half_edge_isol = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G, _ in graphs_isol]
 half_edge_kclust = [metrics.half_edge(G.graph, "x_pop", "y_pop") for G, _, _ in graphs_kclust]
+x_vals_clust = [real_rho for _, real_rho in graphs_clust]
+x_vals_isol = [real_rho for _, real_rho in graphs_isol]
 x_vals_kclust = [real_rho for _, real_rho, _ in graphs_kclust]
 
+
 #plotting graphs
-plt.scatter(xvals, half_edge_clust, label="One Cluster", s=10, color="#006B3C", edgecolors="black", linewidths=0.5)
+plt.scatter(x_vals_clust, half_edge_clust, label="One Cluster", s=10, color="#006B3C", edgecolors="black", linewidths=0.5)
 plt.scatter(x_vals_kclust, half_edge_kclust, label="Multiple Clusters", s=10, color="#8db600", edgecolors="black", linewidths=0.5)
-plt.scatter(xvals, half_edge_isol, label="Isolated", s=10, color="#69359c", edgecolors="black", linewidths=0.5)
+plt.scatter(x_vals_isol, half_edge_isol, label="Isolated", s=10, color="#69359c", edgecolors="black", linewidths=0.5)
 
 plt.legend(fontsize=8, handlelength=1.5, handleheight=.75, handletextpad=0.4, borderpad=0.4)
 handles, labels = plt.gca().get_legend_handles_labels()
