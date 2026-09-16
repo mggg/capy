@@ -52,7 +52,11 @@ def plot_grid_all_census_areas(df: pd.DataFrame, prefix: str, month_year: str, o
 
     for ax, metric in zip(axes, available):
         y_range = month_year_df[metric].max() - month_year_df[metric].min()
-        _apply_panel_style(ax, years, ylim, y_range=y_range)
+        if metric.startswith("half_edge"):
+            metric_ylim = (0.4, 0.8)
+        else:
+            metric_ylim = ylim
+        _apply_panel_style(ax, years, metric_ylim, y_range=y_range)
 
         for cbsa in eligible_cbsas:
             cbsa_df = month_year_df[month_year_df["area_code"] == cbsa].sort_values("year")

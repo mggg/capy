@@ -1,7 +1,12 @@
 """Shared visualization settings for all experiments."""
 
+from collections import deque
+
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib import patheffects as pe
+from matplotlib.colors import LinearSegmentedColormap
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
                      "font.size": 14, "savefig.dpi": 300})
@@ -18,16 +23,18 @@ PALETTE = [
     "#d11a42",
     "#56b4e9",
     "#000000",
-    "#999999",
-]
+    "#999999"]
 
 GRID_COLOR = "#eae8e0"
 SECONDARY = "#333333"
 PRIMARY_INK = "#0b0b0b"
 
-# Named aliases for the two main metric colors
-BLUE = "#1560bd"   # Capy
+# Two main metric colors (mainly for observed diffusion figures)
+BLUE = "#1560bd" # Capy
 ORANGE = "#ffa812" # Moran's I
+# GREEN = "#69359c"
+TANGERINE = "#ed5113"
+# SKY = "#56b4e9"
 CAPY = BLUE
 MORAN = ORANGE
 
@@ -120,23 +127,93 @@ def _shorten_prefix(prefix: str) -> str:
         .replace("block_groups", "bg"))
 
 
-_NARROW_Y_THRESHOLD = 0.1
-
-
-def _y_formatter(y_range: float) -> mticker.Formatter:
-    fmt = "%.3f" if y_range < _NARROW_Y_THRESHOLD else "%.2f"
-    return mticker.FormatStrFormatter(fmt)
-
-
 def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf")) -> None:
     ax.set_box_aspect(1)
     ax.set_axisbelow(True)
     ax.grid(color=GRID_COLOR, linewidth=0.8)
     ax.spines[["top", "right", "left", "bottom"]].set_visible(False)
-    ax.tick_params(length=0, labelsize=12, labelcolor=SECONDARY)
+    ax.tick_params(length=0, labelsize=plt.rcParams['font.size'],
+                   labelcolor=SECONDARY)
+    ax.tick_params(axis="x", length=0, labelsize=plt.rcParams['font.size'], 
+                   labelcolor=SECONDARY, pad=15)
+    # ax.tick_params(axis="y", length=0, labelsize=plt.rcParams['font.size'], 
+                #    labelcolor=SECONDARY)
     ax.set_xticks(years)
-    ax.set_xticklabels([str(y) for y in years], fontsize=12)
-    ax.yaxis.set_major_formatter(_y_formatter(y_range))
+    ax.set_xticklabels([str(y) for y in years], fontsize=plt.rcParams['font.size'])
+    ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
     ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=4))
     if ylim is not None:
         ax.set_ylim(*ylim)
+
+
+# Radial plot helpers
+
+RADIAL_SURFACE = "#fcfcfb"
+RADIAL_BASELINE = "#c3c2b7" 
+BLUE_RAMP = [
+    "#d6e8ff", "#c2dcfe", "#aaccfd", "#90bbfb", "#76a9f7", "#5e97f0",
+    "#4685e6", "#3374d9", "#2567cc", "#1d62c2", "#1a61be", "#1560bd"]
+CMAP_BLACK_SHARE = LinearSegmentedColormap.from_list("black_share", BLUE_RAMP)
+DOT_SIZE = 20
+DOT_RING = 0.2
+
+
+def _centroid(G, n):
+    return np.array([G.nodes[n]["centroid_x"], G.nodes[n]["centroid_y"]])
+
+
+def bfs(G, medoid):
+    """Edge distance from medoid to every reachable node."""
+    assert medoid in G, f"medoid {medoid} not in graph"
+    d = {medoid: 0}
+    Q = deque([medoid])
+    while Q:
+        u = Q.popleft()
+        for v in G[u]:
+            if v not in d:
+                d[v] = d[u] + 1
+                Q.append(v)
+    return d
+
+
+def bearings(G, medoid, nodes):
+    """Angle bearing of each tract's centroid from the medoid, in radians."""
+    centroid = _centroid(G, medoid)
+    out_coords = {}
+    for n in nodes:
+        v = _centroid(G, n) - centroid
+        out_coords[n] = float(np.arctan2(v[1], v[0]))
+    return out_coords
+
+
+def radial_coords(d, angle, nodes):
+    """(x, y) = (r cos theta, r sin theta) for each node."""
+    return {n: (d[n] * np.cos(angle[n]), d[n] * np.sin(angle[n])) for n in nodes}
+
+
+def panel_radial(ax, coords, share, rmax, reach, title, label_rings=(5, 10)):
+    """Radial plots panel. r = edge-distance from medoid; color = Black share."""
+    for r in range(1, rmax + 1):
+        ax.add_patch(plt.Circle((0, 0), r, fill=False, ec=GRID_COLOR, lw=0.7, zorder=0))
+    ax.add_patch(plt.Circle((0, 0), reach, fill=False, ec=RADIAL_BASELINE, lw=1.1,
+                             ls=(0, (4, 3)), zorder=1))
+    marks = [r for r in label_rings if r <= reach - 2] + [reach]
+    if rmax >= reach + 2:
+        marks.append(rmax)
+    for r in marks:
+        ax.text(-r * 0.7071, r * 0.7071, str(r), fontsize=plt.rcParams['font.size']-2,
+                color=SECONDARY, ha="center", va="center", zorder=7,
+                path_effects=[pe.withStroke(linewidth=2.6, foreground=RADIAL_SURFACE)])
+    xy = np.array([coords[n] for n in coords])
+    c = np.array([share[n]  for n in coords])
+    sc = ax.scatter(xy[:, 0], xy[:, 1], c=c, cmap=CMAP_BLACK_SHARE, vmin=0.0, vmax=1.0,
+                    s=DOT_SIZE, lw=DOT_RING, edgecolors=RADIAL_SURFACE, alpha=1, zorder=3)
+    ax.plot(0, 0, "*", ms=13, mfc=TANGERINE, mec=RADIAL_SURFACE, mew=0.8, zorder=5)
+    lim = rmax + 0.8
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title(title, fontsize=plt.rcParams['font.size'],
+                  loc='center')
+    return sc
