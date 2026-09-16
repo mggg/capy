@@ -190,3 +190,5 @@ experiment_code/observed_diffusion/scripts/archive/
 # Archive
 archive/
 experiment_code/Misc
+/figures/observed_diffusion/metrics_panels_by_buffers
+/figures/observed_diffusion
