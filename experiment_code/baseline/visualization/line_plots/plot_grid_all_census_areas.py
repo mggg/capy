@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/b
 
 from typing import Optional
 import typer
-from capy_core.process_results import enrich_metrics
+from capy_core.process_results import join_study_area_metadata
 from experiment_code.visualization_settings import _shorten_prefix, GRID_METRICS, SECONDARY, _apply_panel_style
 
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
         output_dir = Path("figures") / "baseline" / f"{geography_type}_in_{study_area_type or 'cbsa'}"
         output_dir.mkdir(parents=True, exist_ok=True)
-        df = enrich_metrics(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
+        df = join_study_area_metadata(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
         month_year = df["definition_month_year"].iloc[0]
         plot_grid_all_census_areas(df, prefix, month_year, output_dir,
                                    geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)

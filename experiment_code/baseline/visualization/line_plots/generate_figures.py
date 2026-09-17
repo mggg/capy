@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import typer
 
-from capy_core.process_results import enrich_metrics
+from capy_core.process_results import join_study_area_metadata
 from experiment_code.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
 from visualization.line_plots.plot_family_grids import plot_family_grids
 from visualization.line_plots.plot_grid_all_census_areas import plot_grid_all_census_areas
@@ -125,7 +125,7 @@ def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
     required = {"definition_month_year", "year", "area_title", "area_code", "total_population_2020"}
     if required.issubset(df.columns):
         return df
-    return enrich_metrics(df)
+    return join_study_area_metadata(df)
 
 
 if __name__ == "__main__":
