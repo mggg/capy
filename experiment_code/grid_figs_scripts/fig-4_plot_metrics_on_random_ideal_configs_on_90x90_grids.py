@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
-sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (3 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
+sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (2 levels up = capy-bara/)     # for pipeline (2 levels up = capy-bara/)
 import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -36,8 +36,8 @@ plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting 
                     "font.size": 11, "savefig.dpi": 300})
 
 METHOD = "random" # "bfs" or "random"
-num_rhos = 5
-num_samples = 3
+num_rhos = 20
+num_samples = 20
 node_pop = 1
 num_seeds = 4
 
@@ -81,5 +81,5 @@ legend_ax.axis("off")
 legend_ax.legend(handles, labels, loc="center",
                  fontsize=8, handlelength=1.5, handleheight=.75,
                  handletextpad=0.4, borderpad=0.4)
-legend_fig.set_size_inches(1.5, .5)
+legend_fig.set_size_inches(1, .25)
 plt.savefig(f"figures/idealized_grids/fig-4_capyx_v_rhoy_scatterplots_90x90_random_configs_{num_samples}samples_{num_rhos}rhos_{num_seeds}seed_legend.png", dpi=300, bbox_inches="tight")
