@@ -5,13 +5,12 @@ top 100 cities (by population) in a given year by their within-group score ranks
 against each other.
 
 Saves one PNG per pair to:
-    figures/baseline/<node_areas>_in_<study_areas>/rank_comparisons/<stem>_rank_<x>_vs_<y>.png
+    figures/baseline/<node_areas>_in_<study_areas>/rank_comparisons/<stem>_rank_<y>_vs_<x>.png
 
 Usage (run from the project root):
     python experiment_code/baseline/visualization/rank_comparisons/rank_comparisons_single.py
 """
 
-import re
 import sys
 from itertools import combinations
 from pathlib import Path
@@ -39,22 +38,9 @@ DISPLAY_METRICS = {
     "moran_P": "Moran's I Rank"}
 
 
-def main(
-    filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv",
-    year: str = "2020", top_n: int = 100) -> None:
-    CSV = Path(filename)
-
-    stem = CSV.stem # e.g. "white_black"
-    # groups_compared = "White and Black" if stem == "white_black" else "White and POC"
-
-    node_areas = re.search(r"outputs/([^_]+)_in", str(CSV)).group(1) # e.g. "tracts"
-    study_areas_key = re.search(r"outputs/[^/]+_in_([^/]+)/", str(CSV)).group(1) # e.g. "cbsa"
-    # study_areas = (
-    #     "the largest city per metropolitan area"
-    #     if study_areas_key == "max_city"
-    #     else study_areas_key)
-
-    df = pd.read_csv(CSV, usecols=list(USED_COLS))
+def load_ranked_data(filename: str, year: str, top_n: int) -> pd.DataFrame:
+    """Load complete observations and rank metrics within the top-population sample."""
+    df = pd.read_csv(filename, usecols=list(USED_COLS))
     df["year"] = df["filename"].str.extract(r"(\d{4})")
     df = df.dropna(subset=list(USED_COLS))
     df = df[df["year"] == year]
@@ -63,7 +49,11 @@ def main(
     for col in DISPLAY_METRICS:
         df[col + "_rank"] = df[col].rank(method="average")
 
-    out_dir = (Path("figures") / "baseline" / f"{node_areas}_in_{study_areas_key}" / "rank_comparisons")
+    return df
+
+
+def plot_rank_comparisons(df: pd.DataFrame, out_dir: Path, stem: str) -> None:
+    """Draw and save one rank comparison figure per metric pair."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
     pairs = list(combinations(DISPLAY_METRICS.keys(), 2))  # 3 pairs
@@ -93,10 +83,32 @@ def main(
             x_col = "capy"
         rho = round(rho, 2).astype(str).replace(".", "p") # for filename
 
-        out_path = out_dir / f"{stem}_rank_{x_col.split('_')[0]}_vs_{y_col.split('_')[0]}_corr{rho}.png"
+        out_path = out_dir / f"{stem}_rank_{y_col.split('_')[0]}_vs_{x_col.split('_')[0]}_corr{rho}.png"
         fig.savefig(out_path, dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved to {out_path}")
+
+
+def main(
+    filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv",
+    year: str = "2020", top_n: int = 100) -> None:
+    CSV = Path(filename)
+
+    stem = CSV.stem # e.g. "white_black"
+    # groups_compared = "White and Black" if stem == "white_black" else "White and POC"
+
+    node_areas, separator, study_areas_key = CSV.parent.name.partition("_in_")
+    if not separator or not node_areas or not study_areas_key:
+        raise ValueError(
+            f"Expected CSV inside a '<geography>_in_<study_area>' directory: {CSV}")
+    # study_areas = (
+    #     "the largest city per metropolitan area"
+    #     if study_areas_key == "max_city"
+    #     else study_areas_key)
+
+    df = load_ranked_data(filename, year, top_n)
+    out_dir = (Path("figures") / "baseline" / f"{node_areas}_in_{study_areas_key}" / "rank_comparisons")
+    plot_rank_comparisons(df, out_dir, stem)
 
 
 if __name__ == "__main__":
