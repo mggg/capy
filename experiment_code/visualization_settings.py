@@ -29,6 +29,13 @@ GRID_COLOR = "#eae8e0"
 SECONDARY = "#333333"
 PRIMARY_INK = "#0b0b0b"
 
+YEAR_COLORS = {
+    1980: "#1560bd",
+    1990: "#006b3c",
+    2000: "#8db600",
+    2010: "#ffa812",
+    2020: "#d11a42"}
+
 # Two main metric colors (mainly for observed diffusion figures)
 BLUE = "#1560bd" # Capy
 ORANGE = "#ffa812" # Moran's I
@@ -48,7 +55,14 @@ GRID_METRICS = {
 
 
 def _build_metric_labels() -> dict:
-    lam_display = {"0": "λ=0", "0.5": "λ=0.5", "1": "λ=1", "2": "λ=2", "10": "λ=10", "lim": "λ=∞"}
+    """Map metric keys to (title, subtitle) pairs for plot labels.
+
+    Subtitles describe parameter values such as:
+        Lambda (λ) values for Capy, i.e. weights on the within units vs. between units terms in the Half Edge formula.
+        Exact-count or asymptotic variants for Capy.
+        Moran matrix variants: A for adjacency, P for adjacency normalized, L for Laplacian, M for Metropolis, D_1 inverse distance, and D_2 for inverse distance squared.
+    """
+    lam_display = {"0": r"$\lambda=0$", "0.5": r"$\lambda=0.5$", "1": r"$\lambda=1$", "2": r"$\lambda=2$", "10": r"$\lambda=10$", "lim": r"$\lambda=\infty$"}
     bases = {
         "skew_self": "Skew (self)",
         "skew_other": "Skew (other)",
@@ -61,7 +75,7 @@ def _build_metric_labels() -> dict:
         for base, title in bases.items():
             labels[f"{base}_{lam}"] = (title, lam_label)
             labels[f"{base}_exact_{lam}"] = (title, f"Exact counts; {lam_label}")
-    _dissim_labels = {1: "L1 norm (standard)", 2: "L2 norm", 10: "L10 norm"}
+    _dissim_labels = {1: r"$L_1$ norm (standard)", 2: r"$L_2$ norm", 10: r"$L_{10}$ norm"}
     for p in [1, 2, 10]:
         labels[f"dissimilarity_{p}"] = ("Dissimilarity", _dissim_labels[p])
     labels.update({
@@ -128,6 +142,14 @@ def _shorten_prefix(prefix: str) -> str:
 
 
 def _apply_panel_style(ax, years: list, ylim: tuple, y_range: float = float("inf")) -> None:
+    """Apply shared styling to baseline metric-over-time panels.
+
+    Called by `baseline/visualization/line_plots` functions: `plot_family_grids()`, `plot_grid_all_census_areas()`,
+    `plot_grid_top10()`, and by `main()` in `generate_figures.py`, all under `experiment_code/baseline/visualization/line_plots/`.
+
+    Sets square axes, a background grid, hidden spines, year ticks, and
+    one-decimal y-axis labels; applies y-limits when ylim is provided.
+    """
     ax.set_box_aspect(1)
     ax.set_axisbelow(True)
     ax.grid(color=GRID_COLOR, linewidth=0.8)
