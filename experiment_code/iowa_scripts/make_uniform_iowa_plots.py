@@ -31,7 +31,7 @@ Global Parameters:
 
 RHO = 0.3
 
-def colormap(rho):
+def colormap(rho, vmin = 0, vmax = 1):
     """
     Builds a diverging colormap and norm centered at rho, running from blue (rho=0) through white (rho=rho) to orange (rho=1).
     Parameters:
@@ -44,7 +44,7 @@ def colormap(rho):
     ["#2267BC", "#ffffff", "#FFA812"]
     )
     # Norm that maps 0→left, RHO→center (white), 1→right
-    norm = TwoSlopeNorm(vmin=0, vcenter=rho, vmax=1)
+    norm = TwoSlopeNorm(vmin=vmin, vcenter=rho, vmax=vmax)
 
     return diverging_cmap, norm
 
@@ -117,13 +117,13 @@ def plot_rho_colorbar_diverging(vcenter=RHO, vmin=0, vmax=1, tick_size=10):
 
     fig, ax = plt.subplots(figsize=(1.2, 4))
     fig.subplots_adjust(right=0.4)
-    cmap, norm = colormap(vcenter)
+    cmap, norm = colormap(vcenter, vmin, vmax)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     cbar = fig.colorbar(sm, ax=ax, fraction=1.0, pad=0)
     cbar.ax.tick_params(labelsize=tick_size)
     cbar.ax.set_title(r"$\rho_i$", rotation=0, fontsize=tick_size * 3, pad=10)
     cbar.ax.yaxis.set_ticks_position('right')
-    cbar.ax.text(1.6, vcenter, fr"$\rho = {RHO}$", va='center', ha='left',
+    cbar.ax.text(1.6, vcenter, fr"$\rho = {vcenter}$", va='center', ha='left',
              fontsize=tick_size, transform=cbar.ax.transData, clip_on=False)
     cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
     

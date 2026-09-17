@@ -115,7 +115,7 @@ merged_gdf["TOTPOP"] = merged_gdf["TOTPOP"].astype(int)
 merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
 #writing graph jsons and shapefiles, 2010
-merged_gdf.to_file("rdata/experiment_specific/ia_files/ia_counties_2010.shp")
+merged_gdf.to_file("data/experiment_specific/ia_files/ia_counties_2010.shp")
 graph = gerrychain.Graph.from_geodataframe(merged_gdf)
 graph.to_json(str(Path("data/experiment_specific/ia_files/ia_counties_2010.json").resolve()))
 
@@ -131,7 +131,7 @@ merged_gdf["TOTPOP"] = merged_gdf["TOTPOP"].astype(int)
 
 merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
-#writing graph jsons and shapefiles, 2010
+#writing graph jsons and shapefiles, 2020
 merged_gdf.to_file("data/experiment_specific/ia_files/ia_counties_2020.shp")
 graph = gerrychain.Graph.from_geodataframe(merged_gdf)
 graph.to_json(str(Path("data/experiment_specific/ia_files/ia_counties_2020.json").resolve()))

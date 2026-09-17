@@ -1,7 +1,10 @@
 import sys, os
 import os
-os.chdir("/Users/samstephenson/Downloads/capy-bara")
-sys.path.insert(0, "/Users/samstephenson/Downloads/capy-bara")
+import pathlib
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
+
 
 import capy_core.metrics as metrics
 import networkx as nx
