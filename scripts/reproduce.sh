@@ -24,9 +24,9 @@ export METRIC_FAILURES_FILE="${RUN_OUTPUT_DIR}/metric_failures.csv"
 exec > >(tee -a "${PIPELINE_LOG_FILE}") 2>&1
 
 echo "=== 1. Download ==="
-poetry run python capy_core/download/download_population_tables.py --level "${CENSUS_GEOGRAPHY_TYPE}"
-poetry run python capy_core/download/download_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}"
-poetry run python capy_core/preprocessing/census_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}"
+poetry run python capy_core/download/download_population_tables.py --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
+poetry run python capy_core/download/download_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
+poetry run python capy_core/preprocessing/census_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
 
 # Only download study-area-definition geographies separately when they differ from the census geography type/year already fetched above (avoids a redundant download).
 if [ "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" != "${CENSUS_GEOGRAPHY_TYPE}" ] ||
@@ -43,7 +43,9 @@ echo ""
 echo "=== 2. Study areas ==="
 poetry run python capy_core/preprocessing/study_areas.py \
     ${STUDY_AREA_SOURCE_FILE:+--filename "${STUDY_AREA_SOURCE_FILE}"} \
-    --study-area-type "${STUDY_AREA_TYPE}"
+    --study-area-type "${STUDY_AREA_TYPE}" \
+    --definition-geographies "${STUDY_AREA_DEFINITION_GEOGRAPHIES}" \
+    --definition-vintage "${STUDY_AREA_DEFINITION_VINTAGE}"
 echo "Study areas are saved to 'data/shared/processed/study_area_definitions'."
 
 echo ""
@@ -58,17 +60,20 @@ poetry run python capy_core/preprocessing/overlaps.py \
 echo ""
 echo "=== 4. Graphs ==="
 poetry run python capy_core/graphs.py \
-    "data/shared/processed/clipped_geographies/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.gpkg"
+    "data/shared/processed/clipped_geographies/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage.gpkg" \
+    --years "${CENSUS_GEOGRAPHY_YEARS}"
 
 echo ""
 echo "=== 5. Metrics ==="
 poetry run python capy_core/metrics.py \
     "data/shared/processed/dual_graphs/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" \
-    BLACK WHITE TOTPOP "${RUN_OUTPUT_DIR}/white_black.csv"
+    BLACK WHITE TOTPOP "${RUN_OUTPUT_DIR}/white_black.csv" \
+    --years "${CENSUS_GEOGRAPHY_YEARS}"
 
 poetry run python capy_core/metrics.py \
     "data/shared/processed/dual_graphs/*/${CENSUS_GEOGRAPHY_TYPE}_in_${STUDY_AREA_TYPE}_*_${STUDY_AREA_DEFINITION_VINTAGE}_vintage_connected.json" \
-    POC WHITE TOTPOP "${RUN_OUTPUT_DIR}/white_poc.csv"
+    POC WHITE TOTPOP "${RUN_OUTPUT_DIR}/white_poc.csv" \
+    --years "${CENSUS_GEOGRAPHY_YEARS}"
 
 echo ""
 echo "=== 6. Figures ==="

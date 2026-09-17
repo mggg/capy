@@ -2,69 +2,117 @@
 
 This project downloads population and geography data from the Census Bureau API and IPUMS/NHGIS, constructs adjacency graphs where census units (e.g. tracts) within study areas (e.g. CBSAs) are connected if they share a border, and applies a battery of residential segregation metrics. The goal is to assess segregation and disagreement among metrics across geographies and decades.
 
-## Quick start to download the data and apply metrics
+## Quick start
 
-A Census API key and IPUMS API key are required for data downloads:
+There are two main ways to use this repo:
 
-```bash
-export CENSUS_API_KEY="..."
-export IPUMS_API_KEY="..."
-```
+- **Mode 1 — Core pipeline:** download Census data, build adjacency graphs, and compute segregation metrics from scratch.
+- **Mode 2 — Experiments:** run separate metrics-related experiments. Experiments have their own READMEs under `experiment_code/<name>/` and some can use supplied data without running the full pipeline.
 
-Set your run configurations in `capy_core/config.yaml`. To download the data and apply metrics run `bash scripts/reproduce.sh`.
-
-## Quick start to run experiments
+Both modes require installing dependencies first:
 
 ```bash
 make install   # install Python dependencies via Poetry
 make setup     # scaffold the data directory tree
-make run       # run the baseline experiment
-make run EXPERIMENT=observed_diffusion  # run a specific experiment
 ```
+
+### Mode 1: Core pipeline
+
+#### Credentials
+
+A Census API key is required for all runs. An IPUMS API key is required only when downloading 1980 or 1990 data (those decades use NHGIS instead of the Census API). NHGIS also requires a free account registration at [uma.pop.umn.edu/nhgis/registration/new](https://uma.pop.umn.edu/nhgis/registration/new) — note that NHGIS extract jobs are processed asynchronously and can take several hours.
+
+Keys can be set as shell environment variables or in a `.env` file at the repo root. The `.env` parser expects bare `KEY=value` lines — do not use an `export` prefix:
+
+```bash
+# shell environment
+export CENSUS_API_KEY="your_census_key"
+export IPUMS_API_KEY="your_ipums_key"   # only needed for 1980/1990
+```
+
+```
+# .env file at repo root — no "export" prefix
+CENSUS_API_KEY=your_census_key
+IPUMS_API_KEY=your_ipums_key
+```
+
+#### Running
+
+Set your run configuration in `capy_core/config.yaml`, then run:
+
+```bash
+make run        # equivalent to: bash scripts/reproduce.sh
+```
+
+This downloads data, builds graphs, computes metrics, and generates baseline figures in one pass. See [Pipeline overview](#pipeline-overview) for the full step-by-step breakdown.
+
+### Mode 2: Experiments
+
+Each experiment lives under `experiment_code/<name>/` and has its own README with the command sequence:
+
+| Experiment | README |
+|---|---|
+| Baseline figures and tables | `experiment_code/baseline/visualization/README.md` |
+| Iowa | `experiment_code/iowa_scripts/README.md` |
+| Synthetic grids | `experiment_code/grid_figs_scripts/README.md` |
+| Assortativity grids | `experiment_code/assortativity_grids/README.md` |
+| Observed diffusion | `experiment_code/observed_diffusion/README.md` |
 
 ## Folder structure
 
 ```
 capy-bara/
 ├── data/
-│   ├── raw/                        # downloaded source files (gitignored)
-│   │   ├── geographies/            # TIGER/Line and NHGIS shapefiles
-│   │   ├── population/             # Census API / NHGIS population tables
-│   │   └── study_area_sources/     # CBSA delineation .xls files
-│   └── processed/                  # pipeline intermediates (gitignored)
-│       ├── census_geographies/     # population-attributed shapefiles per year/level
-│       ├── study_area_definitions/ # study area boundary .gpkg + metadata .json
-│       ├── clipped_geographies/    # census units clipped to each study area
-│       ├── dual_graphs/            # adjacency graph JSONs per study area
-│       └── dropped_nodes/          # zero-population nodes removed from graphs
+│   ├── shared/
+│   │   ├── raw/                        # downloaded source files (gitignored)
+│   │   │   ├── geographies/            # TIGER/Line and NHGIS shapefiles
+│   │   │   ├── population/             # Census API / NHGIS population tables
+│   │   │   └── study_area_sources/     # CBSA delineation .xls files
+│   │   ├── processed/                  # pipeline intermediates (gitignored)
+│   │   │   ├── census_geographies/     # population-attributed shapefiles per year/level
+│   │   │   ├── study_area_definitions/ # study area boundary .gpkg + metadata .json
+│   │   │   ├── clipped_geographies/    # census units clipped to each study area
+│   │   │   └── dual_graphs/            # adjacency graph JSONs per study area
+│   │   └── outputs/                    # pipeline run outputs (gitignored)
+│   │       ├── tracts_in_cbsa/         # metrics CSVs for this configuration
+│   │       ├── tracts_in_max_city/
+│   │       ├── block_groups_in_cbsa/
+│   │       └── ...                     # one folder per geography/study-area combination
+│   └── experiment_specific/
+│       ├── ia_files/                   # supplied Iowa graph JSON
+│       └── observed_diffusion_data/    # supplied cluster membership and metric CSVs
 │
-├── data/shared/outputs/                        # pipeline run outputs (gitignored)
-│   ├── tracts_in_cbsa/             # metrics CSVs + figures for this configuration
-│   ├── block_groups_in_cbsa/
-│   └── cross_level_comparisons/    # figures comparing results across runs
+├── figures/                            # output figures (gitignored)
+│   ├── baseline/                       # line plots and rankings per run configuration
+│   ├── Iowa/
+│   ├── assortativity_grids/
+│   └── observed_diffusion/
 │
-├── capy_core/                      # core pipeline modules
-│   ├── config.py                   # config loader; prints shell exports when run directly
-│   ├── config.yaml                 # pipeline configuration
-│   ├── graphs.py                   # dual adjacency graph construction
-│   ├── metrics.py                  # segregation metric calculations
-│   ├── process_results.py          # enriches metrics CSV with study area metadata
-│   ├── download/                   # download_geographies.py, download_population_tables.py
-│   ├── preprocessing/              # census_geographies.py, study_areas.py, overlaps.py
-│   ├── utils/                      # definitions.py, pipeline_log.py
-│   └── tests/                      # pytest test suite
+├── capy_core/                          # core pipeline modules
+│   ├── config.py                       # config loader; prints shell exports when run directly
+│   ├── config.yaml                     # pipeline configuration
+│   ├── graphs.py                       # dual adjacency graph construction
+│   ├── metrics.py                      # segregation metric calculations
+│   ├── process_results.py              # enriches metrics CSV with study area metadata
+│   ├── download/                       # download_geographies.py, download_population_tables.py
+│   ├── preprocessing/                  # census_geographies.py, study_areas.py, overlaps.py
+│   ├── utils/                          # definitions.py, pipeline_log.py
+│   └── tests/                          # pytest test suite
 │
-├── visualization/                  # figure generation scripts
-│   └── generate_figures.py         # reads metrics CSV, produces publication figures
+├── experiment_code/                    # hypothesis-testing experiments
+│   ├── visualization_settings.py       # shared plot styling
+│   ├── baseline/visualization/         # line plots, rho plots, lambda rankings
+│   ├── iowa_scripts/                   # Iowa map and isolation plots
+│   ├── grid_figs_scripts/              # synthetic grid figure scripts
+│   ├── assortativity_grids/            # assortativity simulation and plots
+│   └── observed_diffusion/             # cluster backprojection and radial plots
 │
-├── experiment_code/                # hypothesis-testing experiments
-│   └── <name>/                     # one folder per experiment
+├── scripts/                            # shell scripts
+│   ├── reproduce.sh                    # full pipeline orchestration
+│   └── setup.sh                        # scaffolds directory tree
 │
-├── scripts/                        # shell scripts
-│   ├── reproduce.sh                # full pipeline orchestration
-│   └── setup.sh                    # scaffolds directory tree
-│
-└── archive/                        # inactive code and old outputs
+├── stats/                              # summary statistics
+└── archive/                            # inactive code and old outputs
 ```
 
 ## Pipeline overview
@@ -93,7 +141,7 @@ All pipeline behavior is controlled by `capy_core/config.yaml`:
 | `census_geography_years` | `[2020, 2010, 2000]` | list of years |
 | `study_area_vintage` | `2020` | year |
 
-For `study_area_type: cbsa`, a delineation file matching `list1_*<vintage>.xls` must exist in `data/raw/study_area_sources/`. A Census API key and IPUMS API key are required for downloads.
+To change the run configuration, edit `capy_core/config.yaml` directly. Environment variables do not override YAML values. For `study_area_type: cbsa`, a delineation file matching `list1_*<vintage>.xls` must exist in `data/shared/raw/study_area_sources/`.
 
 ## Running the pipeline
 

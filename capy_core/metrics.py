@@ -3,6 +3,7 @@ import typer
 import os
 import csv
 import glob
+from typing import Optional
 import warnings
 import gerrychain
 import networkx as nx
@@ -18,7 +19,7 @@ from functools import partial
 from pathlib import Path
 
 
-def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, workers: int = 6):
+def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, workers: int = 6, years: Optional[str] = None):
     """Compute segregation metrics for every graph JSON matched by input_glob.
 
     Runs in parallel via ProcessPoolExecutor. Writes one CSV row per file to
@@ -26,6 +27,9 @@ def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, wo
     environment variable.
     """
     files = sorted(glob.glob(input_glob))
+    if years:
+        year_set = set(years.split())
+        files = [f for f in files if Path(f).parent.name in year_set]
     worker = partial(_process_file, x_col=x_col, y_col=y_col, tot_col=tot_col)
     n_ok = 0
     n_failed = 0
