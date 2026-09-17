@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(__file__))  # lambda_scripts dir
 from matplotlib.lines import Line2D
 from lambda_helpers import multi_rankr
 
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 11, "savefig.dpi": 300})
 
 """
@@ -43,8 +43,8 @@ COMPARISON = "black" #"black" or "poc"
 GEOGRAPHY = "tracts" #"tracts", "block_groups", or "blocks"
 AREA_TYPE = "cbsa"  #"cbsa" or "max_city"
 YEAR = 2020
-JITTER_X = 0.5
-JITTER_Y = 0.5
+JITTER_X = 0
+JITTER_Y = 0.3
 WEIGHTS = "small" #small or full
 
 #MAKE THIS A PREPROCESSING SCRIPT AND PUT IT IN THE DATA THING
@@ -100,12 +100,22 @@ if WEIGHTS == "small":
 handles, labels = plt.gca().get_legend_handles_labels()
 plt.legend().remove()
 
-plt.savefig(f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_({JITTER_X, JITTER_Y})jitter_mainplot.png", dpi = 300, bbox_inches = "tight")
+base_file_name = f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_{JITTER_X}{JITTER_Y}jitter_mainplot"
+file_stem = base_file_name.replace('.', 'p')
+plt.savefig(file_stem, dpi = 300, bbox_inches = "tight")
 
 legend_fig, legend_ax = plt.subplots()
 legend_ax.axis("off")
-legend_ax.legend(handles, labels, loc="center",
-                 fontsize=8, handletextpad=0.4, borderpad=0.4)
-legend_fig.set_size_inches(2, 1)
-plt.savefig(f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_({JITTER_X, JITTER_Y})jitter_legend.png", dpi = 300, bbox_inches = "tight")
+leg = legend_ax.legend(handles, labels, loc="center",
+                 fontsize=8, handletextpad=0.4, borderpad=0.4,
+                 edgecolor="black", fancybox=False)
+legend_fig.canvas.draw()
 
+from matplotlib.transforms import Bbox
+bbox = leg.get_window_extent().transformed(legend_fig.dpi_scale_trans.inverted())
+padded = Bbox([[bbox.x0 - 0.05, bbox.y0 - 0.05],
+               [bbox.x1 + 0.05, bbox.y1 + 0.05]])
+
+base_file_name = f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_{JITTER_X}{JITTER_Y}jitter_legend"
+file_stem = base_file_name.replace('.', 'p')
+plt.savefig(file_stem, dpi=300, bbox_inches=padded)
