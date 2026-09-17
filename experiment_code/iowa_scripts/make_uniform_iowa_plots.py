@@ -17,14 +17,17 @@ import tqdm
 from collections import deque, defaultdict
 import math
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+random.seed(42)
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 28, "savefig.dpi": 300})
+
 """
 This script generates three figures for a uniform Iowa county graph: a capy-vs-rho lineplot, a geographic visualization of county-level rho values, and a standalone diverging colorbar.
 Global Parameters:
     RHO: float
         The uniform group fraction used for the geographic visualization and colorbar figures
 """
-
-
 
 RHO = 0.3
 
@@ -148,10 +151,8 @@ def plot_rho_vs_capy_uniform(graph):
         capys[i] = metrics.half_edge(g1, "x_pop", "y_pop")
 
     plt.scatter(rhos,capys,s=1, color = "#1560bd")
-    plt.xlabel(u"\u03C1")
     plt.xlim([0,0.5])
     plt.ylim([0,1])
-    plt.ylabel('Capy')
 
     plt.tight_layout()
 
@@ -159,10 +160,10 @@ def plot_rho_vs_capy_uniform(graph):
 graph = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
 plot_rho_vs_capy_uniform(graph)
-plt.savefig("figures/iowa/capy_by_rho_uniform_iowa.png")
+plt.savefig("figures/iowa/capy_by_rho_uniform_iowa.png", dpi = 300, bbox_inches="tight")
 
 visualize_iowa(make_uniform_iowa(graph, RHO), RHO)
-plt.savefig(f"figures/iowa/uniform_iowa_visualization_rho={RHO}.png")
+plt.savefig(f"figures/iowa/uniform_iowa_visualization_rho={RHO}.png", dpi = 300, bbox_inches="tight")
 
 plot_rho_colorbar_diverging(RHO)
 plt.savefig(f"figures/iowa/divergent_rho_colorbar_rho={RHO}.png")

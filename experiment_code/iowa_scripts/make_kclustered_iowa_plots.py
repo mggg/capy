@@ -17,6 +17,10 @@ import tqdm
 from collections import deque, defaultdict
 import math
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+random.seed(42)
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 28, "savefig.dpi": 300})
 
 """
 This script generates scatter plots of capy and Moran's I versus rho for randomly sampled k-cluster configurations of the Iowa county graph, plus a geographic visualization of one such configuration.
@@ -73,7 +77,7 @@ def visualize_iowa(graph, rho):
     pos = {
     node: (
         float(graph.nodes[node]["INTPTLON"]),
-        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(g.nodes[node]["INTPTLAT"]))/2)))
+        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(graph.nodes[node]["INTPTLAT"]))/2)))
     )
     for node in graph.nodes()
     }
@@ -151,7 +155,7 @@ def populate_cluster_random(start_node, graph, target_x_pop):
         if graph.nodes[node]["x_pop"] == 0:
             graph.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
 
-    real_rho = metrics.property_sum(g, "x_pop")/metrics.property_sum(g, "TOTPOP")
+    real_rho = metrics.property_sum(graph, "x_pop")/metrics.property_sum(graph, "TOTPOP")
     
     return graph, real_rho
 
@@ -182,13 +186,15 @@ def generate_kclust_grid(graph, target_rho, num_seeds, max_retries = 50):
 
         for _ in range(num_seeds):
             y_nodes = [node for node in graph.nodes if graph.nodes[node]["x_pop"] == 0]
+            if y_nodes == []:
+                return None
             seed = random.choice(y_nodes)
 
             G, cluster_rho = populate_cluster_random(seed, graph, target_pop)
 
         for node in G.nodes():
             if G.nodes[node]["x_pop"] == 0:
-                G.nodes[node]["y_pop"] = g.nodes[node]["TOTPOP"]
+                G.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
         
         real_rho = (metrics.property_sum(G, "x_pop") / 
                     (metrics.property_sum(G, "x_pop") + 
@@ -205,7 +211,7 @@ def generate_kclust_grid(graph, target_rho, num_seeds, max_retries = 50):
         if components > 1:
             return G, real_rho, components
 
-    return nonde
+    return None
 
 #loading iowa
 g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
@@ -214,15 +220,23 @@ for node in g.nodes():
     g.nodes[node]["y_pop"] = 0
 
 #visualizing kcluster
-g_, real_rho, num_components = generate_kclust_grid(g, RHO, num_seeds)
-visualize_iowa(g_, RHO)
-plt.savefig(f"figures/iowa/multicluster_iowa_visualization_rho={RHO},k={num_seeds}.png")
+result= generate_kclust_grid(g, RHO, num_seeds, max_retries = 5000)
+if result is not None:
+    g_, real_rho, num_components = result
+    visualize_iowa(g_, RHO)
+    base_filename = f"figures/iowa/multicluster_iowa_visualization_rho={real_rho}_k={num_seeds}"
+    filestem = base_filename.replace('.', 'p')
+    plt.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+else:
+    raise RuntimeError("Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_seeds") #something goes horribly wrong
 
+
+
+#sampling kclusters
 real_rhos = []
 capys = []
 morans =[]
 
-#sampling
 for _ in range(num_samples):
     for rho in np.linspace(.001, .5, num_rhos):
         for node in g.nodes():
@@ -238,19 +252,34 @@ for _ in range(num_samples):
             capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
             morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
 
+#setting axis ticks
+rho_step = 0.1
+xmin = math.floor(min(real_rhos) / rho_step) * rho_step
+xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
+
+moran_step = 0.2
+moran_ymin = math.floor(min(morans) / moran_step) * moran_step
+moran_ymax = math.ceil(max(morans) / moran_step) * moran_step
+
+capy_step = 0.1
+capy_ymin = math.floor(min(capys) / capy_step) * capy_step
+capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
+
 #plotting scatterplots
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, morans, s=0.1, color = "#1560bd")
-plt.xlabel(r'$\rho$')
-plt.ylabel("Moran's I")
-plt.xlim([0, 0.5])
+plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+plt.xlim(xmin, xmax)
+plt.yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
+plt.ylim(moran_ymin-0.02, moran_ymax)
 plt.tight_layout()
-plt.savefig(f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_seeds}.png")
+plt.savefig(f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_seeds}.png", dpi = 300, bbox_inches="tight")
 
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, capys, s=0.1, color = "#1560bd")
-plt.xlabel(r'$\rho$')
-plt.ylabel("Capy")
-plt.xlim([0, 0.5])
+plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+plt.xlim(xmin, xmax)
+plt.yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
+plt.ylim(capy_ymin-0.02, capy_ymax)
 plt.tight_layout()
-plt.savefig(f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_seeds}.png")
+plt.savefig(f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_seeds}.png", dpi = 300, bbox_inches="tight")

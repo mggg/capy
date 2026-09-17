@@ -17,6 +17,10 @@ import tqdm
 from collections import deque, defaultdict
 import math
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+random.seed(42)
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 28, "savefig.dpi": 300})
 
 """
 This script generates scatter plots of capy and Moran's I versus rho for randomly sampled isolated configurations of the Iowa county graph, plus a geographic visualization of one such configuration.
@@ -70,7 +74,7 @@ def visualize_iowa(graph, rho):
     pos = {
     node: (
         float(graph.nodes[node]["INTPTLON"]),
-        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(g.nodes[node]["INTPTLAT"]))/2)))
+        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(graph.nodes[node]["INTPTLAT"]))/2)))
     )
     for node in graph.nodes()
     }
@@ -117,10 +121,9 @@ def valid_isolated_config(graph, column):
         i+=1
     
     # should have as many connected components as there are nonzero entries
-    if nx.number_connected_components(g.subgraph(nodes_in_cluster)) == np.count_nonzero([graph.nodes[node]["x_pop"] for node in graph.nodes]):
-        return True
-    else:
-        return False
+    subgraph = graph.subgraph(nodes_in_cluster)
+    return subgraph.number_of_edges() == 0
+
 
 def make_random_isolated_config(graph, target_rho):
     """
@@ -154,7 +157,7 @@ def make_random_isolated_config(graph, target_rho):
 
         selected.add(node)
         blocked.add(node)
-        blocked.update(g.neighbors(node))
+        blocked.update(graph.neighbors(node))
 
         graph.nodes[node]["x_pop"] = graph.nodes[node]["TOTPOP"]
         graph.nodes[node]["y_pop"] = 0
@@ -163,9 +166,9 @@ def make_random_isolated_config(graph, target_rho):
             break
 
     for node in graph.nodes():
-        g.nodes[node]["y_pop"] = g.nodes[node]["TOTPOP"] - g.nodes[node]["x_pop"]
+        graph.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"] - graph.nodes[node]["x_pop"]
 
-    return g, metrics.property_sum(graph, "x_pop") / metrics.property_sum(graph, "TOTPOP")
+    return graph, metrics.property_sum(graph, "x_pop") / metrics.property_sum(graph, "TOTPOP")
 
 
 g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
@@ -194,23 +197,37 @@ for _ in range(num_samples):
         capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
         morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
 
+#setting axis ticks
+rho_step = 0.1
+xmin = math.floor(min(real_rhos) / rho_step) * rho_step
+xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
+
+moran_step = 0.2
+moran_ymin = math.floor(min(morans) / moran_step) * moran_step
+moran_ymax = math.ceil(max(morans) / moran_step) * moran_step
+
+capy_step = 0.1
+capy_ymin = math.floor(min(capys) / capy_step) * capy_step
+capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
 
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, morans, s=0.1, color = "#1560bd")
-plt.xlabel(r'$\rho$')
-plt.ylabel("Moran's I")
-plt.xlim([0, 0.5])
-plt.tight_layout()
-plt.savefig("figures/iowa/moran_by_rho_isol_iowa.png")
+plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+plt.xlim(xmin, xmax)
+plt.yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
+plt.ylim(moran_ymin-0.02, moran_ymax)
+plt.savefig("figures/iowa/moran_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
 
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, capys, s=0.1, color = "#1560bd")
-plt.xlabel(r'$\rho$')
-plt.ylabel("Capy")
-plt.xlim([0, 0.5])
-plt.tight_layout()
-plt.savefig("figures/iowa/capy_by_rho_isol_iowa.png")
+plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+plt.xlim(xmin, xmax)
+plt.yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
+plt.ylim(capy_ymin-0.02, capy_ymax)
+plt.savefig("figures/iowa/capy_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
 
 g_, real_rho = make_random_isolated_config(g, RHO)
-visualize_iowa(g_, RHO)
-plt.savefig(f"figures/iowa/isol_iowa_visualization_rho={RHO}.png")
+visualize_iowa(g_, real_rho)
+base_filename = f"figures/iowa/isol_iowa_visualization_rho={real_rho}"
+filestem = base_filename.replace('.', 'p')
+plt.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")

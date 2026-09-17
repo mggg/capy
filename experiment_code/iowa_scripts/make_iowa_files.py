@@ -14,6 +14,8 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 50) 
 import gerrychain
 import networkx as nx
+import os
+
 
 """
 This script downloads Iowa county shapefiles and Census PL 94-171 race data for 2010 and 2020, merges them into GeoDataFrames, and saves GerryChain-compatible adjacency graph JSON files and shapefiles for use in downstream Iowa experiments.
@@ -47,7 +49,9 @@ p1_population_columns_2020 = {
     "P1_001N" : "TOTPOP"  #Total Population        
 }
 
-CENSUS_KEY = #insert your key here
+CENSUS_KEY = os.environ.get("CENSUS_API_KEY")
+if CENSUS_KEY is None:
+    raise EnvironmentError("CENSUS_API_KEY environment variable is not set")
 FIPS = 19 #iowa fips code
 
 #load census
@@ -112,7 +116,7 @@ merged_gdf["POC"] = merged_gdf["TOTPOP"] - merged_gdf["WHITE"].astype(int)
 
 #writing graph jsons and shapefiles, 2010
 merged_gdf.to_file("rdata/experiment_specific/ia_files/ia_counties_2010.shp")
-graph = gerrychain.Graph.from_wgeodataframe(merged_gdf)
+graph = gerrychain.Graph.from_geodataframe(merged_gdf)
 graph.to_json(str(Path("data/experiment_specific/ia_files/ia_counties_2010.json").resolve()))
 
 
