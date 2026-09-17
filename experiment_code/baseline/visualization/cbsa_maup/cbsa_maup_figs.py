@@ -92,4 +92,4 @@ ax.set_title("MAUP_2020-Black vs White")
 ax.legend()
 
 plt.tight_layout()
-plt.savefig(f"figures/assortativity_grids/cbsa_maup/chicago_maup_viz_in_{YEAR}_for_{CBSA}_.png")
+plt.savefig(f"figures/baseline/cbsa_maup/chicago_maup_viz_in_{YEAR}_for_{CBSA}_.png")

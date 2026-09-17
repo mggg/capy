@@ -17,9 +17,14 @@ import tqdm
 from collections import deque, defaultdict
 import math
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+random.seed(42)
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 28, "savefig.dpi": 300})
 
 """
-This script generates scatter plots of capy and Moran's I versus rho for randomly sampled single-cluster configurations of the Iowa county graph, plus a geographic visualization of one such configuration.
+This script generates scatter plots of capy and Moran's I versus rho for randomly sampled single-cluster configurations of the 
+Iowa county graph, plus a geographic visualization of one such configuration.
 Global Parameters:
     RHO: float
         The target group fraction used for the geographic visualization figure
@@ -98,7 +103,8 @@ def visualize_iowa(graph, rho):
 
 def populate_cluster_random(start_node, graph, target_x_pop):
     """
-    Assigns x_pop via randomized BFS expansion from a seed node until the total x_pop reaches target_x_pop, then sets y_pop as the remainder for every node.
+    Assigns x_pop via randomized BFS expansion from a seed node until the total x_pop reaches target_x_pop, 
+    then sets y_pop as the remainder for every node.
     Parameters:
         start_node: int
             The seed node from which BFS expansion begins
@@ -147,12 +153,11 @@ def populate_cluster_random(start_node, graph, target_x_pop):
             if nbr not in visited:
                 queue.append(nbr)
 
-
     for node in graph.nodes():
         if graph.nodes[node]["x_pop"] == 0:
             graph.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
 
-    real_rho = metrics.property_sum(g, "x_pop")/metrics.property_sum(g, "TOTPOP")
+    real_rho = metrics.property_sum(graph, "x_pop")/metrics.property_sum(graph, "TOTPOP")
     
     return graph, real_rho
 
@@ -177,23 +182,40 @@ for _ in range(num_samples):
         capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
         morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
 
+#setting axis ticks
+rho_step = 0.1
+xmin = math.floor(min(real_rhos) / rho_step) * rho_step
+xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
+
+moran_step = 0.2
+moran_ymin = math.floor(min(morans) / moran_step) * moran_step
+moran_ymax = math.ceil(max(morans) / moran_step) * moran_step
+
+capy_step = 0.1
+capy_ymin = math.floor(min(capys) / capy_step) * capy_step
+capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
+
 #plotting
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, morans, s=0.1, color = "#1560bd")
-plt.xlabel(r'$\rho$')
-plt.ylabel("Moran's I")
-plt.xlim([0, 0.5])
+plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+plt.xlim(xmin, xmax)
+plt.yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
+plt.ylim(moran_ymin-0.02, moran_ymax)
 plt.tight_layout()
-plt.savefig("figures/iowa/moran_by_rho_onecluster_iowa.png")
+plt.savefig("figures/iowa/moran_by_rho_onecluster_iowa.png", dpi = 300, bbox_inches="tight")
 
 plt.figure(figsize=(10, 10))
 plt.scatter(real_rhos, capys, s=0.1, color = "#1560bd")
-plt.xlabel(r'$\rho$')
-plt.ylabel("Capy")
-plt.xlim([0, 0.5])
+plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+plt.xlim(xmin, xmax)
+plt.yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
+plt.ylim(capy_ymin-0.02, capy_ymax)
 plt.tight_layout()
-plt.savefig("figures/iowa/capy_by_rho_onecluster_iowa.png")
+plt.savefig("figures/iowa/capy_by_rho_onecluster_iowa.png", dpi = 300, bbox_inches="tight")
 
 g_, real_rho = populate_cluster_random(seed, g, RHO* metrics.property_sum(g, "TOTPOP"))
-visualize_iowa(g_, RHO)
-plt.savefig(f"figures/iowa/onecluster_iowa_visualization_rho={RHO}.png")
+visualize_iowa(g_, real_rho)
+base_filename = f"figures/iowa/onecluster_iowa_visualization_rho={real_rho}"
+filestem= base_filename.replace('.', 'p')
+plt.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")

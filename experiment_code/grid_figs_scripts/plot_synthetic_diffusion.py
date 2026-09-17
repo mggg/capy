@@ -13,7 +13,9 @@ from collections import deque
 import warnings
 import seaborn as sns
 from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid, draw_grid_as_checkerboard
-from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+from matplotlib.colors import LinearSegmentedColormap, Normalize, TwoSlopeNorm
+from matplotlib.transforms import Bbox
+
 random.seed(53)
 
 """
@@ -30,6 +32,9 @@ Global Parameters:
     node_pop: int
         the population at each node
 """
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+                    "font.size": 14, "savefig.dpi": 300})
 
 node_pop = 1
 
@@ -84,6 +89,7 @@ def diffuse(graph, threshold):
 def visualize_diffusion_step(graph, step):
     
     fig, ax = plt.subplots(figsize=(4, 4))
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
     diverging_cmap = LinearSegmentedColormap.from_list("rho_diverging", ["#2267BC", "#ffffff", "#FFA812"])
     global_rho = sum(graph.nodes[n]["x_pop"] for n in graph.nodes()) / sum(graph.nodes[n]["tot_pop"] for n in graph.nodes())
     norm = TwoSlopeNorm(vmin=0, vcenter=global_rho, vmax=1)
@@ -219,15 +225,15 @@ def plot_metrics_over_diffusion_two_axes(graphs):
     cfig, ax_moran = plt.subplots(figsize=(8, 5))
     ax_capy = ax_moran.twinx()
 
-    ax_moran.plot(steps[:-1], morans[:-1], marker="o", label="Moran's I", color="#d11a42")
+    ax_moran.plot(steps[:-1], morans[:-1], marker="o", label="Moran's I", color="#ED5113")
     ax_capy.plot(steps, capys, marker="o", label="Capy", color="#1560bd")
 
     ax_moran.set_ylim(-.2, 1)#scaled so that substantively both metrics range from slightly hyperintegrated to fully segregated
     ax_capy.set_ylim(0.4, 1)
 
-    ax_moran.tick_params(axis="y", labelcolor="#d11a42")
+    ax_moran.tick_params(axis="y", labelcolor="#ED5113")
     ax_capy.tick_params(axis="y", labelcolor="#1560bd")
-    ax_capy.axhline(0.5, color="black", linestyle="--", linewidth=1, label="Capy = 0.5, Moran's I = 0")
+    #ax_capy.axhline(0.5, color="black", linestyle="--", linewidth=1, label="Capy = 0.5, Moran's I = 0")
 
     lines_m, labels_m = ax_moran.get_legend_handles_labels()
     lines_c, labels_c = ax_capy.get_legend_handles_labels()
@@ -237,13 +243,14 @@ def plot_metrics_over_diffusion_two_axes(graphs):
 
     legend_fig, legend_ax = plt.subplots()
     legend_ax.axis("off")
-    legend_ax.legend(lines_m + lines_c, labels_m + labels_c, loc="center",
+    leg = legend_ax.legend(lines_m + lines_c, labels_m + labels_c, loc="center",
                     fontsize=8, handlelength=1.5, handleheight=.75,
-                    handletextpad=0.4, borderpad=0.4)
-    legend_fig.set_size_inches(3, 1)
+                    handletextpad=0.4, borderpad=0.4,
+                    edgecolor="black", fancybox=False)
+    legend_fig.canvas.draw()
 
     plt.tight_layout()
-    return cfig, legend_fig
+    return cfig, legend_fig, leg
 
 def colormap(rho):
     """
@@ -255,10 +262,10 @@ def colormap(rho):
 
     diverging_cmap = LinearSegmentedColormap.from_list(
     "rho_diverging",
-    ["#2267BC", "#ffffff", "#FFA812"]
+    [(0, "#2267BC"), (rho, "#ffffff"), (1, "#FFA812")]
     )
     # Norm that maps 0→left, RHO→center (white), 1→right
-    norm = TwoSlopeNorm(vmin=0, vcenter=rho, vmax=1)
+    norm = Normalize(vmin=0, vmax=1)
 
     return diverging_cmap, norm
 
@@ -276,16 +283,20 @@ def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
             Font size for colorbar tick labels
     """
 
-    fig, ax = plt.subplots(figsize=(1.2, 4))
-    fig.subplots_adjust(right=0.4)
     cmap, norm = colormap(vcenter)
+    fig = plt.figure(figsize=(1.0, 4))
+    ax = fig.add_axes([0.15, 0.05, 0.4, 0.9])
+
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    cbar = fig.colorbar(sm, ax=ax, fraction=1.0, pad=0)
-    cbar.ax.tick_params(labelsize=tick_size)
-    cbar.ax.yaxis.set_ticks_position('right')
-    cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
+    sm.set_array([])
+    cb = fig.colorbar(sm, cax=ax)
+    cb.ax.tick_params(labelsize=tick_size)
+    cb.ax.yaxis.set_ticks_position('right')
+
+
+    #cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
     
-    ax.set_visible(False)
+    return fig
 
 
 def generate_2_corner_grid(num_columns, num_rows, node_pop):
@@ -417,14 +428,21 @@ G = generate_center_grid(10, 10, node_pop)
 graphs, rhos = diffuse(G, threshold=0.3)
 for i, graph in enumerate(graphs):
     visualize_diffusion_step(graph, i)
-    plt.savefig(f"figures/idealized_grids_diffusion/diffusion_center_cluster_graph_visualizatio_step{i}.png", dpi=300)
+    plt.savefig(f"figures/idealized_grids_diffusion/diffusion_center_cluster_graph_visualizatio_step{i}.png", dpi=300, pad_inches=0)
 
-main_fig, legend_fig = plot_metrics_over_diffusion_two_axes(graphs)
-main_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes.png", dpi=300, bbox_inches="tight")
-legend_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes_legend.png", dpi=300, bbox_inches="tight")
+main_fig, legend_fig, leg = plot_metrics_over_diffusion_two_axes(graphs)
+main_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes.png", dpi=300, bbox_inches="tight",)
 
-plot_rho_colorbar_diverging(0.04)
-plt.savefig(f"figures/idealized_grids_diffusions/divergent_rho_colorbar_rho=0p04.png")
+bbox = leg.get_window_extent().transformed(legend_fig.dpi_scale_trans.inverted())
+padded = Bbox([[bbox.x0 - 0.05, bbox.y0 - 0.05],
+               [bbox.x1 + 0.05, bbox.y1 + 0.05]])
+legend_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes_legend.png",
+                   dpi=300, bbox_inches=padded)
+
+legend_fig.savefig("figures/idealized_grids_diffusion/diffusion_center_cluster_metrics_visualization_twoaxes_legend.png", dpi=300, bbox_inches=padded, )
+
+fig = plot_rho_colorbar_diverging(0.04)
+fig.savefig(f"figures/idealized_grids_diffusion/divergent_rho_colorbar_rho=0p04.png", dpi=300)
 
 
 #corner 4
