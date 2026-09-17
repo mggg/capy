@@ -7,14 +7,14 @@ Usage:
                                [--fixed-y]
 
 Arguments:
-    filename        Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
-    n               Number of top metros to highlight by 2020 population (default: 10)
-    prefix          Racial-group prefix used in output filenames, e.g. white_poc or white_black
-    geography_type  Census unit label (tracts/block_groups/blocks/counties); inferred from
+    filename - Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
+    n - Number of top metros to highlight by 2020 population (default: 10)
+    prefix - Racial-group prefix used in output filenames, e.g. white_poc or white_black
+    geography_type - Census unit label (tracts/block_groups/blocks/counties); inferred from
                     prefix if omitted
-    study_area_type Area type label (max_county/max_city/None → CBSA); affects output paths
+    study_area_type - Area type label (max_county/max_city/None → CBSA); affects output paths
                     and figure subtitles
-    fixed_y         If set, all panels in a figure share the same y-axis range
+    fixed_y - If set, all panels in a figure share the same y-axis range
 
 For each vintage found in definition_month_year, produces figures in:
     figures/baseline/{geography_type}_in_{study_area_type}/
@@ -35,8 +35,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import typer
 
-from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
+from capy_core.process_results import join_study_area_metadata
+from experiment_code.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
 from visualization.line_plots.plot_family_grids import plot_family_grids
 from visualization.line_plots.plot_grid_all_census_areas import plot_grid_all_census_areas
 from visualization.line_plots.plot_grid_top10 import plot_grid_top10
@@ -52,7 +52,7 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
 
     if not filename:
         run_name = f"tracts_in_{study_area_type or 'cbsa'}"
-        filename = f"outputs/{run_name}/white_poc.csv"
+        filename = f"data/shared/outputs/{run_name}/white_poc.csv"
 
     if geography_type is None:
         for geo in ("block_groups", "blocks", "tracts", "counties"):
@@ -63,7 +63,7 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
             geography_type = "tracts"
     geography_label = geography_type.replace("_", " ")
 
-    prefix = _shorten_prefix(prefix)
+    prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
     run_name = f"{geography_type}_in_{study_area_type or 'cbsa'}"
     output_dir = Path("figures") / "baseline" / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -125,7 +125,7 @@ def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
     required = {"definition_month_year", "year", "area_title", "area_code", "total_population_2020"}
     if required.issubset(df.columns):
         return df
-    return enrich_metrics(df)
+    return join_study_area_metadata(df)
 
 
 if __name__ == "__main__":

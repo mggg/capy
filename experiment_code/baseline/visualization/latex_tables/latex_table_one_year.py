@@ -8,8 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/
 
 import pandas as pd
 
-from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import _short_name
+from capy_core.process_results import join_study_area_metadata
+from experiment_code.visualization_settings import _short_name
 
 # ── configuration ─────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ def _auto_output_path(input_csv: Path, rank_by: str, year: int | None, n: int) -
 
 def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label: str | None = RANK_LABEL, rank_ascending: bool = RANK_ASCENDING, top_n: int = TOP_N, year_filter: int | None = YEAR_FILTER, columns: dict[str, str] = COLUMNS, decimal_places: int = DECIMAL_PLACES, column_decimals: dict[str, int] = COLUMN_DECIMALS, output_tex: Path | None = OUTPUT_TEX) -> Path:
 
-    df = enrich_metrics(pd.read_csv(input_csv))
+    df = join_study_area_metadata(pd.read_csv(input_csv))
     if year_filter is not None:
         df = df[df["year"] == year_filter].copy()
 

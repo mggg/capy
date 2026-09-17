@@ -8,8 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/
 
 import pandas as pd
 
-from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import _short_name
+from capy_core.process_results import join_study_area_metadata
+from experiment_code.visualization_settings import _short_name
 
 # ── configuration ─────────────────────────────────────────────────────────────
 
@@ -72,7 +72,7 @@ def build_table(
 ) -> Path:
     metric_cols = list(columns.keys())
 
-    df = enrich_metrics(pd.read_csv(input_csv))
+    df = join_study_area_metadata(pd.read_csv(input_csv))
     names = df.groupby("area_code")["area_title"].first()
 
     df_years = df[df["year"].isin(years)]

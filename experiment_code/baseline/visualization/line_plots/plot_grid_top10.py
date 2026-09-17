@@ -15,9 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/
 
 from typing import Optional
 import typer
-from capy_core.process_results import enrich_metrics
-from visualization.visualization_settings import _shorten_prefix
-from visualization.visualization_settings import (GRID_METRICS, PALETTE, _apply_panel_style, _short_name)
+from capy_core.process_results import join_study_area_metadata
+from experiment_code.visualization_settings import _shorten_prefix, GRID_METRICS, PALETTE, _apply_panel_style, _short_name
 
 
 
@@ -81,7 +80,7 @@ def plot_grid_top10(df: pd.DataFrame, prefix: str, month_year: str, output_dir: 
 
 
 if __name__ == "__main__":
-    def main(filename: str, prefix: str = "white_poc",
+    def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_poc.csv", prefix: str = "white_poc",
              study_area_type: Optional[str] = None,
              n: int = 10, fixed_y: bool = False):
 
@@ -90,12 +89,12 @@ if __name__ == "__main__":
         geography_type = next((g for g in ("block_groups", "blocks", "tracts", "counties") if g in prefix), "tracts")
 
         geography_label = geography_type.replace("_", " ")
-        prefix = _shorten_prefix(prefix)
+        prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
 
         output_dir = Path("figures") / "baseline" / f"{geography_type}_in_{study_area_type or 'cbsa'}"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        df = enrich_metrics(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
+        df = join_study_area_metadata(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
         month_year = df["definition_month_year"].iloc[0]
         
         plot_grid_top10(df, prefix, month_year, output_dir, n,

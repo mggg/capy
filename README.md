@@ -19,7 +19,7 @@ Set your run configurations in `capy_core/config.yaml`. To download the data and
 make install   # install Python dependencies via Poetry
 make setup     # scaffold the data directory tree
 make run       # run the baseline experiment
-make run EXPERIMENT=h4_t3_observed_diffusion  # run a specific experiment
+make run EXPERIMENT=observed_diffusion  # run a specific experiment
 ```
 
 ## Folder structure
