@@ -48,11 +48,11 @@ JITTER_Y = 0.3
 WEIGHTS = "small" #small or full
 
 #MAKE THIS A PREPROCESSING SCRIPT AND PUT IT IN THE DATA THING
-area_df = pd.read_csv(f"outputs/{GEOGRAPHY}_in_{AREA_TYPE}/white_{COMPARISON}.csv")
+area_df = pd.read_csv(f"data/shared/outputs//{GEOGRAPHY}_in_{AREA_TYPE}/white_{COMPARISON}.csv")
 area_df["year"] = area_df["filename"].str.extract(r"(\d{4})").astype(int)
 area_df["cbsa_code"] = (
     area_df["filename"]
-      .str.extract(rf"tracts_in_{AREA_TYPE}_(\d+)")[0]
+      .str.extract(rf"{GEOGRAPHY}_in_{AREA_TYPE}_(\d+)")[0]
       .astype(int)
 )
 
@@ -100,6 +100,7 @@ if WEIGHTS == "small":
 handles, labels = plt.gca().get_legend_handles_labels()
 plt.legend().remove()
 
+os.makedirs("figures/baseline/lambda_rankings", exist_ok=True)
 base_file_name = f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_{JITTER_X}{JITTER_Y}jitter_mainplot"
 file_stem = base_file_name.replace('.', 'p')
 plt.savefig(file_stem, dpi = 300, bbox_inches = "tight")
