@@ -8,6 +8,7 @@ The ideal configurations are:
 
 ##Folders and scripts:
 + `make_iowa-files.py/` Creates the Iowa counties dual graph used in all scripts by fetching  2010 and 2020 Census PL 94-171 data. All scripts use 2020 data by default. The data is stored in data/experiment_specific/ia_files.
++ `make_iowa_legend.py` Generates two standalone legend figures for the Iowa county visualizations: a population-size legend showing three reference values (10,000 / 100,000 / 1,000,000) scaled to match the 1/500 node-size rule used in all Iowa graph plots, and a population-composition legend showing the orange/blue color encoding for all-X and all-Y counties. Requires no input data and takes no arguments.
 + `make_kclustered_iowa_plots.py` Creates kclustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). 
 + `make_clustered_iowa_plots/`  Creates clustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). 
 + `make_iowa_isol_plots/` Creates isolated Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100).
