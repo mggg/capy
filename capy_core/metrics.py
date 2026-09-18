@@ -345,7 +345,7 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
     for node in graph.nodes():
         threshold = property_sum(graph, x_col) / (property_sum(graph, x_col) + property_sum(graph, y_col))
         #threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
-        if graph.nodes[node][x_col] >= threshold: #so ties break in favor of x_col
+        if graph.nodes[node][x_col]/(graph.nodes[node][y_col] + graph.nodes[node][x_col]) >= threshold: #so ties break in favor of x_col
             graph.nodes[node]["x_maj"] = 1
             graph.nodes[node]["y_maj"] = 0
         else: 
@@ -580,8 +580,6 @@ def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: li
 
     return morans
         
-
-
 if __name__ == "__main__":
     typer.run(main)
 

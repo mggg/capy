@@ -1,27 +1,3 @@
-import sys, os
-import os
-os.chdir("/Users/samstephenson/Downloads/capy-bara")
-sys.path.insert(0, "/Users/samstephenson/Downloads/capy-bara")
-
-import capy_core.metrics as metrics
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-import gerrychain.grid
-import random
-from collections import deque
-import warnings
-import tqdm
-from collections import deque, defaultdict
-import math
-from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
-random.seed(42)
-
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 28, "savefig.dpi": 300})
-
 """
 This script generates scatter plots of capy and Moran's I versus rho for randomly sampled k-cluster configurations of the Iowa county graph, plus a geographic visualization of one such configuration.
 Global Parameters:
@@ -34,6 +10,26 @@ Global Parameters:
     num_rhos: int
         Number of evenly spaced rho values between 0.001 and 0.5 to sample over
 """
+
+import sys
+import os
+import pathlib
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
+import capy_core.metrics as metrics
+import networkx as nx
+import matplotlib.pyplot as plt
+import numpy as np
+import random
+from collections import deque
+import math
+import gerrychain
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+random.seed(42)
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 28, "savefig.dpi": 300})
 
 RHO = 0.3
 num_seeds = 4
@@ -102,6 +98,7 @@ def visualize_iowa(graph, rho):
 
     ax.set_aspect('equal')
     ax.axis('off')
+    return fig, ax
 
 def populate_cluster_random(start_node, graph, target_x_pop):
     """
@@ -223,10 +220,11 @@ for node in g.nodes():
 result= generate_kclust_grid(g, RHO, num_seeds, max_retries = 5000)
 if result is not None:
     g_, real_rho, num_components = result
-    visualize_iowa(g_, RHO)
+    fig, ax = visualize_iowa(g_, RHO)
     base_filename = f"figures/iowa/multicluster_iowa_visualization_rho={real_rho}_k={num_seeds}"
     filestem = base_filename.replace('.', 'p')
-    plt.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+    fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+    plt.close(fig)
 else:
     raise RuntimeError("Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_seeds") #something goes horribly wrong
 

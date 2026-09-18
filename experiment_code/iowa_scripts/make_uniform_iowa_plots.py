@@ -1,4 +1,11 @@
-import sys, os
+"""
+This script generates three figures for a uniform Iowa county graph: a capy-vs-rho lineplot, a geographic visualization of county-level rho values, and a standalone diverging colorbar.
+Global Parameters:
+    RHO: float
+        The uniform group fraction used for the geographic visualization and colorbar figures
+"""
+
+import sys
 import os
 os.chdir("/Users/samstephenson/Downloads/capy-bara")
 sys.path.insert(0, "/Users/samstephenson/Downloads/capy-bara")
@@ -7,46 +14,37 @@ import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-import gerrychain.grid
 import random
-from collections import deque
-import warnings
-import tqdm
-from collections import deque, defaultdict
 import math
+import gerrychain
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 random.seed(42)
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 28, "savefig.dpi": 300})
 
-"""
-This script generates three figures for a uniform Iowa county graph: a capy-vs-rho lineplot, a geographic visualization of county-level rho values, and a standalone diverging colorbar.
-Global Parameters:
-    RHO: float
-        The uniform group fraction used for the geographic visualization and colorbar figures
-"""
-
 RHO = 0.3
 
-def colormap(rho):
+
+def colormap(rho, vmin = 0, vmax = 1):
     """
     Builds a diverging colormap and norm centered at rho, running from blue (rho=0) through white (rho=rho) to orange (rho=1).
     Parameters:
         Rho: float
         The rho value at which the colorbar diverges
     """
-
+    if not (vmin < rho < vmax): 
+        raise ValueError(f"rho={rho} must be strictly between vmin={vmin} and vmax={vmax}")
+    
     diverging_cmap = LinearSegmentedColormap.from_list(
     "rho_diverging",
     ["#2267BC", "#ffffff", "#FFA812"]
     )
     # Norm that maps 0→left, RHO→center (white), 1→right
-    norm = TwoSlopeNorm(vmin=0, vcenter=rho, vmax=1)
+    norm = TwoSlopeNorm(vmin=vmin, vcenter=rho, vmax=vmax)
 
     return diverging_cmap, norm
+
 
 def visualize_iowa(graph, rho ):
     """
@@ -56,6 +54,11 @@ def visualize_iowa(graph, rho ):
             County adjacency graph with node attributes INTPTLON, INTPTLAT, TOTPOP, and x_pop
         rho: float
             The global rho value used to center the diverging colormap
+    Returns:
+    fig: matplotlib.figure.Figure
+        The figure containing the Iowa graph visualization
+    ax: matplotlib.axes.Axes
+        The axes on which the graph is drawn
     """
 
     pos = {
@@ -85,6 +88,7 @@ def visualize_iowa(graph, rho ):
 
     ax.set_aspect('equal')
     ax.axis('off')
+    return fig, ax
 
 def make_uniform_iowa(graph, rho):
     """
@@ -117,17 +121,18 @@ def plot_rho_colorbar_diverging(vcenter=RHO, vmin=0, vmax=1, tick_size=10):
 
     fig, ax = plt.subplots(figsize=(1.2, 4))
     fig.subplots_adjust(right=0.4)
-    cmap, norm = colormap(vcenter)
+    cmap, norm = colormap(vcenter, vmin, vmax)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     cbar = fig.colorbar(sm, ax=ax, fraction=1.0, pad=0)
     cbar.ax.tick_params(labelsize=tick_size)
     cbar.ax.set_title(r"$\rho_i$", rotation=0, fontsize=tick_size * 3, pad=10)
     cbar.ax.yaxis.set_ticks_position('right')
-    cbar.ax.text(1.6, vcenter, fr"$\rho = {RHO}$", va='center', ha='left',
+    cbar.ax.text(1.6, vcenter, fr"$\rho = {vcenter}$", va='center', ha='left',
              fontsize=tick_size, transform=cbar.ax.transData, clip_on=False)
     cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
     
     ax.set_visible(False)
+    return fig, ax
 
 
 def plot_rho_vs_capy_uniform(graph):
@@ -150,20 +155,29 @@ def plot_rho_vs_capy_uniform(graph):
         g1 = make_uniform_iowa(g1, rhos[i])
         capys[i] = metrics.half_edge(g1, "x_pop", "y_pop")
 
-    plt.scatter(rhos,capys,s=1, color = "#1560bd")
-    plt.xlim([0,0.5])
-    plt.ylim([0,1])
+    fig, ax = plt.subplots(figsize=(10, 10))   # add this
+    ax.scatter(rhos, capys, s=1, color="#1560bd")  # plt. → ax.
+    ax.set_xlim([0, 0.5])
+    ax.set_ylim([0, 1])
+    fig.tight_layout()
 
-    plt.tight_layout()
+    return fig, ax
 
 #making plots
 graph = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
-plot_rho_vs_capy_uniform(graph)
-plt.savefig("figures/iowa/capy_by_rho_uniform_iowa.png", dpi = 300, bbox_inches="tight")
+fig, ax = plot_rho_vs_capy_uniform(graph)
+fig.savefig("figures/iowa/capy_by_rho_uniform_iowa.png", dpi=300, bbox_inches="tight")
+plt.close(fig)
 
-visualize_iowa(make_uniform_iowa(graph, RHO), RHO)
-plt.savefig(f"figures/iowa/uniform_iowa_visualization_rho={RHO}.png", dpi = 300, bbox_inches="tight")
+fig, ax = visualize_iowa(make_uniform_iowa(graph, RHO), RHO)
+base_filename = f"figures/iowa/uniform_iowa_visualization_rho={RHO}.png"
+filestem = base_filename.replace('.', 'p')
+fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+plt.close(fig)
 
-plot_rho_colorbar_diverging(RHO)
-plt.savefig(f"figures/iowa/divergent_rho_colorbar_rho={RHO}.png")
+fig, ax = plot_rho_colorbar_diverging(RHO)
+base_filename = f"figures/iowa/divergent_rho_colorbar_rho={RHO}.png"
+filestem = base_filename.replace('.', 'p')
+fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+plt.close(fig)

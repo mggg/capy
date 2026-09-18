@@ -1,21 +1,16 @@
-import sys, os
+import sys
 import os
-os.chdir("/Users/samstephenson/Downloads/capy-bara")
-sys.path.insert(0, "/Users/samstephenson/Downloads/capy-bara")
-
+import pathlib
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
 import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-import gerrychain.grid
 import random
-from collections import deque
-import warnings
-import tqdm
-from collections import deque, defaultdict
 import math
+import gerrychain
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 random.seed(42)
 
@@ -69,6 +64,11 @@ def visualize_iowa(graph, rho):
             County adjacency graph with node attributes INTPTLON, INTPTLAT, TOTPOP, and x_pop
         rho: float
             The global rho value used to center the diverging colormap
+    Returns:
+    fig: matplotlib.figure.Figure
+        The figure containing the Iowa graph visualization
+    ax: matplotlib.axes.Axes
+        The axes on which the graph is drawn
     """
 
     pos = {
@@ -99,6 +99,7 @@ def visualize_iowa(graph, rho):
 
     ax.set_aspect('equal')
     ax.axis('off')
+    return fig, ax
 
 def valid_isolated_config(graph, column):
     """
@@ -114,11 +115,10 @@ def valid_isolated_config(graph, column):
     """
 
     nodes_in_cluster = []
-    i=0
+    
     for node in graph.nodes():
         if graph.nodes[node][column] >0:
             nodes_in_cluster.append(node)
-        i+=1
     
     # should have as many connected components as there are nonzero entries
     subgraph = graph.subgraph(nodes_in_cluster)
@@ -137,7 +137,8 @@ def make_random_isolated_config(graph, target_rho):
         graph: nx.Graph
             The modified graph with x_pop and y_pop set on every node
         real_rho: float
-            The actual achieved global group fraction, which may exceed rho due to discrete node assignments
+    The actual achieved global group fraction. May exceed target_rho if the last selected node overshoots, or fall short of target_rho if the 
+    maximal independent set is exhausted before the target is reached.
     """
 
     # reset populations
@@ -145,23 +146,25 @@ def make_random_isolated_config(graph, target_rho):
         graph.nodes[node]["x_pop"] = 0
         graph.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
 
-    selected = set()
     blocked = set()
 
     nodes = list(graph.nodes())
     random.shuffle(nodes)
 
+    total_pop =  metrics.property_sum(graph, "TOTPOP")
+    x_pop = 0
     for node in nodes:
         if node in blocked:
             continue
 
-        selected.add(node)
         blocked.add(node)
         blocked.update(graph.neighbors(node))
 
         graph.nodes[node]["x_pop"] = graph.nodes[node]["TOTPOP"]
+        x_pop+=graph.nodes[node]["x_pop"]
         graph.nodes[node]["y_pop"] = 0
-        current_rho = metrics.property_sum(graph, "x_pop") / metrics.property_sum(graph, "TOTPOP")
+
+        current_rho = x_pop / total_pop
         if current_rho >= target_rho:
             break
 
@@ -173,14 +176,10 @@ def make_random_isolated_config(graph, target_rho):
 
 g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
-total_pop = metrics.property_sum(g, "TOTPOP")
-
 real_rhos = []
 capys = []
 morans =[]
 
-num_samples = 500
-num_rhos = 100
 for _ in range(num_samples):
     for rho in np.linspace(0.01, .5, num_rhos):
         g_, real_rho = make_random_isolated_config(g, rho)
@@ -195,7 +194,7 @@ for _ in range(num_samples):
 
         real_rhos.append(real_rho)
         capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
-        morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
+        morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
 #setting axis ticks
 rho_step = 0.1
@@ -227,7 +226,8 @@ plt.ylim(capy_ymin-0.02, capy_ymax)
 plt.savefig("figures/iowa/capy_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
 
 g_, real_rho = make_random_isolated_config(g, RHO)
-visualize_iowa(g_, real_rho)
+fig, ax = visualize_iowa(g_, real_rho)
 base_filename = f"figures/iowa/isol_iowa_visualization_rho={real_rho}"
 filestem = base_filename.replace('.', 'p')
-plt.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+plt.close(fig)

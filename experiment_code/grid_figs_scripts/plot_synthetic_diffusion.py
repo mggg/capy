@@ -1,23 +1,3 @@
-import sys, os
-sys.path.insert(0, os.path.abspath("../.."))   
-sys.path.insert(0, os.path.abspath("."))           
-os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-import capy_core.metrics as metrics
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import gerrychain.grid
-import random
-from collections import deque
-import warnings
-import seaborn as sns
-from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid, draw_grid_as_checkerboard
-from matplotlib.colors import LinearSegmentedColormap, Normalize, TwoSlopeNorm
-from matplotlib.transforms import Bbox
-
-random.seed(53)
-
 """
 This scripts simulates diffusion from a core on grid graphs. Diffusion works according to the following algorithm:
 
@@ -32,6 +12,23 @@ Global Parameters:
     node_pop: int
         the population at each node
 """
+
+
+import sys, os
+sys.path.insert(0, os.path.abspath("../.."))   
+sys.path.insert(0, os.path.abspath("."))           
+os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+import capy_core.metrics as metrics
+import networkx as nx
+import matplotlib.pyplot as plt
+import numpy as np
+import gerrychain.grid
+import random
+from matplotlib.colors import LinearSegmentedColormap, Normalize, TwoSlopeNorm
+from matplotlib.transforms import Bbox
+
+random.seed(42)
+
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
                     "font.size": 14, "savefig.dpi": 300})

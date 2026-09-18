@@ -1,23 +1,3 @@
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import gerrychain.grid
-import random
-from collections import deque
-import warnings
-pd.set_option('display.max_columns', None)
-from itertools import combinations
-import sys, os
-
-sys.path.insert(0, os.path.dirname(__file__))  # lambda_scripts dir
-
-from matplotlib.lines import Line2D
-from lambda_helpers import multi_rankr
-
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 11, "savefig.dpi": 300})
-
 """
 This script generates rank-rank scatter plots comparing how CBSAs are ordered by half_edge at lambda=1 versus other lambda values, for the top 100 most populous areas.
 Global Parameters:
@@ -36,7 +16,18 @@ Global Parameters:
     WEIGHTS: str
         Controls which lambda values are plotted — "small" plots only lambda=0 and lambda=inf, "full" plots lambda=0, 0.5, 2, 10, and inf
 """
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+
+import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
+import pandas as pd
+pd.set_option('display.max_columns', None)
+import sys, os
+
+sys.path.insert(0, os.path.dirname(__file__))  # lambda_scripts dir
+
+from lambda_helpers import multi_rankr
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 11, "savefig.dpi": 300})
 
 COMPARISON = "black" #"black" or "poc"
@@ -48,11 +39,11 @@ JITTER_Y = 0.3
 WEIGHTS = "small" #small or full
 
 #MAKE THIS A PREPROCESSING SCRIPT AND PUT IT IN THE DATA THING
-area_df = pd.read_csv(f"outputs/{GEOGRAPHY}_in_{AREA_TYPE}/white_{COMPARISON}.csv")
+area_df = pd.read_csv(f"data/shared/outputs//{GEOGRAPHY}_in_{AREA_TYPE}/white_{COMPARISON}.csv")
 area_df["year"] = area_df["filename"].str.extract(r"(\d{4})").astype(int)
 area_df["cbsa_code"] = (
     area_df["filename"]
-      .str.extract(rf"tracts_in_{AREA_TYPE}_(\d+)")[0]
+      .str.extract(rf"{GEOGRAPHY}_in_{AREA_TYPE}_(\d+)")[0]
       .astype(int)
 )
 
@@ -100,6 +91,7 @@ if WEIGHTS == "small":
 handles, labels = plt.gca().get_legend_handles_labels()
 plt.legend().remove()
 
+os.makedirs("figures/baseline/lambda_rankings", exist_ok=True)
 base_file_name = f"figures/baseline/lambda_rankings/{GEOGRAPHY}_in_{AREA_TYPE}_{WEIGHTS}_lambda_rankings_whitev{COMPARISON}_weightedyvcapyx_lineplot_in_{YEAR}_with_{JITTER_X}{JITTER_Y}jitter_mainplot"
 file_stem = base_file_name.replace('.', 'p')
 plt.savefig(file_stem, dpi = 300, bbox_inches = "tight")
@@ -111,7 +103,6 @@ leg = legend_ax.legend(handles, labels, loc="center",
                  edgecolor="black", fancybox=False)
 legend_fig.canvas.draw()
 
-from matplotlib.transforms import Bbox
 bbox = leg.get_window_extent().transformed(legend_fig.dpi_scale_trans.inverted())
 padded = Bbox([[bbox.x0 - 0.05, bbox.y0 - 0.05],
                [bbox.x1 + 0.05, bbox.y1 + 0.05]])
