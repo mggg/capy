@@ -7,19 +7,28 @@ The .gpkg files are what overlaps.py reads as study_area_glob.
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from capy_core.utils.definitions import StudyArea
-from capy_core.utils.pipeline_log import tqdm_file
 
-import tqdm
-import pandas as pd
-import typer
-import geopandas as gpd
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import json
 from pathlib import Path
 
+import geopandas as gpd
+import pandas as pd
+import tqdm
+import typer
 
-def main(filename: str = "data/shared/raw/study_area_sources/list1_march_2020.xls", definition_geographies: str = None, output_dir: str = "data/shared/processed/study_area_definitions", study_area_type: str = "cbsa", definition_vintage: str = "march_2020", cbsa_geographies: str = None):
+from capy_core.utils.definitions import StudyArea
+from capy_core.utils.pipeline_log import tqdm_file
+
+
+def main(
+    filename: str = "data/shared/raw/study_area_sources/list1_march_2020.xls",
+    definition_geographies: str = None,
+    output_dir: str = "data/shared/processed/study_area_definitions",
+    study_area_type: str = "cbsa",
+    definition_vintage: str = "march_2020",
+    cbsa_geographies: str = None,
+):
     """Build study area definition files (.gpkg + .json) for a given study_area_type.
 
     Switches to the appropriate builder:
@@ -31,31 +40,53 @@ def main(filename: str = "data/shared/raw/study_area_sources/list1_march_2020.xl
     if study_area_type == "counties":
         study_area_type = "county"
     if study_area_type not in {"cbsa", "max_county", "county", "max_city"}:
-        raise ValueError(f"Unsupported study area type {study_area_type}. Use 'cbsa', 'max_county', 'max_city', or 'county'.")
+        raise ValueError(
+            f"Unsupported study area type {study_area_type}. Use 'cbsa', 'max_county', 'max_city', or 'county'."
+        )
 
     if definition_geographies is None:
         if study_area_type == "max_city":
-            definition_geographies = "data/shared/processed/census_geographies/places/2020_places_*.gpkg"
+            definition_geographies = (
+                "data/shared/processed/census_geographies/places/2020_places_*.gpkg"
+            )
         else:
-            definition_geographies = "data/shared/processed/census_geographies/counties/2020_counties_*.gpkg"
+            definition_geographies = (
+                "data/shared/processed/census_geographies/counties/2020_counties_*.gpkg"
+            )
     if cbsa_geographies is None and study_area_type == "max_city":
-        cbsa_geographies = "data/shared/processed/census_geographies/counties/2020_counties_*.gpkg"
+        cbsa_geographies = (
+            "data/shared/processed/census_geographies/counties/2020_counties_*.gpkg"
+        )
 
     if study_area_type == "county":
-        build_county_definitions(definition_geographies, output_dir, definition_vintage or Path(definition_geographies).stem.split("_", 1)[0])
+        build_county_definitions(
+            definition_geographies,
+            output_dir,
+            definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
+        )
         return
 
     if study_area_type == "max_county":
-        build_max_county_definitions(filename, definition_geographies, output_dir, definition_vintage or Path(definition_geographies).stem.split("_", 1)[0])
+        build_max_county_definitions(
+            filename,
+            definition_geographies,
+            output_dir,
+            definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
+        )
         return
 
     if study_area_type == "max_city":
         if not filename:
             raise ValueError("max_city study areas require --filename.")
-        build_max_city_definitions(filename, definition_geographies, output_dir, definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
-            cbsa_geographies=cbsa_geographies)
+        build_max_city_definitions(
+            filename,
+            definition_geographies,
+            output_dir,
+            definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
+            cbsa_geographies=cbsa_geographies,
+        )
         return
-    
+
     if not filename:
         raise ValueError("CBSA study areas require --filename.")
 
@@ -82,18 +113,15 @@ def fetch_metro_areas(filename) -> pd.DataFrame:
     cbsa_counties = pd.read_excel(filename, skiprows=2)
     cbsa_counties = cbsa_counties[~cbsa_counties["FIPS County Code"].isna()]
     cbsa_counties["FIPS County Code"] = (
-        cbsa_counties["FIPS County Code"]
-        .astype(int)
-        .astype(str)
-        .str.zfill(3))
+        cbsa_counties["FIPS County Code"].astype(int).astype(str).str.zfill(3)
+    )
     cbsa_counties["FIPS State Code"] = (
-        cbsa_counties["FIPS State Code"]
-        .astype(int)
-        .astype(str)
-        .str.zfill(2))
+        cbsa_counties["FIPS State Code"].astype(int).astype(str).str.zfill(2)
+    )
     metro_areas = cbsa_counties[
         cbsa_counties["Metropolitan/Micropolitan Statistical Area"]
-        == "Metropolitan Statistical Area"]
+        == "Metropolitan Statistical Area"
+    ]
     return metro_areas
 
 
@@ -109,7 +137,12 @@ def create_metro_mappings(metro_areas: pd.DataFrame) -> dict[str, StudyArea]:
         if cbsa_code in metro_mappings:
             metro_mappings[cbsa_code].component_counties_fips.append(fips_code)
         else:
-            metro_mappings[cbsa_code] = StudyArea(area_code=cbsa_code, area_title=cbsa_title, component_counties_fips=[fips_code], total_population=None)
+            metro_mappings[cbsa_code] = StudyArea(
+                area_code=cbsa_code,
+                area_title=cbsa_title,
+                component_counties_fips=[fips_code],
+                total_population=None,
+            )
     return metro_mappings
 
 
@@ -119,7 +152,9 @@ def add_cbsa_pop_and_geometry(country: gpd.GeoDataFrame, cbsa: StudyArea) -> Stu
     """
     assert cbsa.total_population is None
 
-    cbsa_components = country[country["STCNTYFP"].apply(lambda x: x in cbsa.component_counties_fips)]
+    cbsa_components = country[
+        country["STCNTYFP"].apply(lambda x: x in cbsa.component_counties_fips)
+    ]
 
     cbsa.geometry = cbsa_components.dissolve()
     cbsa.total_population = int(cbsa_components["TOTPOP"].sum())
@@ -144,42 +179,50 @@ def county_title(row: pd.Series) -> str:
     return f"County {row['STATEFP']}{row['COUNTYFP']}"
 
 
-def build_county_definitions(definition_geographies: str, output_dir: str, definition_vintage: str) -> None:
+def build_county_definitions(
+    definition_geographies: str, output_dir: str, definition_vintage: str
+) -> None:
     """Write one .gpkg + .json definition file per county in definition_geographies."""
     counties = load_census_geography(definition_geographies)
     state_col = first_existing_column(
-        counties,
-        ["STATEFP", "STATEFP20", "STATEFP10", "STATEFP00"])
+        counties, ["STATEFP", "STATEFP20", "STATEFP10", "STATEFP00"]
+    )
     county_col = first_existing_column(
-        counties,
-        ["COUNTYFP", "COUNTYFP20", "COUNTYFP10", "COUNTYFP00"])
+        counties, ["COUNTYFP", "COUNTYFP20", "COUNTYFP10", "COUNTYFP00"]
+    )
     counties["STATEFP"] = counties[state_col].astype(str).str.zfill(2)
     counties["COUNTYFP"] = counties[county_col].astype(str).str.zfill(3)
     counties["STCNTYFP"] = counties["STATEFP"] + counties["COUNTYFP"]
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    for _, county in tqdm.tqdm(counties.iterrows(), total=len(counties), file=tqdm_file):
+    for _, county in tqdm.tqdm(
+        counties.iterrows(), total=len(counties), file=tqdm_file
+    ):
         county_fips = county["STCNTYFP"]
         output_stem = f"county_{county_fips}_{definition_vintage}"
         county_gdf = gpd.GeoDataFrame(
-            [county],
-            columns=counties.columns,
-            crs=counties.crs)
+            [county], columns=counties.columns, crs=counties.crs
+        )
         study_area = StudyArea(
             area_code=county_fips,
             area_title=county_title(county),
             component_counties_fips=[county_fips],
             total_population=(
-                int(county["TOTPOP"]) if "TOTPOP" in county and pd.notna(county["TOTPOP"]) else None
+                int(county["TOTPOP"])
+                if "TOTPOP" in county and pd.notna(county["TOTPOP"])
+                else None
             ),
-            geometry=county_gdf)
+            geometry=county_gdf,
+        )
 
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(area_to_dict(study_area), w)
         county_gdf.to_file(f"{output_dir}/{output_stem}.gpkg", driver="GPKG")
 
 
-def build_max_county_definitions(filename: str, definition_geographies: str, output_dir: str, definition_vintage: str) -> None:
+def build_max_county_definitions(
+    filename: str, definition_geographies: str, output_dir: str, definition_vintage: str
+) -> None:
     """For each CBSA, write a definition file for its most populous component county."""
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
     counties = load_census_geography(definition_geographies)
@@ -192,7 +235,7 @@ def build_max_county_definitions(filename: str, definition_geographies: str, out
 
     for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items(), file=tqdm_file):
         components = counties[counties["STCNTYFP"].isin(cbsa.component_counties_fips)]
-        try: ##guard agains the extremely unlikely possibility of nonexistent counties in a cbsa.
+        try:  ##guard agains the extremely unlikely possibility of nonexistent counties in a cbsa.
             max_county = components.loc[components["TOTPOP"].idxmax()]
         except ValueError:
             print(f"CBSA {cbsa_code} contains no counties.", file=sys.stderr)
@@ -210,21 +253,30 @@ def build_max_county_definitions(filename: str, definition_geographies: str, out
             area_title=county_title(max_county),
             component_counties_fips=[county_fips],
             total_population=(
-                int(max_county["TOTPOP"]) if "TOTPOP" in max_county and pd.notna(max_county["TOTPOP"]) else None),
-            geometry=county_gdf)
+                int(max_county["TOTPOP"])
+                if "TOTPOP" in max_county and pd.notna(max_county["TOTPOP"])
+                else None
+            ),
+            geometry=county_gdf,
+        )
 
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(area_to_dict(study_area), w)
-        county_gdf.to_file(f"{output_dir}/{output_stem}.gpkg", driver= "GPKG")
+        county_gdf.to_file(f"{output_dir}/{output_stem}.gpkg", driver="GPKG")
 
 
-def build_max_city_definitions(filename: str, definition_geographies: str, output_dir: str, definition_vintage: str, cbsa_geographies: str = None) -> None:
-    """For each CBSA, write a definition file for the most populous Census place whose geometry intersects the CBSA boundary.
-    """
+def build_max_city_definitions(
+    filename: str,
+    definition_geographies: str,
+    output_dir: str,
+    definition_vintage: str,
+    cbsa_geographies: str = None,
+) -> None:
+    """For each CBSA, write a definition file for the most populous Census place whose geometry intersects the CBSA boundary."""
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
     places = load_census_geography(definition_geographies).to_crs("esri:102003")
     counties = load_census_geography(cbsa_geographies).to_crs("esri:102003")
-    
+
     counties["STATEFP"] = counties["STATEFP"].astype(str).str.zfill(2)
     counties["COUNTYFP"] = counties["COUNTYFP"].astype(str).str.zfill(3)
     counties["STCNTYFP"] = counties["STATEFP"] + counties["COUNTYFP"]
@@ -248,12 +300,18 @@ def build_max_city_definitions(filename: str, definition_geographies: str, outpu
             area_code=max_place["GEOID"].iloc[0],
             area_title=str(max_place["NAMELSAD"].iloc[0]),
             component_counties_fips=[max_place["GEOID"].iloc[0]],
-            total_population=(int(max_place["TOTPOP"].iloc[0]) if "TOTPOP" in max_place.columns and pd.notna(max_place["TOTPOP"].iloc[0]) else None),
-            geometry=max_place)
+            total_population=(
+                int(max_place["TOTPOP"].iloc[0])
+                if "TOTPOP" in max_place.columns
+                and pd.notna(max_place["TOTPOP"].iloc[0])
+                else None
+            ),
+            geometry=max_place,
+        )
 
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(area_to_dict(study_area), w)
-        max_place.to_file(f"{output_dir}/{output_stem}.gpkg", driver = "GPKG")
+        max_place.to_file(f"{output_dir}/{output_stem}.gpkg", driver="GPKG")
 
 
 def area_to_dict(cbsa: StudyArea) -> dict:
@@ -274,6 +332,7 @@ def load_census_geography(path_or_glob: str) -> gpd.GeoDataFrame:
         raise FileNotFoundError(f"No files matching {path_or_glob}")
     frames = [gpd.read_file(f) for f in files]
     return gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=frames[0].crs)
+
 
 if __name__ == "__main__":
     typer.run(main)

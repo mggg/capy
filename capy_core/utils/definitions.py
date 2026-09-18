@@ -1,8 +1,9 @@
-import pydantic
+from typing import Dict, List, Optional
+
 import geopandas as gpd
-from shapely.geometry import Polygon
-from typing import List, Optional, Dict
+import pydantic
 from pydantic import ConfigDict
+from shapely.geometry import Polygon
 
 
 class StudyArea(pydantic.BaseModel):
@@ -17,8 +18,10 @@ class StudyArea(pydantic.BaseModel):
 
 
 if hasattr(pydantic, "RootModel"):
+
     class StudyAreaDict(pydantic.RootModel[Dict[str, StudyArea]]):
         pass
 else:
+
     class StudyAreaDict(pydantic.BaseModel):
         __root__: Dict[str, StudyArea]

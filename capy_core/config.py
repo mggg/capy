@@ -9,9 +9,11 @@ When run directly, prints shell export statements for use in shell scripts:
     eval "$(poetry run python capy_core/config.py)"
 """
 from __future__ import annotations
+
 import glob
 import sys
 from pathlib import Path
+
 import yaml
 
 CONFIG_FILE = Path(__file__).with_name("config.yaml")

@@ -5,10 +5,9 @@ import zipfile
 from pathlib import Path
 from typing import List, Optional
 
-from ipumspy import AggregateDataExtract, IpumsApiClient, Shapefile
 import requests
 import typer
-
+from ipumspy import AggregateDataExtract, IpumsApiClient, Shapefile
 
 OUTPUT_DIR = Path("data/shared/raw/geographies")
 DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
@@ -24,11 +23,58 @@ DOWNLOAD_HEADERS = {
 # See https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html
 # 50 states + DC + Puerto Rico (72). Territories 60/66/69/78 are omitted, they have no CBSA definitions.
 STATE_FIPS = [
-    "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
-    "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
-    "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
-    "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
-    "49", "50", "51", "53", "54", "55", "56", "72",
+    "01",
+    "02",
+    "04",
+    "05",
+    "06",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
+    "13",
+    "15",
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "21",
+    "22",
+    "23",
+    "24",
+    "25",
+    "26",
+    "27",
+    "28",
+    "29",
+    "30",
+    "31",
+    "32",
+    "33",
+    "34",
+    "35",
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41",
+    "42",
+    "44",
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50",
+    "51",
+    "53",
+    "54",
+    "55",
+    "56",
+    "72",
 ]
 
 # "census" values match the Census Bureau Data API's geography `for=` parameter: https://api.census.gov/data/2020/dec/pl/geography.json
@@ -104,16 +150,14 @@ CENSUS_TIGER_URLS = {
     },
     2020: {
         "county": [
-            "https://www2.census.gov/geo/tiger/TIGER2020/COUNTY/"
-            "tl_2020_us_county.zip"
+            "https://www2.census.gov/geo/tiger/TIGER2020/COUNTY/tl_2020_us_county.zip"
         ],
         "tract": [
             "https://www2.census.gov/geo/tiger/TIGER2020/TRACT/"
             "tl_2020_{state}_tract.zip"
         ],
         "block_group": [
-            "https://www2.census.gov/geo/tiger/TIGER2020/BG/"
-            "tl_2020_{state}_bg.zip"
+            "https://www2.census.gov/geo/tiger/TIGER2020/BG/tl_2020_{state}_bg.zip"
         ],
         "block": [
             "https://www2.census.gov/geo/tiger/TIGER2020/TABBLOCK20/"
@@ -122,7 +166,7 @@ CENSUS_TIGER_URLS = {
         "place": [
             "https://www2.census.gov/geo/tiger/TIGER2020/PLACE/"
             "tl_2020_{state}_place.zip"
-        ]
+        ],
     },
 }
 
@@ -187,8 +231,7 @@ def download_to_file(url: str, destination: Path) -> int:
 
     if expected_size is not None and bytes_written != int(expected_size):
         raise IncompleteDownloadError(
-            f"retrieval incomplete: got {bytes_written} out of "
-            f"{expected_size} bytes"
+            f"retrieval incomplete: got {bytes_written} out of {expected_size} bytes"
         )
 
     return bytes_written
@@ -225,7 +268,7 @@ def download(url: str, zip_path: Path, attempts: int = 5) -> Path:
                     f"Failed to download a readable zip from {url} after "
                     f"{attempts} attempts"
                 ) from exc
-            time.sleep(min(2 ** attempt, 10))
+            time.sleep(min(2**attempt, 10))
 
     raise RuntimeError(f"Failed to download {url}")
 
@@ -334,8 +377,8 @@ def select_shapefile_names(matches: List[dict], year: int, level: str) -> List[s
     # per extent/level so tract and BNA files are both preserved.
     selected = {}
     for shapefile in sorted(
-        matches,
-        key=lambda item: (basis_year(item), int(item.get("sequence") or 0))):
+        matches, key=lambda item: (basis_year(item), int(item.get("sequence") or 0))
+    ):
         selected[shapefile_key(shapefile)] = shapefile
 
     return [shapefile["name"] for shapefile in selected.values()]
@@ -371,7 +414,8 @@ def fetch_nhgis(year: int, level: str, work_dir: Path) -> Path:
     extract = AggregateDataExtract(
         collection="nhgis",
         description=f"{year} {config['label']} shapefiles",
-        shapefiles=[Shapefile(name) for name in shapefiles])
+        shapefiles=[Shapefile(name) for name in shapefiles],
+    )
 
     submitted = client.submit_extract(extract)
     client.wait_for_extract(submitted, timeout=10800)
@@ -382,7 +426,8 @@ def fetch_nhgis(year: int, level: str, work_dir: Path) -> Path:
 
     zip_files = sorted(
         set(work_dir.glob("*.zip")) - existing_zips,
-        key=lambda path: path.stat().st_mtime)
+        key=lambda path: path.stat().st_mtime,
+    )
     if not zip_files:
         raise FileNotFoundError(f"No new NHGIS zip downloaded to {work_dir}")
 
@@ -411,12 +456,28 @@ def fetch_census(year: int, level: str, output_dir: Path) -> Path:
             zip_path = download(url, zip_dir / url.split("/")[-1])
             extract_zip(zip_path, output_path)
         if n_existing:
-            print(f"Skipped {n_existing} already downloaded {config['label']} shapefiles for {year}", flush=True)
+            print(
+                f"Skipped {n_existing} already downloaded {config['label']} shapefiles for {year}",
+                flush=True,
+            )
 
     return output_path
 
 
-def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks, or counties"), years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."), year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"), output_dir: Path = typer.Option(OUTPUT_DIR), work_dir: Path = typer.Option(Path("data/shared/raw/geographies/ipums_geography_extracts")), env_file: Path = typer.Option(Path(".env"))) -> None:
+def main(
+    level: str = typer.Option(
+        "tracts", help="tracts, block_groups, blocks, or counties"
+    ),
+    years: Optional[str] = typer.Option(
+        None, "--years", help="Space- or comma-separated years."
+    ),
+    year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
+    output_dir: Path = typer.Option(OUTPUT_DIR),
+    work_dir: Path = typer.Option(
+        Path("data/shared/raw/geographies/ipums_geography_extracts")
+    ),
+    env_file: Path = typer.Option(Path(".env")),
+) -> None:
     load_dotenv(env_file)
 
     if level not in LEVELS:
@@ -430,7 +491,10 @@ def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks,
             print(f"Skipping {year} places: only 2020 is used in the pipeline.")
             continue
         if year == 1980 and LEVELS[level]["label"] in ("block_groups", "blocks"):
-            print(f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group or block boundary shapefiles. These were not standardized as nationwide geographic units until 1990.", flush=True)
+            print(
+                f"Skipping 1980 {level_label}: NHGIS does not publish 1980 block group or block boundary shapefiles. These were not standardized as nationwide geographic units until 1990.",
+                flush=True,
+            )
             continue
         if year in (1980, 1990):
             year_work_dir = work_dir / str(year) / level_label

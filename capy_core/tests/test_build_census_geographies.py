@@ -10,8 +10,8 @@ from capy_core.preprocessing.census_geographies import (
     read_census_population,
     read_nested_nhgis_shapefile,
     read_nhgis_1980_population,
-    state_county_series,
     standardize_census_geography,
+    state_county_series,
 )
 
 

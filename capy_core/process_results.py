@@ -8,8 +8,7 @@ from capy_core.utils import definitions
 
 
 def parse_cbsa(config_loc: str) -> definitions.StudyArea:
-    """Load a study area definition JSON and return a StudyArea object. Fills in optional fields (geometry, total_population) before parsing
-    """
+    """Load a study area definition JSON and return a StudyArea object. Fills in optional fields (geometry, total_population) before parsing"""
     with open(config_loc) as f:
         data = json.load(f)
 

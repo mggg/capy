@@ -1,17 +1,19 @@
+import glob
+import math
+import random
+
+import gerrychain
+import gerrychain.grid
+import pytest
+
 from capy_core.metrics import (
     angle_1,
     angle_2,
-    property_sum,
-    moran,
     edge,
     half_edge,
+    moran,
+    property_sum,
 )
-import random
-import gerrychain.grid
-import gerrychain
-import pytest
-import glob
-import math
 
 
 def generate_grid(n: int, m: int):
@@ -48,7 +50,9 @@ def create_diverse_graphs():
 
 def test_real_graph_files_present():
     if not _real_graph_files:
-        pytest.skip("No processed dual graphs found in data/processed/dual_graphs/ — file-based test cases are omitted")
+        pytest.skip(
+            "No processed dual graphs found in data/processed/dual_graphs/ — file-based test cases are omitted"
+        )
 
 
 def give_random_weights(

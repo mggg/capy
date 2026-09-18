@@ -12,7 +12,6 @@ import geopandas as gpd
 import pandas as pd
 import typer
 
-
 YEARS = [1980, 1990, 2000, 2010, 2020]
 POPULATION_DIR = Path("data/shared/raw/population")
 GEOGRAPHIES_DIR = Path("data/shared/raw/geographies")
@@ -24,7 +23,8 @@ PART_WIDTHS = {
     "tract": 6,
     "block_group": 1,
     "block": 4,
-    "place": 5}
+    "place": 5,
+}
 
 PART_COLUMNS = {
     "state": ["STATEFP", "STATEFP20", "STATEFP10", "STATEFP00"],
@@ -32,7 +32,7 @@ PART_COLUMNS = {
     "tract": ["TRACTCE", "TRACTCE20", "TRACTCE10", "TRACTCE00"],
     "block_group": ["BLKGRPCE", "BLKGRPCE20", "BLKGRPCE10", "BLKGRPCE00"],
     "block": ["BLOCKCE", "BLOCKCE20", "BLOCKCE10", "BLOCKCE00"],
-    "place": ["PLACEFP"]
+    "place": ["PLACEFP"],
 }
 
 POPULATION_PART_COLUMNS = {
@@ -41,7 +41,8 @@ POPULATION_PART_COLUMNS = {
     "tract": "tract",
     "block_group": "block group",
     "block": "block",
-    "place": "place"}
+    "place": "place",
+}
 
 LEVELS = {
     "county": {"label": "counties", "parts": ("state", "county"), "width": 5},
@@ -112,10 +113,12 @@ def is_county_sidecar_nhgis_path(path: Path) -> bool:
     """
     text = clean_filename(path.stem)
     compact = text.replace(" ", "")
-    return ("tractcounty" in compact
+    return (
+        "tractcounty" in compact
         or "countytract" in compact
         or "tract county" in text
-        or "county tract" in text)
+        or "county tract" in text
+    )
 
 
 def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
@@ -128,9 +131,11 @@ def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
         return False
 
     name = path.name.lower()
-    if (str(year) not in name
+    if (
+        str(year) not in name
         or is_conflated_nhgis_path(path)
-        or is_county_sidecar_nhgis_path(path)):
+        or is_county_sidecar_nhgis_path(path)
+    ):
         return False
 
     text = clean_filename(path.stem)
@@ -146,7 +151,8 @@ def is_block_group_name(path: Path) -> bool:
         or "blckgrp" in compact
         or "blkgrp" in compact
         or ("block" in text and "group" in text)
-        or re.search(r"(^| )bg( |$)", text) is not None)
+        or re.search(r"(^| )bg( |$)", text) is not None
+    )
 
 
 def is_nhgis_shapefile_for_level(path: Path, year: str, level_label: str) -> bool:
@@ -180,7 +186,9 @@ def is_nhgis_shapefile_for_level(path: Path, year: str, level_label: str) -> boo
     if level_label == "block_groups":
         return is_block_group_name(path)
     if level_label == "blocks":
-        return ("block" in text or "tabblock" in compact) and not is_block_group_name(path)
+        return ("block" in text or "tabblock" in compact) and not is_block_group_name(
+            path
+        )
     return False
 
 
@@ -285,16 +293,21 @@ def read_nhgis_1990_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
     require_columns(df, ["GISJOIN", "STATEA", "COUNTYA"] + race_cols, path)
     gisjoin = df["GISJOIN"].astype(str)
     return pd.DataFrame(
-        {"JOIN_KEY": gisjoin,
-        "GISJOIN": gisjoin,
-        "STATEFP": df["STATEA"].str.zfill(2),
-        "COUNTYFP": df["COUNTYA"].str.zfill(3),
-        "WHITE": to_int(df["ET2001"]),
-        "BLACK": to_int(df["ET2002"]),
-        "TOTPOP": sum(to_int(df[col]) for col in race_cols)})
+        {
+            "JOIN_KEY": gisjoin,
+            "GISJOIN": gisjoin,
+            "STATEFP": df["STATEA"].str.zfill(2),
+            "COUNTYFP": df["COUNTYA"].str.zfill(3),
+            "WHITE": to_int(df["ET2001"]),
+            "BLACK": to_int(df["ET2002"]),
+            "TOTPOP": sum(to_int(df[col]) for col in race_cols),
+        }
+    )
 
 
-def read_census_population(df: pd.DataFrame, path: Path, year: int, level_label: str) -> pd.DataFrame:
+def read_census_population(
+    df: pd.DataFrame, path: Path, year: int, level_label: str
+) -> pd.DataFrame:
     """Parse a Census API population CSV (2000-2020) into a standardized data frame that can be joined to geographies.
 
     Constructs JOIN_KEY from zero-padded FIPS part columns (state, county,
@@ -302,24 +315,27 @@ def read_census_population(df: pd.DataFrame, path: Path, year: int, level_label:
     """
     config = LEVELS[level_label]
     part_columns = [POPULATION_PART_COLUMNS[part] for part in config["parts"]]
-    require_columns(
-        df,
-        part_columns + ["TOTPOP", "NH_WHITE", "NH_BLACK"],
-        path)
+    require_columns(df, part_columns + ["TOTPOP", "NH_WHITE", "NH_BLACK"], path)
 
-    parts = [normalize_part(df[POPULATION_PART_COLUMNS[part]], part, year) for part in config["parts"]]
+    parts = [
+        normalize_part(df[POPULATION_PART_COLUMNS[part]], part, year)
+        for part in config["parts"]
+    ]
     join_key = parts[0]
     for part in parts[1:]:
         join_key = join_key + part
 
-    pop = pd.DataFrame({
+    pop = pd.DataFrame(
+        {
             "JOIN_KEY": join_key,
             "GISJOIN": "G" + join_key,
             "STATEFP": parts[0],
             "COUNTYFP": parts[1] if len(parts) > 1 else "",
             "WHITE": to_int(df["NH_WHITE"]),
             "BLACK": to_int(df["NH_BLACK"]),
-            "TOTPOP": to_int(df["TOTPOP"])})
+            "TOTPOP": to_int(df["TOTPOP"]),
+        }
+    )
     return pop
 
 
@@ -361,7 +377,9 @@ def geography_part(gdf: gpd.GeoDataFrame, part: str) -> pd.Series:
     return gdf[col].astype(str).str.zfill(PART_WIDTHS[part])
 
 
-def standardize_census_geography(gdf: gpd.GeoDataFrame, level_label: str) -> gpd.GeoDataFrame:
+def standardize_census_geography(
+    gdf: gpd.GeoDataFrame, level_label: str
+) -> gpd.GeoDataFrame:
     """Add JOIN_KEY, STATEFP, COUNTYFP, GEOID, and GISJOIN columns to a Census TIGER GeoDataFrame.
 
     JOIN_KEY is the zero-padded concatenation of the level's FIPS parts
@@ -391,7 +409,9 @@ def read_census_geography(year, geographies_dir, level_label):
     shape_dir = geographies_dir / f"census_{year}_{level_label}"
     paths = sorted(path for path in shape_dir.glob("*.shp") if path.is_file())
     if not paths:
-        raise FileNotFoundError(f"No Census {level_label} shapefiles found in {shape_dir}")
+        raise FileNotFoundError(
+            f"No Census {level_label} shapefiles found in {shape_dir}"
+        )
     for path in paths:
         gdf = gpd.read_file(path)
         gdf = standardize_census_geography(gdf, level_label)
@@ -406,7 +426,9 @@ def read_census_geography(year, geographies_dir, level_label):
 def nested_shapefile_paths(outer_zip: Path, tmp_dir: Path) -> List[Path]:
     shp_paths = []
     with zipfile.ZipFile(outer_zip) as outer:
-        nested_zips = [name for name in outer.namelist() if name.lower().endswith(".zip")]
+        nested_zips = [
+            name for name in outer.namelist() if name.lower().endswith(".zip")
+        ]
         if not nested_zips:
             shape_dir = tmp_dir / outer_zip.stem
             outer.extractall(shape_dir)
@@ -424,13 +446,18 @@ def nested_shapefile_paths(outer_zip: Path, tmp_dir: Path) -> List[Path]:
     return shp_paths
 
 
-def read_nested_nhgis_shapefile(outer_zip: Path, year: int, level_label: str) -> Optional[gpd.GeoDataFrame]:
+def read_nested_nhgis_shapefile(
+    outer_zip: Path, year: int, level_label: str
+) -> Optional[gpd.GeoDataFrame]:
     year_label = str(year)
     with tempfile.TemporaryDirectory() as tmp_name:
         tmp_dir = Path(tmp_name)
         shp_paths = nested_shapefile_paths(outer_zip, tmp_dir)
-        matches = [path for path in shp_paths
-            if is_nhgis_shapefile_for_level(path, year_label, level_label)]
+        matches = [
+            path
+            for path in shp_paths
+            if is_nhgis_shapefile_for_level(path, year_label, level_label)
+        ]
         if not matches:
             return None
 
@@ -444,13 +471,13 @@ def read_nested_nhgis_shapefile(outer_zip: Path, year: int, level_label: str) ->
             frames.append(gdf)
 
         gdf = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=frames[0].crs)
-        gdf = gdf[
-            ~gdf["GISJOIN"].astype(str).str.contains("nodata", case=False)
-        ].copy()
+        gdf = gdf[~gdf["GISJOIN"].astype(str).str.contains("nodata", case=False)].copy()
         return gdf
 
 
-def first_existing_series(gdf: gpd.GeoDataFrame, candidates: List[str]) -> Optional[pd.Series]:
+def first_existing_series(
+    gdf: gpd.GeoDataFrame, candidates: List[str]
+) -> Optional[pd.Series]:
     for col in candidates:
         if col in gdf.columns:
             return gdf[col].astype("string")
@@ -471,7 +498,9 @@ def state_county_series(gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.Series]:
     raise ValueError("Missing state/county identifier columns.")
 
 
-def nhgis_extract_dirs(geographies_dir: Path, year: int, level_label: str) -> List[Path]:
+def nhgis_extract_dirs(
+    geographies_dir: Path, year: int, level_label: str
+) -> List[Path]:
     base_dir = geographies_dir / "ipums_geography_extracts" / str(year)
     dirs = [base_dir / level_label]
     if base_dir not in dirs:
@@ -479,7 +508,9 @@ def nhgis_extract_dirs(geographies_dir: Path, year: int, level_label: str) -> Li
     return dirs
 
 
-def read_nhgis_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.GeoDataFrame:
+def read_nhgis_geography(
+    year: int, geographies_dir: Path, level_label: str
+) -> gpd.GeoDataFrame:
     """Load a 1980 or 1990 NHGIS geography shapefile extract for level_label.
 
     Searches extract directories for *_shape.zip files, unpacks nested
@@ -503,7 +534,9 @@ def read_nhgis_geography(year: int, geographies_dir: Path, level_label: str) -> 
         try:
             state, county = state_county_series(gdf)
         except ValueError as exc:
-            raise ValueError(f"{path} is missing state/county identifier columns.") from exc
+            raise ValueError(
+                f"{path} is missing state/county identifier columns."
+            ) from exc
 
         gdf["JOIN_KEY"] = gdf["GISJOIN"].astype(str)
         gdf["GEOID"] = gdf["GISJOIN"].astype(str).str[1:]
@@ -511,16 +544,20 @@ def read_nhgis_geography(year: int, geographies_dir: Path, level_label: str) -> 
         gdf["COUNTYFP"] = county
         return gdf
 
-    raise ValueError(f"No {level_label} NHGIS shapefile found in "
+    raise ValueError(
+        f"No {level_label} NHGIS shapefile found in "
         f"{', '.join(str(path) for path in extract_dirs)}. "
         "Rerun download_geographies.py for this year and level after updating "
-        "the NHGIS selection.")
+        "the NHGIS selection."
+    )
 
 
 TARGET_CRS = "esri:102003"  # USA Contiguous Albers Equal Area Conic; meters
 
 
-def read_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.GeoDataFrame:
+def read_geography(
+    year: int, geographies_dir: Path, level_label: str
+) -> gpd.GeoDataFrame:
     if year in (1980, 1990):
         gdf = read_nhgis_geography(year, geographies_dir, level_label)
     else:
@@ -528,7 +565,9 @@ def read_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.Ge
     return gdf.to_crs(TARGET_CRS)
 
 
-def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_label: str) -> gpd.GeoDataFrame:
+def join_population(
+    gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_label: str
+) -> gpd.GeoDataFrame:
     """Merge population data into a geography by JOIN_KEY.
 
     Filters the geography to states present in the population table, performs
@@ -542,7 +581,10 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
 
     merged = gdf.merge(
         pop[["JOIN_KEY", "WHITE", "BLACK", "TOTPOP", "POC"]],
-        on="JOIN_KEY", how="left", validate="one_to_one")
+        on="JOIN_KEY",
+        how="left",
+        validate="one_to_one",
+    )
 
     if len(merged) == 0:
         unmatched = geo_states - state_fips
@@ -561,9 +603,14 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
         if level_label == "blocks" and year == 1990:
             # ~31% miss rate is expected: zero-pop blocks, alpha-suffix splits,
             # and BNA tracts are all absent from the NHGIS extract.
-            print(f"  {year}, {state_fips}: dropping {missing:,} unmatched blocks (zero-population, BNA, or split-block suffixes — expected for 1990).", flush=True)
+            print(
+                f"  {year}, {state_fips}: dropping {missing:,} unmatched blocks (zero-population, BNA, or split-block suffixes — expected for 1990).",
+                flush=True,
+            )
         else:
-            raise ValueError(f"{year}: {missing} {level_label} geometries did not match population rows.")
+            raise ValueError(
+                f"{year}: {missing} {level_label} geometries did not match population rows."
+            )
 
         # if level_label == "blocks" and year == 1990:
         #     unmatched_gisjoin = merged.loc[merged["TOTPOP"].isna(), "GISJOIN"]
@@ -573,7 +620,7 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
         #     else:
         #         raise ValueError(f"{year}: {missing} blocks geometries did not match population rows.")
         # else:
-            # raise ValueError(f"{year}: {missing} {level_label} geometries did not match population rows.")
+        # raise ValueError(f"{year}: {missing} {level_label} geometries did not match population rows.")
     # if missing:
     #     # Blocks include many water-only and unpopulated geographic areas that have
     #     # no row in the population CSV; a high miss rate is expected and not an error.
@@ -582,7 +629,7 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
     #         raise ValueError(
     #             f"{year}: {missing} {level_label} geometries did not match "
     #             "population rows.")
-    
+
     merged = merged[merged["TOTPOP"].notna()].copy()
     for col in ["WHITE", "BLACK", "TOTPOP", "POC"]:
         merged[col] = merged[col].astype("int64")
@@ -590,7 +637,9 @@ def join_population(gdf: gpd.GeoDataFrame, pop: pd.DataFrame, year: int, level_l
     return merged
 
 
-def write_processed(gdf: gpd.GeoDataFrame, year: int, output_dir: Path, level_label: str, statefp: str) -> Path:
+def write_processed(
+    gdf: gpd.GeoDataFrame, year: int, output_dir: Path, level_label: str, statefp: str
+) -> Path:
     """Write a state-year GeoDataFrame to output_dir/level_label/<year>_<level>_<statefp>.gpkg."""
     output_dir_by_level = output_dir / level_label
     output_dir_by_level.mkdir(parents=True, exist_ok=True)
@@ -599,12 +648,18 @@ def write_processed(gdf: gpd.GeoDataFrame, year: int, output_dir: Path, level_la
     return output_path
 
 
-def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks, places, or counties"),
-    years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."),
+def main(
+    level: str = typer.Option(
+        "tracts", help="tracts, block_groups, blocks, places, or counties"
+    ),
+    years: Optional[str] = typer.Option(
+        None, "--years", help="Space- or comma-separated years."
+    ),
     year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
     population_dir: Path = typer.Option(POPULATION_DIR),
     geographies_dir: Path = typer.Option(GEOGRAPHIES_DIR),
-    output_dir: Path = typer.Option(OUTPUT_DIR)) -> None:
+    output_dir: Path = typer.Option(OUTPUT_DIR),
+) -> None:
     """Join population tables to geography shapefiles for each year and level.
 
     For each year, loads the population table and the corresponding geography
@@ -616,21 +671,28 @@ def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks,
     states_by_year: dict = {}
     for year in run_years:
         if year == 1980 and level_label in ("block_groups", "blocks"):
-            print(f"Skipping 1980 {level_label}: NHGIS does not publish 1980 "
-                "block group or block boundary shapefiles.", flush=True)
+            print(
+                f"Skipping 1980 {level_label}: NHGIS does not publish 1980 "
+                "block group or block boundary shapefiles.",
+                flush=True,
+            )
             continue
         print(f"Creating {year} {level_label} geography geopackage files", flush=True)
         pop = read_population(year, population_dir, level_label)
         if year in (1980, 1990):
             gdf = read_nhgis_geography(year, geographies_dir, level_label)
-            state_iter = (group for _, group in gdf.to_crs(TARGET_CRS).groupby("STATEFP"))
+            state_iter = (
+                group for _, group in gdf.to_crs(TARGET_CRS).groupby("STATEFP")
+            )
         else:
             # Census TIGER county downloads are national single files; split by STATEFP
             # just like the NHGIS path. Per-state files (tracts, block groups) each
             # contain only one state so the groupby is a no-op for those.
             state_iter = (
-                group for gdf in read_census_geography(year, geographies_dir, level_label)
-                for _, group in gdf.groupby("STATEFP"))
+                group
+                for gdf in read_census_geography(year, geographies_dir, level_label)
+                for _, group in gdf.groupby("STATEFP")
+            )
 
         n_written = 0
         states_written: set = set()
@@ -648,10 +710,17 @@ def main(level: str = typer.Option("tracts", help="tracts, block_groups, blocks,
     if len(states_by_year) > 1:
         all_states = set().union(*states_by_year.values())
         for statefp in sorted(all_states):
-            missing_in = [y for y, states in sorted(states_by_year.items()) if statefp not in states]
+            missing_in = [
+                y
+                for y, states in sorted(states_by_year.items())
+                if statefp not in states
+            ]
             if missing_in:
-                print(f"  Note: FIPS {statefp} has no {level_label} geopackage for {missing_in} "
-                    "(absent from source data for those years)", flush=True)
+                print(
+                    f"  Note: FIPS {statefp} has no {level_label} geopackage for {missing_in} "
+                    "(absent from source data for those years)",
+                    flush=True,
+                )
 
         # gdf = read_geography(year, geographies_dir, level_label)
         # for statefp, state_gdf in merged.groupby("STATEFP"):

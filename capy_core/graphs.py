@@ -3,22 +3,29 @@ Create dual graphs of given geometries and save: (1) the original dual graph (2)
 """
 
 import glob
-import geopandas as gpd
-import pandas as pd
-import typer
 import warnings
-import gerrychain
-import networkx as nx
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from pathlib import Path
-from shapely.strtree import STRtree
 from typing import Optional
+
+import geopandas as gpd
+import gerrychain
+import networkx as nx
+import pandas as pd
+import typer
+from shapely.strtree import STRtree
 
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
 
 
-def main(input_glob: str, output_base_dir: str = "data/shared/processed/dual_graphs", workers: int = 6, attr: str = "GISJOIN", years: Optional[str] = None):
+def main(
+    input_glob: str,
+    output_base_dir: str = "data/shared/processed/dual_graphs",
+    workers: int = 6,
+    attr: str = "GISJOIN",
+    years: Optional[str] = None,
+):
     """Build dual adjacency graphs for all .gpkg files matching *input_glob*.
 
     Processes files in parallel, then aggregates any dropped zero-population
@@ -42,8 +49,14 @@ def main(input_glob: str, output_base_dir: str = "data/shared/processed/dual_gra
     stem = Path(gpkg_files[0]).stem
     census_geography_type = stem.split("_in_", 1)[0]
     right_parts = stem.split("_in_", 1)[1].split("_")
-    study_area_type = f"max_{right_parts[1]}" if right_parts[0] == "max" else right_parts[0]
-    dropped_nodes_dir = Path("data/shared/outputs") / f"{census_geography_type}_in_{study_area_type}" / "dropped_nodes"
+    study_area_type = (
+        f"max_{right_parts[1]}" if right_parts[0] == "max" else right_parts[0]
+    )
+    dropped_nodes_dir = (
+        Path("data/shared/outputs")
+        / f"{census_geography_type}_in_{study_area_type}"
+        / "dropped_nodes"
+    )
 
     # aggregate dropped nodes by year and write one gpkg per year
     by_year = {}
@@ -53,7 +66,9 @@ def main(input_glob: str, output_base_dir: str = "data/shared/processed/dual_gra
     for year, gdfs in by_year.items():
         combined = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs)
         dropped_nodes_dir.mkdir(parents=True, exist_ok=True)
-        combined.to_file(dropped_nodes_dir / f"dropped_nodes_{year}.gpkg", driver="GPKG")
+        combined.to_file(
+            dropped_nodes_dir / f"dropped_nodes_{year}.gpkg", driver="GPKG"
+        )
 
 
 def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
@@ -72,10 +87,16 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
 
     # read and reproject
     geofile = gpd.read_file(gpkg)
-    geofile = geofile.to_crs("esri:102003") # so distances are in meters
-    warnings.filterwarnings("ignore", message=".*NA values found in column.*")  # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
-    warnings.filterwarnings("ignore", message=".*Found islands.*")  # degree-0 nodes are handled explicitly by connect_components.
-    warnings.filterwarnings("ignore", message=".*Found overlaps.*")  # county boundaries sometimes have slight overlaps in Census TIGER files; not a problem for graph construction.
+    geofile = geofile.to_crs("esri:102003")  # so distances are in meters
+    warnings.filterwarnings(
+        "ignore", message=".*NA values found in column.*"
+    )  # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
+    warnings.filterwarnings(
+        "ignore", message=".*Found islands.*"
+    )  # degree-0 nodes are handled explicitly by connect_components.
+    warnings.filterwarnings(
+        "ignore", message=".*Found overlaps.*"
+    )  # county boundaries sometimes have slight overlaps in Census TIGER files; not a problem for graph construction.
 
     # extract area code from the filename
     right = gpkg.split("_in_")[1]
@@ -113,11 +134,16 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
     connected_graph, n_edges_added = connect_components(geofile, connected_graph, attr)
     # Empty graphs are allowed when all nodes were dropped, connectivity is undefined.
     if len(connected_graph) > 0 and not nx.is_connected(connected_graph):
-        raise ValueError(f"{gpkg}: graph is still disconnected after connecting components.")
+        raise ValueError(
+            f"{gpkg}: graph is still disconnected after connecting components."
+        )
 
     if n_edges_added > 0 or len(dropped_indices) > 0:
-        print(f"{stem}: +{n_edges_added} edges, {len(dropped_indices)} zero-pop nodes dropped", flush=True)
-        
+        print(
+            f"{stem}: +{n_edges_added} edges, {len(dropped_indices)} zero-pop nodes dropped",
+            flush=True,
+        )
+
     connected_graph.to_json(str(out_dir / f"{stem}_connected.json"))
 
     if dropped_indices:
@@ -140,7 +166,9 @@ def node_contraction_population(graph: gerrychain.Graph, node) -> int:
 
 def has_zero_nodes(graph: gerrychain.Graph):
     for node in graph.nodes():
-        node_contraction_population = sum(int_attr(graph.nodes[node], col) for col in CONTRACTION_POP_COLS)
+        node_contraction_population = sum(
+            int_attr(graph.nodes[node], col) for col in CONTRACTION_POP_COLS
+        )
         if node_contraction_population == 0:
             return True
     return False
@@ -152,7 +180,9 @@ def drop_zero_nodes(graph: gerrychain.Graph):
     Returns ``(graph, dropped_nodes)`` where *dropped_nodes* is a list of
     ``(node_index, GISJOIN)`` pairs for every removed node.
     """
-    zero_nodes = [n for n in graph.nodes() if node_contraction_population(graph, n) == 0]
+    zero_nodes = [
+        n for n in graph.nodes() if node_contraction_population(graph, n) == 0
+    ]
 
     dropped_nodes = [(n, graph.nodes[n].get("GISJOIN", n)) for n in zero_nodes]
     graph.remove_nodes_from(zero_nodes)
@@ -160,7 +190,9 @@ def drop_zero_nodes(graph: gerrychain.Graph):
     return (graph, dropped_nodes)
 
 
-def connect_components(geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"):
+def connect_components(
+    geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr: str = "GISJOIN"
+):
     """Add edges until the graph has exactly one connected component, or is empty.
 
     For each disconnected pair of components, finds the geometrically nearest
@@ -193,8 +225,9 @@ def connect_components(geofile: gpd.GeoDataFrame, graph: gerrychain.Graph, attr:
         component_geoms = [geom_by_geoid[geoid] for geoid in cc_geoids[0]]
         island_geoms = [geom_by_geoid[geoid] for geoid in cc_geoids[1]]
         tree = STRtree(component_geoms)
-        pairs, distances = tree.query_nearest(island_geoms, return_distance=True,
-                                              all_matches=False)
+        pairs, distances = tree.query_nearest(
+            island_geoms, return_distance=True, all_matches=False
+        )
         assert len(distances) > 0
         best_index = min(range(len(distances)), key=lambda index: distances[index])
         island_index = pairs[0][best_index]

@@ -9,18 +9,27 @@ This script finds which node units (e.g. tracts, blocks) fall within which study
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import typer
-import tqdm
 import glob
-from capy_core.utils.pipeline_log import tqdm_file
-import geopandas as gpd
+
 import fiona
+import geopandas as gpd
 import pandas as pd
+import tqdm
+import typer
+
+from capy_core.utils.pipeline_log import tqdm_file
 
 
-def output_stem(study_area_file: str, prefix: str, census_geography_type: str, census_geography_year: str, definition_vintage: str) -> str:
+def output_stem(
+    study_area_file: str,
+    prefix: str,
+    census_geography_type: str,
+    census_geography_year: str,
+    definition_vintage: str,
+) -> str:
     """Construct the output filename stem for a clipped geography file.
 
     For vintage-based naming produces:
@@ -31,66 +40,124 @@ def output_stem(study_area_file: str, prefix: str, census_geography_type: str, c
     if census_geography_type and census_geography_year and definition_vintage:
         vintage_suffix = f"_{definition_vintage}"
         if not study_area_stem.endswith(vintage_suffix):
-            raise ValueError(f"{study_area_file} does not end with vintage {definition_vintage}")
+            raise ValueError(
+                f"{study_area_file} does not end with vintage {definition_vintage}"
+            )
         study_area_identity = study_area_stem.removesuffix(vintage_suffix)
-        return (f"{prefix}{census_geography_type}_in_{study_area_identity}_"
-            f"{census_geography_year}_{definition_vintage}_vintage")
+        return (
+            f"{prefix}{census_geography_type}_in_{study_area_identity}_"
+            f"{census_geography_year}_{definition_vintage}_vintage"
+        )
     return f"{prefix}{study_area_stem}_geographies"
 
 
-def _run_year(study_area_glob: str, output_dir: str, prefix: str, census_geography_type: str, census_geography_year: str, definition_vintage: str, census_geographies_dir: str) -> None:
+def _run_year(
+    study_area_glob: str,
+    output_dir: str,
+    prefix: str,
+    census_geography_type: str,
+    census_geography_year: str,
+    definition_vintage: str,
+    census_geographies_dir: str,
+) -> None:
     """Run overlap clipping for a single census geography year."""
     # get 4 bounds of each state block collection; keep state_files and state_bounds in sync
     state_files = []
     state_bounds = []
-    for f in sorted((Path(census_geographies_dir) / census_geography_type).glob(f"{census_geography_year}_{census_geography_type}_*.gpkg")):
+    for f in sorted(
+        (Path(census_geographies_dir) / census_geography_type).glob(
+            f"{census_geography_year}_{census_geography_type}_*.gpkg"
+        )
+    ):
         with fiona.open(f) as src:
             if len(src) == 0:
                 print("Skipping empty file:", f)
             else:
                 state_files.append(f)
-                state_bounds.append(src.bounds) # (minx, miny, maxx, maxy)
+                state_bounds.append(src.bounds)  # (minx, miny, maxx, maxy)
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     n_written = 0
     n_skipped = 0
-    for study_area_file in tqdm.tqdm(sorted(glob.glob(study_area_glob)), desc=census_geography_year, file=tqdm_file):
+    for study_area_file in tqdm.tqdm(
+        sorted(glob.glob(study_area_glob)), desc=census_geography_year, file=tqdm_file
+    ):
         study_area_gdf = gpd.read_file(study_area_file).to_crs("esri:102003")
         study_area_boundary = study_area_gdf.union_all()
         minx, miny, maxx, maxy = study_area_boundary.bounds
 
         # select block files if their bounds are within study_area_boundary
-        needed = [f for f, b in zip(state_files, state_bounds)
-              if b[0] <= maxx and b[2] >= minx and b[1] <= maxy and b[3] >= miny]
+        needed = [
+            f
+            for f, b in zip(state_files, state_bounds)
+            if b[0] <= maxx and b[2] >= minx and b[1] <= maxy and b[3] >= miny
+        ]
         if not needed:
             print("No state files intersect", study_area_file, file=sys.stderr)
             n_skipped += 1
             continue
 
         frames = [gpd.read_file(f) for f in needed]
-        census_geographies = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=frames[0].crs)
+        census_geographies = gpd.GeoDataFrame(
+            pd.concat(frames, ignore_index=True), crs=frames[0].crs
+        )
 
         geography_points = census_geographies.geometry.representative_point()
-        geography_indices = geography_points.sindex.query(study_area_boundary, predicate="covers")
+        geography_indices = geography_points.sindex.query(
+            study_area_boundary, predicate="covers"
+        )
         selected_geographies = census_geographies.iloc[sorted(geography_indices)]
 
         if len(selected_geographies) != 0:
-            selected_geographies_stem = output_stem(study_area_file, prefix, census_geography_type, census_geography_year, definition_vintage)
-            selected_geographies.to_file(f"{output_dir}/{selected_geographies_stem}.gpkg", driver="GPKG")
+            selected_geographies_stem = output_stem(
+                study_area_file,
+                prefix,
+                census_geography_type,
+                census_geography_year,
+                definition_vintage,
+            )
+            selected_geographies.to_file(
+                f"{output_dir}/{selected_geographies_stem}.gpkg", driver="GPKG"
+            )
             n_written += 1
         else:
-            print("Empty overlaps between study area file:", study_area_file, "and state files:", [str(file_link) for file_link in needed], file=sys.stderr)
+            print(
+                "Empty overlaps between study area file:",
+                study_area_file,
+                "and state files:",
+                [str(file_link) for file_link in needed],
+                file=sys.stderr,
+            )
             n_skipped += 1
-    print(f"Overlaps between node units and study area in {census_geography_year}: {n_written} written, {n_skipped} skipped (empty)", flush=True)
+    print(
+        f"Overlaps between node units and study area in {census_geography_year}: {n_written} written, {n_skipped} skipped (empty)",
+        flush=True,
+    )
 
 
-def main(study_area_glob: str, output_base_dir: str, prefix: str = "", census_geography_type: str = "", census_geography_years: str = "", definition_vintage: str = "2020", census_geographies_dir: str = "data/shared/processed/census_geographies"):
+def main(
+    study_area_glob: str,
+    output_base_dir: str,
+    prefix: str = "",
+    census_geography_type: str = "",
+    census_geography_years: str = "",
+    definition_vintage: str = "2020",
+    census_geographies_dir: str = "data/shared/processed/census_geographies",
+):
     """
     Writes census geographies whose representative points fall within each study area,
     for each year in census_geography_years (space-separated string).
     """
     for year in census_geography_years.split():
-        _run_year(study_area_glob, f"{output_base_dir}/{year}", prefix, census_geography_type, year, definition_vintage, census_geographies_dir)
+        _run_year(
+            study_area_glob,
+            f"{output_base_dir}/{year}",
+            prefix,
+            census_geography_type,
+            year,
+            definition_vintage,
+            census_geographies_dir,
+        )
 
 
 if __name__ == "__main__":

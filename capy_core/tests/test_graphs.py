@@ -39,11 +39,17 @@ def test_process_file_connects_after_dropping_nodes(tmp_path, populations):
 
     year, dropped = _process_file(str(source), str(output))
 
-    original = gerrychain.Graph.from_json(str(output / year / f"{source.stem}_orig.json"))
-    connected = gerrychain.Graph.from_json(str(output / year / f"{source.stem}_connected.json"))
+    original = gerrychain.Graph.from_json(
+        str(output / year / f"{source.stem}_orig.json")
+    )
+    connected = gerrychain.Graph.from_json(
+        str(output / year / f"{source.stem}_connected.json")
+    )
     assert len(original) == 3
     assert nx.is_connected(original)
-    assert set(dropped.GISJOIN) == {name for name, pop in zip("ABC", populations) if pop == 0}
+    assert set(dropped.GISJOIN) == {
+        name for name, pop in zip("ABC", populations) if pop == 0
+    }
     assert {attrs["GISJOIN"] for _, attrs in connected.nodes(data=True)} == {
         name for name, pop in zip("ABC", populations) if pop > 0
     }
@@ -60,7 +66,9 @@ def test_process_file_rejects_disconnected_output(tmp_path, monkeypatch):
         crs="ESRI:102003",
     )
     geofile.to_file(source, driver="GPKG")
-    monkeypatch.setattr("capy_core.graphs.connect_components", lambda geofile, graph, attr: (graph, 0))
+    monkeypatch.setattr(
+        "capy_core.graphs.connect_components", lambda geofile, graph, attr: (graph, 0)
+    )
     output = tmp_path / "graphs"
 
     with pytest.raises(ValueError, match="still disconnected"):

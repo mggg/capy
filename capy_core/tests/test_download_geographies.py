@@ -1,14 +1,15 @@
 import os
-import pytest
 import zipfile
+
+import pytest
 
 from capy_core.download.download_geographies import (
     LEVELS,
     OUTPUT_DIR,
+    IncompleteDownloadError,
     census_output_exists,
     download,
     download_to_file,
-    IncompleteDownloadError,
     existing_nhgis_zip,
     fetch_census,
     matches_level,
@@ -151,7 +152,9 @@ def test_download_retries_partial_result(tmp_path, monkeypatch):
         "capy_core.download.download_geographies.download_to_file",
         fake_download_to_file,
     )
-    monkeypatch.setattr("capy_core.download.download_geographies.time.sleep", lambda seconds: None)
+    monkeypatch.setattr(
+        "capy_core.download.download_geographies.time.sleep", lambda seconds: None
+    )
 
     download("https://example.test/geography.zip", zip_path)
 
@@ -163,7 +166,9 @@ def test_download_to_file_rejects_short_response(tmp_path, monkeypatch):
     def fake_get(*args, **kwargs):
         return FakeResponse([b"short"], content_length=100)
 
-    monkeypatch.setattr("capy_core.download.download_geographies.requests.get", fake_get)
+    monkeypatch.setattr(
+        "capy_core.download.download_geographies.requests.get", fake_get
+    )
 
     with pytest.raises(IncompleteDownloadError, match="retrieval incomplete"):
         download_to_file("https://example.test/geography.zip", tmp_path / "out.zip")
@@ -205,15 +210,20 @@ def test_fetch_census_skips_existing_state_outputs(tmp_path, monkeypatch):
     def fake_extract_zip(zip_path, destination):
         (destination / f"{zip_path.stem}.shp").touch()
 
-    monkeypatch.setattr("capy_core.download.download_geographies.STATE_FIPS", ["01", "02"])
-    monkeypatch.setattr("capy_core.download.download_geographies.download", fake_download)
-    monkeypatch.setattr("capy_core.download.download_geographies.extract_zip", fake_extract_zip)
+    monkeypatch.setattr(
+        "capy_core.download.download_geographies.STATE_FIPS", ["01", "02"]
+    )
+    monkeypatch.setattr(
+        "capy_core.download.download_geographies.download", fake_download
+    )
+    monkeypatch.setattr(
+        "capy_core.download.download_geographies.extract_zip", fake_extract_zip
+    )
 
     assert fetch_census(2000, "block_groups", tmp_path) == output_path
 
     assert downloaded == [
-        "https://www2.census.gov/geo/tiger/TIGER2010/BG/2000/"
-        "tl_2010_02_bg00.zip"
+        "https://www2.census.gov/geo/tiger/TIGER2010/BG/2000/tl_2010_02_bg00.zip"
     ]
     assert (output_path / "tl_2010_02_bg00.shp").exists()
 

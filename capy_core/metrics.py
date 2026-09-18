@@ -1,25 +1,34 @@
-import geopandas as gpd
-import typer
-import os
 import csv
 import glob
-from typing import Optional
-import warnings
-import gerrychain
-import networkx as nx
-import matplotlib.pyplot as plt
-from itertools import product
-import tqdm
+import os
 import sys
-import scipy.sparse
-import numpy as np
 import traceback
+import warnings
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
+from itertools import product
 from pathlib import Path
+from typing import Optional
+
+import geopandas as gpd
+import gerrychain
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import scipy.sparse
+import tqdm
+import typer
 
 
-def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, workers: int = 6, years: Optional[str] = None):
+def main(
+    input_glob: str,
+    x_col: str,
+    y_col: str,
+    tot_col: str,
+    output: Path,
+    workers: int = 6,
+    years: Optional[str] = None,
+):
     """Compute segregation metrics for every graph JSON matched by input_glob.
 
     Runs in parallel via ProcessPoolExecutor. Writes one CSV row per file to
@@ -47,7 +56,10 @@ def main(input_glob: str, x_col: str, y_col: str, tot_col: str, output: Path, wo
                     n_ok += 1
                 else:
                     n_failed += 1
-    print(f"Metrics calculations: {n_ok} processes succeeded, {n_failed} failed. Output: {output}", flush=True)
+    print(
+        f"Metrics calculations: {n_ok} processes succeeded, {n_failed} failed. Output: {output}",
+        flush=True,
+    )
     if n_failed:
         raise typer.Exit(code=1)
 
@@ -81,45 +93,92 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     dissimilarity (L1/L2/L10), Frey, Gini, four Moran's I variants,
     population totals, group shares, and graph size.
     """
-    keys = ["filename", "x_col", "y_col", "tot_col", "angle_1", "angle_2", "e_assort", "he_assort"]
+    keys = [
+        "filename",
+        "x_col",
+        "y_col",
+        "tot_col",
+        "angle_1",
+        "angle_2",
+        "e_assort",
+        "he_assort",
+    ]
     for lam in [0, 0.5, 1, 2, 10, None]:
         s = "lim" if lam is None else str(lam)
         keys += [
-            f"skew_self_{s}", f"skew_other_{s}", f"edge_{s}",
-            f"skew'_self_{s}", f"skew'_other_{s}", f"half_edge_{s}",
-            f"skew_self_exact_{s}", f"skew_other_exact_{s}", f"edge_exact_{s}",
-            f"skew'_self_exact_{s}", f"skew'_other_exact_{s}", f"half_edge_exact_{s}",
+            f"skew_self_{s}",
+            f"skew_other_{s}",
+            f"edge_{s}",
+            f"skew'_self_{s}",
+            f"skew'_other_{s}",
+            f"half_edge_{s}",
+            f"skew_self_exact_{s}",
+            f"skew_other_exact_{s}",
+            f"edge_exact_{s}",
+            f"skew'_self_exact_{s}",
+            f"skew'_other_exact_{s}",
+            f"half_edge_exact_{s}",
         ]
     for p in [1, 2, 10]:
         keys.append(f"dissimilarity_{p}")
     keys += [
-        "frey", "gini",
-        "moran_A", "moran_P", "moran_L", "moran_M",
-        "moran_D_1", "moran_D_2",
-        "total_population", "total_white", "total_poc", "total_black",
-        "share_x", "share_y",
-        "total_nodes", "total_edges",
+        "frey",
+        "gini",
+        "moran_A",
+        "moran_P",
+        "moran_L",
+        "moran_M",
+        "moran_D_1",
+        "moran_D_2",
+        "total_population",
+        "total_white",
+        "total_poc",
+        "total_black",
+        "share_x",
+        "share_y",
+        "total_nodes",
+        "total_edges",
     ]
     return ",".join(keys)
 
 
-FAILURE_FIELDNAMES = ["filename", "study_area_code", "x_col", "y_col", "tot_col", "error_message"]
+FAILURE_FIELDNAMES = [
+    "filename",
+    "study_area_code",
+    "x_col",
+    "y_col",
+    "tot_col",
+    "error_message",
+]
 
 
-def write_failure(filename: str, x_col: str, y_col: str, tot_col: str, exc: Exception) -> None:
+def write_failure(
+    filename: str, x_col: str, y_col: str, tot_col: str, exc: Exception
+) -> None:
     """Append a failure record to the metric_failures CSV.
 
     Creates the file and writes a header on the first call. Intended to be called from a single writer process only.
     """
-    metric_failures_file = os.environ.get("METRIC_FAILURES_FILE", "data/shared/outputs/metric_failures.csv")
+    metric_failures_file = os.environ.get(
+        "METRIC_FAILURES_FILE", "data/shared/outputs/metric_failures.csv"
+    )
     failures_dir = os.path.dirname(metric_failures_file)
     os.makedirs(failures_dir, exist_ok=True)
 
-    row = {"filename": filename, "study_area_code": study_area_code_from_filename(filename),
-        "x_col": x_col, "y_col": y_col, "tot_col": tot_col, "error_message": str(exc)}
+    row = {
+        "filename": filename,
+        "study_area_code": study_area_code_from_filename(filename),
+        "x_col": x_col,
+        "y_col": y_col,
+        "tot_col": tot_col,
+        "error_message": str(exc),
+    }
 
     # write header once
-    write_header = not os.path.exists(metric_failures_file) or os.path.getsize(metric_failures_file) == 0
+    write_header = (
+        not os.path.exists(metric_failures_file)
+        or os.path.getsize(metric_failures_file) == 0
+    )
     with open(metric_failures_file, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FAILURE_FIELDNAMES)
         if write_header:
@@ -144,12 +203,15 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     distance-based). Returns a comma-joined string ready to be written as a
     CSV row.
     """
-    warnings.filterwarnings("ignore", message=".*Found islands.*")  # degree-0 nodes are handled by connect_components in graphs.py.
+    warnings.filterwarnings(
+        "ignore", message=".*Found islands.*"
+    )  # degree-0 nodes are handled by connect_components in graphs.py.
     graph = gerrychain.Graph.from_json(filename)
 
     for node in graph.nodes():
         graph.nodes[node]["white_plus_black"] = (
-            graph.nodes[node][x_col] + graph.nodes[node][y_col])
+            graph.nodes[node][x_col] + graph.nodes[node][y_col]
+        )
 
     capy_metrics = {}
     capy_metrics["filename"] = filename
@@ -157,42 +219,55 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["y_col"] = y_col
     capy_metrics["tot_col"] = tot_col
 
-
     capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
-    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) 
-    
+    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col)
+
     e_assort, he_assort = assortativity(graph, x_col, y_col)
     capy_metrics["e_assort"] = e_assort
     capy_metrics["he_assort"] = he_assort
 
-
-    for lam in [0, 0.5, 1, 2, 10, None]: 
+    for lam in [0, 0.5, 1, 2, 10, None]:
         lam_str = "lim" if lam is None else str(lam)
-        capy_metrics[f"skew_self_{lam_str}"] = skew(graph, x_col, y_col, lam = lam)
-        capy_metrics[f"skew_other_{lam_str}"] = skew(graph, y_col, x_col, lam = lam)
-        capy_metrics[f"edge_{lam_str}"] = 0.5 * (capy_metrics[f"skew_other_{lam_str}"] + 
-                                                 capy_metrics[f"skew_self_{lam_str}"])
+        capy_metrics[f"skew_self_{lam_str}"] = skew(graph, x_col, y_col, lam=lam)
+        capy_metrics[f"skew_other_{lam_str}"] = skew(graph, y_col, x_col, lam=lam)
+        capy_metrics[f"edge_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew_other_{lam_str}"] + capy_metrics[f"skew_self_{lam_str}"]
+        )
 
-        capy_metrics[f"skew'_self_{lam_str}"] = skew_prime(graph, x_col, y_col, lam = lam)
-        capy_metrics[f"skew'_other_{lam_str}"] = skew_prime(graph, y_col, x_col, lam = lam)
-        capy_metrics[f"half_edge_{lam_str}"] = 0.5 * (capy_metrics[f"skew'_other_{lam_str}"] + 
-                                                 capy_metrics[f"skew'_self_{lam_str}"])    
+        capy_metrics[f"skew'_self_{lam_str}"] = skew_prime(graph, x_col, y_col, lam=lam)
+        capy_metrics[f"skew'_other_{lam_str}"] = skew_prime(
+            graph, y_col, x_col, lam=lam
+        )
+        capy_metrics[f"half_edge_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew'_other_{lam_str}"]
+            + capy_metrics[f"skew'_self_{lam_str}"]
+        )
 
+        capy_metrics[f"skew_self_exact_{lam_str}"] = skew_exact(
+            graph, x_col, y_col, lam=lam
+        )
+        capy_metrics[f"skew_other_exact_{lam_str}"] = skew_exact(
+            graph, y_col, x_col, lam=lam
+        )
+        capy_metrics[f"edge_exact_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew_other_exact_{lam_str}"]
+            + capy_metrics[f"skew_self_exact_{lam_str}"]
+        )
 
-        capy_metrics[f"skew_self_exact_{lam_str}"] = skew_exact(graph, x_col, y_col, lam = lam)
-        capy_metrics[f"skew_other_exact_{lam_str}"] = skew_exact(graph, y_col, x_col, lam = lam)
-        capy_metrics[f"edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew_other_exact_{lam_str}"] +
-                                                 capy_metrics[f"skew_self_exact_{lam_str}"])
-
-        capy_metrics[f"skew'_self_exact_{lam_str}"] = skew_prime_exact(graph, x_col, y_col, lam = lam)
-        capy_metrics[f"skew'_other_exact_{lam_str}"] = skew_prime_exact(graph, y_col, x_col, lam = lam)
-        capy_metrics[f"half_edge_exact_{lam_str}"] = 0.5 * (capy_metrics[f"skew'_other_exact_{lam_str}"] +
-                                                 capy_metrics[f"skew'_self_exact_{lam_str}"])
+        capy_metrics[f"skew'_self_exact_{lam_str}"] = skew_prime_exact(
+            graph, x_col, y_col, lam=lam
+        )
+        capy_metrics[f"skew'_other_exact_{lam_str}"] = skew_prime_exact(
+            graph, y_col, x_col, lam=lam
+        )
+        capy_metrics[f"half_edge_exact_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew'_other_exact_{lam_str}"]
+            + capy_metrics[f"skew'_self_exact_{lam_str}"]
+        )
 
     for p in [1, 2, 10]:
         string = str(p)
         capy_metrics[f"dissimilarity_{string}"] = dissimilarity(graph, x_col, y_col, p)
-
 
     capy_metrics["frey"] = frey(graph, x_col, y_col)
     capy_metrics["gini"] = gini(graph, x_col, y_col)
@@ -204,7 +279,9 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["moran_L"] = moran_cont["moran_L"]
     capy_metrics["moran_M"] = moran_cont["moran_M"]
 
-    morans_dist = moran_dist(graph, x_col, "white_plus_black", [inv_dist, inv_dist_square])
+    morans_dist = moran_dist(
+        graph, x_col, "white_plus_black", [inv_dist, inv_dist_square]
+    )
     capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
     capy_metrics["moran_D_2"] = morans_dist["moran_inv_dist_square"]
 
@@ -266,17 +343,18 @@ def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
 
 
 def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
-    """Return the two summation components of the <<x, y>> inner product.
-    """
+    """Return the two summation components of the <<x, y>> inner product."""
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
-        first_summation += graph.nodes[node][x_col] * graph.nodes[node][y_col] - (graph.nodes[node][x_col] + graph.nodes[node][y_col]) * 0.5
+        first_summation += (
+            graph.nodes[node][x_col] * graph.nodes[node][y_col]
+            - (graph.nodes[node][x_col] + graph.nodes[node][y_col]) * 0.5
+        )
 
     for node, neighbor in graph.edges():
         second_summation += graph.nodes[node][x_col] * graph.nodes[neighbor][y_col]
         second_summation += graph.nodes[neighbor][x_col] * graph.nodes[node][y_col]
-
 
     return (first_summation, second_summation)
 
@@ -285,31 +363,41 @@ def skew(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> flo
     """Skew-self metric: fraction of x's inner-product mass directed toward
     other x nodes. Formula: <x,x> / (<x,x> + 2·<x,y>) using angle_1.
     """
-    x_x = angle_1(graph, x_col, x_col, lam = lam)
-    x_y = angle_1(graph, x_col, y_col, lam = lam)
+    x_x = angle_1(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
 
     return (x_x) / (x_x + (2 * x_y))
 
-def skew_prime(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+
+def skew_prime(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1
+) -> float:
     """Half-edge variant of skew_self: <x,x> / (<x,x> + <x,y>) using angle_1."""
-    x_x = angle_1(graph, x_col, x_col, lam = lam)
-    x_y = angle_1(graph, x_col, y_col, lam = lam)
+    x_x = angle_1(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
 
     return (x_x) / (x_x + (x_y))
 
-def skew_exact(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+
+def skew_exact(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1
+) -> float:
     """Diagonal-corrected skew_self using angle_2: <<x,x>> / (<<x,x>> + <x,y>)."""
-    x_x = angle_2(graph, x_col, x_col, lam = lam)
-    x_y = angle_1(graph, x_col, y_col, lam = lam)
+    x_x = angle_2(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
 
     return (x_x) / (x_x + (x_y))
 
-def skew_prime_exact(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
-    """Half-edge skew using angle_2: 2·<<x,x>> / (2·<<x,x>> + <x,y>)."""
-    x_x = angle_2(graph, x_col, x_col, lam = lam)
-    x_y = angle_1(graph, x_col, y_col, lam = lam)
 
-    return (2 * x_x) / ( 2 * x_x + (x_y))
+def skew_prime_exact(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1
+) -> float:
+    """Half-edge skew using angle_2: 2·<<x,x>> / (2·<<x,x>> + <x,y>)."""
+    x_x = angle_2(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
+
+    return (2 * x_x) / (2 * x_x + (x_y))
+
 
 def edge(
     graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1, func=angle_1
@@ -332,6 +420,7 @@ def half_edge(
 
     return 0.5 * ((x_x / (x_x + x_y)) + (y_y / (y_y + x_y)))
 
+
 def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
     """Compute edge and half-edge assortativity via node majority classification.
 
@@ -341,34 +430,45 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
 
     Returns (e_assort, he_assort), either may be NaN if one class is absent.
     """
-    #determine node majorities
+    # determine node majorities
     for node in graph.nodes():
-        threshold = property_sum(graph, x_col) / (property_sum(graph, x_col) + property_sum(graph, y_col))
-        #threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
-        if graph.nodes[node][x_col]/(graph.nodes[node][y_col] + graph.nodes[node][x_col]) >= threshold: #so ties break in favor of x_col
+        threshold = property_sum(graph, x_col) / (
+            property_sum(graph, x_col) + property_sum(graph, y_col)
+        )
+        # threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
+        if (
+            graph.nodes[node][x_col]
+            / (graph.nodes[node][y_col] + graph.nodes[node][x_col])
+            >= threshold
+        ):  # so ties break in favor of x_col
             graph.nodes[node]["x_maj"] = 1
             graph.nodes[node]["y_maj"] = 0
-        else: 
+        else:
             graph.nodes[node]["x_maj"] = 0
             graph.nodes[node]["y_maj"] = 1
-    
-    #calculating E, He assortativity scores
+
+    # calculating E, He assortativity scores
     try:
         e_assort = 0.5 * (
-            skew_exact(graph, "x_maj", "y_maj", 0) + #zero lambdas strictly speaking superfluous
-            skew_exact(graph, "y_maj", "x_maj", 0)
+            skew_exact(
+                graph, "x_maj", "y_maj", 0
+            )  # zero lambdas strictly speaking superfluous
+            + skew_exact(graph, "y_maj", "x_maj", 0)
         )
-    except ZeroDivisionError: #if there are no x majority units, then <<x,x>> = ,x,y. = <<x,x>> + <x,y> = 0
+    except (
+        ZeroDivisionError
+    ):  # if there are no x majority units, then <<x,x>> = ,x,y. = <<x,x>> + <x,y> = 0
         e_assort = np.nan
 
     try:
         he_assort = 0.5 * (
-            skew_prime_exact(graph, "x_maj", "y_maj", 0) +
-            skew_prime_exact(graph, "y_maj", "x_maj", 0)
+            skew_prime_exact(graph, "x_maj", "y_maj", 0)
+            + skew_prime_exact(graph, "y_maj", "x_maj", 0)
         )
     except ZeroDivisionError:
         he_assort = np.nan
     return e_assort, he_assort
+
 
 def property_sum(graph: gerrychain.Graph, col: str) -> float:
     cummulative = 0
@@ -389,10 +489,9 @@ def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: float) -> 
     summation = 0
     for node in graph.nodes():
         node_total = graph.nodes[node][x_col] + graph.nodes[node][y_col]
-        summation += abs(
-            (graph.nodes[node][x_col]) * p_bar
-            - (node_total * x_bar)
-        ) ** (p)
+        summation += abs((graph.nodes[node][x_col]) * p_bar - (node_total * x_bar)) ** (
+            p
+        )
 
     return (1 / ((2 ** (1 / p)) * (x_bar * (p_bar - x_bar)))) * (summation ** (1 / p))
 
@@ -407,8 +506,7 @@ def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     summation = 0
     for node in graph.nodes():
         summation += abs(
-            (graph.nodes[node][x_col] * y_bar)
-            - (graph.nodes[node][y_col] * x_bar)
+            (graph.nodes[node][x_col] * y_bar) - (graph.nodes[node][y_col] * x_bar)
         )
 
     return (1 / (2 * x_bar * y_bar)) * summation
@@ -425,12 +523,13 @@ def gini(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
     for node in graph.nodes():
         node_total = graph.nodes[node][x_col] + graph.nodes[node][y_col]
         for other_node in graph.nodes():
-            other_node_total = graph.nodes[other_node][x_col] + graph.nodes[other_node][y_col]
-            
+            other_node_total = (
+                graph.nodes[other_node][x_col] + graph.nodes[other_node][y_col]
+            )
+
             summation += abs(
                 (graph.nodes[node][x_col] * other_node_total)
-                - (node_total
-                    * graph.nodes[other_node][x_col])
+                - (node_total * graph.nodes[other_node][x_col])
             )
 
     return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
@@ -446,10 +545,10 @@ def make_adj_weights(graph: gerrychain.Graph):
         M — Metropolis–Hastings weight matrix (off-diagonal: 1/max(dᵢ, dⱼ);
             diagonal: 1 − row sum, ensuring rows sum to 1).
     """
-    #TODO: check_order
+    # TODO: check_order
     nodes = list(graph.nodes())
     A = nx.adjacency_matrix(graph, nodelist=nodes).tocsr()
-    degrees = np.array([graph.degree(n) for n in nodes])    
+    degrees = np.array([graph.degree(n) for n in nodes])
     D = scipy.sparse.diags(degrees, dtype=None)
 
     inv_degrees = np.zeros_like(degrees, dtype=float)
@@ -473,16 +572,19 @@ def make_adj_weights(graph: gerrychain.Graph):
 
     return A, P, L, M
 
+
 def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> dict:
     """Compute Moran's I under four adjacency weight matrices (A, P, L, M).
 
     Returns a dict with keys moran_A, moran_P, moran_L, moran_M.
     Raises ZeroDivisionError if all node shares are identical (zero variance).
     """
-    shares = np.array([
-        graph.nodes[node][x_col] / graph.nodes[node][tot_col]
-        for node in graph.nodes()
-        ])
+    shares = np.array(
+        [
+            graph.nodes[node][x_col] / graph.nodes[node][tot_col]
+            for node in graph.nodes()
+        ]
+    )
 
     shares -= shares.mean()
 
@@ -507,14 +609,15 @@ def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> dict:
     return morans
 
 
-
 def inv_dist(x1, y1, x2, y2):
-    d = np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-    return 1/d
+    d = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    return 1 / d
+
 
 def inv_dist_square(x1, y1, x2, y2):
-    d = (x1 - x2)**2 + (y1 - y2)**2
+    d = (x1 - x2) ** 2 + (y1 - y2) ** 2
     return 1 / d
+
 
 def make_dist_weights(graph: gerrychain.graph, dist_funcs: list):
     """Build distance-based spatial weight matrices from node centroid coordinates.
@@ -540,17 +643,20 @@ def make_dist_weights(graph: gerrychain.graph, dist_funcs: list):
                         graph.nodes[i_node]["centroid_x"],
                         graph.nodes[i_node]["centroid_y"],
                         graph.nodes[j_node]["centroid_x"],
-                        graph.nodes[j_node]["centroid_y"]
-                        )
-                
-        array = array / array.sum(axis = 1, keepdims=True) #row standardize
+                        graph.nodes[j_node]["centroid_y"],
+                    )
+
+        array = array / array.sum(axis=1, keepdims=True)  # row standardize
         array = scipy.sparse.csr_array(array)
         weights.append((array))
         names.append(func.__name__)
-    
+
     return weights, names
 
-def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: list) -> float:
+
+def moran_dist(
+    graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: list
+) -> float:
     """Compute Moran's I under distance-based weight matrices.
 
     Like moran() but uses make_dist_weights() instead of adjacency weights.
@@ -558,15 +664,17 @@ def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: li
 
     Returns a dict keyed by moran_function for each distance function.
     """
-    shares = np.array([
-        graph.nodes[node][x_col] / graph.nodes[node][tot_col]
-        for node in graph.nodes()
-        ])
+    shares = np.array(
+        [
+            graph.nodes[node][x_col] / graph.nodes[node][tot_col]
+            for node in graph.nodes()
+        ]
+    )
 
     shares -= shares.mean()
 
     x = scipy.sparse.csr_matrix(shares).T
-    
+
     Ws, names = make_dist_weights(graph, dist_funcs)
 
     morans = {}
@@ -579,7 +687,7 @@ def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: li
         morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
 
     return morans
-        
+
+
 if __name__ == "__main__":
     typer.run(main)
-

@@ -1,22 +1,22 @@
 import json
 
-from capy_core.process_results import definition_json_for_output, output_name_parts, parse_cbsa
+from capy_core.process_results import (
+    definition_json_for_output,
+    output_name_parts,
+    parse_cbsa,
+)
 
 
 def test_output_name_parts_for_configured_study_area_layout():
     filename = (
-        "dual_graphs/2020/"
-        "tracts_in_cbsa_39460_2020_march_2020_vintage_connected.json"
+        "dual_graphs/2020/tracts_in_cbsa_39460_2020_march_2020_vintage_connected.json"
     )
 
     assert output_name_parts(filename) == ("cbsa_39460", "2020", "march_2020")
 
 
 def test_definition_json_for_configured_study_area_layout():
-    filename = (
-        "dual_graphs/1980/"
-        "tracts_in_cbsa_35620_1980_march_2020_vintage_orig.json"
-    )
+    filename = "dual_graphs/1980/tracts_in_cbsa_35620_1980_march_2020_vintage_orig.json"
 
     assert (
         definition_json_for_output(filename)

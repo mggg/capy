@@ -4,12 +4,11 @@ import zipfile
 from pathlib import Path
 from typing import List, Optional
 
+import pandas as pd
+import typer
 from census import Census
 from census.core import CensusException
 from ipumspy import AggregateDataExtract, IpumsApiClient, NhgisDataset
-import pandas as pd
-import typer
-
 
 OUTPUT_DIR = Path("data/shared/raw/population")
 NHGIS_EXTRACTS_DIR = Path("data/shared/raw/population/ipums_population_extracts")
@@ -18,11 +17,59 @@ DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
 # See https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html
 # 50 states + DC + Puerto Rico (72). Territories 60/66/69/78 are omitted, they have no CBSA definitions.
 STATES = [
-    "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13",
-    "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
-    "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
-    "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
-    "49", "50", "51", "53", "54", "55", "56", "72"]
+    "01",
+    "02",
+    "04",
+    "05",
+    "06",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
+    "13",
+    "15",
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "21",
+    "22",
+    "23",
+    "24",
+    "25",
+    "26",
+    "27",
+    "28",
+    "29",
+    "30",
+    "31",
+    "32",
+    "33",
+    "34",
+    "35",
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41",
+    "42",
+    "44",
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50",
+    "51",
+    "53",
+    "54",
+    "55",
+    "56",
+    "72",
+]
 
 LEVELS = {
     "tract": {
@@ -88,7 +135,6 @@ LEVELS = {
         "census_in": "state:{state}",
         "geoid_cols": ("state", "place"),
     },
-
     "places": {
         "label": "places",
         "nhgis": "place",
@@ -216,7 +262,9 @@ def parse_years(years: Optional[str], year_values: Optional[List[int]]) -> List[
     return DEFAULT_YEARS
 
 
-def normalized_geoid_part(df: pd.DataFrame, col: str, width: int, year: int) -> pd.Series:
+def normalized_geoid_part(
+    df: pd.DataFrame, col: str, width: int, year: int
+) -> pd.Series:
     text = df[col].astype(str).str.strip()
     if col == "tract" and year == 2000:
         short = text.str.len() < width
@@ -233,7 +281,7 @@ def geoid(df: pd.DataFrame, cols: tuple, year: int) -> pd.Series:
         "tract": 6,
         "block group": 1,
         "block": 4,
-        "place": 5
+        "place": 5,
     }
     out = pd.Series([""] * len(df), index=df.index)
     for col in cols:
@@ -292,9 +340,13 @@ def fetch_census_state_rows(
         try:
             return table.get(variables, geo=geo)
         except CensusException as exc:
-            print(f"state {state}: state-wide block group query failed; falling back to county-by-county: {exc}", flush=True)
+            print(
+                f"state {state}: state-wide block group query failed; falling back to county-by-county: {exc}",
+                flush=True,
+            )
             return fetch_county_scoped_census_rows(
-                table, variables, config, state, progress=progress)
+                table, variables, config, state, progress=progress
+            )
 
     return table.get(variables, geo=geo)
 
@@ -315,10 +367,15 @@ def fetch_census(year: int, level: str, states: List[str], output_dir: Path) -> 
 
     variables = ["NAME"] + list(columns)
 
-    print(f"Fetching {year} {config['label']} population ({len(states)} states)", flush=True)
+    print(
+        f"Fetching {year} {config['label']} population ({len(states)} states)",
+        flush=True,
+    )
     rows = []
     for state in states:
-        rows.extend(fetch_census_state_rows(table, variables, config, state, progress=False))
+        rows.extend(
+            fetch_census_state_rows(table, variables, config, state, progress=False)
+        )
 
     if not rows:
         raise ValueError(f"Census returned no rows for {year} {config['label']}.")
@@ -412,8 +469,12 @@ def fetch_nhgis(year: int, level: str, output_dir: Path, work_dir: Path) -> Path
 
 
 def main(
-    level: str = typer.Option("tracts", help="tracts, block_groups, blocks, or counties"),
-    years: Optional[str] = typer.Option(None, "--years", help="Space- or comma-separated years."),
+    level: str = typer.Option(
+        "tracts", help="tracts, block_groups, blocks, or counties"
+    ),
+    years: Optional[str] = typer.Option(
+        None, "--years", help="Space- or comma-separated years."
+    ),
     year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
     states: Optional[str] = typer.Option(None, help="Comma-separated state FIPS codes"),
     output_dir: Path = typer.Option(OUTPUT_DIR),

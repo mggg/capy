@@ -8,12 +8,16 @@ from capy_core.config import load_config
 def _load_with_study_area_type(tmp_path, study_area_type):
     """Write a minimal config.yaml and a fake source file, then call load_config()."""
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(yaml.dump({
-        "study_area_type": study_area_type,
-        "census_geography_type": "tracts",
-        "census_geography_years": [2020],
-        "study_area_vintage": "2020",
-    }))
+    config_yaml.write_text(
+        yaml.dump(
+            {
+                "study_area_type": study_area_type,
+                "census_geography_type": "tracts",
+                "census_geography_years": [2020],
+                "study_area_vintage": "2020",
+            }
+        )
+    )
 
     # Provide a fake source file so load_config doesn't raise FileNotFoundError
     source_dir = tmp_path / "data" / "shared" / "raw" / "study_area_sources"

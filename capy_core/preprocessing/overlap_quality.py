@@ -17,6 +17,7 @@ Run directly:
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import base64
@@ -27,12 +28,12 @@ from typing import Optional
 
 import fiona
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
-import typer
 import tqdm as tqdm_module
-
+import typer
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -51,34 +52,71 @@ DEF_RE = re.compile(r"^(cbsa|county|max_city|max_county)_(\d+)_(.+)\.gpkg$")
 
 # All six combinations this report covers (even if data are absent for some)
 ALL_COMBOS = [
-    ("tracts",       "cbsa"),
+    ("tracts", "cbsa"),
     ("block_groups", "cbsa"),
-    ("blocks",       "cbsa"),
-    ("tracts",       "max_city"),
+    ("blocks", "cbsa"),
+    ("tracts", "max_city"),
     ("block_groups", "max_city"),
-    ("blocks",       "max_city"),
+    ("blocks", "max_city"),
 ]
 
 STATEFP_TO_NAME: dict[str, str] = {
-    "01": "Alabama",             "02": "Alaska",          "04": "Arizona",
-    "05": "Arkansas",            "06": "California",      "08": "Colorado",
-    "09": "Connecticut",         "10": "Delaware",        "11": "D.C.",
-    "12": "Florida",             "13": "Georgia",         "15": "Hawaii",
-    "16": "Idaho",               "17": "Illinois",        "18": "Indiana",
-    "19": "Iowa",                "20": "Kansas",          "21": "Kentucky",
-    "22": "Louisiana",           "23": "Maine",           "24": "Maryland",
-    "25": "Massachusetts",       "26": "Michigan",        "27": "Minnesota",
-    "28": "Mississippi",         "29": "Missouri",        "30": "Montana",
-    "31": "Nebraska",            "32": "Nevada",          "33": "New Hampshire",
-    "34": "New Jersey",          "35": "New Mexico",      "36": "New York",
-    "37": "North Carolina",      "38": "North Dakota",    "39": "Ohio",
-    "40": "Oklahoma",            "41": "Oregon",          "42": "Pennsylvania",
-    "44": "Rhode Island",        "45": "South Carolina",  "46": "South Dakota",
-    "47": "Tennessee",           "48": "Texas",           "49": "Utah",
-    "50": "Vermont",             "51": "Virginia",        "53": "Washington",
-    "54": "West Virginia",       "55": "Wisconsin",       "56": "Wyoming",
-    "60": "American Samoa",      "66": "Guam",            "69": "N. Mariana Islands",
-    "72": "Puerto Rico",         "78": "U.S. Virgin Islands",
+    "01": "Alabama",
+    "02": "Alaska",
+    "04": "Arizona",
+    "05": "Arkansas",
+    "06": "California",
+    "08": "Colorado",
+    "09": "Connecticut",
+    "10": "Delaware",
+    "11": "D.C.",
+    "12": "Florida",
+    "13": "Georgia",
+    "15": "Hawaii",
+    "16": "Idaho",
+    "17": "Illinois",
+    "18": "Indiana",
+    "19": "Iowa",
+    "20": "Kansas",
+    "21": "Kentucky",
+    "22": "Louisiana",
+    "23": "Maine",
+    "24": "Maryland",
+    "25": "Massachusetts",
+    "26": "Michigan",
+    "27": "Minnesota",
+    "28": "Mississippi",
+    "29": "Missouri",
+    "30": "Montana",
+    "31": "Nebraska",
+    "32": "Nevada",
+    "33": "New Hampshire",
+    "34": "New Jersey",
+    "35": "New Mexico",
+    "36": "New York",
+    "37": "North Carolina",
+    "38": "North Dakota",
+    "39": "Ohio",
+    "40": "Oklahoma",
+    "41": "Oregon",
+    "42": "Pennsylvania",
+    "44": "Rhode Island",
+    "45": "South Carolina",
+    "46": "South Dakota",
+    "47": "Tennessee",
+    "48": "Texas",
+    "49": "Utah",
+    "50": "Vermont",
+    "51": "Virginia",
+    "53": "Washington",
+    "54": "West Virginia",
+    "55": "Wisconsin",
+    "56": "Wyoming",
+    "60": "American Samoa",
+    "66": "Guam",
+    "69": "N. Mariana Islands",
+    "72": "Puerto Rico",
+    "78": "U.S. Virgin Islands",
 }
 
 _CSS = """
@@ -128,6 +166,7 @@ td.warn { color: #e65100; font-weight: 600; }
 # Data collection
 # ---------------------------------------------------------------------------
 
+
 def _read_file_stats(path: Path) -> dict:
     """Return row count and unique STATEFP values for a gpkg file."""
     with fiona.open(path) as src:
@@ -158,17 +197,21 @@ def _collect_clipped_records(
         if sa_type_filter and sa_type != sa_type_filter:
             continue
         stats = _read_file_stats(path)
-        records.append({
-            "geo_type":   geo_type,
-            "sa_type":    sa_type,
-            "sa_id":      sa_id,
-            "year":       year,
-            "vintage":    vintage,
-            "unit_count": stats["count"],
-            "states":     stats["states"],   # list[str]
-        })
+        records.append(
+            {
+                "geo_type": geo_type,
+                "sa_type": sa_type,
+                "sa_id": sa_id,
+                "year": year,
+                "vintage": vintage,
+                "unit_count": stats["count"],
+                "states": stats["states"],  # list[str]
+            }
+        )
     cols = ["geo_type", "sa_type", "sa_id", "year", "vintage", "unit_count", "states"]
-    return pd.DataFrame(records, columns=cols) if records else pd.DataFrame(columns=cols)
+    return (
+        pd.DataFrame(records, columns=cols) if records else pd.DataFrame(columns=cols)
+    )
 
 
 def _collect_definitions(def_dir: Path) -> pd.DataFrame:
@@ -181,12 +224,15 @@ def _collect_definitions(def_dir: Path) -> pd.DataFrame:
         sa_type, sa_id, vintage = m.groups()
         records.append({"sa_type": sa_type, "sa_id": sa_id, "vintage": vintage})
     cols = ["sa_type", "sa_id", "vintage"]
-    return pd.DataFrame(records, columns=cols) if records else pd.DataFrame(columns=cols)
+    return (
+        pd.DataFrame(records, columns=cols) if records else pd.DataFrame(columns=cols)
+    )
 
 
 # ---------------------------------------------------------------------------
 # Chart helpers
 # ---------------------------------------------------------------------------
+
 
 def _fig_to_b64(fig: plt.Figure) -> str:
     buf = io.BytesIO()
@@ -199,8 +245,13 @@ def _hist_b64(counts: pd.Series, title: str, critical_threshold: int) -> str:
     fig, ax = plt.subplots(figsize=(7, 3.5))
     n_bins = min(60, max(10, counts.nunique()))
     ax.hist(counts, bins=n_bins, color="#4e79a7", edgecolor="white", linewidth=0.4)
-    ax.axvline(critical_threshold, color="#e15759", linestyle="--", linewidth=1.5,
-               label=f"Critical threshold ({critical_threshold})")
+    ax.axvline(
+        critical_threshold,
+        color="#e15759",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Critical threshold ({critical_threshold})",
+    )
     ax.set_title(title, fontsize=11, pad=8)
     ax.set_xlabel("Units per study area")
     ax.set_ylabel("Study areas")
@@ -224,6 +275,7 @@ def _barh_b64(series: pd.Series, title: str, xlabel: str) -> str:
 # HTML helpers
 # ---------------------------------------------------------------------------
 
+
 def _esc(v: object) -> str:
     return str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -242,30 +294,44 @@ def _df_to_html(
         tds = []
         for col in df.columns:
             val = row[col]
-            if (highlight_col == col and highlight_thresh is not None
-                    and isinstance(val, (int, float)) and val > 0 and val < highlight_thresh):
+            if (
+                highlight_col == col
+                and highlight_thresh is not None
+                and isinstance(val, (int, float))
+                and val > 0
+                and val < highlight_thresh
+            ):
                 tds.append(f'<td class="critical">{_esc(val)}</td>')
-            elif (warn_col == col and warn_thresh is not None
-                    and isinstance(val, (int, float)) and val < warn_thresh):
+            elif (
+                warn_col == col
+                and warn_thresh is not None
+                and isinstance(val, (int, float))
+                and val < warn_thresh
+            ):
                 tds.append(f'<td class="warn">{_esc(val)}</td>')
             else:
                 tds.append(f"<td>{_esc(val)}</td>")
         rows.append(f"<tr>{''.join(tds)}</tr>")
     header = "".join(f"<th>{_esc(c)}</th>" for c in df.columns)
-    return f'<table><thead><tr>{header}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
+    return (
+        f"<table><thead><tr>{header}</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+    )
 
 
 def _stat_card(label: str, value: object, warn: bool = False) -> str:
     cls = "stat-card warn" if warn else "stat-card"
-    return (f'<div class="{cls}">'
-            f'<div class="label">{_esc(label)}</div>'
-            f'<div class="value">{_esc(value)}</div>'
-            f'</div>')
+    return (
+        f'<div class="{cls}">'
+        f'<div class="label">{_esc(label)}</div>'
+        f'<div class="value">{_esc(value)}</div>'
+        f"</div>"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Per-combination section
 # ---------------------------------------------------------------------------
+
 
 def _combo_section(
     df_combo: pd.DataFrame,
@@ -275,28 +341,32 @@ def _combo_section(
     critical_threshold: int,
 ) -> str:
     anchor = f"{geo_type}-in-{sa_type}"
-    label  = f"{geo_type.replace('_', ' ')} in {sa_type.replace('_', ' ')}".title()
+    label = f"{geo_type.replace('_', ' ')} in {sa_type.replace('_', ' ')}".title()
 
     if df_combo.empty:
-        return (f'<div class="combo-section" id="{anchor}">'
-                f'<h2>{label}</h2>'
-                f'<p class="empty-note">No clipped geography files found for this combination. '
-                f'Run <code>overlaps.py</code> to generate them.</p>'
-                f'</div>\n')
+        return (
+            f'<div class="combo-section" id="{anchor}">'
+            f"<h2>{label}</h2>"
+            f'<p class="empty-note">No clipped geography files found for this combination. '
+            f"Run <code>overlaps.py</code> to generate them.</p>"
+            f"</div>\n"
+        )
 
-    counts      = df_combo["unit_count"]
-    total_sa    = len(df_combo)
+    counts = df_combo["unit_count"]
+    total_sa = len(df_combo)
     total_units = int(counts.sum())
-    n_critical  = int((counts < critical_threshold).sum())
+    n_critical = int((counts < critical_threshold).sum())
 
     # stat cards
     cards = (
-        _stat_card("Study Areas",         f"{total_sa:,}") +
-        _stat_card("Total Units",         f"{total_units:,}") +
-        _stat_card("Median / Study Area", f"{counts.median():.0f}") +
-        _stat_card("Min",                 f"{counts.min():,}") +
-        _stat_card("Max",                 f"{counts.max():,}") +
-        _stat_card(f"Critical (<{critical_threshold})", n_critical, warn=n_critical > 0)
+        _stat_card("Study Areas", f"{total_sa:,}")
+        + _stat_card("Total Units", f"{total_units:,}")
+        + _stat_card("Median / Study Area", f"{counts.median():.0f}")
+        + _stat_card("Min", f"{counts.min():,}")
+        + _stat_card("Max", f"{counts.max():,}")
+        + _stat_card(
+            f"Critical (<{critical_threshold})", n_critical, warn=n_critical > 0
+        )
     )
 
     # histogram
@@ -305,12 +375,24 @@ def _combo_section(
     # year breakdown
     year_agg = (
         df_combo.groupby("year")["unit_count"]
-        .agg(study_areas="count", total_units="sum",
-             median="median", min="min", max="max")
+        .agg(
+            study_areas="count",
+            total_units="sum",
+            median="median",
+            min="min",
+            max="max",
+        )
         .reset_index()
-        .rename(columns={"year": "Year", "study_areas": "Study Areas",
-                         "total_units": "Total Units",
-                         "median": "Median", "min": "Min", "max": "Max"})
+        .rename(
+            columns={
+                "year": "Year",
+                "study_areas": "Study Areas",
+                "total_units": "Total Units",
+                "median": "Median",
+                "min": "Min",
+                "max": "Max",
+            }
+        )
         .sort_values("Year")
     )
     year_html = _df_to_html(year_agg)
@@ -329,33 +411,50 @@ def _combo_section(
             n_present = len(present_ids & set(defs_v["sa_id"]))
             n_missing = n_defs - n_present
             pct = f"{100 * n_present / n_defs:.1f}%" if n_defs else "N/A"
-            miss_rows.append({
-                "Year":              year,
-                "Definitions":       n_defs,
-                "With Clipped File": n_present,
-                "Missing":           n_missing,
-                "Coverage":          pct,
-            })
+            miss_rows.append(
+                {
+                    "Year": year,
+                    "Definitions": n_defs,
+                    "With Clipped File": n_present,
+                    "Missing": n_missing,
+                    "Coverage": pct,
+                }
+            )
         miss_df = pd.DataFrame(miss_rows)
-        missing_html = _df_to_html(miss_df, highlight_col="Missing", highlight_thresh=1,
-                                   warn_col="Coverage", warn_thresh=90.0)
+        missing_html = _df_to_html(
+            miss_df,
+            highlight_col="Missing",
+            highlight_thresh=1,
+            warn_col="Coverage",
+            warn_thresh=90.0,
+        )
     else:
         missing_html = "<p class='empty-note'>No study area definition files found for cross-reference.</p>"
 
     # critically small table
     if n_critical > 0:
         crit_df = (
-            df_combo[counts < critical_threshold]
-            [["sa_id", "year", "unit_count", "vintage"]]
-            .rename(columns={"sa_id": "Study Area ID", "year": "Year",
-                             "unit_count": "Unit Count", "vintage": "Vintage"})
+            df_combo[counts < critical_threshold][
+                ["sa_id", "year", "unit_count", "vintage"]
+            ]
+            .rename(
+                columns={
+                    "sa_id": "Study Area ID",
+                    "year": "Year",
+                    "unit_count": "Unit Count",
+                    "vintage": "Vintage",
+                }
+            )
             .sort_values(["Unit Count", "Year"])
         )
-        crit_html = _df_to_html(crit_df, highlight_col="Unit Count",
-                                highlight_thresh=critical_threshold)
+        crit_html = _df_to_html(
+            crit_df, highlight_col="Unit Count", highlight_thresh=critical_threshold
+        )
     else:
-        crit_html = (f"<p class='empty-note'>No study areas below the threshold "
-                     f"of {critical_threshold} units.</p>")
+        crit_html = (
+            f"<p class='empty-note'>No study areas below the threshold "
+            f"of {critical_threshold} units.</p>"
+        )
 
     # state breakdown (explode multi-state study areas)
     exploded = df_combo.explode("states").dropna(subset=["states"])
@@ -367,11 +466,16 @@ def _combo_section(
             .reset_index()
         )
         state_agg["State"] = state_agg["states"].map(
-            lambda s: f"{STATEFP_TO_NAME.get(s, 'Unknown')} ({s})")
+            lambda s: f"{STATEFP_TO_NAME.get(s, 'Unknown')} ({s})"
+        )
         state_agg = (
             state_agg[["State", "study_areas", "total_units"]]
-            .rename(columns={"study_areas": "Study Areas Touching State",
-                             "total_units": "Total Units from State"})
+            .rename(
+                columns={
+                    "study_areas": "Study Areas Touching State",
+                    "total_units": "Total Units from State",
+                }
+            )
             .sort_values("Total Units from State", ascending=False)
         )
         bar_img = _barh_b64(
@@ -379,11 +483,15 @@ def _combo_section(
             f"Total units by state — {label}",
             "Total units",
         )
-        state_chart = f'<div class="chart-wrap"><img src="data:image/png;base64,{bar_img}"></div>'
+        state_chart = (
+            f'<div class="chart-wrap"><img src="data:image/png;base64,{bar_img}"></div>'
+        )
         state_table = _df_to_html(state_agg)
     else:
         state_chart = ""
-        state_table = "<p class='empty-note'>No STATEFP data available in these files.</p>"
+        state_table = (
+            "<p class='empty-note'>No STATEFP data available in these files.</p>"
+        )
 
     return f"""
 <div class="combo-section" id="{anchor}">
@@ -415,6 +523,7 @@ def _combo_section(
 # Full report
 # ---------------------------------------------------------------------------
 
+
 def _build_report(
     df: pd.DataFrame,
     defs: pd.DataFrame,
@@ -427,16 +536,18 @@ def _build_report(
     ov_rows = []
     for geo, sa in combos:
         sub = df[(df["geo_type"] == geo) & (df["sa_type"] == sa)]
-        n_sa       = len(sub)
-        n_crit     = int((sub["unit_count"] < critical_threshold).sum()) if not sub.empty else 0
-        tot_units  = int(sub["unit_count"].sum()) if not sub.empty else 0
+        n_sa = len(sub)
+        n_crit = (
+            int((sub["unit_count"] < critical_threshold).sum()) if not sub.empty else 0
+        )
+        tot_units = int(sub["unit_count"].sum()) if not sub.empty else 0
         if n_sa == 0:
             badge = '<span class="badge badge-none">–</span>'
         elif n_crit > 0:
             badge = '<span class="badge badge-warn">⚠ has critical</span>'
         else:
             badge = '<span class="badge badge-ok">✓ ok</span>'
-        lbl = f"{geo.replace('_',' ')} in {sa.replace('_',' ')}".title()
+        lbl = f"{geo.replace('_', ' ')} in {sa.replace('_', ' ')}".title()
         anc = f"{geo}-in-{sa}"
         ov_rows.append(
             f"<tr><td><a href='#{anc}'>{lbl}</a></td>"
@@ -452,21 +563,25 @@ def _build_report(
     )
 
     toc_items = "\n".join(
-        f'<li><a href="#{g}-in-{s}">{g.replace("_"," ").title()} in {s.replace("_"," ").title()}</a></li>'
+        f'<li><a href="#{g}-in-{s}">{g.replace("_", " ").title()} in {s.replace("_", " ").title()}</a></li>'
         for g, s in combos
     )
 
     sections = "\n".join(
         _combo_section(
             df[(df["geo_type"] == g) & (df["sa_type"] == s)].copy(),
-            defs, g, s, critical_threshold,
+            defs,
+            g,
+            s,
+            critical_threshold,
         )
         for g, s in combos
     )
 
     n_total_files = len(df)
     n_combos_with_data = sum(
-        1 for g, s in combos
+        1
+        for g, s in combos
         if not df[(df["geo_type"] == g) & (df["sa_type"] == s)].empty
     )
 
@@ -508,6 +623,7 @@ def _build_report(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main(
     clipped_geographies_dir: str = typer.Argument(
         "data/shared/processed/clipped_geographies",
@@ -542,27 +658,34 @@ def main(
 ) -> None:
     """Analyze overlap assignment quality and write a self-contained HTML report."""
     clipped_dir = Path(clipped_geographies_dir)
-    def_dir     = Path(study_area_definitions_dir)
-    out_path    = Path(output_path)
+    def_dir = Path(study_area_definitions_dir)
+    out_path = Path(output_path)
 
     if not clipped_dir.exists():
-        print(f"ERROR: clipped geographies directory not found: {clipped_dir}", file=sys.stderr)
+        print(
+            f"ERROR: clipped geographies directory not found: {clipped_dir}",
+            file=sys.stderr,
+        )
         raise typer.Exit(1)
 
     print(f"Scanning {clipped_dir} …")
     df = _collect_clipped_records(clipped_dir, census_geography_type, study_area_type)
     print(f"  → {len(df):,} matching files found.")
 
-    defs = _collect_definitions(def_dir) if def_dir.exists() else pd.DataFrame(
-        columns=["sa_type", "sa_id", "vintage"])
+    defs = (
+        _collect_definitions(def_dir)
+        if def_dir.exists()
+        else pd.DataFrame(columns=["sa_type", "sa_id", "vintage"])
+    )
     print(f"  → {len(defs):,} study area definition files found.")
 
     # Determine which combos appear in the report
     if census_geography_type or study_area_type:
         combos = [
-            (g, s) for g, s in ALL_COMBOS
+            (g, s)
+            for g, s in ALL_COMBOS
             if (not census_geography_type or g == census_geography_type)
-            and (not study_area_type       or s == study_area_type)
+            and (not study_area_type or s == study_area_type)
         ]
     else:
         combos = list(ALL_COMBOS)
