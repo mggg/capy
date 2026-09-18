@@ -6,7 +6,7 @@ Shell scripts for running the current YAML-configured pipeline. `reproduce.sh` i
 
 Runs the full pipeline end-to-end for a single configuration (census geography type, study area type, vintage). It:
 
-1. Reads the run configuration via `capy_core/config.py` and exports environment variables.
+1. Reads the run configuration via `capy_core/pipeline_config.py` and exports environment variables.
 2. Calls `setup.sh` to create the required folder structure.
 3. Downloads and preprocesses census population tables and geographies (including a separate download for the study-area-definition geography if it differs from the census geography).
 4. Builds study area definitions and spatial overlaps between census geographies and study areas.

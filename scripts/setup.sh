@@ -7,7 +7,7 @@ SCRIPT_DIR="$(
 TOP_DIR="$(cd -- "${SCRIPT_DIR}/.." >/dev/null 2>&1 && pwd -P)"
 cd "${TOP_DIR}"
 
-_config="$(poetry run python capy_core/config.py)" || exit 1
+_config="$(poetry run python capy_core/pipeline_config.py)" || exit 1
 eval "${_config}"
 IFS=" " read -r -a census_geography_years <<< "${CENSUS_GEOGRAPHY_YEARS}"
 

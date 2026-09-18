@@ -1,0 +1,124 @@
+# Copy this template to capy_core/config.yaml and edit it for your run.
+# This example uses 2020 tracts within metropolitan areas.
+#
+# Settings describe the data, its sources, output locations, and parallel execution. repo_root
+# resolves relative to this file; all other relative paths resolve from repo_root. For example,
+# setting repo_root: "../my-experiment" would cause data_root: data/shared to resolve to
+# "../my-experiment/data/shared".
+#
+# Environment variables do not override these settings.
+#
+# Keep credentials outside YAML: CENSUS_API_KEY is used for modern population downloads;
+# IPUMS_API_KEY for 1980/1990 population and boundary extracts. Set them in your environment or
+# the env_file that may be provided below.
+
+# ——————————————————————————————————————————————————————————————————————————————————————————————————
+
+# Base directory for resolving the other paths in this file. If null or omitted the pipeline will
+# use the parent of the directory containing this config file. For example, if the config is
+# located in capy_core/config.yaml, that parent directory is the repository root.
+# A relative value (i.e. "../my-folder") resolves from this config's directory, not the working
+# directory. Absolute paths are also accepted. For the default, use YAML null, not the string
+# "None": the string "None" will be interpreted as a literal directory name.
+repo_root: null
+
+# Shared data directory containing raw/ downloads and processed/ intermediate files. If desired,
+# point this to another drive to keep large datasets outside the repository, for example
+# ../shared-census-data or, on Windows, "D:/capy-data".
+data_root: data/shared
+
+# Root for metric CSVs, failure records, run logs, and the optional overlap-quality report.
+# Each run writes beneath <geography>_in_<study_area>/<study_area_label>/<years>/.
+# The years component joins the sorted effective years with underscores.
+# This path resolves from repo_root.
+output_root: data/shared/outputs
+
+# Root for baseline figures, using the same run-specific subdirectories as output_root.
+figure_root: figures/baseline
+
+# Optional credentials file location, relative to repo_root or as an absolute path. Use bare
+# KEY=value lines in this file, without an "export" prefix. Values in this env file take precedence
+# over the system environment. If the file is missing, the pipeline will still run if the required
+# credentials are already in the environment. For example, you can set CENSUS_API_KEY and
+# IPUMS_API_KEY in your shell or in this file.
+env_file: .env
+
+# Number of worker processes for graph construction and batch metric calculation. Use a positive
+# integer, and set to 1 process files sequentially; larger values can increase throughput but also
+# increase memory use. This does not parallelize every pipeline stage.
+parallel_graph_workers: 6
+
+# The enclosing area for each graph and its segregation measurements.
+# Choose one of:
+#   cbsa:       Combine the component counties of each metropolitan statistical area.
+#   county:     Treat each individual county as a study area.
+#   max_county: Use the most populous county listed in the CSV as belonging to each metro.
+#   max_city:   Use the most populous Census place intersecting each metropolitan area.
+#
+# All modes except county need the Census delineation CSV specified below.
+study_area_type: cbsa
+
+# The CSV listing which counties belong to each metropolitan area. Required when the study_area_type
+# is cbsa, max_county, and max_city. For a study_area_type of county, set this to null. Relative
+# paths resolve from repo_root, but absolute paths also work.
+#
+# The CSV supplies county membership and area names, not polygons or population counts.
+# Expected format: UTF-8, comma-separated, with these exact column names on the first row:
+#   CBSA Code: five digits identifying the metropolitan or micropolitan area.
+#   CBSA Title: nonempty area name.
+#   Metropolitan/Micropolitan Statistical Area: "Metropolitan Statistical Area" or
+#     "Micropolitan Statistical Area". Only metropolitan rows are used by the pipeline.
+#   FIPS State Code: two digits, including leading zeros.
+#   FIPS County Code: three digits, including leading zeros.
+#
+# Each data row assigns one county to one area; repeat the area code/title for its counties.
+#
+# Minimal example (the supplied CSV also includes the other Census source columns):
+# CBSA Code,CBSA Title,Metropolitan/Micropolitan Statistical Area,FIPS State Code,FIPS County Code
+# 13820,"Birmingham-Hoover, AL",Metropolitan Statistical Area,01,007
+study_area_source: data/shared/raw/study_area_sources/list1_march_2020.csv
+
+# The Census units that become graph nodes inside each study area. Choose one of: tracts,
+# block_groups, blocks, counties. Units are selected by whether their representative point (as
+# determined by GeoPandas's `representative_point` function) lies in the study area; their polygons
+# are retained whole. Graph edges represent geographic adjacency.
+#
+# This selects both the population tables and boundary files needed for graph nodes. Definition
+# inputs are separate: counties define cbsa/county/max_county areas, while max_city needs both
+# counties and places.
+census_geography_type: tracts
+
+# Census years to analyze, as a nonempty list of distinct integers (not quoted strings).
+#
+# Supported years: 1980, 1990, 2000, 2010, 2020.
+#
+# Each year supplies that decade's node boundaries and population counts, producing separate
+# selected geographies, graphs, and metric observations for that year.
+#
+# 1980 and 1990 use NHGIS; 2000 onward use Census sources.
+#
+# There are no supported 1980 block-group or block boundary inputs, so 1980 is excluded for those
+# geography types.
+census_geography_years:
+  - 2020
+
+# Year of the boundary and population data used to define the study areas. Those areas stay fixed
+# while the census units and populations analyzed inside them come from each year in
+# census_geography_years.
+#
+# For example, max_county with 2020 selects each metro's most populous county using 2020
+# populations and keeps its 2020 boundary for every census year analyzed. This year's population
+# data also supplies study-area population metadata. max_city similarly selects a city once.
+#
+# County-to-metro membership comes from study_area_source; changing this year does not select
+# a different membership CSV. study_area_label only names the outputs and does not select a year.
+#
+# Use an integer: 1980, 1990, 2000, 2010, or 2020, with the required source data available.
+# Keep this at 2020 for max_city; its place-source support is currently limited to 2020.
+study_area_vintage: 2020
+
+# Explicit identifier for this study-area definition in generated filenames and run directories.
+# It is not inferred from the CSV filename, so renaming that file does not rename the outputs.
+# Use a filename-safe label without path separators, such as march_2020 or "2020".
+# Start with a letter or digit; use only letters, digits, underscores, and hyphens.
+study_area_label: march_2020

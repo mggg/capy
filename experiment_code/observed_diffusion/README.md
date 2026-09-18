@@ -23,7 +23,7 @@ census_geography_years:
 study_area_vintage: 2020
 ```
 
-[`capy_core/config.py`](../../capy_core/config.py) resolves these YAML settings for the shell pipeline. Generate the required data from the repository root with:
+[`capy_core/pipeline_config.py`](../../capy_core/pipeline_config.py) resolves these YAML settings for the shell pipeline. Generate the required data from the repository root with:
 
 ```bash
 bash scripts/reproduce.sh

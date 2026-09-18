@@ -3,8 +3,18 @@
 # Run settings are read from this file; environment variables do not override
 # these values.
 
+# null uses the parent of this configuration file's directory.
+repo_root: null
+data_root: data/shared
+output_root: data/shared/outputs
+figure_root: figures/baseline
+env_file: .env
+parallel_graph_workers: 6
+
 # Valid values: cbsa, county, max_city, max_county
 study_area_type: max_city
+study_area_source: data/shared/raw/study_area_sources/list1_march_2020.csv
+study_area_label: march_2020
 
 # Valid values: tracts, block_groups, blocks, counties
 census_geography_type: tracts

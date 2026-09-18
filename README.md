@@ -101,7 +101,7 @@ capy-bara/
 │   └── observed_diffusion/
 │
 ├── capy_core/                          # core pipeline modules
-│   ├── config.py                       # config loader; prints shell exports when run directly
+│   ├── pipeline_config.py                       # config loader; prints shell exports when run directly
 │   ├── config.yaml                     # pipeline configuration
 │   ├── graphs.py                       # dual adjacency graph construction
 │   ├── metrics.py                      # segregation metric calculations
@@ -129,7 +129,7 @@ capy-bara/
 
 ## Pipeline overview
 
-The full pipeline is driven by `scripts/reproduce.sh`. Configuration lives in `capy_core/config.yaml` and is loaded by `capy_core/config.py`. Steps run in order:
+The full pipeline is driven by `scripts/reproduce.sh`. Configuration lives in `capy_core/config.yaml` and is loaded by `capy_core/pipeline_config.py`. Steps run in order:
 
 1. **`scripts/setup.sh`** — scaffolds the directory tree
 2. **`capy_core/download/download_population_tables.py`** — downloads decennial census race/ethnicity counts (TOTPOP, WHITE, BLACK, POC, etc.) via Census API; uses IPUMS/NHGIS extracts for 1980 and 1990
@@ -223,10 +223,10 @@ To extend this example to 1980 or 1990, add those years to `census_geography_yea
 
 Run from the repo root with `poetry run python`.
 
-### `capy_core/config.py`
+### `capy_core/pipeline_config.py`
 Prints shell export statements derived from `capy_core/config.yaml`. Used internally by `reproduce.sh`; useful for inspecting resolved config values.
 ```bash
-poetry run python capy_core/config.py
+poetry run python capy_core/pipeline_config.py
 ```
 
 ### `capy_core/download/download_population_tables.py`

@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-config="$(poetry run python capy_core/config.py)" || exit 1
+config="$(poetry run python capy_core/pipeline_config.py)" || exit 1
 eval "${config}"
 
 # Set up folder structure
