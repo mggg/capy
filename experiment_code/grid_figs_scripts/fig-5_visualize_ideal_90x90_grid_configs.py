@@ -1,20 +1,3 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
-sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (2 levels up = capy-bara/)
-import capy_core.metrics as metrics
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import gerrychain.grid
-import random
-from collections import deque
-import warnings
-random.seed(42)
-import seaborn as sns
-from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid, draw_grid_as_checkerboard
-
 """
 This script visualizes isolated, clustered, kclustered, and checkerboard configurations on a 90x90 polygonal grid. 
 
@@ -24,6 +7,15 @@ Global Parameters:
     nod_pop: int
         the population at each node
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
+sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (2 levels up = capy-bara/)
+import random
+random.seed(42)
+from grid_figs_helpers import generate_ch_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid, draw_grid_as_checkerboard
+
 
 RHO = 0.3
 node_pop = 1

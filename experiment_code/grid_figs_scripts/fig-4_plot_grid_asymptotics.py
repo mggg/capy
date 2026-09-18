@@ -1,11 +1,10 @@
-import sys, os
-import matplotlib.pyplot as plt
-import numpy as np
-
 """
 This script replicates the top right half of figure 4, in the preprint https://mggg.org/Capy.pdf.
 It makes lineplots of capy score versus rho on asymptotically large nxn grids.
 """
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
                     "font.size": 11, "savefig.dpi": 300})

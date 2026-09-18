@@ -1,20 +1,3 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
-sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (2 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
-import capy_core.metrics as metrics
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import gerrychain.grid
-import random
-from collections import deque
-import warnings
-random.seed(42)
-import seaborn as sns
-from grid_figs_helpers import generate_ch_grid, generate_const_grid, generate_clust_grid, generate_isol_grid, generate_kclust_grid
-
 """
 This script generates lineplots of capy versus rho for constant and checkerboard configurations for a set number of global values of rho.
 Global Parameters:
@@ -23,6 +6,17 @@ Global Parameters:
     node_pop: int
         How many people live in each node
 """
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))          # for grid_figs_helpers
+sys.path.insert(0, str(Path(__file__).parents[2]))      # for pipeline (2 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
+import capy_core.metrics as metrics
+import matplotlib.pyplot as plt
+import numpy as np
+import random
+random.seed(42)
+from grid_figs_helpers import generate_ch_grid, generate_const_grid
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 11, "savefig.dpi": 300})

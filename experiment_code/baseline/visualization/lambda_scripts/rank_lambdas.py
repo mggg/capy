@@ -1,23 +1,3 @@
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import gerrychain.grid
-import random
-from collections import deque
-import warnings
-pd.set_option('display.max_columns', None)
-from itertools import combinations
-import sys, os
-
-sys.path.insert(0, os.path.dirname(__file__))  # lambda_scripts dir
-
-from matplotlib.lines import Line2D
-from lambda_helpers import multi_rankr
-
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 11, "savefig.dpi": 300})
-
 """
 This script generates rank-rank scatter plots comparing how CBSAs are ordered by half_edge at lambda=1 versus other lambda values, for the top 100 most populous areas.
 Global Parameters:
@@ -36,7 +16,18 @@ Global Parameters:
     WEIGHTS: str
         Controls which lambda values are plotted — "small" plots only lambda=0 and lambda=inf, "full" plots lambda=0, 0.5, 2, 10, and inf
 """
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm",
+
+import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
+import pandas as pd
+pd.set_option('display.max_columns', None)
+import sys, os
+
+sys.path.insert(0, os.path.dirname(__file__))  # lambda_scripts dir
+
+from lambda_helpers import multi_rankr
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 11, "savefig.dpi": 300})
 
 COMPARISON = "black" #"black" or "poc"
@@ -112,7 +103,6 @@ leg = legend_ax.legend(handles, labels, loc="center",
                  edgecolor="black", fancybox=False)
 legend_fig.canvas.draw()
 
-from matplotlib.transforms import Bbox
 bbox = leg.get_window_extent().transformed(legend_fig.dpi_scale_trans.inverted())
 padded = Bbox([[bbox.x0 - 0.05, bbox.y0 - 0.05],
                [bbox.x1 + 0.05, bbox.y1 + 0.05]])
