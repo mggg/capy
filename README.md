@@ -307,3 +307,8 @@ pip install poetry
 make install # equivalent to: poetry install
 poetry shell # activate the Poetry environment
 ```
+
+The repo generally uses poetry run, so activation is optional. To activate poetry, run:
+```
+eval "$(poetry env activate)"
+```
