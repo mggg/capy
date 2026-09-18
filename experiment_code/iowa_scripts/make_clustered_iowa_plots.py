@@ -1,22 +1,3 @@
-import sys
-import os
-import pathlib
-ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-os.chdir(ROOT)
-sys.path.insert(0, str(ROOT))
-import capy_core.metrics as metrics
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
-import random
-from collections import deque
-import math
-from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
-random.seed(42)
-
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 28, "savefig.dpi": 300})
-
 """
 This script generates scatter plots of capy and Moran's I versus rho for randomly sampled single-cluster configurations of the 
 Iowa county graph, plus a geographic visualization of one such configuration.
@@ -28,6 +9,26 @@ Global Parameters:
     num_rhos: int
         Number of evenly spaced rho values between 0.001 and 0.5 to sample over
 """
+
+import sys
+import os
+import pathlib
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
+import capy_core.metrics as metrics
+import networkx as nx
+import matplotlib.pyplot as plt
+import numpy as np
+import gerrychain
+import random
+from collections import deque
+import math
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
+random.seed(42)
+
+plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
+                    "font.size": 28, "savefig.dpi": 300})
 
 RHO = 0.3
 num_samples = 500
@@ -64,7 +65,10 @@ def visualize_iowa(graph, rho):
         rho: float
             The global rho value used to center the diverging colormap
     Returns:
-        None; draws to the current matplotlib figure
+        fig: matplotlib.figure.Figure
+            The figure containing the Iowa graph visualization
+        ax: matplotlib.axes.Axes
+            The axes on which the graph is drawn`
     """
 
     pos = {
@@ -95,18 +99,19 @@ def visualize_iowa(graph, rho):
 
     ax.set_aspect('equal')
     ax.axis('off')
+    return fig, ax
 
 def populate_cluster_random(start_node, graph, target_x_pop):
     """
-    Assigns x_pop via randomized BFS expansion from a seed node until the total x_pop reaches target_x_pop, 
+    Assigns x_pop via random connected growth expansion from a seed node until the total x_pop reaches target_x_pop, 
     then sets y_pop as the remainder for every node.
     Parameters:
         start_node: int
-            The seed node from which BFS expansion begins
+            The seed node from which random connected growth expansion begins
         graph: nx.Graph
             County adjacency graph with node attribute TOTPOP; modified in place
         target_x_pop: float
-            The total x_pop at which BFS stops adding nodes to the cluster
+            The total x_pop at which random connected growth stops adding nodes to the cluster
     Returns:
         graph: nx.Graph
             The modified graph with x_pop and y_pop set on every node
@@ -164,18 +169,17 @@ capys = []
 morans =[]
 
 #generating samples
-for _ in range(num_samples):
-    for rho in np.linspace(.001, .5, num_rhos):
-        for node in g.nodes():
-            g.nodes[node]["x_pop"] = 0
-            g.nodes[node]["y_pop"] = 0
+rho_grid = np.linspace(.001, .5, num_rhos)
+nodes = list(g.nodes())
+total_pop = metrics.property_sum(g, "TOTPOP")
 
-        nodes = list(g.nodes())
+for _ in range(num_samples):
+    for rho in rho_grid:
         seed = random.choice(nodes)
-        g_, real_rho = populate_cluster_random(seed, g, rho* metrics.property_sum(g, "TOTPOP"))
+        g_, real_rho = populate_cluster_random(seed, g, rho * total_pop)
         real_rhos.append(real_rho)
         capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
-        morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_A"])
+        morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
 #setting axis ticks
 rho_step = 0.1
@@ -210,7 +214,8 @@ plt.tight_layout()
 plt.savefig("figures/iowa/capy_by_rho_onecluster_iowa.png", dpi = 300, bbox_inches="tight")
 
 g_, real_rho = populate_cluster_random(seed, g, RHO* metrics.property_sum(g, "TOTPOP"))
-visualize_iowa(g_, real_rho)
+fig, ax = visualize_iowa(g_, real_rho)
 base_filename = f"figures/iowa/onecluster_iowa_visualization_rho={real_rho}"
 filestem= base_filename.replace('.', 'p')
-plt.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+plt.close(fig)

@@ -1,3 +1,16 @@
+"""
+Generates two standalone legend figures for the Iowa county visualizations.
+
+Outputs:
+    figures/iowa/iowa_population_size_legend.png
+        A horizontal legend showing node size scaled to three reference population
+        values (10,000 / 100,000 / 1,000,000), matching the 1/500 scaling used in
+        the Iowa graph visualizations.
+    figures/iowa/iowa_population_composition_legend.png
+        A horizontal legend showing the orange/blue color encoding for counties
+        that are entirely group X or entirely group Y.
+"""
+
 import matplotlib.pyplot as plt
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
