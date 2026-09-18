@@ -5,9 +5,9 @@ for every grid, and saves the results as JSON.
 Output:
   simulations/metrics_results.json — list of result dicts, one per grid
 
-To plot the distribution histograms, run plot_clustering_figure.py afterwards:
+To plot the distribution histograms, run plot_grids_and_metric_histogram.py afterwards:
   python experiment_code/assortativity_grids/scripts/simulate_grid_metrics.py
-  python experiment_code/assortativity_grids/scripts/plot_clustering_figure.py
+  python experiment_code/assortativity_grids/scripts/plot_grids_and_metric_histogram.py
 """
 
 import sys
@@ -60,7 +60,7 @@ def save_results(results):
 
 
 def save_exemplars():
-    """Build one grid per level (BASE_SEED) and save them as a JSON list. They will be used for the clustering figure in plot_clustering_figure.py, as an example of each level's grid structure.
+    """Build one grid per level (BASE_SEED) and save them as a JSON list. They will be used by plot_grids_and_metric_histogram.py as an example of each level's grid structure.
     node_link_data preserves all node attributes (grid_pos, BLUE, ORANGE, ...)
     """
     exemplars = []
@@ -83,4 +83,4 @@ if __name__ == "__main__":
     results = run_simulation()
     save_results(results)
     save_exemplars()
-    print("Done. Run plot_clustering_figure.py to generate the figures.")
+    print("Done. Run plot_grids_and_metric_histogram.py to generate the figures.")

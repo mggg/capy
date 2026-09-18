@@ -2,7 +2,7 @@
 Cluster definition and back-projection.
 This code creates black population clusters and adds buffers of various sizes to them. It outputs a csv with tract ID belonging to each buffer size, and a cluster metrics csv.
 
-For a given CBSA:
+For a given city:
 1. Load the 2020 dual graph; find the 2 largest connected components of majority-Black tracts
 2. Map graph nodes to 2020 polygon geometries; dissolve and fill holes
 3. Back-project both clusters to 1980–2020 via areal overlap (>50% of each earlier-year tract)
@@ -29,9 +29,12 @@ sys.path.insert(0, str(ROOT / "experiment_code" / "observed_diffusion")) # for u
 from utils.cluster_helpers import compute_rho, compute_mean_node_rho, compute_mass, get_geoids, back_project_cluster, compute_cluster_metrics, calculate_cluster_spread, compute_mass
 
 # Config
-CBSA_CONFIG = {
+CITY_CONFIG = {
     "1714000": {"name": "Chicago", "cluster_names": {"cluster_1": "South Side", "cluster_2": "Austin"}},
-    "4260000": {"name": "Philadelphia", "cluster_names": {"cluster_1": "Germantown", "cluster_2": "Chester"}}
+    "4260000": {
+        "name": "Philadelphia",
+        "cluster_names": {"cluster_1": "Germantown", "cluster_2": "West Philadelphia"},
+    }
 }
 # "1245000": {"name": "Miami"}}
 
@@ -49,9 +52,9 @@ buffered_cluster_rows = []
 cluster_metrics_rows = []
 
 
-for CBSA in CBSA_CONFIG.keys():
-    print(f'--------- Working on area ID = {CBSA} ---------')
-    graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_march_2020_vintage_connected.json"
+for city_code in CITY_CONFIG:
+    print(f'--------- Working on area ID = {city_code} ---------')
+    graph_file = DUAL_GRAPHS_DIR / "2020" / f"tracts_in_max_city_{city_code}_2020_march_2020_vintage_connected.json"
     with open(graph_file) as f:
         G_city_2020 = nx.adjacency_graph(json.load(f))
     BLACK_SHARE_THRESHOLD = compute_mean_node_rho(G_city_2020)
@@ -74,7 +77,7 @@ for CBSA in CBSA_CONFIG.keys():
     cluster_node_ids = {"cluster_1": ccomponents[0], "cluster_2": ccomponents[1]}
 
     # Connect the selected nodes to their polygons: polygons are needed to fill any holes among selected nodes and to match tracts back in time, since they don't match well by IDs due to mergers and splits taking place between the decades.
-    gpkg_2020 = CLIPPED_GEO_DIR / "2020" / f"tracts_in_max_city_{CBSA}_2020_march_2020_vintage.gpkg"
+    gpkg_2020 = CLIPPED_GEO_DIR / "2020" / f"tracts_in_max_city_{city_code}_2020_march_2020_vintage.gpkg"
     gdf_2020 = gpd.read_file(gpkg_2020)
 
     # medoids fixed at buffer=0 so they don't drift as rings are added
@@ -128,7 +131,7 @@ for CBSA in CBSA_CONFIG.keys():
         full_graph_yearly = {} # full city graph per year, needed for cross-cluster edge-distances
 
         for year in YEARS:
-            gpkg_path = CLIPPED_GEO_DIR / str(year) / f"tracts_in_max_city_{CBSA}_{year}_march_2020_vintage.gpkg"
+            gpkg_path = CLIPPED_GEO_DIR / str(year) / f"tracts_in_max_city_{city_code}_{year}_march_2020_vintage.gpkg"
             gdf_year = gpd.read_file(gpkg_path)
             cluster_yearly[year] = {}
             for label, gdf_cluster in cluster_shapes_2020.items():
@@ -138,7 +141,7 @@ for CBSA in CBSA_CONFIG.keys():
                 cluster_yearly[year][label] = matched
 
             # full graph file - needed to calculate spread
-            graph_file = DUAL_GRAPHS_DIR / str(year) / f"tracts_in_max_city_{CBSA}_{year}_march_2020_vintage_connected.json"
+            graph_file = DUAL_GRAPHS_DIR / str(year) / f"tracts_in_max_city_{city_code}_{year}_march_2020_vintage_connected.json"
             with open(graph_file) as f:
                 G_year = nx.adjacency_graph(json.load(f))
 
@@ -189,8 +192,8 @@ for CBSA in CBSA_CONFIG.keys():
 
                 # save
                 cluster_metrics_rows.append({
-                    "area_code": CBSA, "city_name": CBSA_CONFIG[CBSA]["name"],
-                    "year": year, "cluster": label, "cluster_name": CBSA_CONFIG[CBSA]["cluster_names"][label],
+                    "area_code": city_code, "city_name": CITY_CONFIG[city_code]["name"],
+                    "year": year, "cluster": label, "cluster_name": CITY_CONFIG[city_code]["cluster_names"][label],
                     "buffer_size": n_edges,
                     "buffered_cluster_rho": buffered_cluster_rho,
                     "core_spread": core_spreads[(year, label)],
@@ -211,7 +214,7 @@ for CBSA in CBSA_CONFIG.keys():
         # print(f"Saving graphs as json files to {OUTPUT_JSON_FILES}")
         # for year, clusters in graph_yearly.items():
         #     for label, G in clusters.items():
-        #         out = OUTPUT_JSON_FILES / f"{CBSA}_{year}_{label}.json"
+        #         out = OUTPUT_JSON_FILES / f"{city_code}_{year}_{label}.json"
         #         with open(out, "w") as f:
         #             json.dump(nx.adjacency_data(G), f)
 
@@ -219,7 +222,7 @@ for CBSA in CBSA_CONFIG.keys():
         for year, clusters in graph_yearly.items():
             for label, G in clusters.items():
                 for n, attrs in G.nodes(data=True):
-                    buffered_cluster_rows.append({"area_code": CBSA, "city_name": CBSA_CONFIG[CBSA]["name"],
+                    buffered_cluster_rows.append({"area_code": city_code, "city_name": CITY_CONFIG[city_code]["name"],
                         "year": year, "cluster": label, "buffer_size": n_edges,
                         "gisjoin": attrs["GISJOIN"],
                         "black_population": attrs["BLACK"], "white_population": attrs["WHITE"], "total_population": attrs["TOTPOP"],

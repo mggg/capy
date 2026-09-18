@@ -86,9 +86,10 @@ fig_key, (ax_cbar, ax_leg) = plt.subplots(1, 2, figsize=(10, 0.25),
                                            gridspec_kw={'width_ratios': [3, 2]})
 cb = plt.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap),
                   cax=ax_cbar, orientation='horizontal')
-cb.ax.tick_params(labelsize=12)
+cb.ax.tick_params(labelsize=20)
+cb.set_label("Share of Black population", fontsize=20, labelpad=-70)
 ax_leg.axis('off')
-ax_leg.legend(handles=_legend_handles, fontsize=12, frameon=False, ncol=2,
+ax_leg.legend(handles=_legend_handles, fontsize=20, frameon=False, ncol=1,
               loc='center left', handlelength=1.5)
 fig_key.savefig(figure_dir / "choropleth_key.png", dpi=300, bbox_inches='tight')
 plt.close(fig_key)

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 config="$(poetry run python capy_core/config.py)" || exit 1

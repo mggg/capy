@@ -51,3 +51,18 @@ poetry run python capy_core/preprocessing/overlaps.py \
     --census-geography-years "2020 2010 2000" \
     --definition-vintage march_2020
 ```
+
+### Graph construction
+
+`capy_core/graphs.py` consumes the clipped `.gpkg` files produced by `overlaps.py`. For each study area and year, it writes two graph files under `data/shared/processed/dual_graphs/<year>/`:
+
+- `_orig.json` preserves the geographic adjacency graph for all selected census units.
+- `_connected.json` removes nodes whose combined Black and White population is zero, then adds edges between the nearest component geometries until the remaining graph is connected. This is the graph used for metric calculations.
+
+Removed units are collected by year under `data/shared/outputs/<geography>_in_<study_area>/dropped_nodes/`.
+
+```bash
+poetry run python capy_core/graphs.py \
+    "data/shared/processed/clipped_geographies/*/tracts_in_cbsa_*_march_2020_vintage.gpkg" \
+    --years "2020 2010 2000"
+```

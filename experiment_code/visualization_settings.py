@@ -29,12 +29,19 @@ GRID_COLOR = "#eae8e0"
 SECONDARY = "#333333"
 PRIMARY_INK = "#0b0b0b"
 
+# Colors for the decades on the metric vs 
 YEAR_COLORS = {
-    1980: "#1560bd",
-    1990: "#006b3c",
-    2000: "#8db600",
-    2010: "#ffa812",
-    2020: "#d11a42"}
+    1980: "#03336e",
+    # 1990: "#006b3c",
+    # 2000: "#8db600",
+    # 2010: "#ffa812",
+    # 2020: "#d11a42",
+    1990: "#0d4aa7",
+    2000: "#3374d9",
+    2010: "#5d9bf8",
+    2020: "#85b5f7",
+    # 2020: "#d6e8ff",
+    }
 
 # Two main metric colors (mainly for observed diffusion figures)
 BLUE = "#1560bd" # Capy

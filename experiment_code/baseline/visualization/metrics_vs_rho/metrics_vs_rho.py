@@ -1,4 +1,9 @@
-"""Creates scatter plots for each metric vs minority share on the tracts in CBSA level in individual files. For consistency with other figures, only CBSAs with population > 100K are included."""
+"""Create one scatter plot per metric against minority population share.
+
+The input CSV normally lives under data/shared/outputs/<geography>_in_<study_area>/,
+which determines the figure output directory. Only study areas represented in all
+five decades and with population above 100,000 are included.
+"""
 
 import sys
 from pathlib import Path
@@ -25,7 +30,7 @@ ALL_YEARS = {1980, 1990, 2000, 2010, 2020}
 def minimum_capy(x):
     return # formula
 
-def plot_rho_vs_metrics(filename: str) -> None:
+def plot_metrics_vs_rho(filename: str, output_dir: str = "") -> None:
     path_to_file = filename
     csv = Path(path_to_file)
 
@@ -46,7 +51,6 @@ def plot_rho_vs_metrics(filename: str) -> None:
             f"Missing colors for years {missing_years}; add them to YEAR_COLORS in visualization_settings.py")
 
     # select CBSAs present in all 5 decades with population > 100K
-    df["area_code"] = df["filename"].str.extract(r"tracts_in_cbsa_(\d+)_")
     has_all_years = df.groupby("area_code")["year"].apply(lambda s: ALL_YEARS.issubset(set(s)))
     cbsas_all_years = has_all_years[has_all_years].index
 
@@ -54,10 +58,21 @@ def plot_rho_vs_metrics(filename: str) -> None:
     cbsas_large = min_pop[min_pop > POPULATION_THRESHOLD].index
     valid_cbsas = cbsas_all_years.intersection(cbsas_large)
     df = df[df["area_code"].isin(valid_cbsas)]
+    if df.empty:
+        raise ValueError(
+            "No observations remain after requiring study areas to be present in "
+            f"{sorted(ALL_YEARS)} and have population above {POPULATION_THRESHOLD:,} in every year.")
 
     columns = ["half_edge_1", "moran_P", "dissimilarity_1"]
 
-    out_dir = Path("figures") / "baseline" / "tracts_in_cbsa" / "rho_vs_metrics"
+    if output_dir:
+        out_dir = Path(output_dir)
+    else:
+        geography_type, separator, study_area_type = csv.parent.name.partition("_in_")
+        if not separator or not geography_type or not study_area_type:
+            raise ValueError(
+                f"Expected CSV inside a '<geography>_in_<study_area>' directory: {csv}")
+        out_dir = Path("figures") / "baseline" / csv.parent.name / "metrics_vs_rho"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     for col in columns:
@@ -113,7 +128,7 @@ def save_rho_metrics_legend(years, out_dir, prefix):
     fit_handle = mlines.Line2D([], [], color=SECONDARY, linestyle="-", linewidth=2.0, label="linear fit per decade",
                              path_effects=[pe.Stroke(linewidth=3.0, foreground="white"), pe.Normal()])
     min_handle = mlines.Line2D([], [], color=PRIMARY_INK, linestyle="--", linewidth=1.2, label="data minimum")
-    curve_handle = mlines.Line2D([], [], color="purple", linestyle=":", linewidth=1.2, label="theoretical minimum")
+    # curve_handle = mlines.Line2D([], [], color="purple", linestyle=":", linewidth=1.2, label="theoretical minimum")
 
     # save legend as a standalone figure
     fig_leg, ax_leg = plt.subplots(figsize=(6, 0.5))
@@ -126,8 +141,11 @@ def save_rho_metrics_legend(years, out_dir, prefix):
     print(f"Saved to {out_dir / f'{prefix}_legend.png'}")
 
 
-def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv") -> None:
-    plot_rho_vs_metrics(filename)
+def main(
+    filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv",
+    output_dir: str = "",
+) -> None:
+    plot_metrics_vs_rho(filename, output_dir)
 
 
 if __name__ == "__main__":

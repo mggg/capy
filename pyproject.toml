@@ -7,6 +7,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
+numpy = "^2.0"
 pandas = "^2.2.3"
 geopandas = "^1.0"
 fiona = "^1.10"
@@ -29,7 +30,7 @@ gerrychain = "*"
 pytest = "^7.1.2"
 
 [tool.pytest.ini_options]
-testpaths = ["pipeline/tests"]
+testpaths = ["capy_core/tests"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

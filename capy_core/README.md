@@ -6,9 +6,9 @@ Core pipeline modules for downloading data, preprocessing geographies, building 
 
 | File | Purpose |
 |---|---|
-| `config.py` | Loads `config.yaml` and resolves derived config values; prints shell `export` statements when run directly (used by `reproduce.sh`). |
-| `graphs.py` | Builds dual adjacency graphs from clipped geography `.gpkg` files; drops zero-population nodes and connects isolated components; writes `*_orig.json` and `*_connected.json` pairs. |
-| `metrics.py` | Computes ~80 segregation metrics per study area / year from connected graph JSONs (skew, edge, half-edge, Moran's I, dissimilarity, Gini, etc.); outputs one CSV row per area. |
+| `config.py` | Loads `config.yaml` and resolves derived config values. Prints shell `export` statements when run directly (used by `reproduce.sh`). |
+| `graphs.py` | Builds dual adjacency graphs from clipped geography `.gpkg` files. Drops zero-population nodes and connects isolated components. Writes `*_orig.json` and `*_connected.json` pairs. |
+| `metrics.py` | Computes ~80 segregation metrics per study area / year from connected graph JSONs (skew, edge, half-edge, Moran's I, dissimilarity, Gini, etc.). Outputs one CSV row per area. |
 | `process_results.py` | Enriches a raw metrics CSV with study area metadata (title, area code, 2020 population) by reading the corresponding definition JSONs. |
 
 ## Subfolders
@@ -20,9 +20,15 @@ Core pipeline modules for downloading data, preprocessing geographies, building 
 | `utils/` | Shared data model (`StudyArea`) and pipeline logging helpers. |
 | `tests/` | Pytest test suite covering all core modules. |
 
+## Graph outputs
+
+`preprocessing/overlaps.py` selects each census unit whose representative point falls within a study-area boundary. `graphs.py` first writes that selection's geographic adjacency graph as `_orig.json`. It then removes nodes whose combined Black and White population is zero and connects any remaining components by adding edges between the nearest component geometries. The resulting `_connected.json` graph is the input to `metrics.py`. Removed units are recorded under `data/shared/outputs/<geography>_in_<study_area>/dropped_nodes/`.
+
+See the [preprocessing guide](preprocessing/README.md) for the stage order, commands, and output paths.
+
 ## Configuration — `config.yaml`
 
-All pipeline behaviour is controlled by `config.yaml`. Every key can be overridden at runtime by setting the corresponding environment variable (uppercased) before calling `reproduce.sh`.
+All pipeline behaviour is controlled by `config.yaml`. To change a run, edit the values in that file before calling `reproduce.sh`. Environment variables do not override the YAML settings.
 
 | Key | Description | Valid values |
 |---|---|---|
