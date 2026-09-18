@@ -32,9 +32,9 @@ make setup     # scaffold the data directory tree
 
 #### Credentials
 
-A Census API key is required for all runs. An IPUMS API key is required only when downloading 1980 or 1990 data (those decades use NHGIS instead of the Census API). NHGIS also requires a free account registration at [uma.pop.umn.edu/nhgis/registration/new](https://uma.pop.umn.edu/nhgis/registration/new) — note that NHGIS extract jobs are processed asynchronously and can take several hours.
+A Census API and/or NHGIS key is required for runs, depending on run configurations. An IPUMS API key is required only when downloading 1980 or 1990 data (those decades use NHGIS instead of the Census API). NHGIS also requires a free account registration at [uma.pop.umn.edu/nhgis/registration/new](https://uma.pop.umn.edu/nhgis/registration/new). Census API is needed to download 2000-2020 data.
 
-Keys can be set as shell environment variables or in a `.env` file at the repo root. The `.env` parser expects bare `KEY=value` lines — do not use an `export` prefix:
+Keys can be set as shell environment variables or in a `.env` file at the repo root. The `.env` parser expects bare `KEY=value` lines — do not use an `export` prefix.
 
 ```bash
 # shell environment

@@ -22,7 +22,7 @@ GRAPHS_DIR = ROOT / "data" / "shared" / "processed" / "dual_graphs"
 
 cmap = CMAP_BLACK_SHARE
 
-DISPLAY_BUFFER = 2
+DISPLAY_BUFFER = 3 # buffer size to display in choropleth and radial panels
 
 tracts = pd.read_csv(ROOT / "data" / "experiment_specific" / "observed_diffusion_data" / "auto_cluster_tracts.csv",
                      dtype={'area_code': str, 'gisjoin': str})
