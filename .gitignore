@@ -177,7 +177,7 @@ cython_debug/
 *.gpkg
 *.zip
 *.xml
-# *.json  — kept commented out; specific generated paths are ignored below
+# *.json  — kept commented out, specific generated paths are ignored below
 data/shared/processed/study_area_definitions/
 data/shared/processed/census_geographies/
 data/shared/processed/clipped_geographies/
