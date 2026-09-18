@@ -111,7 +111,7 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
         dropped_indices.extend(n for n, _ in dropped)
 
     connected_graph, n_edges_added = connect_components(geofile, connected_graph, attr)
-    # Empty graphs are allowed when all nodes were dropped; connectivity is undefined.
+    # Empty graphs are allowed when all nodes were dropped, connectivity is undefined.
     if len(connected_graph) > 0 and not nx.is_connected(connected_graph):
         raise ValueError(f"{gpkg}: graph is still disconnected after connecting components.")
 
