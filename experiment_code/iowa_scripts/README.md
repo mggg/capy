@@ -22,7 +22,7 @@ no Census API key is needed.
 
 ###Plotting Figures
 ```bash
-mkdir -p figures/Iowa
+mkdir -p figures/iowa
 python experiment_code/iowa_scripts/make_uniform_iowa_plots.py
 python experiment_code/iowa_scripts/make_isol_iowa_plots.py
 python experiment_code/iowa_scripts/make_clustered_iowa_plots.py
@@ -30,15 +30,20 @@ python experiment_code/iowa_scripts/make_kclustered_iowa_plots.py
 ```
 
 ###Rebuilding Data (Census API Key Required)
-To rebuild the data 
+To rebuild the data runn 
+```bash
+export CENSUS_API_KEY=<your_key>
+python experiment_code/iowa_scripts/make_iowa_files.py
+```
 
-
-##Summary of Script Inputs and Outputs
-| Script | Input | Outputs in `figures/Iowa/` |
+## Summary of Script Inputs and Outputs
+| Script | Input | Outputs in `figures/iowa/` |
 |---|---|---|
-| `make_uniform_iowa_plots.py` | `ia_counties_2020.json` | `capy_by_rho_uniform_iowa.png`, `uniform_iowa_visualization_rho=0.3.png`, `divergent_rho_colorbar_rho=0.3.png` |
+| `make_uniform_iowa_plots.py` | `ia_counties_2020.json` | `capy_by_rho_uniform_iowa.png`, `uniform_iowa_visualization_rho=<rho>.png`, `divergent_rho_colorbar_rho=<rho>.png` |
 | `make_isol_iowa_plots.py` | `ia_counties_2020.json` | `capy_by_rho_isol_iowa.png`, `moran_by_rho_isol_iowa.png`, `isol_iowa_visualization_rho=<real_rho>.png` |
 | `make_clustered_iowa_plots.py` | `ia_counties_2020.json` | `capy_by_rho_onecluster_iowa.png`, `moran_by_rho_onecluster_iowa.png`, `onecluster_iowa_visualization_rho=<real_rho>.png` |
-| `make_kclustered_iowa_plots.py` | `ia_counties_2020.json` | `capy_by_rho_multicluster_iowa_k=4.png`, `moran_by_rho_multicluster_iowa_k=4.png`, `multicluster_iowa_visualization_rho=<real_rho>_k=4.png` |
+| `make_kclustered_iowa_plots.py` | `ia_counties_2020.json` | `capy_by_rho_multicluster_iowa_k=<num_start_nodes>.png`, `moran_by_rho_multicluster_iowa_k=<num_start_nodes>.png`, `multicluster_iowa_visualization_rho=<real_rho>_k=<num_start_nodes>_numcomponents=<num_components>.png` |
 | `make_iowa_legend.py` | *(none)* | `iowa_population_size_legend.png`, `iowa_population_composition_legend.png` |
 | `make_iowa_files.py` | Census API (`CENSUS_API_KEY`) | `ia_counties_2020.json`, `ia_counties_2020.shp`, `ia_counties_2010.json`, `ia_counties_2010.shp` |
+
+Note: to make figures renderable in latex, periods in decimals have been replaced with the letter p.
