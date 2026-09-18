@@ -1,6 +1,6 @@
 """
 Shared grid builders, metric helpers, and constants for assortativity-grid
-experiments. Imported by plot_clustering_figure.py and simulate_grid_metrics.py.
+experiments. Imported by plot_grids_and_metric_histogram.py and simulate_grid_metrics.py.
 """
 
 import sys

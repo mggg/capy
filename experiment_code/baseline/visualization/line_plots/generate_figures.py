@@ -10,16 +10,16 @@ Arguments:
     filename - Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
     n - Number of top metros to highlight by 2020 population (default: 10)
     prefix - Racial-group prefix used in output filenames, e.g. white_poc or white_black
-    geography_type - Census unit label (tracts/block_groups/blocks/counties); inferred from
-                    prefix if omitted
-    study_area_type - Area type label (max_county/max_city/None → CBSA); affects output paths
-                    and figure subtitles
+    geography_type - Census unit label (tracts/block_groups/blocks/counties); inferred from the
+                    input CSV directory, then prefix, if omitted
+    study_area_type - Area type label (cbsa/county/max_county/max_city); inferred from the input
+                    CSV directory if omitted
     fixed_y - If set, all panels in a figure share the same y-axis range
 
 For each vintage found in definition_month_year, produces figures in:
     figures/baseline/{geography_type}_in_{study_area_type}/
-        lineplots/          — one PNG per metric, top-N metros coloured by CBSA
-        grid_lineplots/     — top-N panel and all-CBSA mean panel (GRID_METRICS only)
+        lineplots/ — one PNG per metric, top-N metros coloured by CBSA
+        grid_lineplots/ — top-N panel and all-CBSA mean panel (GRID_METRICS only)
         metric_family_grids/ — one grid per metric family
 """
 
@@ -28,8 +28,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root (for capy_core)
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/ (for visualization)
+sys.path.insert(0, str(Path(__file__).resolve().parents[4])) # project root (for capy_core)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/baseline/ (for visualization)
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -43,16 +43,11 @@ from visualization.line_plots.plot_grid_top10 import plot_grid_top10
 
 
 def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_type: Optional[str] = None, fixed_y: bool = False, study_area_type: Optional[str] = None):
-    if study_area_type == "max_county":
-        area_label = "most populous counties within CBSAs"
-    elif study_area_type == "max_city":
-        area_label = "most populous cities within CBSAs"
-    else:
-        area_label = "CBSAs"
-
-    if not filename:
-        run_name = f"tracts_in_{study_area_type or 'cbsa'}"
-        filename = f"data/shared/outputs/{run_name}/white_poc.csv"
+    if filename:
+        inferred_geography_type, separator, inferred_study_area_type = Path(filename).parent.name.partition("_in_")
+        if separator and inferred_geography_type and inferred_study_area_type:
+            geography_type = geography_type or inferred_geography_type
+            study_area_type = study_area_type or inferred_study_area_type
 
     if geography_type is None:
         for geo in ("block_groups", "blocks", "tracts", "counties"):
@@ -61,10 +56,24 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
                 break
         else:
             geography_type = "tracts"
+    study_area_type = study_area_type or "cbsa"
+
+    if not filename:
+        run_name = f"{geography_type}_in_{study_area_type}"
+        filename = f"data/shared/outputs/{run_name}/white_poc.csv"
+
+    if study_area_type == "max_county":
+        area_label = "most populous counties within CBSAs"
+    elif study_area_type == "max_city":
+        area_label = "most populous cities within CBSAs"
+    elif study_area_type == "county":
+        area_label = "counties"
+    else:
+        area_label = "CBSAs"
     geography_label = geography_type.replace("_", " ")
 
-    prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
-    run_name = f"{geography_type}_in_{study_area_type or 'cbsa'}"
+    prefix = f"{_shorten_prefix(prefix)}_{study_area_type}_{geography_type}"
+    run_name = f"{geography_type}_in_{study_area_type}"
     output_dir = Path("figures") / "baseline" / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "lineplots").mkdir(exist_ok=True)

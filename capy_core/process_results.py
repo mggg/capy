@@ -75,7 +75,7 @@ def definition_json_for_output(filename: str) -> str:
     return f"data/shared/processed/study_area_definitions/{'_'.join(tokens[:4])}.json"
 
 
-def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:
+def join_study_area_metadata(df: pd.DataFrame) -> pd.DataFrame:
     """Join study area metadata onto a raw metrics DataFrame.
 
     Reads the corresponding definition JSON for each row's filename and adds
@@ -95,7 +95,7 @@ def enrich_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(filename: str, output: str):
-    df = enrich_metrics(pd.read_csv(filename))
+    df = join_study_area_metadata(pd.read_csv(filename))
     df.to_csv(output, index=False)
 
 

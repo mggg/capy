@@ -1,6 +1,6 @@
 # Scripts
 
-Shell scripts for running the pipeline and experiments.
+Shell scripts for running the current YAML-configured pipeline. `reproduce.sh` is the supported orchestration entry point.
 
 ## `reproduce.sh`
 
@@ -17,15 +17,6 @@ Runs the full pipeline end-to-end for a single configuration (census geography t
 Run from the project root:
 ```bash
 bash scripts/reproduce.sh
-```
-
-## `run_experiment.sh`
-
-Runs an experiment via the orchestration script. Accepts an optional path to a JSON config file (defaults to `experiment_code/baseline/config.json`).
-
-```bash
-bash scripts/run_experiment.sh                              # uses default config
-bash scripts/run_experiment.sh experiment_code/my/config.json
 ```
 
 ## `setup.sh`

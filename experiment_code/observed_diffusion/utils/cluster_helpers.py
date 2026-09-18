@@ -149,7 +149,7 @@ def calculate_cluster_spread(graph, gisjoins, fixed_center_gisjoin=None, distanc
     """
     Calculates metrics for one supplied cluster-year area and core cluster.
     Parameters:
-    graph: nx Graph. The dual graph for the CBSA and year of interest.
+    graph: nx Graph. The dual graph for the city and year of interest.
     gisjoins: a list of gisjoin IDs pointing to tracts
     distance: What distance function is used to calculate the spread. Can either be "graph", which 
     uses graph distance, or "euclidean", which uses the euclidean distance between cluster centroids.

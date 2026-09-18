@@ -49,6 +49,6 @@ python experiment_code/baseline/visualization/line_plots/plot_grid_all_census_ar
 
 ```bash
 python experiment_code/baseline/visualization/line_plots/plot_family_grids.py \
-    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv
+    --filename data/shared/outputs/tracts_in_cbsa/white_black.csv \
     --prefix white_black
 ```

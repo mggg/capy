@@ -1,14 +1,13 @@
 """
-Creates two figures from data produced by simulate_grid_metrics.py:
+Create figures from data produced by simulate_grid_metrics.py.
 
-  clustering_figure.png is a 3 by 1 panel showing one exemplar map per
-      clustering level (low, medium, high). The exemplar grids are also saved as
-      individual .json (gerrychain) and .png files.
+For each clustering level (low, medium, and high), the script saves an exemplar
+grid as ``clustering_<level>_capy<value>_moran<value>.png`` and a two-panel
+histogram as ``metric_distributions_<level>_ave_capy<value>_moran<value>.png``.
+It also saves ``metric_distributions_legend.png`` as a standalone legend for
+the histograms. All figures are written to ``figures/assortativity_grids/``.
 
-  metric_distributions.png shows overlapping histograms of both metrics across
-      all simulated grids.
-
-Both outputs require the files produced by simulate_grid_metrics.py:
+The script reads the files produced by simulate_grid_metrics.py:
   simulations/exemplar_grids.json
   simulations/metrics_results.json
 
@@ -25,7 +24,6 @@ import gerrychain
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
-from matplotlib.lines import Line2D
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -50,17 +48,7 @@ METRIC_COLORS = {"moran_P": MORAN, "half_edge_1": CAPY}
 MORAN_XLIM = (-1, 1)
 CAPY_XLIM = (0, 1)
 
-# Bin edges for each metric. ~60 bins across the Moran range, bin width ≈ 0.033.
-# Same bin width for Capy with 30 bins across [0, 1].
-MORAN_BINS = np.linspace(-1, 1, 61)
-CAPY_BINS = np.linspace(0, 1, 31)
-
-METRIC_BINS = {"moran_P": MORAN_BINS, "half_edge_1": CAPY_BINS}
 METRIC_XLIM = {"moran_P": MORAN_XLIM, "half_edge_1": CAPY_XLIM}
-
-
-
-
 
 # Output paths
 
@@ -69,12 +57,9 @@ EXEMPLARS_PATH = SIM_DIR / "exemplar_grids.json"
 RESULTS_PATH = SIM_DIR / "metrics_results.json"
 
 out_dir = PROJECT_ROOT / "figures" / "assortativity_grids"
-GRID_DIR = PROJECT_ROOT / "figures" / "assortativity_grids"
-JSON_DIR = GRID_DIR / "jsons"
-PNG_DIR = GRID_DIR / "pngs"
 
 
-# Load exemplar graphs 
+# Load exemplar graphs
 
 def load_exemplars(path):
     """Read exemplar_grids.json, return list of (level_dict, gerrychain.Graph)."""
@@ -92,29 +77,6 @@ def load_exemplars(path):
         level = next(lv for lv in LEVELS if lv["label"] == entry["label"])
         exemplars.append((level, G))
     return exemplars
-
-
-
-
-def _grid_stem(level):
-    return f"{level['mode']}_clustering_exemplar"
-
-
-def save_grid_png(share, level):
-    """Save a standalone PNG of the exemplar grid."""
-    PNG_DIR.mkdir(parents=True, exist_ok=True)
-    path = PNG_DIR / f"{_grid_stem(level)}.png"
-    fig, ax = plt.subplots(figsize=(3, 3))
-    ax.pcolormesh(np.flipud(share), cmap=CMAP, vmin=0, vmax=1,
-                  edgecolors="white", linewidth=0.5, antialiased=False)
-    ax.set_aspect("equal")
-    ax.tick_params(which="both", bottom=False, left=False,
-                   labelbottom=False, labelleft=False)
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-    fig.savefig(str(path), bbox_inches="tight", facecolor="white", dpi=200)
-    plt.close(fig)
-    return path
 
 
 def plot_metric_histogram(ax, vals, key, mean):
