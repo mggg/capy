@@ -1,4 +1,4 @@
-import sys, os
+import sys
 import os
 os.chdir("/Users/samstephenson/Downloads/capy-bara")
 sys.path.insert(0, "/Users/samstephenson/Downloads/capy-bara")
@@ -7,15 +7,9 @@ import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-import gerrychain.grid
 import random
-from collections import deque
-import warnings
-import tqdm
-from collections import deque, defaultdict
 import math
+import gerrychain
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 random.seed(42)
 

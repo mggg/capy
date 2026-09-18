@@ -1,22 +1,15 @@
-import sys, os
+import sys
 import os
 import pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
-
 import capy_core.metrics as metrics
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-import gerrychain.grid
 import random
 from collections import deque
-import warnings
-import tqdm
-from collections import deque, defaultdict
 import math
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 random.seed(42)
