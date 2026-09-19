@@ -26,7 +26,7 @@ import numpy as np
 import random
 import math
 import gerrychain
-from iowa_helpers import visualize_iowa, populate_cluster_random
+from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
 import typer
 random.seed(42)
 
@@ -68,37 +68,15 @@ def main():
                 capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
                 morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
-    #setting axis ticks
-    rho_step = 0.1
-    xmin = math.floor(min(real_rhos) / rho_step) * rho_step
-    xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
+    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(real_rhos, capys, morans)
 
-    moran_step = 0.2
-    moran_ymin = math.floor(min(morans) / moran_step) * moran_step
-    moran_ymax = math.ceil(max(morans) / moran_step) * moran_step
+    base_filename_moran =f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_start_nodes}"
+    filestem_moran = base_filename_moran.replace('.', 'p')
+    fig_moran.savefig(f"{filestem_moran}.png", dpi = 300, bbox_inches="tight")
 
-    capy_step = 0.1
-    capy_ymin = math.floor(min(capys) / capy_step) * capy_step
-    capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
-
-    #plotting scatterplots
-    plt.figure(figsize=(10, 10))
-    plt.scatter(real_rhos, morans, s=0.1, color = "#1560bd")
-    plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
-    plt.xlim(xmin, xmax)
-    plt.yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
-    plt.ylim(moran_ymin-0.02, moran_ymax)
-    plt.tight_layout()
-    plt.savefig(f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_start_nodes}.png", dpi = 300, bbox_inches="tight")
-
-    plt.figure(figsize=(10, 10))
-    plt.scatter(real_rhos, capys, s=0.1, color = "#1560bd")
-    plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
-    plt.xlim(xmin, xmax)
-    plt.yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
-    plt.ylim(capy_ymin-0.02, capy_ymax)
-    plt.tight_layout()
-    plt.savefig(f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_start_nodes}.png", dpi = 300, bbox_inches="tight")
+    base_filename_capy =f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_start_nodes}"
+    filestem_capy = base_filename_capy.replace('.', 'p')
+    fig_capy.savefig(f"{filestem_capy}.png", dpi = 300, bbox_inches="tight")
 
 def generate_kclust_grid(graph, target_rho, num_start_nodes, max_retries = 50):
     """

@@ -24,7 +24,7 @@ import numpy as np
 import random
 import math
 import gerrychain
-from iowa_helpers import visualize_iowa
+from iowa_helpers import visualize_iowa, plot_metric_scatterplots
 import typer
 random.seed(42)
 
@@ -58,34 +58,10 @@ def main():
             capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
             morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
-    #setting axis ticks
-    rho_step = 0.1
-    xmin = math.floor(min(real_rhos) / rho_step) * rho_step
-    xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
+    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(real_rhos, capys, morans)
 
-    moran_step = 0.2
-    moran_ymin = math.floor(min(morans) / moran_step) * moran_step
-    moran_ymax = math.ceil(max(morans) / moran_step) * moran_step
-
-    capy_step = 0.1
-    capy_ymin = math.floor(min(capys) / capy_step) * capy_step
-    capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
-
-    plt.figure(figsize=(10, 10))
-    plt.scatter(real_rhos, morans, s=0.1, color = "#1560bd")
-    plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
-    plt.xlim(xmin, xmax)
-    plt.yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
-    plt.ylim(moran_ymin-0.02, moran_ymax)
-    plt.savefig("figures/iowa/moran_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
-
-    plt.figure(figsize=(10, 10))
-    plt.scatter(real_rhos, capys, s=0.1, color = "#1560bd")
-    plt.xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
-    plt.xlim(xmin, xmax)
-    plt.yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
-    plt.ylim(capy_ymin-0.02, capy_ymax)
-    plt.savefig("figures/iowa/capy_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
+    fig_moran.savefig("figures/iowa/moran_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
+    fig_capy.savefig("figures/iowa/capy_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
 
     g_, real_rho = make_random_isolated_config(g, RHO)
     fig, ax = visualize_iowa(g_, real_rho)
