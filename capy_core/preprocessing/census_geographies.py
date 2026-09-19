@@ -295,7 +295,7 @@ def read_nhgis_1990_population(df: pd.DataFrame, path: Path) -> pd.DataFrame:
 
 
 def read_census_population(df: pd.DataFrame, path: Path, year: int, level_label: str) -> pd.DataFrame:
-    """Parse a Census API population CSV (2000-2020) into a standardised DataFrame.
+    """Parse a Census API population CSV (2000-2020) into a standardized data frame that can be joined to geographies.
 
     Constructs JOIN_KEY from zero-padded FIPS part columns (state, county,
     tract, etc.) and renames NH_WHITE and NH_BLACK into WHITE and BLACK.
