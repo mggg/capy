@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import glob
+from typing import cast
 
 import fiona
 import geopandas as gpd
@@ -20,44 +21,21 @@ import pandas as pd
 import tqdm
 import typer
 
+from capy_core.pipeline_config import CensusGeographyType
+from capy_core.pipeline_filenames import (
+    GeographyFileIdentity,
+    format_geography_stem,
+    parse_definition_name,
+)
 from capy_core.utils.pipeline_log import tqdm_file
-
-
-def output_stem(
-    study_area_file: str,
-    prefix: str,
-    census_geography_type: str,
-    census_geography_year: str,
-    definition_vintage: str,
-) -> str:
-    """Construct the output filename stem for a clipped geography file.
-
-    For vintage-based naming produces:
-    <prefix><census_geography_type>_in_<study_area_identity>_<year>_<vintage>_vintage.
-    Falls back to <prefix><study_area_stem>_geographies if vintage parameters are absent.
-    """
-    study_area_stem = Path(study_area_file).stem
-    if census_geography_type and census_geography_year and definition_vintage:
-        vintage_suffix = f"_{definition_vintage}"
-        if not study_area_stem.endswith(vintage_suffix):
-            raise ValueError(
-                f"{study_area_file} does not end with vintage {definition_vintage}"
-            )
-        study_area_identity = study_area_stem.removesuffix(vintage_suffix)
-        return (
-            f"{prefix}{census_geography_type}_in_{study_area_identity}_"
-            f"{census_geography_year}_{definition_vintage}_vintage"
-        )
-    return f"{prefix}{study_area_stem}_geographies"
 
 
 def _run_year(
     study_area_glob: str,
     output_dir: str,
-    prefix: str,
     census_geography_type: str,
     census_geography_year: str,
-    definition_vintage: str,
+    study_area_label: str,
     census_geographies_dir: str,
 ) -> None:
     """Run overlap clipping for a single census geography year."""
@@ -82,6 +60,14 @@ def _run_year(
     for study_area_file in tqdm.tqdm(
         sorted(glob.glob(study_area_glob)), desc=census_geography_year, file=tqdm_file
     ):
+        study_area = parse_definition_name(study_area_file)
+        if study_area.study_area_label != study_area_label:
+            raise ValueError(f"{study_area_file} does not have study-area label {study_area_label}")
+
+        geography_identity = GeographyFileIdentity(
+            study_area, cast(CensusGeographyType, census_geography_type), int(census_geography_year)
+        )
+        selected_geographies_stem = format_geography_stem(geography_identity)
         study_area_gdf = gpd.read_file(study_area_file).to_crs("esri:102003")
         study_area_boundary = study_area_gdf.union_all()
         minx, miny, maxx, maxy = study_area_boundary.bounds
@@ -109,13 +95,6 @@ def _run_year(
         selected_geographies = census_geographies.iloc[sorted(geography_indices)]
 
         if len(selected_geographies) != 0:
-            selected_geographies_stem = output_stem(
-                study_area_file,
-                prefix,
-                census_geography_type,
-                census_geography_year,
-                definition_vintage,
-            )
             selected_geographies.to_file(
                 f"{output_dir}/{selected_geographies_stem}.gpkg", driver="GPKG"
             )
@@ -138,10 +117,9 @@ def _run_year(
 def main(
     study_area_glob: str,
     output_base_dir: str,
-    prefix: str = "",
     census_geography_type: str = "",
     census_geography_years: str = "",
-    definition_vintage: str = "2020",
+    study_area_label: str = "2020",
     census_geographies_dir: str = "data/shared/processed/census_geographies",
 ):
     """
@@ -152,10 +130,9 @@ def main(
         _run_year(
             study_area_glob,
             f"{output_base_dir}/{year}",
-            prefix,
             census_geography_type,
             year,
-            definition_vintage,
+            study_area_label,
             census_geographies_dir,
         )
 

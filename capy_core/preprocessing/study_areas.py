@@ -1,7 +1,7 @@
 """
 The script builds study area definition files (.gpkg + .json), one per study area. It writes two files per study area into "data/shared/processed/study_area_definitions":
-{type}_{code}_{vintage}.gpkg with the boundary geometry
-{type}_{code}_{vintage}.json with metadata (CBSA code, title, component counties, total population)
+{type}_{code}_{study_area_label}.gpkg with the boundary geometry
+{type}_{code}_{study_area_label}.json with metadata (CBSA code, title, component counties, total population)
 The .gpkg files are what overlaps.py reads as study_area_glob.
 """
 
@@ -17,6 +17,7 @@ import pandas as pd
 import tqdm
 import typer
 
+from capy_core.pipeline_filenames import StudyAreaIdentity, format_definition_stem
 from capy_core.utils.definitions import StudyArea
 from capy_core.utils.pipeline_log import tqdm_file
 
@@ -26,7 +27,7 @@ def main(
     definition_geographies: str = None,
     output_dir: str = "data/shared/processed/study_area_definitions",
     study_area_type: str = "cbsa",
-    definition_vintage: str = "march_2020",
+    study_area_label: str = "march_2020",
     cbsa_geographies: str = None,
 ):
     """Build study area definition files (.gpkg + .json) for a given study_area_type.
@@ -37,8 +38,6 @@ def main(
     - max_city: most populous Census place within each CBSA's boundary.
     - cbsa (default): dissolved union of all component counties per CBSA.
     """
-    if study_area_type == "counties":
-        study_area_type = "county"
     if study_area_type not in {"cbsa", "max_county", "county", "max_city"}:
         raise ValueError(
             f"Unsupported study area type {study_area_type}. Use 'cbsa', 'max_county', 'max_city', or 'county'."
@@ -62,7 +61,7 @@ def main(
         build_county_definitions(
             definition_geographies,
             output_dir,
-            definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
+            study_area_label,
         )
         return
 
@@ -71,7 +70,7 @@ def main(
             filename,
             definition_geographies,
             output_dir,
-            definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
+            study_area_label,
         )
         return
 
@@ -82,7 +81,7 @@ def main(
             filename,
             definition_geographies,
             output_dir,
-            definition_vintage or Path(definition_geographies).stem.split("_", 1)[0],
+            study_area_label,
             cbsa_geographies=cbsa_geographies,
         )
         return
@@ -100,7 +99,9 @@ def main(
 
     for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items(), file=tqdm_file):
         cbsa = add_cbsa_pop_and_geometry(country, cbsa)
-        output_stem = f"{study_area_type}_{cbsa_code}_{definition_vintage}"
+        output_stem = format_definition_stem(
+            StudyAreaIdentity("cbsa", str(cbsa_code), study_area_label)
+        )
         with open(f"{output_dir}/{output_stem}.json", "w") as w:
             json.dump(area_to_dict(cbsa), w)
         cbsa.geometry.to_file(f"{output_dir}/{output_stem}.gpkg", driver="GPKG")
@@ -180,7 +181,7 @@ def county_title(row: pd.Series) -> str:
 
 
 def build_county_definitions(
-    definition_geographies: str, output_dir: str, definition_vintage: str
+    definition_geographies: str, output_dir: str, study_area_label: str
 ) -> None:
     """Write one .gpkg + .json definition file per county in definition_geographies."""
     counties = load_census_geography(definition_geographies)
@@ -199,7 +200,9 @@ def build_county_definitions(
         counties.iterrows(), total=len(counties), file=tqdm_file
     ):
         county_fips = county["STCNTYFP"]
-        output_stem = f"county_{county_fips}_{definition_vintage}"
+        output_stem = format_definition_stem(
+            StudyAreaIdentity("county", county_fips, study_area_label)
+        )
         county_gdf = gpd.GeoDataFrame(
             [county], columns=counties.columns, crs=counties.crs
         )
@@ -221,7 +224,7 @@ def build_county_definitions(
 
 
 def build_max_county_definitions(
-    filename: str, definition_geographies: str, output_dir: str, definition_vintage: str
+    filename: str, definition_geographies: str, output_dir: str, study_area_label: str
 ) -> None:
     """For each CBSA, write a definition file for its most populous component county."""
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
@@ -242,7 +245,9 @@ def build_max_county_definitions(
             continue
         county_fips = max_county["STCNTYFP"]
 
-        output_stem = f"max_county_{county_fips}_{definition_vintage}"
+        output_stem = format_definition_stem(
+            StudyAreaIdentity("max_county", county_fips, study_area_label)
+        )
         county_gdf = gpd.GeoDataFrame(
             [max_county],
             columns=counties.columns,
@@ -269,7 +274,7 @@ def build_max_city_definitions(
     filename: str,
     definition_geographies: str,
     output_dir: str,
-    definition_vintage: str,
+    study_area_label: str,
     cbsa_geographies: str = None,
 ) -> None:
     """For each CBSA, write a definition file for the most populous Census place whose geometry intersects the CBSA boundary."""
@@ -294,7 +299,9 @@ def build_max_city_definitions(
         max_idx = places_in_cbsa["TOTPOP"].idxmax()
         max_place = places_in_cbsa.loc[[max_idx]]
 
-        output_stem = f"max_city_{max_place['GEOID'].iloc[0]}_{definition_vintage}"
+        output_stem = format_definition_stem(
+            StudyAreaIdentity("max_city", str(max_place["GEOID"].iloc[0]), study_area_label)
+        )
 
         study_area = StudyArea(
             area_code=max_place["GEOID"].iloc[0],

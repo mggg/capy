@@ -101,7 +101,8 @@ capy-bara/
 │   └── observed_diffusion/
 │
 ├── capy_core/                          # core pipeline modules
-│   ├── pipeline_config.py                       # config loader; prints shell exports when run directly
+│   ├── pipeline_config.py              # validated settings and resolved pipeline paths
+│   ├── pipeline_filenames.py               # shared parsing and formatting of pipeline filenames
 │   ├── config.yaml                     # pipeline configuration
 │   ├── graphs.py                       # dual adjacency graph construction
 │   ├── metrics.py                      # segregation metric calculations
@@ -224,10 +225,15 @@ To extend this example to 1980 or 1990, add those years to `census_geography_yea
 Run from the repo root with `poetry run python`.
 
 ### `capy_core/pipeline_config.py`
-Prints shell export statements derived from `capy_core/config.yaml`. Used internally by `reproduce.sh`; useful for inspecting resolved config values.
-```bash
-poetry run python capy_core/pipeline_config.py
+Loads an explicitly selected YAML file and returns validated settings and resolved paths:
+```python
+from pathlib import Path
+from capy_core.pipeline_config import load_config
+
+config = load_config(Path("capy_core/config.yaml"))
 ```
+
+The module does not emit shell exports. The shell orchestration still needs migration to this API.
 
 ### `capy_core/download/download_population_tables.py`
 Downloads decennial census population tables (race, ethnicity, total) for a given geography level and set of years.
@@ -269,20 +275,20 @@ poetry run python capy_core/preprocessing/overlaps.py \
     data/shared/processed/clipped_geographies \
     --census-geography-type tracts \
     --census-geography-years "2020 2010 2000" \
-    --definition-vintage march_2020
+    --study-area-label march_2020
 ```
 
 ### `capy_core/graphs.py`
 Builds dual adjacency graphs from clipped shapefiles. Drops zero-population nodes and adds edges between any disconnected components. Writes `*_connected.json` files to `data/shared/processed/dual_graphs/`.
 ```bash
-poetry run python capy_core/graphs.py \
+poetry run python -m capy_core.graphs \
     "data/shared/processed/clipped_geographies/*/tracts_in_cbsa_*_march_2020_vintage.gpkg"
 ```
 
 ### `capy_core/metrics.py`
 Computes segregation metrics for each study area from connected graph JSONs. Arguments are the glob pattern, group columns, and output CSV path.
 ```bash
-poetry run python capy_core/metrics.py \
+poetry run python -m capy_core.metrics \
     "data/shared/processed/dual_graphs/*/tracts_in_cbsa_*_march_2020_vintage_connected.json" \
     BLACK WHITE TOTPOP \
     data/shared/outputs/tracts_in_cbsa/white_black.csv

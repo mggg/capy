@@ -27,7 +27,7 @@ def test_connect_components_adds_nearest_bridge():
 
 @pytest.mark.parametrize("populations", [[1, 0, 1], [0, 0, 0], [1, 0, 0]])
 def test_process_file_connects_after_dropping_nodes(tmp_path, populations):
-    source = tmp_path / "2020" / "tracts_in_cbsa_12345_2020.gpkg"
+    source = tmp_path / "inputs_in_folder" / "tracts_in_cbsa_12345_2020_march_2020_vintage.gpkg"
     source.parent.mkdir()
     geofile = gpd.GeoDataFrame(
         {"GISJOIN": ["A", "B", "C"], "WHITE": populations, "BLACK": [0, 0, 0]},
@@ -58,7 +58,7 @@ def test_process_file_connects_after_dropping_nodes(tmp_path, populations):
 
 
 def test_process_file_rejects_disconnected_output(tmp_path, monkeypatch):
-    source = tmp_path / "2020" / "tracts_in_cbsa_12345_2020.gpkg"
+    source = tmp_path / "inputs_in_folder" / "tracts_in_cbsa_12345_2020_march_2020_vintage.gpkg"
     source.parent.mkdir()
     geofile = gpd.GeoDataFrame(
         {"GISJOIN": ["A", "B", "C"], "WHITE": [1, 0, 1], "BLACK": [0, 0, 0]},

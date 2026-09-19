@@ -49,7 +49,7 @@ poetry run python capy_core/preprocessing/overlaps.py \
     data/shared/processed/clipped_geographies \
     --census-geography-type tracts \
     --census-geography-years "2020 2010 2000" \
-    --definition-vintage march_2020
+    --study-area-label march_2020
 ```
 
 ### Graph construction
@@ -62,7 +62,7 @@ poetry run python capy_core/preprocessing/overlaps.py \
 Removed units are collected by year under `data/shared/outputs/<geography>_in_<study_area>/dropped_nodes/`.
 
 ```bash
-poetry run python capy_core/graphs.py \
+poetry run python -m capy_core.graphs \
     "data/shared/processed/clipped_geographies/*/tracts_in_cbsa_*_march_2020_vintage.gpkg" \
     --years "2020 2010 2000"
 ```

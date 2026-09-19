@@ -6,7 +6,8 @@ Core pipeline modules for downloading data, preprocessing geographies, building 
 
 | File                 | Purpose                                                                                                                                                                             |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pipeline_config.py`          | Loads `config.yaml` and resolves derived config values. Prints shell `export` statements when run directly (used by `reproduce.sh`).                                                |
+| `pipeline_config.py` | Loads an explicitly selected YAML file, validates settings, and resolves pipeline paths. |
+| `pipeline_filenames.py` | Parses and formats study-area, selected-geography, and graph filenames using typed identities. |
 | `graphs.py`          | Builds dual adjacency graphs from clipped geography `.gpkg` files. Drops zero-population nodes and connects isolated components. Writes `*_orig.json` and `*_connected.json` pairs. |
 | `metrics.py`         | Computes ~80 segregation metrics per study area / year from connected graph JSONs (skew, edge, half-edge, Moran's I, dissimilarity, Gini, etc.). Outputs one CSV row per area.      |
 | `process_results.py` | Enriches a raw metrics CSV with study area metadata (title, area code, 2020 population) by reading the corresponding definition JSONs.                                              |

@@ -1,33 +1,35 @@
 import json
 
+import pandas as pd
+
 from capy_core.process_results import (
-    definition_json_for_output,
-    output_name_parts,
+    join_study_area_metadata,
     parse_cbsa,
 )
 
 
-def test_output_name_parts_for_configured_study_area_layout():
-    filename = (
-        "dual_graphs/2020/tracts_in_cbsa_39460_2020_march_2020_vintage_connected.json"
+def test_metadata_lookup_uses_complete_label_and_filename_year(tmp_path):
+    definition = {
+        "area_code": "01001",
+        "area_title": "Example County",
+        "component_counties_fips": ["01001"],
+        "total_population": 100,
+    }
+    (tmp_path / "county_01001_region_in_1990_label.json").write_text(json.dumps(definition))
+    metrics = pd.DataFrame(
+        {
+            "filename": [
+                "parent_in_name/2020/tracts_in_county_01001_1980_region_in_1990_label_vintage_orig.json"
+            ]
+        }
     )
 
-    assert output_name_parts(filename) == ("cbsa_39460", "2020", "march_2020")
+    result = join_study_area_metadata(metrics, tmp_path)
 
-
-def test_definition_json_for_configured_study_area_layout():
-    filename = "dual_graphs/1980/tracts_in_cbsa_35620_1980_march_2020_vintage_orig.json"
-
-    assert (
-        definition_json_for_output(filename)
-        == "data/shared/processed/study_area_definitions/cbsa_35620_march_2020.json"
-    )
-
-
-def test_output_name_parts_for_legacy_cbsa_layout():
-    filename = "dual_graphs/2020/186847_39460_march_2020_cbsa_tracts_connected.json"
-
-    assert output_name_parts(filename) == ("cbsa_39460", "2020", "march_2020")
+    assert result.loc[0, "area_code"] == "01001"
+    assert result.loc[0, "year"] == 1980
+    assert result.loc[0, "definition_month_year"] == "region_in_1990_label"
+    assert result.loc[0, "total_population_2020"] == 100
 
 
 def test_parse_cbsa_accepts_json_encoded_definition(tmp_path):

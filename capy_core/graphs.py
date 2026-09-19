@@ -16,6 +16,8 @@ import pandas as pd
 import typer
 from shapely.strtree import STRtree
 
+from capy_core.pipeline_filenames import format_graph_name, parse_geography_name
+
 CONTRACTION_POP_COLS = ("WHITE", "BLACK")
 
 
@@ -36,7 +38,7 @@ def main(
     # select only files for the requested years, if specified
     if years:
         year_set = set(years.split())
-        gpkg_files = [f for f in gpkg_files if Path(f).parent.name in year_set]
+        gpkg_files = [f for f in gpkg_files if str(parse_geography_name(f).census_year) in year_set]
     if not gpkg_files:
         raise FileNotFoundError(f"No .gpkg files matched: {input_glob!r}")
 
@@ -44,14 +46,9 @@ def main(
     with ProcessPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(worker, gpkg_files))
 
-    # infer run output dir from the first matched file's stem:
-    # e.g. "tracts_in_max_city_35620_2020_vintage" to data/shared/outputs/tracts_in_max_city/
-    stem = Path(gpkg_files[0]).stem
-    census_geography_type = stem.split("_in_", 1)[0]
-    right_parts = stem.split("_in_", 1)[1].split("_")
-    study_area_type = (
-        f"max_{right_parts[1]}" if right_parts[0] == "max" else right_parts[0]
-    )
+    geography_identity = parse_geography_name(gpkg_files[0])
+    census_geography_type = geography_identity.census_geography_type
+    study_area_type = geography_identity.study_area.study_area_type
     dropped_nodes_dir = (
         Path("data/shared/outputs")
         / f"{census_geography_type}_in_{study_area_type}"
@@ -79,8 +76,8 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
     Returns ``(year, dropped_gdf)`` where *dropped_gdf* is a GeoDataFrame of
     removed zero-population nodes, or ``None`` if none were dropped.
     """
-    # derive output paths from the filename:
-    year = Path(gpkg).parent.name
+    geography_identity = parse_geography_name(gpkg)
+    year = str(geography_identity.census_year)
     stem = Path(gpkg).stem
     out_dir = Path(output_base_dir) / year
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -98,10 +95,7 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
         "ignore", message=".*Found overlaps.*"
     )  # county boundaries sometimes have slight overlaps in Census TIGER files; not a problem for graph construction.
 
-    # extract area code from the filename
-    right = gpkg.split("_in_")[1]
-    parts = right.split("_")
-    area_code = parts[2] if parts[0] == "max" else parts[1]
+    area_code = geography_identity.study_area.area_code
 
     if geofile.crs is None:
         raise ValueError(f"{gpkg} has no CRS defined.")
@@ -119,7 +113,7 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
         graph.nodes[idx]["centroid_x"] = centroids.loc[idx].x
         graph.nodes[idx]["centroid_y"] = centroids.loc[idx].y
 
-    graph.to_json(str(out_dir / f"{stem}_orig.json"))
+    graph.to_json(str(out_dir / format_graph_name(geography_identity, "orig")))
 
     # Remove 0-population nodes before connecting, since removal can split components.
     connected_graph = graph
@@ -144,7 +138,7 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
             flush=True,
         )
 
-    connected_graph.to_json(str(out_dir / f"{stem}_connected.json"))
+    connected_graph.to_json(str(out_dir / format_graph_name(geography_identity, "connected")))
 
     if dropped_indices:
         dropped_gdf = geofile.loc[dropped_indices].copy()

@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import typer
 
+from capy_core.pipeline_filenames import format_definition_stem, parse_geography_name
 from capy_core.utils import definitions
 
 
@@ -23,69 +24,29 @@ def parse_cbsa(config_loc: str) -> definitions.StudyArea:
     return definitions.StudyArea.parse_obj(data)
 
 
-def _strip_graph_suffix(filename: str) -> str:
-    output_stem = Path(filename).stem
-    for suffix in ("_connected", "_orig"):
-        if output_stem.endswith(suffix):
-            return output_stem.removesuffix(suffix)
-    return output_stem
-
-
-def output_name_parts(filename: str):
-    """Parse a graph JSON filename into(study_area_identity, geography_year, vintage).
-
-    Supports both the current <geography>_in_<identity>_<year>_<vintage>_vintage convention and the legacy cbsa_<code>_<month>_<year> format.
-    """
-    output_stem = _strip_graph_suffix(filename)
-
-    if "_in_" in output_stem and output_stem.endswith("_vintage"):
-        output_stem = output_stem.removesuffix("_vintage")
-        _, study_area_and_dates = output_stem.split("_in_", 1)
-        tokens = study_area_and_dates.split("_")
-        if tokens[-2].isdigit() and len(tokens[-2]) == 4:
-            # single-part vintage (e.g. "2020")
-            vintage = tokens[-1]
-            geography_year = tokens[-2]
-            study_area_identity = "_".join(tokens[:-2])
-        else:
-            # two-part vintage (e.g. "March_2020")
-            vintage = f"{tokens[-2]}_{tokens[-1]}"
-            geography_year = tokens[-3]
-            study_area_identity = "_".join(tokens[:-3])
-        return study_area_identity, geography_year, vintage
-
-    geography_year = Path(filename).parent.name
-    tokens = output_stem.split("_")
-    if len(tokens) < 4:
-        raise ValueError(f"Cannot parse output filename: {filename}")
-    _, study_area_code, month, vintage_year = tokens[:4]
-    return f"cbsa_{study_area_code}", geography_year, f"{month}_{vintage_year}"
-
-
-def definition_json_for_output(filename: str) -> str:
-    """Return the expected path to the study area definition JSON for a graph file."""
-    output_stem = _strip_graph_suffix(filename)
-    if "_in_" in output_stem and output_stem.endswith("_vintage"):
-        study_area_identity, _, definition_vintage = output_name_parts(filename)
-        definition_stem = f"{study_area_identity}_{definition_vintage}"
-        return f"data/shared/processed/study_area_definitions/{definition_stem}.json"
-
-    tokens = output_stem.split("_")
-    return f"data/shared/processed/study_area_definitions/{'_'.join(tokens[:4])}.json"
-
-
-def join_study_area_metadata(df: pd.DataFrame) -> pd.DataFrame:
+def join_study_area_metadata(
+    df: pd.DataFrame,
+    definitions_dir: Path = Path("data/shared/processed/study_area_definitions"),
+) -> pd.DataFrame:
     """Join study area metadata onto a raw metrics DataFrame.
 
     Reads the corresponding definition JSON for each row's filename and adds
     columns: definition_month_year, year, area_title, area_code,
     total_population_2020.
     """
-    cbsa_infos = df["filename"].apply(definition_json_for_output).apply(parse_cbsa)
-    df["definition_month_year"] = df["filename"].apply(
-        lambda x: output_name_parts(x)[2]
+    geography_identities = df["filename"].apply(parse_geography_name)
+    definition_paths = geography_identities.apply(
+        lambda geography_identity: (
+            definitions_dir / f"{format_definition_stem(geography_identity.study_area)}.json"
+        )
     )
-    df["year"] = df["filename"].apply(lambda x: int(output_name_parts(x)[1]))
+    cbsa_infos = definition_paths.apply(parse_cbsa)
+    df["definition_month_year"] = geography_identities.apply(
+        lambda geography_identity: geography_identity.study_area.study_area_label
+    )
+    df["year"] = geography_identities.apply(
+        lambda geography_identity: geography_identity.census_year
+    )
     df["area_title"] = cbsa_infos.apply(lambda x: x.area_title)
     df["area_code"] = cbsa_infos.apply(lambda x: x.area_code)
     df["total_population_2020"] = cbsa_infos.apply(lambda x: x.total_population)

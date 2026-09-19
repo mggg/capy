@@ -19,6 +19,8 @@ import scipy.sparse
 import tqdm
 import typer
 
+from capy_core.pipeline_filenames import parse_geography_name
+
 
 def main(
     input_glob: str,
@@ -39,7 +41,7 @@ def main(
     # select only files for the specified years, if any
     if years:
         year_set = set(years.split())
-        files = [f for f in files if Path(f).parent.name in year_set]
+        files = [f for f in files if str(parse_geography_name(f).census_year) in year_set]
     if not files:
         raise FileNotFoundError(f"No graph JSON files matched: {input_glob!r}")
 
@@ -62,27 +64,6 @@ def main(
     )
     if n_failed:
         raise typer.Exit(code=1)
-
-
-def study_area_code_from_filename(filename: str) -> str:
-    """Extract the numeric study-area code from a graph JSON filename.
-
-    Handles both the current <geography>_in_<type>_<code>_<year>_vintage
-    convention and the legacy cbsa_<code>_<month>_<year> format.
-    """
-    output_stem = os.path.basename(filename)
-    if "_in_" not in output_stem or "_vintage" not in output_stem:
-        parts = output_stem.split("_")
-        return parts[1] if len(parts) > 1 else output_stem
-
-    output_stem = output_stem.split("_vintage", 1)[0]
-    study_area_and_dates = output_stem.split("_in_", 1)[-1]
-    tokens = study_area_and_dates.split("_")
-    if tokens[-2].isdigit() and len(tokens[-2]) == 4:
-        study_area_identity = "_".join(tokens[:-2])
-    else:
-        study_area_identity = "_".join(tokens[:-3])
-    return study_area_identity.rsplit("_", 1)[-1]
 
 
 def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
@@ -165,9 +146,14 @@ def write_failure(
     failures_dir = os.path.dirname(metric_failures_file)
     os.makedirs(failures_dir, exist_ok=True)
 
+    try:
+        study_area_code = parse_geography_name(filename).study_area.area_code
+    except ValueError:
+        study_area_code = ""  # A malformed filename must not prevent recording the original failure.
+
     row = {
         "filename": filename,
-        "study_area_code": study_area_code_from_filename(filename),
+        "study_area_code": study_area_code,
         "x_col": x_col,
         "y_col": y_col,
         "tot_col": tot_col,

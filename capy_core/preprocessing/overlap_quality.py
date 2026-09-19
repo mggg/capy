@@ -23,7 +23,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import base64
 import datetime
 import io
-import re
 from typing import Optional
 
 import fiona
@@ -35,20 +34,11 @@ import pandas as pd
 import tqdm as tqdm_module
 import typer
 
+from capy_core.pipeline_filenames import parse_definition_name, parse_geography_name
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-# Matches clipped files produced by overlaps.py, e.g.:
-#   tracts_in_cbsa_10180_2020_march_2020_vintage.gpkg
-CLIPPED_RE = re.compile(
-    r"^(tracts|block_groups|blocks|counties)"
-    r"_in_(cbsa|county|max_city|max_county)"
-    r"_(\d+)_(\d{4})_(.+)_vintage\.gpkg$"
-)
-
-# Matches study area definition files, e.g.: cbsa_10180_march_2020.gpkg
-DEF_RE = re.compile(r"^(cbsa|county|max_city|max_county)_(\d+)_(.+)\.gpkg$")
 
 # All six combinations this report covers (even if data are absent for some)
 ALL_COMBOS = [
@@ -188,10 +178,12 @@ def _collect_clipped_records(
     gpkg_files = sorted(clipped_dir.rglob("*.gpkg"))
     records = []
     for path in tqdm_module.tqdm(gpkg_files, desc="Reading clipped files", unit="file"):
-        m = CLIPPED_RE.match(path.name)
-        if not m:
+        try:
+            geography_identity = parse_geography_name(path)
+        except ValueError:
             continue
-        geo_type, sa_type, sa_id, year, vintage = m.groups()
+        geo_type = geography_identity.census_geography_type
+        sa_type = geography_identity.study_area.study_area_type
         if geo_type_filter and geo_type != geo_type_filter:
             continue
         if sa_type_filter and sa_type != sa_type_filter:
@@ -201,9 +193,9 @@ def _collect_clipped_records(
             {
                 "geo_type": geo_type,
                 "sa_type": sa_type,
-                "sa_id": sa_id,
-                "year": year,
-                "vintage": vintage,
+                "sa_id": geography_identity.study_area.area_code,
+                "year": str(geography_identity.census_year),
+                "vintage": geography_identity.study_area.study_area_label,
                 "unit_count": stats["count"],
                 "states": stats["states"],  # list[str]
             }
@@ -218,11 +210,17 @@ def _collect_definitions(def_dir: Path) -> pd.DataFrame:
     """Return one record per study-area definition gpkg file."""
     records = []
     for path in sorted(def_dir.glob("*.gpkg")):
-        m = DEF_RE.match(path.name)
-        if not m:
+        try:
+            study_area = parse_definition_name(path)
+        except ValueError:
             continue
-        sa_type, sa_id, vintage = m.groups()
-        records.append({"sa_type": sa_type, "sa_id": sa_id, "vintage": vintage})
+        records.append(
+            {
+                "sa_type": study_area.study_area_type,
+                "sa_id": study_area.area_code,
+                "vintage": study_area.study_area_label,
+            }
+        )
     cols = ["sa_type", "sa_id", "vintage"]
     return (
         pd.DataFrame(records, columns=cols) if records else pd.DataFrame(columns=cols)
