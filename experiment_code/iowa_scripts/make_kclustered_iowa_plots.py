@@ -24,7 +24,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-import math
+import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
 import typer
@@ -55,16 +55,20 @@ def main():
         raise RuntimeError("Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_start_nodes") #something goes horribly wrong
 
     #sampling kclusters
+    target_rhos = []
     real_rhos = []
     capys = []
     morans =[]
 
+    rho_grid = np.linspace(.001, .5, num_rhos)
+
     for _ in range(num_samples):
-        for rho in np.linspace(.001, .5, num_rhos):
+        for rho in rho_grid:
             result = generate_kclust_grid(g, rho, num_start_nodes)
             if result is not None:
                 g_, real_rho, num_components = result
                 real_rhos.append(real_rho)
+                target_rhos.append(rho)
                 capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
                 morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
@@ -77,6 +81,13 @@ def main():
     base_filename_capy =f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_start_nodes}"
     filestem_capy = base_filename_capy.replace('.', 'p')
     fig_capy.savefig(f"{filestem_capy}.png", dpi = 300, bbox_inches="tight")
+
+    pd.DataFrame({
+    "target_rho": target_rhos,
+    "real_rho": real_rhos,
+    "capy": capys,
+    "moran": morans,
+    }).to_csv(f"stats/iowa_runs/multicluster_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
 
 def generate_kclust_grid(graph, target_rho, num_start_nodes, max_retries = 50):
     """

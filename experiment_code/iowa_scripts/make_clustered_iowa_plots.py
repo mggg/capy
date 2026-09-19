@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import gerrychain
 import random
-import math
+import pandas as pd
 import typer
 from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
 random.seed(42)
@@ -39,6 +39,7 @@ def main():
     g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
     real_rhos = []
+    target_rhos = []
     capys = []
     morans =[]
 
@@ -49,6 +50,7 @@ def main():
 
     for _ in range(num_samples):
         for rho in rho_grid:
+            target_rhos.append(rho)
             seed = random.choice(nodes)
             for node in g.nodes():
                 g.nodes[node]["x_pop"] = 0
@@ -69,6 +71,15 @@ def main():
     filestem= base_filename.replace('.', 'p')
     fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
     plt.close(fig)
+
+    
+    pd.DataFrame({
+    "target_rho": target_rhos,
+    "real_rho": real_rhos,
+    "capy": capys,
+    "moran": morans,
+    }).to_csv(f"stats/iowa_runs/onecluster_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
+
 
 if __name__ == "__main__":
     typer.run(main)

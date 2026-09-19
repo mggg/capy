@@ -22,7 +22,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-import math
+import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, plot_metric_scatterplots
 import typer
@@ -38,12 +38,14 @@ num_rhos = 100
 def main():
     g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
+    target_rhos = []
     real_rhos = []
     capys = []
     morans =[]
+    rho_grid = np.linspace(0.01, .5, num_rhos)
 
     for _ in range(num_samples):
-        for rho in np.linspace(0.01, .5, num_rhos):
+        for rho in rho_grid:
             g_, real_rho = make_random_isolated_config(g, rho)
 
             if not valid_isolated_config(g_, "x_pop"):
@@ -54,6 +56,7 @@ def main():
                 print("0 pop")
                 continue
 
+            target_rhos.append(rho)
             real_rhos.append(real_rho)
             capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
             morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
@@ -69,6 +72,14 @@ def main():
     filestem = base_filename.replace('.', 'p')
     fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
     plt.close(fig)
+
+    pd.DataFrame({
+        "target_rho": target_rhos,
+        "real_rho": real_rhos,
+        "capy": capys,
+        "moran": morans,
+    }).to_csv(f"stats/iowa_runs/isol_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
+
 
 def valid_isolated_config(graph, column):
     """
