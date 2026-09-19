@@ -26,7 +26,6 @@ import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, plot_metric_scatterplots
 import typer
-random.seed(42)
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 28, "savefig.dpi": 300})
@@ -44,9 +43,10 @@ def main():
     morans =[]
     rho_grid = np.linspace(0.01, .5, num_rhos)
 
-    for _ in range(num_samples):
+    for i in range(num_samples):
+        rng = random.Random(i)
         for rho in rho_grid:
-            g_, real_rho = make_random_isolated_config(g, rho)
+            g_, real_rho = make_random_isolated_config(g, rho, rng)
 
             if not valid_isolated_config(g_, "x_pop"):
                 print("invalid configuration")
@@ -66,7 +66,8 @@ def main():
     fig_moran.savefig("figures/iowa/moran_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
     fig_capy.savefig("figures/iowa/capy_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
 
-    g_, real_rho = make_random_isolated_config(g, RHO)
+    rng = random.Random(42)
+    g_, real_rho = make_random_isolated_config(g, RHO, rng)
     fig, ax = visualize_iowa(g_, real_rho)
     base_filename = f"figures/iowa/isol_iowa_visualization_rho={real_rho}"
     filestem = base_filename.replace('.', 'p')
@@ -105,7 +106,7 @@ def valid_isolated_config(graph, column):
     return subgraph.number_of_edges() == 0
 
 
-def make_random_isolated_config(graph, target_rho):
+def make_random_isolated_config(graph, target_rho, rng):
     """
     Randomly assigns x_pop to a greedy independent set of nodes until the global group fraction reaches rho, then sets y_pop as the remainder for every node.
     Parameters:
@@ -113,6 +114,8 @@ def make_random_isolated_config(graph, target_rho):
             County adjacency graph with node attribute TOTPOP; modified in place
         rho: float
             Target global group fraction; assignment stops once this value is reached or exceeded
+        rng: random.Random
+            Local RNG to shuffle node order
     Returns:
         graph: nx.Graph
             The modified graph with x_pop and y_pop set on every node
@@ -129,7 +132,7 @@ def make_random_isolated_config(graph, target_rho):
     blocked = set()
 
     nodes = list(graph.nodes())
-    random.shuffle(nodes)
+    rng.shuffle(nodes)
 
     total_pop =  metrics.property_sum(graph, "TOTPOP")
     x_pop = 0

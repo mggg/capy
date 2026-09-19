@@ -13,7 +13,6 @@ import math
 import gerrychain
 from collections import deque
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
-random.seed(42)
 
 def colormap(rho, vmin = 0, vmax = 1):
     """
@@ -79,7 +78,7 @@ def visualize_iowa(graph, rho):
     ax.axis('off')
     return fig, ax
 
-def populate_cluster_random(start_node, graph, target_x_pop):
+def populate_cluster_random(start_node, graph, target_x_pop, rng):
     """
     Assigns x_pop via random cluster growth expansion from a seed node until the total x_pop reaches target_x_pop, then sets y_pop as the remainder for every node.
     Parameters:
@@ -89,6 +88,8 @@ def populate_cluster_random(start_node, graph, target_x_pop):
             County adjacency graph with node attribute TOTPOP; modified in place
         target_x_pop: float
             The total x_pop at which random cluster growth stops adding nodes to the cluster
+        rng: random.Random
+            Local RNG instance passed through to each populate_cluster_random call
     Returns:
         graph: nx.Graph
             The modified graph with x_pop and y_pop set on every node
@@ -103,7 +104,7 @@ def populate_cluster_random(start_node, graph, target_x_pop):
 
     while queue and x_pop_sum < target_x_pop:
         queue = list(queue)
-        random.shuffle(queue)
+        rng.shuffle(queue)
         queue = deque(queue)
         node = queue.popleft()
 
@@ -120,7 +121,7 @@ def populate_cluster_random(start_node, graph, target_x_pop):
 
         # add neighbors (randomized expansion)
         neighbors = list(graph.neighbors(node))
-        random.shuffle(neighbors)
+        rng.shuffle(neighbors)
 
         for nbr in neighbors:
             if nbr not in visited:

@@ -10,11 +10,13 @@ The ideal configurations are:
 + `make_iowa-files.py/` Creates the Iowa counties dual graph used in all scripts by fetching  2010 and 2020 Census PL 94-171 data. All scripts use 2020 data by default. The data is stored in data/experiment_specific/ia_files.
 + `make_iowa_legend.py` Generates two standalone legend figures for the Iowa county visualizations: a population-size legend showing three reference values (10,000 / 100,000 / 1,000,000) scaled to match the 1/500 node-size rule used in all Iowa graph plots, and a population-composition legend showing the orange/blue color encoding for all-X and all-Y counties. Requires no input data and takes no arguments.
 + `make_kclustered_iowa_plots.py` Creates kclustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). 
-+ `make_clustered_iowa_plots/`  Creates clustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). 
-+ `make_iowa_isol_plots/` Creates isolated Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100).
-+ `make_uniform_iowa_plots/` Creates uniform Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100).
++ `make_clustered_iowa_plots/`  Creates clustered Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). Saves target rhos, real rhos, and capy and moran scores to stats/iowa_runs.
++ `make_iowa_isol_plots/` Creates isolated Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). Saves target rhos, real rhos, and capy and moran scores to stats/iowa_runs.
++ `make_uniform_iowa_plots/` Creates uniform Iowa configurations. Plots scatterplots of both capy and moran against rho an arbitrary number of times (currently 500) for an arbitrary number of target rhos (currently 100). Saves target rhos, real rhos, and capy and moran scores to stats/iowa_runs.
 
-All random scripts use random.seed(42). Achieved group shares (real_rho) will generally differ from target shares because the BFS-based population assignment adds whole counties at a time using actual TOTPOP values — the algorithm stops when the next county would overshoot the target, so exact targets are rarely hit. All scatterplots plot using real rho and all  Supplied figures reflect this stochastic process under seed 42; re-runs with the same seed should reproduce them, but results may differ if the order of nodes returned by the graph library changes across versions.
+All random scripts use random state number 42 to generate visualizations of sample iowa configurations on the dual graph. For scatterplots, each sample has uses its own random state given by the samples number minus one. So sample 1 uses random state 0, sample 2 uses random state 1, etc.
+
+ Achieved group shares (real_rho) will generally differ from target shares because the BFS-based population assignment adds whole counties at a time using actual TOTPOP values — the algorithm stops when the next county would overshoot the target, so exact targets are rarely hit. All scatterplots plot using real rho and all  Supplied figures reflect this stochastic process under seed 42; re-runs with the same seed should reproduce them, but results may differ if the order of nodes returned by the graph library changes across versions.
 
 ##Reproducing Figures
 All scripts must be run from the repository root. The supplied
@@ -28,6 +30,7 @@ python experiment_code/iowa_scripts/make_uniform_iowa_plots.py
 python experiment_code/iowa_scripts/make_isol_iowa_plots.py
 python experiment_code/iowa_scripts/make_clustered_iowa_plots.py
 python experiment_code/iowa_scripts/make_kclustered_iowa_plots.py
+python experiment_code/iowa_scripts/make_iowa_legend.py
 ```
 
 ###Rebuilding Data (Census API Key Required)

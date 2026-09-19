@@ -28,7 +28,6 @@ import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
 import typer
-random.seed(42)
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 28, "savefig.dpi": 300})
@@ -43,7 +42,8 @@ def main():
     g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
     #visualizing kcluster
-    result= generate_kclust_grid(g, RHO, num_start_nodes, max_retries = 5000)
+    rng = random.Random(42)
+    result= generate_kclust_grid(g, RHO, num_start_nodes, rng, max_retries = 5000)
     if result is not None:
         g_, real_rho, num_components = result
         fig, ax = visualize_iowa(g_, real_rho)
@@ -62,9 +62,10 @@ def main():
 
     rho_grid = np.linspace(.001, .5, num_rhos)
 
-    for _ in range(num_samples):
+    for i in range(num_samples):
+        rng = random.Random(i)
         for rho in rho_grid:
-            result = generate_kclust_grid(g, rho, num_start_nodes)
+            result = generate_kclust_grid(g, rho, num_start_nodes, rng)
             if result is not None:
                 g_, real_rho, num_components = result
                 real_rhos.append(real_rho)
@@ -89,7 +90,7 @@ def main():
     "moran": morans,
     }).to_csv(f"stats/iowa_runs/multicluster_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
 
-def generate_kclust_grid(graph, target_rho, num_start_nodes, max_retries = 50):
+def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries = 50):
     """
     Builds a k-cluster configuration by growing num_start_nodes independent random cluster growth clusters, 
     each targeting an equal share of the total x_pop budget, then computes the achieved rho and number of 
@@ -102,6 +103,8 @@ def generate_kclust_grid(graph, target_rho, num_start_nodes, max_retries = 50):
             Target global group fraction to distribute across num_start_nodes clusters
         num_start_nodes: int
             Number of clusters to grow. Clusters can merge into one another
+        rng: random.Random
+            Local RNG instance passed through to each populate_cluster_random call
     Returns:
         G: nx.Graph
             The modified graph with x_pop and y_pop set on every node
@@ -121,9 +124,9 @@ def generate_kclust_grid(graph, target_rho, num_start_nodes, max_retries = 50):
             y_nodes = [node for node in graph.nodes if graph.nodes[node]["x_pop"] == 0]
             if y_nodes == []:
                 return None
-            seed = random.choice(y_nodes)
+            start_node = rng.choice(y_nodes)
 
-            G, cluster_rho = populate_cluster_random(seed, graph, target_pop)
+            G, cluster_rho = populate_cluster_random(start_node, graph, target_pop, rng)
 
         for node in G.nodes():
             if G.nodes[node]["x_pop"] == 0:
