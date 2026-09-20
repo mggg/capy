@@ -4,19 +4,27 @@ Scripts that transform raw downloads into the intermediate files consumed by `gr
 
 ## Scripts
 
-### `census_geographies.py`
+### `build_census_geographies.py`
 
 Joins population tables to TIGER/NHGIS boundary shapefiles, producing one population-attributed `.gpkg` per state / year. Output goes to `data/shared/processed/census_geographies/<level>/`.
 
-- Reads population CSVs from `data/shared/raw/population/` and shapefiles from `data/shared/raw/geographies/`.
+- Reads population CSVs and boundaries beneath the configured `data_root`.
+- Builds the requested Census years plus the county/place inputs needed for study-area definitions.
 - Matches rows by a zero-padded FIPS JOIN_KEY (state + county + tract, etc.).
 - Reprojects all outputs to USA Contiguous Albers Equal Area (esri:102003).
 
 ```bash
-poetry run python capy_core/preprocessing/census_geographies.py \
-    --level tracts \
-    --years "2020 2010 2000"
+poetry run python -m capy_core.preprocessing.build_census_geographies \
+    --config capy_core/config.yaml
 ```
+
+The config controls the geography level, years, and paths; this command has no separate
+`--level` or `--years` overrides. Download all required inputs first. Missing-input errors name
+the relevant downloader commands, which still use `--level` and `--year`.
+
+Population counts must be nonnegative integers. The builder reports unmatched units separately
+from states excluded by the population extract. It rejects losses above 30% within selected states,
+except for the existing 1990 block exemption; permitted losses are still reported.
 
 ### `study_areas.py`
 

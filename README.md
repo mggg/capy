@@ -108,7 +108,7 @@ capy-bara/
 │   ├── metrics.py                      # segregation metric calculations
 │   ├── process_results.py              # enriches metrics CSV with study area metadata
 │   ├── download/                       # download_geographies.py, download_population_tables.py
-│   ├── preprocessing/                  # census_geographies.py, study_areas.py, overlaps.py
+│   ├── preprocessing/                  # build_census_geographies.py, study_areas.py, overlaps.py
 │   ├── utils/                          # definitions.py, pipeline_log.py
 │   └── tests/                          # pytest test suite
 │
@@ -135,7 +135,7 @@ The full pipeline is driven by `scripts/reproduce.sh`. Configuration lives in `c
 1. **`scripts/setup.sh`** — scaffolds the directory tree
 2. **`capy_core/download/download_population_tables.py`** — downloads decennial census race/ethnicity counts (TOTPOP, WHITE, BLACK, POC, etc.) via Census API; uses IPUMS/NHGIS extracts for 1980 and 1990
 3. **`capy_core/download/download_geographies.py`** — downloads TIGER/Line shapefiles (2000–2020 via Census API; 1980/1990 via IPUMS NHGIS)
-4. **`capy_core/preprocessing/census_geographies.py`** — joins population tables to shapefiles, producing one attributed shapefile per state/year/level in `data/shared/processed/census_geographies/`
+4. **`capy_core/preprocessing/build_census_geographies.py`** — joins population tables to shapefiles, producing one attributed shapefile per state/year/level in `data/shared/processed/census_geographies/`
 5. **`capy_core/preprocessing/study_areas.py`** — builds study area boundary polygons (e.g. CBSA outlines from county-component `.xls` files) into `data/shared/processed/study_area_definitions/`
 6. **`capy_core/preprocessing/overlaps.py`** — clips census geography shapefiles to each study area boundary; outputs clipped shapefiles to `data/shared/processed/clipped_geographies/`
 7. **`capy_core/graphs.py`** — builds the dual adjacency graph from each clipped shapefile; drops zero-population nodes and ensures full connectivity; outputs `*_connected.json` files to `data/shared/processed/dual_graphs/`
@@ -238,7 +238,7 @@ The module does not emit shell exports. The shell orchestration still needs migr
 ### `capy_core/download/download_population_tables.py`
 Downloads decennial census population tables (race, ethnicity, total) for a given geography level and set of years.
 ```bash
-poetry run python capy_core/download/download_population_tables.py \
+poetry run python -m capy_core.download.download_population_tables \
     --level tracts \
     --years "2020 2010 2000"
 ```
@@ -251,12 +251,13 @@ poetry run python capy_core/download/download_geographies.py \
     --years "2020 2010 2000"
 ```
 
-### `capy_core/preprocessing/census_geographies.py`
-Joins downloaded population tables to shapefiles, writing one `.gpkg` per state/year into `data/shared/processed/census_geographies/`.
+### `capy_core/preprocessing/build_census_geographies.py`
+Joins downloaded population tables to shapefiles for the configured Census years and study-area
+definition prerequisites. Writes one `.gpkg` per state/year beneath the configured `data_root`.
+See the [preprocessing guide](capy_core/preprocessing/README.md) for input requirements and join-loss rules.
 ```bash
-poetry run python capy_core/preprocessing/census_geographies.py \
-    --level tracts \
-    --years "2020 2010 2000"
+poetry run python -m capy_core.preprocessing.build_census_geographies \
+    --config capy_core/config.yaml
 ```
 
 ### `capy_core/preprocessing/study_areas.py`

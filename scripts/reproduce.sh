@@ -26,20 +26,19 @@ export METRIC_FAILURES_FILE="${RUN_OUTPUT_DIR}/metric_failures.csv"
 exec > >(tee -a "${PIPELINE_LOG_FILE}") 2>&1
 
 echo "=== 1. Download ==="
-poetry run python capy_core/download/download_population_tables.py --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
+poetry run python -m capy_core.download.download_population_tables --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
 poetry run python capy_core/download/download_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
-poetry run python capy_core/preprocessing/census_geographies.py --level "${CENSUS_GEOGRAPHY_TYPE}" --years "${CENSUS_GEOGRAPHY_YEARS}"
 
 # Only download study-area-definition geographies separately when they differ from the census geography type/year already fetched above (avoids a redundant download).
 if [ "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" != "${CENSUS_GEOGRAPHY_TYPE}" ] ||
     [[ " ${CENSUS_GEOGRAPHY_YEARS} " != *" ${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR} "* ]]; then
-    poetry run python capy_core/download/download_population_tables.py \
+    poetry run python -m capy_core.download.download_population_tables \
         --level "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" --years "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
     poetry run python capy_core/download/download_geographies.py \
         --level "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" --years "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
-    poetry run python capy_core/preprocessing/census_geographies.py \
-        --level "${STUDY_AREA_DEFINITION_GEOGRAPHY_TYPE}" --years "${STUDY_AREA_DEFINITION_GEOGRAPHY_YEAR}"
 fi
+
+poetry run python -m capy_core.preprocessing.build_census_geographies --config capy_core/config.yaml
 
 echo ""
 echo "=== 2. Study areas ==="

@@ -10,6 +10,8 @@ from census import Census
 from census.core import CensusException
 from ipumspy import AggregateDataExtract, IpumsApiClient, NhgisDataset
 
+from capy_core.geography_ids import normalize_census_part
+
 OUTPUT_DIR = Path("data/shared/raw/population")
 NHGIS_EXTRACTS_DIR = Path("data/shared/raw/population/ipums_population_extracts")
 DEFAULT_YEARS = [1980, 1990, 2000, 2010, 2020]
@@ -262,31 +264,25 @@ def parse_years(years: Optional[str], year_values: Optional[List[int]]) -> List[
     return DEFAULT_YEARS
 
 
-def normalized_geoid_part(
-    df: pd.DataFrame, col: str, width: int, year: int
-) -> pd.Series:
-    text = df[col].astype(str).str.strip()
-    if col == "tract" and year == 2000:
-        short = text.str.len() < width
-        normalized = text.str.zfill(width)
-        normalized.loc[short] = text.loc[short].str.zfill(4).str.ljust(width, "0")
-        return normalized
-    return text.str.zfill(width)
+def geoid(population_df: pd.DataFrame, columns: tuple[str, ...], year: int) -> pd.Series:
+    """Build Census API join identifiers from ordered FIPS components.
 
+    Args:
+        population_df (pd.DataFrame): Downloaded population rows with the requested columns.
+        columns (tuple[str, ...]): FIPS column names in concatenation order.
+        year (int): Census year; short 2000 tract codes use the API-specific encoding.
 
-def geoid(df: pd.DataFrame, cols: tuple, year: int) -> pd.Series:
-    widths = {
-        "state": 2,
-        "county": 3,
-        "tract": 6,
-        "block group": 1,
-        "block": 4,
-        "place": 5,
-    }
-    out = pd.Series([""] * len(df), index=df.index)
-    for col in cols:
-        out = out + normalized_geoid_part(df, col, widths[col], year)
-    return out
+    Returns:
+        pd.Series: Concatenated identifiers retaining the source index.
+
+    Raises:
+        ValueError: If an identifier component is missing or blank.
+    """
+    join_keys = pd.Series([""] * len(population_df), index=population_df.index)
+    for column in columns:
+        part = "block_group" if column == "block group" else column
+        join_keys = join_keys + normalize_census_part(population_df[column], part, year)
+    return join_keys
 
 
 def fetch_county_scoped_census_rows(

@@ -25,7 +25,7 @@ Downloads decennial census race and ethnicity counts (TOTPOP, NH_WHITE, NH_BLACK
 - **1980–1990**: submits an IPUMS/NHGIS extract and polls until ready, then saves the result to `data/shared/raw/population/nhgis_{year}_{level}.csv`. Requires `IPUMS_API_KEY`.
 
 ```bash
-poetry run python capy_core/download/download_population_tables.py \
+poetry run python -m capy_core.download.download_population_tables \
     --level tracts \
     --years "2020 2010 2000"
 ```
