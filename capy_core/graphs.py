@@ -33,12 +33,34 @@ def main(
     Processes files in parallel, then aggregates any dropped zero-population
     nodes across all study areas into one .gpkg per census year under
     ``data/shared/outputs/<geography>_in_<study_area_type>/dropped_nodes/``.
+
+    Malformed filenames are reported to stderr and skipped before graph construction.
+    Year selection uses the Census year in each basename, not its parent directory.
+
+    Args:
+        input_glob (str): Pattern matching selected-geography GeoPackages.
+        output_base_dir (str, optional): Base directory for graph JSONs. Defaults to
+            data/shared/processed/dual_graphs.
+        workers (int, optional): Number of worker processes. Defaults to 6.
+        attr (str, optional): Column identifying geographic units. Defaults to GISJOIN.
+        years (str | None, optional): Space-separated Census years, or None for all years.
+            Defaults to None.
+
+    Raises:
+        FileNotFoundError: If no valid filenames match the requested years.
     """
-    gpkg_files = sorted(glob.glob(input_glob))
-    # select only files for the requested years, if specified
-    if years:
-        year_set = set(years.split())
-        gpkg_files = [f for f in gpkg_files if str(parse_geography_name(f).census_year) in year_set]
+    gpkg_files = []
+    year_set = set(years.split()) if years else None
+    for filename in sorted(glob.glob(input_glob)):
+        try:
+            geography_identity = parse_geography_name(filename)
+        except ValueError as error:
+            typer.echo(f"Skipping {filename}: {error}", err=True)
+            continue
+
+        if year_set is None or str(geography_identity.census_year) in year_set:
+            gpkg_files.append(filename)
+
     if not gpkg_files:
         raise FileNotFoundError(f"No .gpkg files matched: {input_glob!r}")
 
@@ -138,7 +160,9 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
             flush=True,
         )
 
-    connected_graph.to_json(str(out_dir / format_graph_name(geography_identity, "connected")))
+    connected_graph.to_json(
+        str(out_dir / format_graph_name(geography_identity, "connected"))
+    )
 
     if dropped_indices:
         dropped_gdf = geofile.loc[dropped_indices].copy()

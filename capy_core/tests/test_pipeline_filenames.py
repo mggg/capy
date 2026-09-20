@@ -29,12 +29,16 @@ def test_pipeline_filenames_round_trip_without_using_parent_directory(
     identity = StudyAreaIdentity(study_area_type, area_code, label)
     geography_identity = GeographyFileIdentity(identity, geography, 2010)
     definition_stem = f"{study_area_type}_{area_code}_{label}"
-    geography_stem = f"{geography}_in_{study_area_type}_{area_code}_2010_{label}_vintage"
+    geography_stem = (
+        f"{geography}_in_{study_area_type}_{area_code}_2010_{label}_vintage"
+    )
 
     assert format_definition_stem(identity) == definition_stem
     assert format_geography_stem(geography_identity) == geography_stem
     for extension in ("json", "gpkg"):
-        assert parse_definition_name(parent / f"{definition_stem}.{extension}") == identity
+        assert (
+            parse_definition_name(parent / f"{definition_stem}.{extension}") == identity
+        )
 
     assert parse_geography_name(parent / f"{geography_stem}.gpkg") == geography_identity
     for variant in ("orig", "connected"):
@@ -61,7 +65,12 @@ def test_rejects_unsupported_geography_names(filename):
 
 @pytest.mark.parametrize(
     "filename",
-    ["county_abc_label.json", "counties_01001_label.gpkg", "cbsa_10180_.json", "cbsa_10180_a.txt"],
+    [
+        "county_abc_label.json",
+        "counties_01001_label.gpkg",
+        "cbsa_10180_.json",
+        "cbsa_10180_a.txt",
+    ],
 )
 def test_rejects_invalid_definition_names(filename):
     with pytest.raises(ValueError):

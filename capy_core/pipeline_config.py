@@ -168,14 +168,18 @@ class ResolvedConfig:
         geography = self.definition_geography_type
         year = self.settings.study_area_vintage
 
-        return str(self.census_geographies_path / geography / f"{year}_{geography}_*.gpkg")
+        return str(
+            self.census_geographies_path / geography / f"{year}_{geography}_*.gpkg"
+        )
 
     @property
     def definition_county_glob(self) -> str:
         """County inputs also needed when selecting the largest city in each CBSA."""
         year = self.settings.study_area_vintage
 
-        return str(self.census_geographies_path / "counties" / f"{year}_counties_*.gpkg")
+        return str(
+            self.census_geographies_path / "counties" / f"{year}_counties_*.gpkg"
+        )
 
     @property
     def run_relative_path(self) -> Path:
@@ -183,7 +187,11 @@ class ResolvedConfig:
         study_area = self.settings.study_area_type
         year_label = "_".join(str(year) for year in sorted(self.effective_years))
 
-        return Path(f"{geography}_in_{study_area}") / self.settings.study_area_label / year_label
+        return (
+            Path(f"{geography}_in_{study_area}")
+            / self.settings.study_area_label
+            / year_label
+        )
 
     @property
     def run_output_path(self) -> Path:
@@ -262,7 +270,9 @@ def parse_pipeline_settings(raw_yaml: object) -> PipelineSettings:
     repo_root_path = None if repo_root is None else parse_path(repo_root, "repo_root")
 
     if census_geography_type in ("blocks", "block_groups") and years == (1980,):
-        raise ValueError(f"No supported boundary years selected for {census_geography_type}")
+        raise ValueError(
+            f"No supported boundary years selected for {census_geography_type}"
+        )
 
     if study_area_type == "max_city" and vintage != 2020:
         raise ValueError("max_city currently requires study_area_vintage: 2020")
@@ -275,11 +285,15 @@ def parse_pipeline_settings(raw_yaml: object) -> PipelineSettings:
         study_area_vintage=vintage,
         study_area_label=parse_study_area_label(raw_yaml["study_area_label"]),
         repo_root_path=repo_root_path,
-        data_root_path=parse_path(raw_yaml.get("data_root", "data/shared"), "data_root"),
+        data_root_path=parse_path(
+            raw_yaml.get("data_root", "data/shared"), "data_root"
+        ),
         output_root_path=parse_path(
             raw_yaml.get("output_root", "data/shared/outputs"), "output_root"
         ),
-        figure_root_path=parse_path(raw_yaml.get("figure_root", "figures/baseline"), "figure_root"),
+        figure_root_path=parse_path(
+            raw_yaml.get("figure_root", "figures/baseline"), "figure_root"
+        ),
         env_file_path=parse_path(raw_yaml.get("env_file", ".env"), "env_file"),
         parallel_graph_workers=parse_parallel_graph_workers(
             raw_yaml.get("parallel_graph_workers", 6)
@@ -317,7 +331,9 @@ def validate_config_fields_exist(raw_yaml: dict[object, object]) -> None:
     unknown_fields = raw_yaml.keys() - allowed_fields
 
     if missing_fields:
-        raise ValueError(f"Missing required fields: {', '.join(sorted(missing_fields))}")
+        raise ValueError(
+            f"Missing required fields: {', '.join(sorted(missing_fields))}"
+        )
 
     if unknown_fields:
         field_names = ", ".join(sorted(str(field) for field in unknown_fields))

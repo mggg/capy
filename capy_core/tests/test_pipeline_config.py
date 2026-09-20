@@ -43,11 +43,21 @@ def test_paths_resolve_from_config_and_root_not_working_directory(
     config = load_config(config_path.relative_to(tmp_path))
 
     assert config.repo_root_path == expected_root
-    assert config.raw_population_path == expected_root / "census data" / "raw" / "population"
-    assert config.graphs_path == expected_root / "census data" / "processed" / "dual_graphs"
-    assert config.run_output_path == expected_root / "results/tracts_in_county/march_2020/2020"
     assert (
-        config.figure_output_path == tmp_path / "absolute figures/tracts_in_county/march_2020/2020"
+        config.raw_population_path
+        == expected_root / "census data" / "raw" / "population"
+    )
+    assert (
+        config.graphs_path
+        == expected_root / "census data" / "processed" / "dual_graphs"
+    )
+    assert (
+        config.run_output_path
+        == expected_root / "results/tracts_in_county/march_2020/2020"
+    )
+    assert (
+        config.figure_output_path
+        == tmp_path / "absolute figures/tracts_in_county/march_2020/2020"
     )
     assert config.env_file_path == expected_root / "credentials.env"
     assert config.settings.parallel_graph_workers == 2
@@ -68,7 +78,9 @@ def test_omitted_root_and_execution_settings_use_documented_defaults(tmp_path):
 
 
 @pytest.mark.parametrize("absolute_source", [False, True])
-def test_explicit_csv_source_and_label_are_independent_of_filename(tmp_path, absolute_source):
+def test_explicit_csv_source_and_label_are_independent_of_filename(
+    tmp_path, absolute_source
+):
     source_path = tmp_path / "metro membership.csv"
     source_path.write_text("CBSA Code,CBSA Title\n", encoding="utf-8")
     config_path = write_config(
@@ -81,15 +93,30 @@ def test_explicit_csv_source_and_label_are_independent_of_filename(tmp_path, abs
     config = load_config(config_path)
 
     assert config.study_area_source_path == source_path
-    assert config.run_relative_path.as_posix() == "tracts_in_max_city/chosen_definition/2020"
+    assert (
+        config.run_relative_path.as_posix()
+        == "tracts_in_max_city/chosen_definition/2020"
+    )
     assert config.definition_geography_type == "places"
 
 
 @pytest.mark.parametrize(
     "geography, years, study_area_type, expected, year_label",
     [
-        ("counties", [2020, 2010], "county", [(2020, "counties"), (2010, "counties")], "2010_2020"),
-        ("blocks", [1980, 2020], "county", [(2020, "blocks"), (2020, "counties")], "2020"),
+        (
+            "counties",
+            [2020, 2010],
+            "county",
+            [(2020, "counties"), (2010, "counties")],
+            "2010_2020",
+        ),
+        (
+            "blocks",
+            [1980, 2020],
+            "county",
+            [(2020, "blocks"), (2020, "counties")],
+            "2020",
+        ),
         (
             "tracts",
             [2020, 1980],
@@ -108,14 +135,17 @@ def test_geography_requests_include_definition_inputs_once(
         write_config(
             tmp_path / "configs" / "run.yaml",
             study_area_type=study_area_type,
-            study_area_source=source_path.name if study_area_type == "max_city" else None,
+            study_area_source=source_path.name
+            if study_area_type == "max_city"
+            else None,
             census_geography_type=geography,
             census_geography_years=years,
         )
     )
 
     assert [
-        (request.year, request.geography) for request in build_geography_requests(config)
+        (request.year, request.geography)
+        for request in build_geography_requests(config)
     ] == expected
     assert config.settings.census_geography_years == tuple(years)
     assert config.run_relative_path.parts[-1] == year_label
@@ -131,7 +161,10 @@ def test_geography_requests_include_definition_inputs_once(
         ({"census_geography_years": []}, "nonempty list"),
         ({"census_geography_years": [True]}, "Unsupported census geography year"),
         ({"census_geography_years": [2020, 2020]}, "Duplicate census geography year"),
-        ({"census_geography_type": "blocks", "census_geography_years": [1980]}, "boundary years"),
+        (
+            {"census_geography_type": "blocks", "census_geography_years": [1980]},
+            "boundary years",
+        ),
         ({"study_area_vintage": "2020"}, "study_area_vintage"),
         ({"parallel_graph_workers": True}, "parallel_graph_workers"),
         ({"parallel_graph_workers": 0}, "parallel_graph_workers"),

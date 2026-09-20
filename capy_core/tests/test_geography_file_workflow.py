@@ -27,7 +27,12 @@ def test_definition_selection_graph_and_report_share_geography_identity(tmp_path
     census_dir = tmp_path / "census"
     (census_dir / "tracts").mkdir(parents=True)
     tracts = gpd.GeoDataFrame(
-        {"STATEFP": ["01", "01"], "GISJOIN": ["A", "B"], "WHITE": [25, 25], "BLACK": [25, 25]},
+        {
+            "STATEFP": ["01", "01"],
+            "GISJOIN": ["A", "B"],
+            "WHITE": [25, 25],
+            "BLACK": [25, 25],
+        },
         geometry=[box(0, 0, 1, 1), box(1, 0, 2, 1)],
         crs="ESRI:102003",
     )
@@ -60,9 +65,9 @@ def test_definition_selection_graph_and_report_share_geography_identity(tmp_path
     assert definitions[["sa_type", "sa_id", "vintage"]].values.tolist() == [
         ["county", "01001", "region_in_1990"]
     ]
-    assert selected[["sa_type", "sa_id", "vintage", "year", "unit_count"]].values.tolist() == [
-        ["county", "01001", "region_in_1990", "2010", 2]
-    ]
+    assert selected[
+        ["sa_type", "sa_id", "vintage", "year", "unit_count"]
+    ].values.tolist() == [["county", "01001", "region_in_1990", "2010", 2]]
 
 
 def test_metric_failure_records_code_without_losing_malformed_filename_errors(
@@ -74,9 +79,14 @@ def test_metric_failure_records_code_without_losing_malformed_filename_errors(
         "parent_in_name/tracts_in_county_01001_2010_region_in_1990_vintage_connected.json",
         "malformed.json",
     ):
-        write_failure(filename, "BLACK", "WHITE", "TOTPOP", ValueError("missing population"))
+        write_failure(
+            filename, "BLACK", "WHITE", "TOTPOP", ValueError("missing population")
+        )
 
     with failures.open() as source:
         rows = list(csv.DictReader(source))
     assert [row["study_area_code"] for row in rows] == ["01001", ""]
-    assert [row["error_message"] for row in rows] == ["missing population", "missing population"]
+    assert [row["error_message"] for row in rows] == [
+        "missing population",
+        "missing population",
+    ]

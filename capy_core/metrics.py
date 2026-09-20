@@ -33,22 +33,52 @@ def main(
 ):
     """Compute segregation metrics for every graph JSON matched by input_glob.
 
-    Runs in parallel via ProcessPoolExecutor. Writes one CSV row per file to
+    Runs in parallel via ProcessPoolExecutor. Writes one CSV row per successful file to
     output. Failures are appended to the path in the METRIC_FAILURES_FILE
     environment variable.
+
+    Malformed filenames are recorded as failures and skipped. Other selected files
+    finish before a failure exit status is returned. Year selection uses the Census
+    year in the basename, independently of the parent directory.
+
+    Args:
+        input_glob (str): Pattern matching graph JSON files.
+        x_col (str): Node attribute containing the first population group's counts.
+        y_col (str): Node attribute containing the second population group's counts.
+        tot_col (str): Node attribute containing total population counts.
+        output (Path): Destination metrics CSV, including its header.
+        workers (int, optional): Number of worker processes. Defaults to 6.
+        years (str | None, optional): Space-separated Census years, or None for all years.
+            Defaults to None.
+
+    Raises:
+        FileNotFoundError: If no valid files match the requested years and no filename
+            failures were recorded.
+        typer.Exit: With status 1 after processing if any filename or metric calculation failed.
     """
-    files = sorted(glob.glob(input_glob))
-    # select only files for the specified years, if any
-    if years:
-        year_set = set(years.split())
-        files = [f for f in files if str(parse_geography_name(f).census_year) in year_set]
+    files = []
+    n_failed = 0
+    year_set = set(years.split()) if years else None
+    for filename in sorted(glob.glob(input_glob)):
+        try:
+            geography_identity = parse_geography_name(filename)
+        except ValueError as error:
+            write_failure(filename, x_col, y_col, tot_col, error)
+            print(f"FAILED {filename}: {type(error).__name__}: {error}", file=sys.stderr)
+            n_failed += 1
+            continue
+
+        if year_set is None or str(geography_identity.census_year) in year_set:
+            files.append(filename)
+
     if not files:
+        if n_failed:
+            raise typer.Exit(code=1)
         raise FileNotFoundError(f"No graph JSON files matched: {input_glob!r}")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     worker = partial(_process_file, x_col=x_col, y_col=y_col, tot_col=tot_col)
     n_ok = 0
-    n_failed = 0
     with open(output, "w") as f:
         f.write(build_headers(x_col, y_col, tot_col) + "\n")
         with ProcessPoolExecutor(max_workers=workers) as pool:
@@ -149,7 +179,9 @@ def write_failure(
     try:
         study_area_code = parse_geography_name(filename).study_area.area_code
     except ValueError:
-        study_area_code = ""  # A malformed filename must not prevent recording the original failure.
+        study_area_code = (
+            ""  # A malformed filename must not prevent recording the original failure.
+        )
 
     row = {
         "filename": filename,

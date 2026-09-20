@@ -37,7 +37,8 @@ def join_study_area_metadata(
     geography_identities = df["filename"].apply(parse_geography_name)
     definition_paths = geography_identities.apply(
         lambda geography_identity: (
-            definitions_dir / f"{format_definition_stem(geography_identity.study_area)}.json"
+            definitions_dir
+            / f"{format_definition_stem(geography_identity.study_area)}.json"
         )
     )
     cbsa_infos = definition_paths.apply(parse_cbsa)

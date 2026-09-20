@@ -62,10 +62,14 @@ def _run_year(
     ):
         study_area = parse_definition_name(study_area_file)
         if study_area.study_area_label != study_area_label:
-            raise ValueError(f"{study_area_file} does not have study-area label {study_area_label}")
+            raise ValueError(
+                f"{study_area_file} does not have study-area label {study_area_label}"
+            )
 
         geography_identity = GeographyFileIdentity(
-            study_area, cast(CensusGeographyType, census_geography_type), int(census_geography_year)
+            study_area,
+            cast(CensusGeographyType, census_geography_type),
+            int(census_geography_year),
         )
         selected_geographies_stem = format_geography_stem(geography_identity)
         study_area_gdf = gpd.read_file(study_area_file).to_crs("esri:102003")

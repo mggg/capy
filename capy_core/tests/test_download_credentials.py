@@ -3,7 +3,9 @@ import pytest
 from capy_core.download import download_geographies, download_population_tables
 
 
-@pytest.mark.parametrize("downloader", [download_geographies, download_population_tables])
+@pytest.mark.parametrize(
+    "downloader", [download_geographies, download_population_tables]
+)
 @pytest.mark.parametrize("file_exists", [False, True])
 def test_configured_credentials_override_environment_with_fallback(
     tmp_path, monkeypatch, downloader, file_exists

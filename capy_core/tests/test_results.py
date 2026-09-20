@@ -15,7 +15,9 @@ def test_metadata_lookup_uses_complete_label_and_filename_year(tmp_path):
         "component_counties_fips": ["01001"],
         "total_population": 100,
     }
-    (tmp_path / "county_01001_region_in_1990_label.json").write_text(json.dumps(definition))
+    (tmp_path / "county_01001_region_in_1990_label.json").write_text(
+        json.dumps(definition)
+    )
     metrics = pd.DataFrame(
         {
             "filename": [

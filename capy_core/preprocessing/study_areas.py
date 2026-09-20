@@ -300,7 +300,9 @@ def build_max_city_definitions(
         max_place = places_in_cbsa.loc[[max_idx]]
 
         output_stem = format_definition_stem(
-            StudyAreaIdentity("max_city", str(max_place["GEOID"].iloc[0]), study_area_label)
+            StudyAreaIdentity(
+                "max_city", str(max_place["GEOID"].iloc[0]), study_area_label
+            )
         )
 
         study_area = StudyArea(

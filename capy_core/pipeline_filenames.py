@@ -102,7 +102,9 @@ def format_definition_stem(identity: StudyAreaIdentity) -> str:
         ValueError: If the type, code, or label is invalid.
     """
     validate_study_area_identity(identity)
-    return f"{identity.study_area_type}_{identity.area_code}_{identity.study_area_label}"
+    return (
+        f"{identity.study_area_type}_{identity.area_code}_{identity.study_area_label}"
+    )
 
 
 def validate_study_area_identity(identity: StudyAreaIdentity) -> None:
@@ -114,7 +116,9 @@ def validate_study_area_identity(identity: StudyAreaIdentity) -> None:
         or not identity.area_code.isascii()
         or not identity.area_code.isdecimal()
     ):
-        raise ValueError(f"Study-area code must be a string of digits: {identity.area_code!r}")
+        raise ValueError(
+            f"Study-area code must be a string of digits: {identity.area_code!r}"
+        )
 
     parse_study_area_label(identity.study_area_label)
 
@@ -154,7 +158,9 @@ def parse_geography_name(path: str | Path) -> GeographyFileIdentity:
 
     study_area = StudyAreaIdentity(study_area_type, area_code, label)
     validate_study_area_identity(study_area)
-    return GeographyFileIdentity(study_area, cast(CensusGeographyType, geography_type), census_year)
+    return GeographyFileIdentity(
+        study_area, cast(CensusGeographyType, geography_type), census_year
+    )
 
 
 def format_geography_stem(geography_identity: GeographyFileIdentity) -> str:
