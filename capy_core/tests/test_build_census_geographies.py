@@ -56,7 +56,9 @@ def test_standardize_census_block_group_geography():
         crs="EPSG:4326",
     )
 
-    standardized_geography_gdf = standardize_census_geography(geography_gdf, "block_groups")
+    standardized_geography_gdf = standardize_census_geography(
+        geography_gdf, "block_groups"
+    )
 
     assert standardized_geography_gdf.loc[0, "JOIN_KEY"] == "010010201002"
     assert standardized_geography_gdf.loc[0, "GISJOIN"] == "G010010201002"
@@ -130,7 +132,11 @@ def test_nested_nhgis_shapefile_uses_explicit_year_for_level_directory(tmp_path)
     shape_dir = tmp_path / "shape"
     inner_zip = tmp_path / "nhgis0046_shapefile_tl2000_us_blck_grp_1990.zip"
     outer_zip = (
-        tmp_path / "ipums_geography_extracts" / "1990" / "block_groups" / "nhgis0046_shape.zip"
+        tmp_path
+        / "ipums_geography_extracts"
+        / "1990"
+        / "block_groups"
+        / "nhgis0046_shape.zip"
     )
     outer_zip.parent.mkdir(parents=True)
 
@@ -223,8 +229,12 @@ def test_2000_identifiers_agree_across_download_and_source_adapters():
     parsed_population_df = parse_census_population(
         population_df, Path("2000.csv"), 2000, "block_groups"
     )
-    standardized_geography_gdf = standardize_census_geography(geography_gdf, "block_groups")
-    downloaded_keys = geoid(population_df, ("state", "county", "tract", "block group"), 2000)
+    standardized_geography_gdf = standardize_census_geography(
+        geography_gdf, "block_groups"
+    )
+    downloaded_keys = geoid(
+        population_df, ("state", "county", "tract", "block group"), 2000
+    )
 
     assert (
         parsed_population_df["JOIN_KEY"].tolist()
@@ -277,7 +287,9 @@ def test_population_join_counts_losses_and_preserves_existing_1990_exception(cap
 def test_population_join_rejects_duplicate_keys_and_missing_counts():
     from capy_core.preprocessing.build_census_geographies import join_population
 
-    geography_gdf = gpd.GeoDataFrame({"JOIN_KEY": ["a"], "STATEFP": ["01"]}, geometry=[Point(0, 0)])
+    geography_gdf = gpd.GeoDataFrame(
+        {"JOIN_KEY": ["a"], "STATEFP": ["01"]}, geometry=[Point(0, 0)]
+    )
     population_df = pd.DataFrame(
         {
             "JOIN_KEY": ["a"],
@@ -289,9 +301,13 @@ def test_population_join_rejects_duplicate_keys_and_missing_counts():
         }
     )
     with pytest.raises(pd.errors.MergeError):
-        join_population(geography_gdf, pd.concat([population_df, population_df]), 2020, "tracts")
+        join_population(
+            geography_gdf, pd.concat([population_df, population_df]), 2020, "tracts"
+        )
     with pytest.raises(pd.errors.MergeError):
-        join_population(pd.concat([geography_gdf, geography_gdf]), population_df, 2020, "tracts")
+        join_population(
+            pd.concat([geography_gdf, geography_gdf]), population_df, 2020, "tracts"
+        )
     geography_gdf.loc[0, "JOIN_KEY"] = None
     with pytest.raises(ValueError, match="missing join keys"):
         join_population(geography_gdf, population_df, 2020, "tracts")
@@ -301,12 +317,14 @@ def test_population_join_rejects_duplicate_keys_and_missing_counts():
         join_population(geography_gdf, population_df, 2020, "tracts")
 
 
-def test_configured_builder_writes_nodes_and_definition_prerequisites(tmp_path, monkeypatch):
-    import typer
-    import yaml
-    from typer.testing import CliRunner
+def test_configured_builder_writes_nodes_and_definition_prerequisites(
+    tmp_path, monkeypatch
+):
+    import os
+    import subprocess
+    import sys
 
-    from capy_core.preprocessing.build_census_geographies import main
+    import yaml
 
     config_dir = tmp_path / "configs"
     config_dir.mkdir()
@@ -361,32 +379,48 @@ def test_configured_builder_writes_nodes_and_definition_prerequisites(tmp_path, 
         geography_gdf.to_file(shape_dir / "boundaries.shp")
 
     monkeypatch.chdir(config_dir)
-    app = typer.Typer()
-    app.command()(main)
-    result = CliRunner().invoke(app, ["--config", str(config_path)])
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "capy_core.preprocessing.build_census_geographies",
+            "--config",
+            str(config_path),
+        ],
+        env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
 
-    assert result.exit_code == 0, result.output
     output_dir = tmp_path / "inputs" / "processed" / "census_geographies"
     paths = sorted(output_dir.rglob("*.gpkg"))
     assert len(paths) == 5
     for path in paths:
         populated_geography_gdf = gpd.read_file(path)
-        assert populated_geography_gdf[["WHITE", "BLACK", "TOTPOP", "POC"]].values.tolist() == [
-            [10, 5, 20, 10]
-        ]
+        assert populated_geography_gdf[
+            ["WHITE", "BLACK", "TOTPOP", "POC"]
+        ].values.tolist() == [[10, 5, 20, 10]]
         assert populated_geography_gdf.crs.to_string().lower() == "esri:102003"
-    assert [line for line in result.output.splitlines() if line.startswith("Creating")] == [
-        f"Creating {year} {level} geography geopackage files" for year, level in requests
+    assert [
+        line for line in result.stdout.splitlines() if line.startswith("Creating")
+    ] == [
+        f"Creating {year} {level} geography geopackage files"
+        for year, level in requests
     ]
-    assert "0 unmatched" in result.output
-    assert "has no" not in result.output  # County-only states do not affect tract summaries.
+    assert "0 unmatched" in result.stdout
+    assert (
+        "has no" not in result.stdout
+    )  # County-only states do not affect tract summaries.
 
 
 def test_missing_inputs_report_both_download_commands(tmp_path):
     from capy_core.preprocessing.build_census_geographies import check_source_inputs
 
     with pytest.raises(FileNotFoundError) as error:
-        check_source_inputs(1990, "tracts", tmp_path / "population", tmp_path / "geographies")
+        check_source_inputs(
+            1990, "tracts", tmp_path / "population", tmp_path / "geographies"
+        )
 
     message = str(error.value)
     assert "download_population_tables --level tracts --year 1990" in message

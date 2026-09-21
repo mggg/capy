@@ -6,7 +6,7 @@ Global Parameters:
     FIPS: int
         The state FIPS code for Iowa (19)
 """
-import typer
+import argparse
 import pandas as pd
 import geopandas as gpd
 from census import Census
@@ -135,5 +135,9 @@ def make_iowa_gdf(year, popcolumns):
     return merged_gdf
 
 if __name__ == "__main__":
-    typer.run(main)
-
+    parser = argparse.ArgumentParser(
+        description="Download and merge Iowa county boundaries and Census population data.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

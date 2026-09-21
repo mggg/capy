@@ -5,6 +5,7 @@ The script builds study area definition files (.gpkg + .json), one per study are
 The .gpkg files are what overlaps.py reads as study_area_glob.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -15,7 +16,6 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 import tqdm
-import typer
 
 from capy_core.pipeline_filenames import StudyAreaIdentity, format_definition_stem
 from capy_core.utils.definitions import StudyArea
@@ -344,4 +344,19 @@ def load_census_geography(path_or_glob: str) -> gpd.GeoDataFrame:
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Build study-area boundaries and metadata for the selected area type.",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--filename", default="data/shared/raw/study_area_sources/list1_march_2020.xls"
+    )
+    parser.add_argument("--definition-geographies", default=None)
+    parser.add_argument(
+        "--output-dir", default="data/shared/processed/study_area_definitions"
+    )
+    parser.add_argument("--study-area-type", default="cbsa")
+    parser.add_argument("--study-area-label", default="march_2020")
+    parser.add_argument("--cbsa-geographies", default=None)
+    args = parser.parse_args()
+    main(**vars(args))

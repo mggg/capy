@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 import time
@@ -6,7 +7,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import requests
-import typer
 from ipumspy import AggregateDataExtract, IpumsApiClient, Shapefile
 
 OUTPUT_DIR = Path("data/shared/raw/geographies")
@@ -465,18 +465,12 @@ def fetch_census(year: int, level: str, output_dir: Path) -> Path:
 
 
 def main(
-    level: str = typer.Option(
-        "tracts", help="tracts, block_groups, blocks, or counties"
-    ),
-    years: Optional[str] = typer.Option(
-        None, "--years", help="Space- or comma-separated years."
-    ),
-    year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
-    output_dir: Path = typer.Option(OUTPUT_DIR),
-    work_dir: Path = typer.Option(
-        Path("data/shared/raw/geographies/ipums_geography_extracts")
-    ),
-    env_file: Path = typer.Option(Path(".env")),
+    level: str = "tracts",
+    years: Optional[str] = None,
+    year_values: Optional[List[int]] = None,
+    output_dir: Path = OUTPUT_DIR,
+    work_dir: Path = Path("data/shared/raw/geographies/ipums_geography_extracts"),
+    env_file: Path = Path(".env"),
 ) -> None:
     load_dotenv(env_file)
 
@@ -510,4 +504,25 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Download geographies.",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--level", default="tracts", help="tracts, block_groups, blocks, or counties"
+    )
+    parser.add_argument(
+        "--years", default=None, help="Space- or comma-separated years."
+    )
+    parser.add_argument(
+        "--year", "-y", dest="year_values", type=int, action="append", default=None
+    )
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
+    parser.add_argument(
+        "--work-dir",
+        type=Path,
+        default=Path("data/shared/raw/geographies/ipums_geography_extracts"),
+    )
+    parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    args = parser.parse_args()
+    main(**vars(args))

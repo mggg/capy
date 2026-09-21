@@ -25,7 +25,9 @@ def test_population_counts_preserve_index_and_int64_limit():
 @pytest.mark.parametrize("value", [None, "bad", "1.5", "inf", "-1", str(2**63)])
 def test_invalid_population_counts_identify_the_source(value):
     with pytest.raises(ValueError, match=r"population.csv: TOTPOP"):
-        parse_population_counts(pd.Series([value]), source=Path("population.csv"), column="TOTPOP")
+        parse_population_counts(
+            pd.Series([value]), source=Path("population.csv"), column="TOTPOP"
+        )
 
 
 def test_1980_concatenated_tables_distinguish_absent_prefixes_from_missing_cells():
@@ -79,9 +81,13 @@ def test_1980_requires_full_unsplit_race_table_and_nonnegative_subtraction():
     with pytest.raises(ValueError, match="WHITE"):
         parse_nhgis_1980_population(source_population_df, Path("1980.csv"))
     with pytest.raises(ValueError, match="C9D015"):
-        parse_nhgis_1980_population(source_population_df.drop(columns="C9D015"), Path("1980.csv"))
+        parse_nhgis_1980_population(
+            source_population_df.drop(columns="C9D015"), Path("1980.csv")
+        )
     with pytest.raises(ValueError, match="C9G001"):
-        parse_nhgis_1980_population(source_population_df.drop(columns="C9G001"), Path("1980.csv"))
+        parse_nhgis_1980_population(
+            source_population_df.drop(columns="C9G001"), Path("1980.csv")
+        )
 
 
 def test_1990_csv_loader_retains_et2_mapping_and_computes_poc(tmp_path):
@@ -98,7 +104,9 @@ def test_1990_csv_loader_retains_et2_mapping_and_computes_poc(tmp_path):
 
     population_df = load_population_table(1990, tmp_path, "counties")
 
-    assert population_df[["WHITE", "BLACK", "TOTPOP", "POC"]].values.tolist() == [[1, 2, 55, 54]]
+    assert population_df[["WHITE", "BLACK", "TOTPOP", "POC"]].values.tolist() == [
+        [1, 2, 55, 54]
+    ]
     assert population_df["JOIN_KEY"].tolist() == ["G0100010"]
 
 

@@ -7,6 +7,7 @@ This script finds which node units (e.g. tracts, blocks) fall within which study
 5. Save these geographies.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -19,7 +20,6 @@ import fiona
 import geopandas as gpd
 import pandas as pd
 import tqdm
-import typer
 
 from capy_core.pipeline_config import CensusGeographyType
 from capy_core.pipeline_filenames import (
@@ -142,4 +142,17 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Select Census geographies by representative point within each study area.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("study_area_glob")
+    parser.add_argument("output_base_dir")
+    parser.add_argument("--census-geography-type", default="")
+    parser.add_argument("--census-geography-years", default="")
+    parser.add_argument("--study-area-label", default="2020")
+    parser.add_argument(
+        "--census-geographies-dir", default="data/shared/processed/census_geographies"
+    )
+    args = parser.parse_args()
+    main(**vars(args))

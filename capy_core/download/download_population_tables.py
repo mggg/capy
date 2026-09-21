@@ -1,3 +1,4 @@
+import argparse
 import os
 import shutil
 import zipfile
@@ -5,7 +6,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
-import typer
 from census import Census
 from census.core import CensusException
 from ipumspy import AggregateDataExtract, IpumsApiClient, NhgisDataset
@@ -264,7 +264,9 @@ def parse_years(years: Optional[str], year_values: Optional[List[int]]) -> List[
     return DEFAULT_YEARS
 
 
-def geoid(population_df: pd.DataFrame, columns: tuple[str, ...], year: int) -> pd.Series:
+def geoid(
+    population_df: pd.DataFrame, columns: tuple[str, ...], year: int
+) -> pd.Series:
     """Build Census API join identifiers from ordered FIPS components.
 
     Args:
@@ -465,17 +467,13 @@ def fetch_nhgis(year: int, level: str, output_dir: Path, work_dir: Path) -> Path
 
 
 def main(
-    level: str = typer.Option(
-        "tracts", help="tracts, block_groups, blocks, or counties"
-    ),
-    years: Optional[str] = typer.Option(
-        None, "--years", help="Space- or comma-separated years."
-    ),
-    year_values: Optional[List[int]] = typer.Option(None, "--year", "-y"),
-    states: Optional[str] = typer.Option(None, help="Comma-separated state FIPS codes"),
-    output_dir: Path = typer.Option(OUTPUT_DIR),
-    work_dir: Path = typer.Option(NHGIS_EXTRACTS_DIR),
-    env_file: Path = typer.Option(Path(".env")),
+    level: str = "tracts",
+    years: Optional[str] = None,
+    year_values: Optional[List[int]] = None,
+    states: Optional[str] = None,
+    output_dir: Path = OUTPUT_DIR,
+    work_dir: Path = NHGIS_EXTRACTS_DIR,
+    env_file: Path = Path(".env"),
 ) -> None:
     load_dotenv(env_file)
 
@@ -509,4 +507,24 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Download population tables.",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--level", default="tracts", help="tracts, block_groups, blocks, or counties"
+    )
+    parser.add_argument(
+        "--years", default=None, help="Space- or comma-separated years."
+    )
+    parser.add_argument(
+        "--year", "-y", dest="year_values", type=int, action="append", default=None
+    )
+    parser.add_argument(
+        "--states", default=None, help="Comma-separated state FIPS codes"
+    )
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
+    parser.add_argument("--work-dir", type=Path, default=NHGIS_EXTRACTS_DIR)
+    parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    args = parser.parse_args()
+    main(**vars(args))

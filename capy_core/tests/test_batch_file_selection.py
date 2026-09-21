@@ -5,7 +5,6 @@ import geopandas as gpd
 import gerrychain
 import networkx as nx
 import pytest
-import typer
 from shapely.geometry import box
 
 from capy_core import graphs, metrics
@@ -25,18 +24,22 @@ def test_graph_batch_skips_malformed_names_and_uses_basename_year(
         directory = input_dir / str(parent_year)
         directory.mkdir(parents=True)
         geography_gdf.to_file(
-            directory / f"tracts_in_county_01001_{year}_example_vintage.gpkg", driver="GPKG"
+            directory / f"tracts_in_county_01001_{year}_example_vintage.gpkg",
+            driver="GPKG",
         )
     malformed_path = input_dir / "2020" / "unrelated.gpkg"
     malformed_path.write_text("not a GeoPackage")
     monkeypatch.setattr(graphs, "ProcessPoolExecutor", ThreadPoolExecutor)
     output_dir = tmp_path / "graphs"
 
-    graphs.main(str(input_dir / "*" / "*.gpkg"), str(output_dir), workers=1, years=years)
+    graphs.main(
+        str(input_dir / "*" / "*.gpkg"), str(output_dir), workers=1, years=years
+    )
 
     expected_years = ["2010"] if years else ["2010", "2020"]
     assert (
-        sorted(path.parent.name for path in output_dir.glob("*/*_connected.json")) == expected_years
+        sorted(path.parent.name for path in output_dir.glob("*/*_connected.json"))
+        == expected_years
     )
     for path in output_dir.glob("*/*_connected.json"):
         graph = gerrychain.Graph.from_json(str(path))
@@ -64,7 +67,9 @@ def test_metric_batch_records_bad_names_and_finishes_valid_files(
     for year, parent_year in [(2010, 2020), (2020, 2010)]:
         directory = input_dir / str(parent_year)
         directory.mkdir(parents=True)
-        path = directory / f"tracts_in_county_01001_{year}_example_vintage_connected.json"
+        path = (
+            directory / f"tracts_in_county_01001_{year}_example_vintage_connected.json"
+        )
         graph.to_json(str(path))
         valid_paths.append(path)
     malformed_path = input_dir / "2020" / "unrelated.json"
@@ -74,7 +79,7 @@ def test_metric_batch_records_bad_names_and_finishes_valid_files(
     monkeypatch.setattr(metrics, "ProcessPoolExecutor", ThreadPoolExecutor)
     output_path = tmp_path / "results" / "metrics.csv"
 
-    with pytest.raises(typer.Exit) as error:
+    with pytest.raises(SystemExit) as error:
         metrics.main(
             str(input_dir / "*" / "*.json"),
             "WHITE",
@@ -85,7 +90,7 @@ def test_metric_batch_records_bad_names_and_finishes_valid_files(
             years=years,
         )
 
-    assert error.value.exit_code == 1
+    assert error.value.code == 1
     expected_paths = valid_paths[:1] if years else valid_paths
     with output_path.open() as source:
         rows = list(csv.DictReader(source))

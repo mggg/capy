@@ -54,7 +54,9 @@ def load_population_table(year: int, population_dir: Path, level: str) -> pd.Dat
     elif year == 1990:
         population_df = parse_nhgis_1990_population(source_population_df, source)
     else:
-        population_df = parse_census_population(source_population_df, source, year, level)
+        population_df = parse_census_population(
+            source_population_df, source, year, level
+        )
 
     population_df["POC"] = parse_population_counts(
         population_df["TOTPOP"] - population_df["WHITE"], source=source, column="POC"
@@ -62,7 +64,9 @@ def load_population_table(year: int, population_dir: Path, level: str) -> pd.Dat
     return population_df
 
 
-def parse_nhgis_1980_population(source_population_df: pd.DataFrame, source: Path) -> pd.DataFrame:
+def parse_nhgis_1980_population(
+    source_population_df: pd.DataFrame, source: Path
+) -> pd.DataFrame:
     """Parse 1980 population counts, keeping concatenated source tables separate.
 
     C9D supplies race counts and C9G supplies Hispanic race counts. When the download
@@ -82,7 +86,10 @@ def parse_nhgis_1980_population(source_population_df: pd.DataFrame, source: Path
     Raises:
         ValueError: If source-file identifiers, required columns, or counts are invalid.
     """
-    if "NHGIS_SOURCE_FILE" not in source_population_df.columns or source_population_df.empty:
+    if (
+        "NHGIS_SOURCE_FILE" not in source_population_df.columns
+        or source_population_df.empty
+    ):
         return parse_nhgis_1980_table(source_population_df, source)
     if source_population_df["NHGIS_SOURCE_FILE"].isna().any():
         raise ValueError(f"{source} has missing NHGIS_SOURCE_FILE values")
@@ -96,7 +103,11 @@ def parse_nhgis_1980_population(source_population_df: pd.DataFrame, source: Path
         absent_columns = []
         for base in ("C9D", "C9G"):
             for prefix in indexed_prefixes(source_table_df, base):
-                columns = [column for column in source_table_df.columns if column[:-3] == prefix]
+                columns = [
+                    column
+                    for column in source_table_df.columns
+                    if column[:-3] == prefix
+                ]
                 if source_table_df[columns].isna().all().all():
                     absent_columns.extend(columns)
 
@@ -110,7 +121,9 @@ def parse_nhgis_1980_population(source_population_df: pd.DataFrame, source: Path
     return population_df
 
 
-def parse_nhgis_1980_table(source_population_df: pd.DataFrame, source: Path) -> pd.DataFrame:
+def parse_nhgis_1980_table(
+    source_population_df: pd.DataFrame, source: Path
+) -> pd.DataFrame:
     """Normalize race counts from one 1980 NHGIS source table.
 
     Unsuffixed C9D has all 15 NT7 cells. Split prefixes require White and Black
@@ -146,20 +159,34 @@ def parse_nhgis_1980_table(source_population_df: pd.DataFrame, source: Path) -> 
     for prefix in race_prefixes:
         indexes = range(1, 16) if prefix == "C9D" else range(1, 3)
         required.extend(f"{prefix}{index:03d}" for index in indexes)
-    required.extend(f"{prefix}{index:03d}" for prefix in hispanic_prefixes for index in (1, 2))
+    required.extend(
+        f"{prefix}{index:03d}" for prefix in hispanic_prefixes for index in (1, 2)
+    )
     require_columns(source_population_df, required, source)
 
-    white = sum_indexed_columns(source_population_df, race_prefixes, range(1, 2), source)
-    white -= sum_indexed_columns(source_population_df, hispanic_prefixes, range(1, 2), source)
-    black = sum_indexed_columns(source_population_df, race_prefixes, range(2, 3), source)
-    black -= sum_indexed_columns(source_population_df, hispanic_prefixes, range(2, 3), source)
+    white = sum_indexed_columns(
+        source_population_df, race_prefixes, range(1, 2), source
+    )
+    white -= sum_indexed_columns(
+        source_population_df, hispanic_prefixes, range(1, 2), source
+    )
+    black = sum_indexed_columns(
+        source_population_df, race_prefixes, range(2, 3), source
+    )
+    black -= sum_indexed_columns(
+        source_population_df, hispanic_prefixes, range(2, 3), source
+    )
 
     return pd.DataFrame(
         {
             "JOIN_KEY": source_population_df["GISJOIN"],
             "GISJOIN": source_population_df["GISJOIN"],
-            "STATEFP": normalize_census_part(source_population_df["STATEA"], "state", 1980),
-            "COUNTYFP": normalize_census_part(source_population_df["COUNTYA"], "county", 1980),
+            "STATEFP": normalize_census_part(
+                source_population_df["STATEA"], "state", 1980
+            ),
+            "COUNTYFP": normalize_census_part(
+                source_population_df["COUNTYA"], "county", 1980
+            ),
             "WHITE": parse_population_counts(white, source=source, column="WHITE"),
             "BLACK": parse_population_counts(black, source=source, column="BLACK"),
             "TOTPOP": sum_indexed_columns(
@@ -182,12 +209,19 @@ def indexed_prefixes(source_population_df: pd.DataFrame, base: str) -> list[str]
     """
     pattern = re.compile(rf"^{base}[A-Z]*001$")
     return sorted(
-        {column[:-3] for column in source_population_df.columns if pattern.fullmatch(column)}
+        {
+            column[:-3]
+            for column in source_population_df.columns
+            if pattern.fullmatch(column)
+        }
     )
 
 
 def sum_indexed_columns(
-    source_population_df: pd.DataFrame, prefixes: list[str], indexes: range, source: Path
+    source_population_df: pd.DataFrame,
+    prefixes: list[str],
+    indexes: range,
+    source: Path,
 ) -> pd.Series:
     """Sum the requested population cells for each row.
 
@@ -222,7 +256,9 @@ def sum_indexed_columns(
     return total
 
 
-def parse_nhgis_1990_population(source_population_df: pd.DataFrame, source: Path) -> pd.DataFrame:
+def parse_nhgis_1990_population(
+    source_population_df: pd.DataFrame, source: Path
+) -> pd.DataFrame:
     """Normalize 1990 NP10 population counts and NHGIS join identifiers.
 
     ET2001 and ET2002 are non-Hispanic White and Black counts. TOTPOP sums
@@ -241,20 +277,28 @@ def parse_nhgis_1990_population(source_population_df: pd.DataFrame, source: Path
         ValueError: If required columns, state/county identifiers, or counts are invalid.
     """
     race_columns = [f"ET2{index:03d}" for index in range(1, 11)]
-    require_columns(source_population_df, ["GISJOIN", "STATEA", "COUNTYA"] + race_columns, source)
+    require_columns(
+        source_population_df, ["GISJOIN", "STATEA", "COUNTYA"] + race_columns, source
+    )
     return pd.DataFrame(
         {
             "JOIN_KEY": source_population_df["GISJOIN"],
             "GISJOIN": source_population_df["GISJOIN"],
-            "STATEFP": normalize_census_part(source_population_df["STATEA"], "state", 1990),
-            "COUNTYFP": normalize_census_part(source_population_df["COUNTYA"], "county", 1990),
+            "STATEFP": normalize_census_part(
+                source_population_df["STATEA"], "state", 1990
+            ),
+            "COUNTYFP": normalize_census_part(
+                source_population_df["COUNTYA"], "county", 1990
+            ),
             "WHITE": parse_population_counts(
                 source_population_df["ET2001"], source=source, column="ET2001"
             ),
             "BLACK": parse_population_counts(
                 source_population_df["ET2002"], source=source, column="ET2002"
             ),
-            "TOTPOP": sum_indexed_columns(source_population_df, ["ET2"], range(1, 11), source),
+            "TOTPOP": sum_indexed_columns(
+                source_population_df, ["ET2"], range(1, 11), source
+            ),
         }
     )
 
@@ -284,9 +328,13 @@ def parse_census_population(
     """
     part_names = POPULATION_PARTS[level]
     part_columns = [POPULATION_PART_COLUMNS[part] for part in part_names]
-    require_columns(source_population_df, part_columns + ["TOTPOP", "NH_WHITE", "NH_BLACK"], source)
+    require_columns(
+        source_population_df, part_columns + ["TOTPOP", "NH_WHITE", "NH_BLACK"], source
+    )
     parts = [
-        normalize_census_part(source_population_df[POPULATION_PART_COLUMNS[part]], part, year)
+        normalize_census_part(
+            source_population_df[POPULATION_PART_COLUMNS[part]], part, year
+        )
         for part in part_names
     ]
     join_key = parts[0]
@@ -326,7 +374,9 @@ def require_columns(df: pd.DataFrame, columns: list[str], source: Path) -> None:
         raise ValueError(f"{source} is missing columns: {', '.join(missing)}")
 
 
-def parse_population_counts(series: pd.Series, *, source: Path, column: str) -> pd.Series:
+def parse_population_counts(
+    series: pd.Series, *, source: Path, column: str
+) -> pd.Series:
     """Validate nonnegative integer counts before converting to signed int64.
 
     Source tables are expected to contain Census integer counts. Values use pandas
@@ -347,10 +397,14 @@ def parse_population_counts(series: pd.Series, *, source: Path, column: str) -> 
     try:
         counts = pd.to_numeric(series, errors="raise")
     except (ValueError, TypeError) as error:
-        raise ValueError(f"{source}: {column} contains nonnumeric population counts") from error
+        raise ValueError(
+            f"{source}: {column} contains nonnumeric population counts"
+        ) from error
 
     valid = counts.notna() & (counts >= 0) & (counts < 2**63) & (counts % 1 == 0)
     if not valid.all():
-        raise ValueError(f"{source}: {column} must contain nonnegative int64 population counts")
+        raise ValueError(
+            f"{source}: {column} must contain nonnegative int64 population counts"
+        )
 
     return counts.astype("int64")

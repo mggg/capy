@@ -9,6 +9,7 @@ Global Parameters:
         Number of evenly spaced rho values between 0.01 and 0.5 to sample over
 """
 
+import argparse
 import sys
 import os
 import pathlib
@@ -25,7 +26,6 @@ import random
 import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, plot_metric_scatterplots
-import typer
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 28, "savefig.dpi": 300})
@@ -157,4 +157,9 @@ def make_random_isolated_config(graph, target_rho, rng):
     return graph, metrics.property_sum(graph, "x_pop") / metrics.property_sum(graph, "TOTPOP")
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Make isol iowa plots.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

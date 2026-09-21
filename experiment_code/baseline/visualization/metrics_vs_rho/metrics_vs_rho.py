@@ -5,6 +5,7 @@ which determines the figure output directory. Only study areas represented in al
 five decades and with population above 100,000 are included.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -17,7 +18,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
-import typer
 
 from capy_core.process_results import join_study_area_metadata
 from experiment_code.visualization_settings import GRID_COLOR, PRIMARY_INK, SECONDARY, GRID_METRICS, YEAR_COLORS
@@ -149,4 +149,11 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Metrics vs rho.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_black.csv")
+    parser.add_argument("--output-dir", default="")
+    args = parser.parse_args()
+    main(**vars(args))

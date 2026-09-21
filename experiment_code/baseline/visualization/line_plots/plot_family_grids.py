@@ -7,6 +7,7 @@ from METRIC_LABELS. Top-N metros are coloured by PALETTE.
 Output: {output_dir}/metric_family_grids/{prefix}_{family_name}.png
 """
 
+import argparse
 import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -16,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/
 
 from typing import Optional
-import typer
 from capy_core.process_results import join_study_area_metadata
 from experiment_code.visualization_settings import _shorten_prefix, METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _short_name
 
@@ -100,4 +100,14 @@ if __name__ == "__main__":
         plot_family_grids(df, prefix, month_year, output_dir, n,
                           geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
 
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Plot family grids.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_poc.csv")
+    parser.add_argument("--prefix", default="white_poc")
+    parser.add_argument("--study-area-type", default=None)
+    parser.add_argument("--n", type=int, default=10)
+    parser.add_argument("--fixed-y", action=argparse.BooleanOptionalAction, default=False)
+    args = parser.parse_args()
+    main(**vars(args))

@@ -10,6 +10,7 @@ Global Parameters:
         Number of evenly spaced rho values between 0.001 and 0.5 to sample over
 """
 
+import argparse
 import sys
 import os
 import pathlib
@@ -24,7 +25,6 @@ import numpy as np
 import gerrychain
 import random
 import pandas as pd
-import typer
 from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
@@ -88,4 +88,9 @@ def main():
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Make clustered iowa plots.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

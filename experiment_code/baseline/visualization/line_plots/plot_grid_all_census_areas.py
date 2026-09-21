@@ -5,6 +5,7 @@ Eligible areas are those with >=100k population in 2020 and present in all obser
 Output: {output_dir}/grid_lineplots/{prefix}_moran_d_capy_all_cbsa.png
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -15,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4])) # project root
 sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/baseline/
 
 from typing import Optional
-import typer
 from capy_core.process_results import join_study_area_metadata
 from experiment_code.visualization_settings import _shorten_prefix, GRID_METRICS, SECONDARY, _apply_panel_style
 
@@ -94,4 +94,13 @@ if __name__ == "__main__":
         plot_grid_all_census_areas(df, prefix, month_year, output_dir,
                                    geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
 
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Plot grid all census areas.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_poc.csv")
+    parser.add_argument("--prefix", default="white_poc")
+    parser.add_argument("--study-area-type", default=None)
+    parser.add_argument("--fixed-y", action=argparse.BooleanOptionalAction, default=False)
+    args = parser.parse_args()
+    main(**vars(args))

@@ -1,16 +1,15 @@
 """Attach population tables to Census boundaries and write one geography file per state."""
 
+import argparse
 import re
 import tempfile
 import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
 
 import geopandas as gpd
 import pandas as pd
-import typer
 
 from capy_core.geography_ids import PART_WIDTHS, normalize_census_part
 from capy_core.pipeline_config import build_geography_requests, load_config
@@ -78,7 +77,9 @@ def iter_census_geographies(
     shape_dir = geographies_dir / f"census_{year}_{level_label}"
     paths = sorted(path for path in shape_dir.glob("*.shp") if path.is_file())
     if not paths:
-        raise FileNotFoundError(f"No Census {level_label} shapefiles found in {shape_dir}")
+        raise FileNotFoundError(
+            f"No Census {level_label} shapefiles found in {shape_dir}"
+        )
     for path in paths:
         geography_gdf = gpd.read_file(path)
         geography_gdf = standardize_census_geography(geography_gdf, level_label)
@@ -122,7 +123,9 @@ def standardize_census_geography(
     return geography_gdf
 
 
-def first_existing_column(geography_gdf: gpd.GeoDataFrame, candidates: list[str]) -> str:
+def first_existing_column(
+    geography_gdf: gpd.GeoDataFrame, candidates: list[str]
+) -> str:
     """Select the first available source column in priority order.
 
     Args:
@@ -165,7 +168,9 @@ def geography_part(geography_gdf: gpd.GeoDataFrame, part: str) -> pd.Series:
     return identifiers.astype(str).str.zfill(PART_WIDTHS[part])
 
 
-def load_nhgis_geography(year: int, geographies_dir: Path, level_label: str) -> gpd.GeoDataFrame:
+def load_nhgis_geography(
+    year: int, geographies_dir: Path, level_label: str
+) -> gpd.GeoDataFrame:
     """Load the newest usable NHGIS boundary extract for a year and level.
 
     Searches only ipums_geography_extracts/{year}/{level_label} beneath geographies_dir.
@@ -202,7 +207,9 @@ def load_nhgis_geography(year: int, geographies_dir: Path, level_label: str) -> 
         try:
             state, county = state_county_series(geography_gdf)
         except ValueError as exc:
-            raise ValueError(f"{path} is missing state/county identifier columns.") from exc
+            raise ValueError(
+                f"{path} is missing state/county identifier columns."
+            ) from exc
 
         geography_gdf["JOIN_KEY"] = geography_gdf["GISJOIN"].astype("string")
         geography_gdf["GEOID"] = geography_gdf["GISJOIN"].astype("string").str[1:]
@@ -258,7 +265,9 @@ def read_nested_nhgis_shapefile(
                     raise ValueError(f"{path} does not contain a GISJOIN column.")
                 # NOTE: We use the nullable string dtype here to avoid making bogus identifiers
                 # like "Gnan" when GISJOIN2 is null.
-                geography_gdf["GISJOIN"] = "G" + geography_gdf["GISJOIN2"].astype("string")
+                geography_gdf["GISJOIN"] = "G" + geography_gdf["GISJOIN2"].astype(
+                    "string"
+                )
             geography_gdfs.append(geography_gdf)
 
         geography_gdf = gpd.GeoDataFrame(
@@ -273,7 +282,9 @@ def read_nested_nhgis_shapefile(
 def nested_shapefile_paths(outer_zip: Path, tmp_dir: Path) -> list[Path]:
     shp_paths = []
     with zipfile.ZipFile(outer_zip) as outer:
-        nested_zips = [name for name in outer.namelist() if name.lower().endswith(".zip")]
+        nested_zips = [
+            name for name in outer.namelist() if name.lower().endswith(".zip")
+        ]
         if not nested_zips:
             shape_dir = tmp_dir / outer_zip.stem
             outer.extractall(shape_dir)
@@ -338,7 +349,11 @@ def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
         return False
 
     name = path.name.lower()
-    if str(year) not in name or is_conflated_nhgis_path(path) or is_county_sidecar_nhgis_path(path):
+    if (
+        str(year) not in name
+        or is_conflated_nhgis_path(path)
+        or is_county_sidecar_nhgis_path(path)
+    ):
         return False
 
     text = clean_filename(path.stem)
@@ -389,7 +404,9 @@ def is_nhgis_shapefile_for_level(path: Path, year: str, level_label: str) -> boo
     if level_label == "block_groups":
         return is_block_group_name(path)
     if level_label == "blocks":
-        return ("block" in text or "tabblock" in compact) and not is_block_group_name(path)
+        return ("block" in text or "tabblock" in compact) and not is_block_group_name(
+            path
+        )
     return False
 
 
@@ -489,10 +506,16 @@ def join_population(
         how="left",
         validate="one_to_one",
     )
-    unmatched_geography_gdf = joined_geography_gdf[joined_geography_gdf["TOTPOP"].isna()]
-    validate_population_join(year, level, selected_geography_gdf, unmatched_geography_gdf)
+    unmatched_geography_gdf = joined_geography_gdf[
+        joined_geography_gdf["TOTPOP"].isna()
+    ]
+    validate_population_join(
+        year, level, selected_geography_gdf, unmatched_geography_gdf
+    )
 
-    populated_geography_gdf = joined_geography_gdf[joined_geography_gdf["TOTPOP"].notna()].copy()
+    populated_geography_gdf = joined_geography_gdf[
+        joined_geography_gdf["TOTPOP"].notna()
+    ].copy()
     populated_geography_gdf[population_columns] = populated_geography_gdf[
         population_columns
     ].astype("int64")
@@ -538,7 +561,11 @@ def validate_population_join(
 
 
 def write_state_geography(
-    state_geography_gdf: gpd.GeoDataFrame, year: int, output_dir: Path, level: str, state_fips: str
+    state_geography_gdf: gpd.GeoDataFrame,
+    year: int,
+    output_dir: Path,
+    level: str,
+    state_fips: str,
 ) -> Path:
     """Write one state's population-attributed Census units to a GeoPackage.
 
@@ -562,7 +589,9 @@ def write_state_geography(
     return output_path
 
 
-def check_source_inputs(year: int, level: str, population_dir: Path, geographies_dir: Path) -> None:
+def check_source_inputs(
+    year: int, level: str, population_dir: Path, geographies_dir: Path
+) -> None:
     """Check population and boundary file presence before geography construction.
 
     Checks names and file presence, not file contents or completeness of a shapefile's
@@ -605,12 +634,7 @@ def check_source_inputs(year: int, level: str, population_dir: Path, geographies
         raise FileNotFoundError("\n".join(missing))
 
 
-def main(
-    config: Annotated[
-        Path | None,
-        typer.Option(help="Pipeline YAML configuration (defaults to capy_core/config.yaml)."),
-    ] = None,
-) -> None:
+def main(config: Path | None = None) -> None:
     """Build node and study-area definition geographies selected by a YAML config.
 
     Checks source presence for every request before writing. Population is loaded once
@@ -626,7 +650,9 @@ def main(
         ValueError: If configuration, source data, or population joins are invalid.
     """
     config_path = (
-        config if config is not None else Path(__file__).resolve().parents[1] / "config.yaml"
+        config
+        if config is not None
+        else Path(__file__).resolve().parents[1] / "config.yaml"
     )
     resolved_config = load_config(config_path)
     requests = build_geography_requests(resolved_config)
@@ -642,12 +668,18 @@ def main(
     for request in requests:
         year, level = request.year, request.geography
         print(f"Creating {year} {level} geography geopackage files", flush=True)
-        population_df = load_population_table(year, resolved_config.raw_population_path, level)
+        population_df = load_population_table(
+            year, resolved_config.raw_population_path, level
+        )
         if year in (1980, 1990):
-            geography_gdf = load_nhgis_geography(year, resolved_config.raw_geographies_path, level)
+            geography_gdf = load_nhgis_geography(
+                year, resolved_config.raw_geographies_path, level
+            )
             state_geographies = (
                 state_geography_gdf
-                for _, state_geography_gdf in geography_gdf.to_crs(TARGET_CRS).groupby("STATEFP")
+                for _, state_geography_gdf in geography_gdf.to_crs(TARGET_CRS).groupby(
+                    "STATEFP"
+                )
             )
         else:
             # County TIGER files are national; other levels normally contain one state per file.
@@ -662,7 +694,9 @@ def main(
         states_written: set[str] = set()
         for state_geography_gdf in state_geographies:
             state_fips = state_geography_gdf["STATEFP"].iloc[0]
-            population_join = join_population(state_geography_gdf, population_df, year, level)
+            population_join = join_population(
+                state_geography_gdf, population_df, year, level
+            )
             print(
                 f"  FIPS {state_fips}: {population_join.selected_count:,} selected, "
                 f"{population_join.unmatched_count:,} unmatched, "
@@ -704,7 +738,9 @@ def report_missing_states(states_by_year: dict[int, set[str]], level: str) -> No
     all_states: set[str] = set().union(*states_by_year.values())
     for state_fips in sorted(all_states):
         missing_years = [
-            year for year, states in sorted(states_by_year.items()) if state_fips not in states
+            year
+            for year, states in sorted(states_by_year.items())
+            if state_fips not in states
         ]
         if missing_years:
             print(
@@ -715,4 +751,15 @@ def report_missing_states(states_by_year: dict[int, set[str]], level: str) -> No
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Build node and study-area definition geographies selected by a YAML config.",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Pipeline YAML configuration (defaults to capy_core/config.yaml).",
+    )
+    args = parser.parse_args()
+    main(**vars(args))

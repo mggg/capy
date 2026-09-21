@@ -2,7 +2,9 @@
 Create dual graphs of given geometries and save: (1) the original dual graph (2) an edited graph, dropping 0-population nodes and connecting disconnected components.
 """
 
+import argparse
 import glob
+import sys
 import warnings
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -13,7 +15,6 @@ import geopandas as gpd
 import gerrychain
 import networkx as nx
 import pandas as pd
-import typer
 from shapely.strtree import STRtree
 
 from capy_core.pipeline_filenames import format_graph_name, parse_geography_name
@@ -55,7 +56,7 @@ def main(
         try:
             geography_identity = parse_geography_name(filename)
         except ValueError as error:
-            typer.echo(f"Skipping {filename}: {error}", err=True)
+            print(f"Skipping {filename}: {error}", file=sys.stderr)
             continue
 
         if year_set is None or str(geography_identity.census_year) in year_set:
@@ -260,4 +261,16 @@ def connect_components(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Build dual adjacency graphs for all .gpkg files matching *input_glob*.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("input_glob")
+    parser.add_argument(
+        "--output-base-dir", default="data/shared/processed/dual_graphs"
+    )
+    parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument("--attr", default="GISJOIN")
+    parser.add_argument("--years", default=None)
+    args = parser.parse_args()
+    main(**vars(args))

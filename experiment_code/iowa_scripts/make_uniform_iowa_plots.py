@@ -7,6 +7,7 @@ Global Parameters:
         Number of evenly spaced values of rho to be used in the scatterplot.
 """
 
+import argparse
 import sys
 import os
 import pathlib
@@ -21,7 +22,6 @@ import numpy as np
 import random
 import gerrychain
 from iowa_helpers import  visualize_iowa
-import typer
 random.seed(42)
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
@@ -84,4 +84,9 @@ def plot_rho_vs_capy_uniform(graph, num_rhos):
     return fig, ax
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Make uniform iowa plots.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

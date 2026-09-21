@@ -15,6 +15,7 @@ Run directly:
     poetry run python capy_core/preprocessing/overlap_quality.py [OPTIONS]
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -32,7 +33,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import tqdm as tqdm_module
-import typer
 
 from capy_core.pipeline_filenames import parse_definition_name, parse_geography_name
 
@@ -623,36 +623,12 @@ def _build_report(
 
 
 def main(
-    clipped_geographies_dir: str = typer.Argument(
-        "data/shared/processed/clipped_geographies",
-        help="Directory containing year-based subdirs of clipped gpkg files.",
-    ),
-    study_area_definitions_dir: str = typer.Option(
-        "data/shared/processed/study_area_definitions",
-        "--definitions-dir",
-        help="Directory containing study area definition gpkg files.",
-    ),
-    output_path: str = typer.Option(
-        "data/shared/outputs/overlap_quality_report.html",
-        "--output",
-        "-o",
-        help="Path for the HTML report.",
-    ),
-    census_geography_type: str = typer.Option(
-        "",
-        "--geo-type",
-        help="Filter to one geography type (tracts, block_groups, blocks, counties). Empty = all.",
-    ),
-    study_area_type: str = typer.Option(
-        "",
-        "--sa-type",
-        help="Filter to one study area type (cbsa, county, max_city, max_county). Empty = all.",
-    ),
-    critical_threshold: int = typer.Option(
-        5,
-        "--critical-threshold",
-        help="Flag study areas with fewer than this many units as critically small.",
-    ),
+    clipped_geographies_dir: str = "data/shared/processed/clipped_geographies",
+    study_area_definitions_dir: str = "data/shared/processed/study_area_definitions",
+    output_path: str = "data/shared/outputs/overlap_quality_report.html",
+    census_geography_type: str = "",
+    study_area_type: str = "",
+    critical_threshold: int = 5,
 ) -> None:
     """Analyze overlap assignment quality and write a self-contained HTML report."""
     clipped_dir = Path(clipped_geographies_dir)
@@ -664,7 +640,7 @@ def main(
             f"ERROR: clipped geographies directory not found: {clipped_dir}",
             file=sys.stderr,
         )
-        raise typer.Exit(1)
+        raise SystemExit(1)
 
     print(f"Scanning {clipped_dir} …")
     df = _collect_clipped_records(clipped_dir, census_geography_type, study_area_type)
@@ -697,4 +673,46 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Analyze overlap assignment quality and write a self-contained HTML report.",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "clipped_geographies_dir",
+        nargs="?",
+        default="data/shared/processed/clipped_geographies",
+        help="Directory containing year-based subdirs of clipped gpkg files.",
+    )
+    parser.add_argument(
+        "--definitions-dir",
+        dest="study_area_definitions_dir",
+        default="data/shared/processed/study_area_definitions",
+        help="Directory containing study area definition gpkg files.",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        dest="output_path",
+        default="data/shared/outputs/overlap_quality_report.html",
+        help="Path for the HTML report.",
+    )
+    parser.add_argument(
+        "--geo-type",
+        dest="census_geography_type",
+        default="",
+        help="Filter to one geography type (tracts, block_groups, blocks, counties). Empty = all.",
+    )
+    parser.add_argument(
+        "--sa-type",
+        dest="study_area_type",
+        default="",
+        help="Filter to one study area type (cbsa, county, max_city, max_county). Empty = all.",
+    )
+    parser.add_argument(
+        "--critical-threshold",
+        type=int,
+        default=5,
+        help="Flag study areas with fewer than this many units as critically small.",
+    )
+    args = parser.parse_args()
+    main(**vars(args))

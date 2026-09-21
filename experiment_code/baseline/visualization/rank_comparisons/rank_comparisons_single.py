@@ -11,6 +11,7 @@ Usage (run from the project root):
     python experiment_code/baseline/visualization/rank_comparisons/rank_comparisons_single.py
 """
 
+import argparse
 import sys
 from itertools import combinations
 from pathlib import Path
@@ -21,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/b
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import typer
 
 from experiment_code.visualization_settings import PALETTE, SECONDARY, GRID_COLOR
 
@@ -112,4 +112,12 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Rank comparisons single.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_black.csv")
+    parser.add_argument("--year", default="2020")
+    parser.add_argument("--top-n", type=int, default=100)
+    args = parser.parse_args()
+    main(**vars(args))

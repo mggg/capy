@@ -1,8 +1,8 @@
+import argparse
 import json
 from pathlib import Path
 
 import pandas as pd
-import typer
 
 from capy_core.pipeline_filenames import format_definition_stem, parse_geography_name
 from capy_core.utils import definitions
@@ -61,4 +61,11 @@ def main(filename: str, output: str):
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Process results.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("filename")
+    parser.add_argument("output")
+    args = parser.parse_args()
+    main(**vars(args))

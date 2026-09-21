@@ -1,3 +1,4 @@
+import argparse
 import csv
 import glob
 import os
@@ -17,7 +18,6 @@ import networkx as nx
 import numpy as np
 import scipy.sparse
 import tqdm
-import typer
 
 from capy_core.pipeline_filenames import parse_geography_name
 
@@ -54,7 +54,7 @@ def main(
     Raises:
         FileNotFoundError: If no valid files match the requested years and no filename
             failures were recorded.
-        typer.Exit: With status 1 after processing if any filename or metric calculation failed.
+        SystemExit: With status 1 after processing if any filename or metric calculation failed.
     """
     files = []
     n_failed = 0
@@ -64,7 +64,9 @@ def main(
             geography_identity = parse_geography_name(filename)
         except ValueError as error:
             write_failure(filename, x_col, y_col, tot_col, error)
-            print(f"FAILED {filename}: {type(error).__name__}: {error}", file=sys.stderr)
+            print(
+                f"FAILED {filename}: {type(error).__name__}: {error}", file=sys.stderr
+            )
             n_failed += 1
             continue
 
@@ -73,7 +75,7 @@ def main(
 
     if not files:
         if n_failed:
-            raise typer.Exit(code=1)
+            raise SystemExit(1)
         raise FileNotFoundError(f"No graph JSON files matched: {input_glob!r}")
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -93,7 +95,7 @@ def main(
         flush=True,
     )
     if n_failed:
-        raise typer.Exit(code=1)
+        raise SystemExit(1)
 
 
 def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
@@ -708,4 +710,16 @@ def moran_dist(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Compute segregation metrics for every graph JSON matched by input_glob.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("input_glob")
+    parser.add_argument("x_col")
+    parser.add_argument("y_col")
+    parser.add_argument("tot_col")
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument("--years", default=None)
+    args = parser.parse_args()
+    main(**vars(args))

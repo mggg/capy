@@ -11,6 +11,7 @@ Global Parameters:
         Number of evenly spaced rho values between 0.001 and 0.5 to sample over
 """
 
+import argparse
 import sys
 import os
 import pathlib
@@ -27,7 +28,6 @@ import random
 import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
-import typer
 
 plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
                     "font.size": 28, "savefig.dpi": 300})
@@ -150,4 +150,9 @@ def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries = 
     return None
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Make kclustered iowa plots.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

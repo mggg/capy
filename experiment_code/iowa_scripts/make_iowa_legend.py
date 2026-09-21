@@ -10,7 +10,7 @@ Outputs:
         A horizontal legend showing the orange/blue color encoding for counties
         that are entirely group X or entirely group Y.
 """
-import typer
+import argparse
 import matplotlib.pyplot as plt
 
 def main():
@@ -49,4 +49,9 @@ def main():
     fig.savefig('figures/iowa/iowa_population_composition_legend.png', dpi=300, bbox_inches='tight')
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Make iowa legend.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

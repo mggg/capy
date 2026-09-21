@@ -24,6 +24,7 @@ For each vintage found in definition_month_year, produces figures in:
 """
 
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Optional
@@ -33,7 +34,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/b
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import typer
 
 from capy_core.process_results import join_study_area_metadata
 from experiment_code.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
@@ -138,4 +138,15 @@ def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parser = argparse.ArgumentParser(
+        description="Generate figures.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("--filename", default="")
+    parser.add_argument("--n", type=int, default=10)
+    parser.add_argument("--prefix", default="white_poc")
+    parser.add_argument("--geography-type", default=None)
+    parser.add_argument("--fixed-y", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--study-area-type", default=None)
+    args = parser.parse_args()
+    main(**vars(args))
