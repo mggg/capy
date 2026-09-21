@@ -16,8 +16,10 @@ import sys
 from itertools import combinations
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4])) # project root
-sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/baseline/
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,11 +33,13 @@ USED_COLS = {
     "dissimilarity_1": "Dissimilarity",
     "moran_P": "Moran's I",
     "filename": "filename",
-    "total_population": "total_population"}
+    "total_population": "total_population",
+}
 DISPLAY_METRICS = {
     "half_edge_1": "Capy Rank",
     "dissimilarity_1": "Dissimilarity Rank",
-    "moran_P": "Moran's I Rank"}
+    "moran_P": "Moran's I Rank",
+}
 
 
 def load_ranked_data(filename: str, year: str, top_n: int) -> pd.DataFrame:
@@ -81,9 +85,12 @@ def plot_rank_comparisons(df: pd.DataFrame, out_dir: Path, stem: str) -> None:
 
         if "half_edge" in x_col:
             x_col = "capy"
-        rho = round(rho, 2).astype(str).replace(".", "p") # for filename
+        rho = round(rho, 2).astype(str).replace(".", "p")  # for filename
 
-        out_path = out_dir / f"{stem}_rank_{y_col.split('_')[0]}_vs_{x_col.split('_')[0]}_corr{rho}.png"
+        out_path = (
+            out_dir
+            / f"{stem}_rank_{y_col.split('_')[0]}_vs_{x_col.split('_')[0]}_corr{rho}.png"
+        )
         fig.savefig(out_path, dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved to {out_path}")
@@ -91,23 +98,31 @@ def plot_rank_comparisons(df: pd.DataFrame, out_dir: Path, stem: str) -> None:
 
 def main(
     filename: str = "data/shared/outputs/tracts_in_cbsa/white_black.csv",
-    year: str = "2020", top_n: int = 100) -> None:
+    year: str = "2020",
+    top_n: int = 100,
+) -> None:
     CSV = Path(filename)
 
-    stem = CSV.stem # e.g. "white_black"
+    stem = CSV.stem  # e.g. "white_black"
     # groups_compared = "White and Black" if stem == "white_black" else "White and POC"
 
     node_areas, separator, study_areas_key = CSV.parent.name.partition("_in_")
     if not separator or not node_areas or not study_areas_key:
         raise ValueError(
-            f"Expected CSV inside a '<geography>_in_<study_area>' directory: {CSV}")
+            f"Expected CSV inside a '<geography>_in_<study_area>' directory: {CSV}"
+        )
     # study_areas = (
     #     "the largest city per metropolitan area"
     #     if study_areas_key == "max_city"
     #     else study_areas_key)
 
     df = load_ranked_data(filename, year, top_n)
-    out_dir = (Path("figures") / "baseline" / f"{node_areas}_in_{study_areas_key}" / "rank_comparisons")
+    out_dir = (
+        Path("figures")
+        / "baseline"
+        / f"{node_areas}_in_{study_areas_key}"
+        / "rank_comparisons"
+    )
     plot_rank_comparisons(df, out_dir, stem)
 
 
@@ -116,7 +131,9 @@ if __name__ == "__main__":
         description="Rank comparisons single.",
         allow_abbrev=False,
     )
-    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_black.csv")
+    parser.add_argument(
+        "--filename", default="data/shared/outputs/tracts_in_cbsa/white_black.csv"
+    )
     parser.add_argument("--year", default="2020")
     parser.add_argument("--top-n", type=int, default=100)
     args = parser.parse_args()

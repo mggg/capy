@@ -1,5 +1,5 @@
 """
-This script generates scatter plots of capy and Moran's I versus rho for randomly sampled single-cluster configurations of the 
+This script generates scatter plots of capy and Moran's I versus rho for randomly sampled single-cluster configurations of the
 Iowa county graph, plus a geographic visualization of one such configuration.
 Global Parameters:
     RHO: float
@@ -14,6 +14,7 @@ import argparse
 import sys
 import os
 import pathlib
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
@@ -25,25 +26,39 @@ import numpy as np
 import gerrychain
 import random
 import pandas as pd
-from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
+from iowa_helpers import (
+    visualize_iowa,
+    populate_cluster_random,
+    plot_metric_scatterplots,
+)
 
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 28, "savefig.dpi": 300})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "cm",  # setting to latex font
+        "font.size": 28,
+        "savefig.dpi": 300,
+    }
+)
 
 RHO = 0.3
 num_samples = 500
 num_rhos = 100
+
+
 def main():
-    #loading graph
-    g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
+    # loading graph
+    g = gerrychain.Graph.from_json(
+        "data/experiment_specific/ia_files/ia_counties_2020.json"
+    )
 
     real_rhos = []
     target_rhos = []
     capys = []
-    morans =[]
+    morans = []
 
-    #generating samples
-    rho_grid = np.linspace(.001, .5, num_rhos)
+    # generating samples
+    rho_grid = np.linspace(0.001, 0.5, num_rhos)
     nodes = list(g.nodes())
     total_pop = metrics.property_sum(g, "TOTPOP")
 
@@ -60,10 +75,16 @@ def main():
             capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
             morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
-    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(real_rhos, capys, morans)
+    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(
+        real_rhos, capys, morans
+    )
 
-    fig_moran.savefig("figures/iowa/moran_by_rho_onecluster_iowa.png", dpi = 300, bbox_inches="tight")
-    fig_capy.savefig("figures/iowa/capy_by_rho_onecluster_iowa.png", dpi = 300, bbox_inches="tight")
+    fig_moran.savefig(
+        "figures/iowa/moran_by_rho_onecluster_iowa.png", dpi=300, bbox_inches="tight"
+    )
+    fig_capy.savefig(
+        "figures/iowa/capy_by_rho_onecluster_iowa.png", dpi=300, bbox_inches="tight"
+    )
 
     rng = random.Random(42)
     start_node = rng.choice(nodes)
@@ -74,17 +95,21 @@ def main():
 
     fig, ax = visualize_iowa(g_, real_rho)
     base_filename = f"figures/iowa/onecluster_iowa_visualization_rho={real_rho}"
-    filestem= base_filename.replace('.', 'p')
-    fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+    filestem = base_filename.replace(".", "p")
+    fig.savefig(f"{filestem}.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-    
-    pd.DataFrame({
-    "target_rho": target_rhos,
-    "real_rho": real_rhos,
-    "capy": capys,
-    "moran": morans,
-    }).to_csv(f"stats/iowa_runs/onecluster_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
+    pd.DataFrame(
+        {
+            "target_rho": target_rhos,
+            "real_rho": real_rhos,
+            "capy": capys,
+            "moran": morans,
+        }
+    ).to_csv(
+        f"stats/iowa_runs/onecluster_samples_samples={num_samples}_rhos={num_rhos}.csv",
+        index=False,
+    )
 
 
 if __name__ == "__main__":

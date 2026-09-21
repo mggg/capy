@@ -11,35 +11,37 @@ from pathlib import Path
 from scipy.ndimage import gaussian_filter
 
 # Project root
-HERE = Path(__file__).resolve().parent          # scripts/
-PROJECT_ROOT = (HERE / "../../../").resolve()   # capy-bara/
+HERE = Path(__file__).resolve().parent  # scripts/
+PROJECT_ROOT = (HERE / "../../../").resolve()  # capy-bara/
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import capy_core.metrics as m
 
-# Shared constants 
+# Shared constants
 ROWS, COLS = 10, 10
 CELL_POP = 100
 
 LEVELS = [
-    {"label": "Low clustering",    "mode": "annealing"},
+    {"label": "Low clustering", "mode": "annealing"},
     {"label": "Medium clustering", "mode": "random"},
-    {"label": "High clustering",   "mode": "gaussian", "sigma": 1.6}]
+    {"label": "High clustering", "mode": "gaussian", "sigma": 1.6},
+]
 
 
-# Node attribute helper 
+# Node attribute helper
+
 
 def _attach_attrs(nx_G, blue_arr, cell_pop):
     """Write BLUE/ORANGE/TOTAL/TOTPOP onto every node."""
     for i, node in enumerate(nx_G.nodes()):
         b = int(blue_arr[i])
         r = cell_pop - b
-        nx_G.nodes[node].update(
-            BLUE=b, ORANGE=r, TOTAL=cell_pop, TOTPOP=cell_pop)
+        nx_G.nodes[node].update(BLUE=b, ORANGE=r, TOTAL=cell_pop, TOTPOP=cell_pop)
 
 
 # Grid builders
+
 
 def build_grid_low(rows, cols, cell_pop=100, seed=42, n_steps=20_000, accept_prob=0.01):
     """
@@ -80,24 +82,26 @@ def build_grid_low(rows, cols, cell_pop=100, seed=42, n_steps=20_000, accept_pro
         delta = 0
         for u in (i, j):
             for nbr in nx_G.neighbors(u):
-                if nbr == i or nbr == j:   # skip the i–j edge itself
+                if nbr == i or nbr == j:  # skip the i–j edge itself
                     continue
                 # cut status before and after the swap
                 delta += int((1 - color[u]) != color[nbr]) - int(color[u] != color[nbr])
         return delta
 
-    blue_nodes   = [nd for nd in nodes if color[nd] == 1]
+    blue_nodes = [nd for nd in nodes if color[nd] == 1]
     orange_nodes = [nd for nd in nodes if color[nd] == 0]
 
     for _ in range(n_steps):
-        i = blue_nodes  [int(rng.integers(len(blue_nodes)))]
+        i = blue_nodes[int(rng.integers(len(blue_nodes)))]
         j = orange_nodes[int(rng.integers(len(orange_nodes)))]
 
         d = _swap_delta(i, j)
         if d > 0 or rng.random() < accept_prob:
             color[i], color[j] = color[j], color[i]
-            blue_nodes.remove(i);   blue_nodes.append(j)
-            orange_nodes.remove(j); orange_nodes.append(i)
+            blue_nodes.remove(i)
+            blue_nodes.append(j)
+            orange_nodes.remove(j)
+            orange_nodes.append(i)
 
     blue_arr = np.array([cell_pop * color[nd] for nd in nodes])
     _attach_attrs(nx_G, blue_arr, cell_pop)
@@ -180,10 +184,11 @@ def build_grid_high(rows, cols, cell_pop=100, seed=42, sigma=1.6):
     n_blue = n // 2
     flat = smooth.flatten()
     cut = np.partition(flat, -n_blue)[-n_blue]
-    grid_assign = (smooth >= cut).astype(int) # 1 = BLUE, 0 = ORANGE
+    grid_assign = (smooth >= cut).astype(int)  # 1 = BLUE, 0 = ORANGE
 
-    blue_arr = np.array([grid_assign[pos[nd][0], pos[nd][1]] * cell_pop
-                         for nd in nodes])
+    blue_arr = np.array(
+        [grid_assign[pos[nd][0], pos[nd][1]] * cell_pop for nd in nodes]
+    )
     _attach_attrs(nx_G, blue_arr, cell_pop)
     return gerrychain.Graph(nx_G)
 
@@ -196,8 +201,7 @@ def build_grid(level, seed, rows=ROWS, cols=COLS, cell_pop=CELL_POP):
     if mode == "random":
         return build_grid_medium(rows, cols, cell_pop, seed=seed)
     if mode == "gaussian":
-        return build_grid_high(rows, cols, cell_pop, seed=seed,
-                               sigma=level["sigma"])
+        return build_grid_high(rows, cols, cell_pop, seed=seed, sigma=level["sigma"])
     raise ValueError(f"Unknown mode: {mode!r}")
 
 
@@ -213,6 +217,7 @@ def compute_metrics(G):
 
 
 # Visualisation helper
+
 
 def share_array(G, rows=ROWS, cols=COLS):
     """Return a (rows, cols) float array of BLUE share per cell."""

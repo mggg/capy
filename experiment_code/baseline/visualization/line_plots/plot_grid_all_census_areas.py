@@ -12,15 +12,30 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4])) # project root
-sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/baseline/
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/
 
 from typing import Optional
 from capy_core.process_results import join_study_area_metadata
-from experiment_code.visualization_settings import _shorten_prefix, GRID_METRICS, SECONDARY, _apply_panel_style
+from experiment_code.visualization_settings import (
+    _shorten_prefix,
+    GRID_METRICS,
+    SECONDARY,
+    _apply_panel_style,
+)
 
 
-def plot_grid_all_census_areas(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:
+def plot_grid_all_census_areas(
+    df: pd.DataFrame,
+    prefix: str,
+    month_year: str,
+    output_dir: Path,
+    geography_label: str = "tracts",
+    area_label: str = "CBSA",
+    fixed_y: bool = False,
+) -> None:
     MIN_POPULATION = 100_000
     if "Cities" in area_label:
         MIN_POPULATION = 0
@@ -35,18 +50,28 @@ def plot_grid_all_census_areas(df: pd.DataFrame, prefix: str, month_year: str, o
 
     cbsa_year_counts = month_year_df.groupby("area_code")["year"].nunique()
     complete_cbsas = cbsa_year_counts[cbsa_year_counts == len(years)].index
-    cbsa_pop = month_year_df.drop_duplicates("area_code").set_index("area_code")["total_population_2020"]
-    eligible_cbsas = complete_cbsas[cbsa_pop.reindex(complete_cbsas).fillna(0) >= MIN_POPULATION]
+    cbsa_pop = month_year_df.drop_duplicates("area_code").set_index("area_code")[
+        "total_population_2020"
+    ]
+    eligible_cbsas = complete_cbsas[
+        cbsa_pop.reindex(complete_cbsas).fillna(0) >= MIN_POPULATION
+    ]
 
     month_year_df = month_year_df[month_year_df["area_code"].isin(eligible_cbsas)]
     eligible_cbsas = eligible_cbsas
 
-    ylim = (month_year_df[available].min().min(), month_year_df[available].max().max()) if fixed_y else None
+    ylim = (
+        (month_year_df[available].min().min(), month_year_df[available].max().max())
+        if fixed_y
+        else None
+    )
 
     yearly_mean = month_year_df.groupby("year")[list(available)].mean().reindex(years)
 
     n_cols = len(available)
-    fig, axes = plt.subplots(1, n_cols, figsize=(5 * n_cols, 5), sharey=False, gridspec_kw={"wspace": 0.3})
+    fig, axes = plt.subplots(
+        1, n_cols, figsize=(5 * n_cols, 5), sharey=False, gridspec_kw={"wspace": 0.3}
+    )
     if n_cols == 1:
         axes = [axes]
 
@@ -59,48 +84,116 @@ def plot_grid_all_census_areas(df: pd.DataFrame, prefix: str, month_year: str, o
         _apply_panel_style(ax, years, metric_ylim, y_range=y_range)
 
         for cbsa in eligible_cbsas:
-            cbsa_df = month_year_df[month_year_df["area_code"] == cbsa].sort_values("year")
+            cbsa_df = month_year_df[month_year_df["area_code"] == cbsa].sort_values(
+                "year"
+            )
             ax.plot(
-                cbsa_df["year"], cbsa_df[metric],
-                color="#7cb3f6", linewidth=0.7, alpha=0.4, zorder=1)
-        ax.plot(yearly_mean.index, yearly_mean[metric],
-            color="#1560bd", linewidth=2.4, marker="o", markersize=5, zorder=3)
+                cbsa_df["year"],
+                cbsa_df[metric],
+                color="#7cb3f6",
+                linewidth=0.7,
+                alpha=0.4,
+                zorder=1,
+            )
+        ax.plot(
+            yearly_mean.index,
+            yearly_mean[metric],
+            color="#1560bd",
+            linewidth=2.4,
+            marker="o",
+            markersize=5,
+            zorder=3,
+        )
 
-    handles = [plt.Line2D([0], [0], color="#7cb3f6", linewidth=1.5, alpha=0.6, label="Individual area"),
-        plt.Line2D([0], [0], color="#1560bd", linewidth=2.4, marker="o", markersize=5, label="Mean across areas")]
-    fig.legend(handles=handles, loc="center left",
-               bbox_to_anchor=(1.06, 0.5),
-               bbox_transform=axes[-1].transAxes, # coordinates relative to last axes, not figure
-               frameon=False, fontsize=14, labelcolor=SECONDARY)
+    handles = [
+        plt.Line2D(
+            [0], [0], color="#7cb3f6", linewidth=1.5, alpha=0.6, label="Individual area"
+        ),
+        plt.Line2D(
+            [0],
+            [0],
+            color="#1560bd",
+            linewidth=2.4,
+            marker="o",
+            markersize=5,
+            label="Mean across areas",
+        ),
+    ]
+    fig.legend(
+        handles=handles,
+        loc="center left",
+        bbox_to_anchor=(1.06, 0.5),
+        bbox_transform=axes[
+            -1
+        ].transAxes,  # coordinates relative to last axes, not figure
+        frameon=False,
+        fontsize=14,
+        labelcolor=SECONDARY,
+    )
     grid_dir = output_dir / "grid_lineplots"
     grid_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(grid_dir / f"{prefix}_moran_d_capy_{len(eligible_cbsas)}_cbsa.png", bbox_inches="tight")
+    fig.savefig(
+        grid_dir / f"{prefix}_moran_d_capy_{len(eligible_cbsas)}_cbsa.png",
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
 
 if __name__ == "__main__":
-    def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_poc.csv", prefix: str = "white_poc",
-             study_area_type: Optional[str] = None,
-             fixed_y: bool = False):
-        area_label = {"max_county": "most populous counties within CBSAs",
-                      "max_city": "most populous cities within CBSAs"}.get(study_area_type, "CBSAs")
-        geography_type = next((g for g in ("block_groups", "blocks", "tracts", "counties") if g in prefix), "tracts")
+
+    def main(
+        filename: str = "data/shared/outputs/tracts_in_cbsa/white_poc.csv",
+        prefix: str = "white_poc",
+        study_area_type: Optional[str] = None,
+        fixed_y: bool = False,
+    ):
+        area_label = {
+            "max_county": "most populous counties within CBSAs",
+            "max_city": "most populous cities within CBSAs",
+        }.get(study_area_type, "CBSAs")
+        geography_type = next(
+            (
+                g
+                for g in ("block_groups", "blocks", "tracts", "counties")
+                if g in prefix
+            ),
+            "tracts",
+        )
         geography_label = geography_type.replace("_", " ")
-        prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
-        output_dir = Path("figures") / "baseline" / f"{geography_type}_in_{study_area_type or 'cbsa'}"
+        prefix = (
+            f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
+        )
+        output_dir = (
+            Path("figures")
+            / "baseline"
+            / f"{geography_type}_in_{study_area_type or 'cbsa'}"
+        )
         output_dir.mkdir(parents=True, exist_ok=True)
-        df = join_study_area_metadata(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
+        df = join_study_area_metadata(pd.read_csv(filename)).sort_values(
+            "total_population_2020", ascending=False
+        )
         month_year = df["definition_month_year"].iloc[0]
-        plot_grid_all_census_areas(df, prefix, month_year, output_dir,
-                                   geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
+        plot_grid_all_census_areas(
+            df,
+            prefix,
+            month_year,
+            output_dir,
+            geography_label=geography_label,
+            area_label=area_label,
+            fixed_y=fixed_y,
+        )
 
     parser = argparse.ArgumentParser(
         description="Plot grid all census areas.",
         allow_abbrev=False,
     )
-    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_poc.csv")
+    parser.add_argument(
+        "--filename", default="data/shared/outputs/tracts_in_cbsa/white_poc.csv"
+    )
     parser.add_argument("--prefix", default="white_poc")
     parser.add_argument("--study-area-type", default=None)
-    parser.add_argument("--fixed-y", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument(
+        "--fixed-y", action=argparse.BooleanOptionalAction, default=False
+    )
     args = parser.parse_args()
     main(**vars(args))

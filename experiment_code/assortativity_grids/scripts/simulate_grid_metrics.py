@@ -21,19 +21,24 @@ for p in (str(HERE), str(PROJECT_ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from experiment_code.assortativity_grids.utils.grid_utils import LEVELS, build_grid, compute_metrics
+from experiment_code.assortativity_grids.utils.grid_utils import (
+    LEVELS,
+    build_grid,
+    compute_metrics,
+)
 
-# Config 
-N_GRIDS = 10000 # grids per clustering level
-BASE_SEED = 1000 # seeds BASE_SEED ... BASE_SEED+N_GRIDS-1
+# Config
+N_GRIDS = 10000  # grids per clustering level
+BASE_SEED = 1000  # seeds BASE_SEED ... BASE_SEED+N_GRIDS-1
 
-# Output paths 
+# Output paths
 OUT_DIR = HERE.parent.parent.parent / "figures" / "assortativity_grids"
 RESULTS_PATH = HERE / "simulations" / "metrics_results.json"
 EXEMPLARS_PATH = HERE / "simulations" / "exemplar_grids.json"
 
 
-# Simulation 
+# Simulation
+
 
 def run_simulation():
     """Build N_GRIDS grids per level; return a flat list of result dicts."""
@@ -44,11 +49,14 @@ def run_simulation():
         for seed in seeds:
             G = build_grid(level, seed)
             metrics = compute_metrics(G)
-            results.append({
-                "label": level["label"],
-                "mode": level["mode"],
-                "seed": seed,
-                **metrics})
+            results.append(
+                {
+                    "label": level["label"],
+                    "mode": level["mode"],
+                    "seed": seed,
+                    **metrics,
+                }
+            )
     return results
 
 
@@ -66,11 +74,14 @@ def save_exemplars():
     exemplars = []
     for level in LEVELS:
         G = build_grid(level, BASE_SEED)
-        exemplars.append({
-            "label": level["label"],
-            "mode": level["mode"],
-            "seed": BASE_SEED,
-            "graph": json_graph.node_link_data(G)})
+        exemplars.append(
+            {
+                "label": level["label"],
+                "mode": level["mode"],
+                "seed": BASE_SEED,
+                "graph": json_graph.node_link_data(G),
+            }
+        )
     EXEMPLARS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(EXEMPLARS_PATH, "w") as f:
         json.dump(exemplars, f, indent=2)
@@ -78,8 +89,10 @@ def save_exemplars():
 
 
 if __name__ == "__main__":
-    print(f"Running simulation: {N_GRIDS} grids by {len(LEVELS)} levels "
-          f"= {N_GRIDS * len(LEVELS)} total")
+    print(
+        f"Running simulation: {N_GRIDS} grids by {len(LEVELS)} levels "
+        f"= {N_GRIDS * len(LEVELS)} total"
+    )
     results = run_simulation()
     save_results(results)
     save_exemplars()

@@ -3,8 +3,12 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root (for capy_core)
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/ (for visualization)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[4])
+)  # project root (for capy_core)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/ (for visualization)
 
 import pandas as pd
 
@@ -27,10 +31,12 @@ TOP_N = 100
 
 YEAR_FILTER = 2020
 
-COLUMNS = {"half_edge_1": r"Capy",
+COLUMNS = {
+    "half_edge_1": r"Capy",
     "moran_P": r"Moran's I",
     "dissimilarity_1": "Dissimilarity",
-    "total_population": "Population"}
+    "total_population": "Population",
+}
 
 DECIMAL_PLACES = 3
 
@@ -40,11 +46,20 @@ OUTPUT_TEX: Path | None = None
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _escape_latex(text: str) -> str:
     replacements = {
-        "&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#",
-        "_": r"\_", "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
-        "^": r"\textasciicircum{}", "\\": r"\textbackslash{}"}
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+        "\\": r"\textbackslash{}",
+    }
     for char, escaped in replacements.items():
         text = text.replace(char, escaped)
     return text
@@ -54,25 +69,46 @@ def _auto_output_path(input_csv: Path, rank_by: str, year: int | None, n: int) -
     stem = input_csv.stem
     year_tag = f"_{year}" if year is not None else "_all_years"
     run_name = input_csv.parent.name  # e.g. "tracts_in_cbsa"
-    return Path("figures") / "baseline" / run_name / "latex_tables" / f"{stem}_by_{rank_by}{year_tag}_top{n}.tex"
+    return (
+        Path("figures")
+        / "baseline"
+        / run_name
+        / "latex_tables"
+        / f"{stem}_by_{rank_by}{year_tag}_top{n}.tex"
+    )
 
 
-def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label: str | None = RANK_LABEL, rank_ascending: bool = RANK_ASCENDING, top_n: int = TOP_N, year_filter: int | None = YEAR_FILTER, columns: dict[str, str] = COLUMNS, decimal_places: int = DECIMAL_PLACES, column_decimals: dict[str, int] = COLUMN_DECIMALS, output_tex: Path | None = OUTPUT_TEX) -> Path:
+def build_table(
+    input_csv: Path = INPUT_CSV,
+    rank_by: str = RANK_BY,
+    rank_label: str | None = RANK_LABEL,
+    rank_ascending: bool = RANK_ASCENDING,
+    top_n: int = TOP_N,
+    year_filter: int | None = YEAR_FILTER,
+    columns: dict[str, str] = COLUMNS,
+    decimal_places: int = DECIMAL_PLACES,
+    column_decimals: dict[str, int] = COLUMN_DECIMALS,
+    output_tex: Path | None = OUTPUT_TEX,
+) -> Path:
 
     df = join_study_area_metadata(pd.read_csv(input_csv))
     if year_filter is not None:
         df = df[df["year"] == year_filter].copy()
 
-    df = (df.sort_values(rank_by, ascending=rank_ascending)
-          .head(top_n)
-          .reset_index(drop=True))
+    df = (
+        df.sort_values(rank_by, ascending=rank_ascending)
+        .head(top_n)
+        .reset_index(drop=True)
+    )
     df.insert(0, "rank", range(1, len(df) + 1))
 
     metric_cols = list(columns.keys())
     missing = [c for c in metric_cols + [rank_by] if c not in df.columns]
     if missing:
-        raise ValueError(f"Column(s) not found in data: {missing}\n"
-            f"Available columns: {list(df.columns)}")
+        raise ValueError(
+            f"Column(s) not found in data: {missing}\n"
+            f"Available columns: {list(df.columns)}"
+        )
 
     display = df[["rank", "area_title"] + metric_cols].copy()
     display["area_title"] = display["area_title"].apply(_short_name)
@@ -117,9 +153,7 @@ def build_table(input_csv: Path = INPUT_CSV, rank_by: str = RANK_BY, rank_label:
         cells = [_escape_latex(str(v)) for v in row.tolist()]
         lines.append(f"    {' & '.join(cells)} \\\\")
 
-    lines += [
-        r"    \bottomrule",
-        r"  \end{longtable}"]
+    lines += [r"    \bottomrule", r"  \end{longtable}"]
 
     latex = "\n".join(lines) + "\n"
 

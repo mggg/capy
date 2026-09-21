@@ -13,6 +13,7 @@ import argparse
 import sys
 import os
 import pathlib
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
@@ -27,21 +28,30 @@ import pandas as pd
 import gerrychain
 from iowa_helpers import visualize_iowa, plot_metric_scatterplots
 
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 28, "savefig.dpi": 300})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "cm",  # setting to latex font
+        "font.size": 28,
+        "savefig.dpi": 300,
+    }
+)
 
 RHO = 0.3
 num_samples = 500
 num_rhos = 100
 
+
 def main():
-    g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
+    g = gerrychain.Graph.from_json(
+        "data/experiment_specific/ia_files/ia_counties_2020.json"
+    )
 
     target_rhos = []
     real_rhos = []
     capys = []
-    morans =[]
-    rho_grid = np.linspace(0.01, .5, num_rhos)
+    morans = []
+    rho_grid = np.linspace(0.01, 0.5, num_rhos)
 
     for i in range(num_samples):
         rng = random.Random(i)
@@ -52,7 +62,10 @@ def main():
                 print("invalid configuration")
                 continue
 
-            if metrics.property_sum(g_, "x_pop") == 0 or metrics.property_sum(g_, "y_pop") == 0:
+            if (
+                metrics.property_sum(g_, "x_pop") == 0
+                or metrics.property_sum(g_, "y_pop") == 0
+            ):
                 print("0 pop")
                 continue
 
@@ -61,25 +74,36 @@ def main():
             capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
             morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
-    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(real_rhos, capys, morans)
+    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(
+        real_rhos, capys, morans
+    )
 
-    fig_moran.savefig("figures/iowa/moran_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
-    fig_capy.savefig("figures/iowa/capy_by_rho_isol_iowa.png", dpi = 300, bbox_inches="tight")
+    fig_moran.savefig(
+        "figures/iowa/moran_by_rho_isol_iowa.png", dpi=300, bbox_inches="tight"
+    )
+    fig_capy.savefig(
+        "figures/iowa/capy_by_rho_isol_iowa.png", dpi=300, bbox_inches="tight"
+    )
 
     rng = random.Random(42)
     g_, real_rho = make_random_isolated_config(g, RHO, rng)
     fig, ax = visualize_iowa(g_, real_rho)
     base_filename = f"figures/iowa/isol_iowa_visualization_rho={real_rho}"
-    filestem = base_filename.replace('.', 'p')
-    fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+    filestem = base_filename.replace(".", "p")
+    fig.savefig(f"{filestem}.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-    pd.DataFrame({
-        "target_rho": target_rhos,
-        "real_rho": real_rhos,
-        "capy": capys,
-        "moran": morans,
-    }).to_csv(f"stats/iowa_runs/isol_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
+    pd.DataFrame(
+        {
+            "target_rho": target_rhos,
+            "real_rho": real_rhos,
+            "capy": capys,
+            "moran": morans,
+        }
+    ).to_csv(
+        f"stats/iowa_runs/isol_samples_samples={num_samples}_rhos={num_rhos}.csv",
+        index=False,
+    )
 
 
 def valid_isolated_config(graph, column):
@@ -96,11 +120,11 @@ def valid_isolated_config(graph, column):
     """
 
     nodes_in_cluster = []
-    
+
     for node in graph.nodes():
-        if graph.nodes[node][column] >0:
+        if graph.nodes[node][column] > 0:
             nodes_in_cluster.append(node)
-    
+
     # should have as many connected components as there are nonzero entries
     subgraph = graph.subgraph(nodes_in_cluster)
     return subgraph.number_of_edges() == 0
@@ -120,7 +144,7 @@ def make_random_isolated_config(graph, target_rho, rng):
         graph: nx.Graph
             The modified graph with x_pop and y_pop set on every node
         real_rho: float
-    The actual achieved global group fraction. May exceed target_rho if the last selected node overshoots, or fall short of target_rho if the 
+    The actual achieved global group fraction. May exceed target_rho if the last selected node overshoots, or fall short of target_rho if the
     maximal independent set is exhausted before the target is reached.
     """
 
@@ -134,7 +158,7 @@ def make_random_isolated_config(graph, target_rho, rng):
     nodes = list(graph.nodes())
     rng.shuffle(nodes)
 
-    total_pop =  metrics.property_sum(graph, "TOTPOP")
+    total_pop = metrics.property_sum(graph, "TOTPOP")
     x_pop = 0
     for node in nodes:
         if node in blocked:
@@ -144,7 +168,7 @@ def make_random_isolated_config(graph, target_rho, rng):
         blocked.update(graph.neighbors(node))
 
         graph.nodes[node]["x_pop"] = graph.nodes[node]["TOTPOP"]
-        x_pop+=graph.nodes[node]["x_pop"]
+        x_pop += graph.nodes[node]["x_pop"]
         graph.nodes[node]["y_pop"] = 0
 
         current_rho = x_pop / total_pop
@@ -152,9 +176,14 @@ def make_random_isolated_config(graph, target_rho, rng):
             break
 
     for node in graph.nodes():
-        graph.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"] - graph.nodes[node]["x_pop"]
+        graph.nodes[node]["y_pop"] = (
+            graph.nodes[node]["TOTPOP"] - graph.nodes[node]["x_pop"]
+        )
 
-    return graph, metrics.property_sum(graph, "x_pop") / metrics.property_sum(graph, "TOTPOP")
+    return graph, metrics.property_sum(graph, "x_pop") / metrics.property_sum(
+        graph, "TOTPOP"
+    )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

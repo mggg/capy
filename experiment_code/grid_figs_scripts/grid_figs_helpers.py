@@ -1,4 +1,5 @@
 import sys, os
+
 sys.path.insert(0, os.path.abspath("../.."))
 import capy_core.metrics as metrics
 import networkx as nx
@@ -8,10 +9,12 @@ import gerrychain.grid
 import random
 from collections import deque
 from matplotlib.colors import ListedColormap
+
 random.seed(42)
 
+
 ####CHANGE RHO TO TARGET RHO
-def populate_ch_grid(graph, rho, node_pop, eps): #give graph x and y pop'scripts
+def populate_ch_grid(graph, rho, node_pop, eps):  # give graph x and y pop'scripts
     """
     Assign checkerboard x_pop/y_pop populations to an existing gerrychain Grid.
 
@@ -50,13 +53,16 @@ def populate_ch_grid(graph, rho, node_pop, eps): #give graph x and y pop'scripts
                 e_x = random.uniform(-5, 5)
                 e_y = random.uniform(-5, 5)
                 graph.graph.nodes[node]["x_pop"] = 2 * node_pop * rho + 2 + rho * e_x
-                graph.graph.nodes[node]["y_pop"] = node_pop * (1 - 2* rho) + (1 - 2* rho) *e_y
+                graph.graph.nodes[node]["y_pop"] = (
+                    node_pop * (1 - 2 * rho) + (1 - 2 * rho) * e_y
+                )
             else:
                 graph.graph.nodes[node]["x_pop"] = 2 * node_pop * rho
-                graph.graph.nodes[node]["y_pop"] = node_pop * (1 - 2* rho) 
+                graph.graph.nodes[node]["y_pop"] = node_pop * (1 - 2 * rho)
     return graph
 
-def generate_ch_grid(num_columns: int, num_rows: int, rho, node_pop, eps = False):
+
+def generate_ch_grid(num_columns: int, num_rows: int, rho, node_pop, eps=False):
     """
     Create and populate an n×m gerrychain Grid in a checkerboard pattern.
 
@@ -82,10 +88,11 @@ def generate_ch_grid(num_columns: int, num_rows: int, rho, node_pop, eps = False
         G.graph.nodes[node]["y"] = node[1]
         G.graph.nodes[node]["sum"] = node[0] + node[1]
     if eps == True:
-        G = populate_ch_grid(G, rho, node_pop, eps = True)
+        G = populate_ch_grid(G, rho, node_pop, eps=True)
     else:
-        G = populate_ch_grid(G, rho, node_pop, eps = False)
+        G = populate_ch_grid(G, rho, node_pop, eps=False)
     return G
+
 
 def populate_const_grid(graph, rho, node_pop):
     """
@@ -108,6 +115,7 @@ def populate_const_grid(graph, rho, node_pop):
         graph.graph.nodes[node]["x_pop"] = rho * node_pop
         graph.graph.nodes[node]["y_pop"] = (1 - rho) * node_pop
     return graph
+
 
 def generate_const_grid(num_columns, num_rows, rho, node_pop):
     """
@@ -134,6 +142,7 @@ def generate_const_grid(num_columns, num_rows, rho, node_pop):
         G.graph.nodes[node]["sum"] = node[0] + node[1]
     G = populate_const_grid(G, rho, node_pop)
     return G
+
 
 def populate_cluster_bfs(start_node, graph, node_pop, target_x_pop):
     """
@@ -185,6 +194,7 @@ def populate_cluster_bfs(start_node, graph, node_pop, target_x_pop):
             if nbr not in visited:
                 queue.append(nbr)
     return graph
+
 
 def populate_cluster_random(start_node, graph, node_pop, target_x_pop):
     """
@@ -239,7 +249,8 @@ def populate_cluster_random(start_node, graph, node_pop, target_x_pop):
                 queue.append(nbr)
     return graph
 
-def generate_clust_grid(num_columns, num_rows, rho, node_pop, method = "bfs"):
+
+def generate_clust_grid(num_columns, num_rows, rho, node_pop, method="bfs"):
     """
     Create an n×m gerrychain Grid with a single contiguous x_pop cluster.
 
@@ -268,11 +279,11 @@ def generate_clust_grid(num_columns, num_rows, rho, node_pop, method = "bfs"):
         G.graph.nodes[node]["y"] = node[1]
         G.graph.nodes[node]["x_pop"] = 0
         G.graph.nodes[node]["y_pop"] = 0
-    x_rand = random.randint(0 , num_columns-1)
-    y_rand = random.randint(0 , num_rows-1)
+    x_rand = random.randint(0, num_columns - 1)
+    y_rand = random.randint(0, num_rows - 1)
     tot_pop = num_columns * num_rows * node_pop
     tot_x_pop = tot_pop * rho
-    start_node = (x_rand, y_rand)    
+    start_node = (x_rand, y_rand)
     if method == "bfs":
         G = populate_cluster_bfs(start_node, G, node_pop, tot_x_pop)
     elif method == "random":
@@ -280,11 +291,10 @@ def generate_clust_grid(num_columns, num_rows, rho, node_pop, method = "bfs"):
     for node in G.graph.nodes():
         if G.graph.nodes[node]["x_pop"] == 0:
             G.graph.nodes[node]["y_pop"] = node_pop
-    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
-                (metrics.property_sum(G.graph, "x_pop") + 
-                 metrics.property_sum(G.graph, "y_pop")))
+    real_rho = metrics.property_sum(G.graph, "x_pop") / (
+        metrics.property_sum(G.graph, "x_pop") + metrics.property_sum(G.graph, "y_pop")
+    )
     return (G, real_rho)
-
 
 
 def generate_isol_grid(num_columns, num_rows, rho, node_pop):
@@ -307,11 +317,11 @@ def generate_isol_grid(num_columns, num_rows, rho, node_pop):
     -------
     gerrychain.grid.Grid
     """
-    
-    G = generate_ch_grid(num_columns, num_rows, .5, node_pop)
+
+    G = generate_ch_grid(num_columns, num_rows, 0.5, node_pop)
     nodes = list(G.graph.nodes)
     random.shuffle(nodes)
-    current_x_pop = num_columns * num_rows * node_pop * .5
+    current_x_pop = num_columns * num_rows * node_pop * 0.5
     target_x_pop = num_columns * num_rows * node_pop * rho
 
     for node in nodes:
@@ -321,12 +331,22 @@ def generate_isol_grid(num_columns, num_rows, rho, node_pop):
             G.graph.nodes[node]["x_pop"] = 0
             G.graph.nodes[node]["y_pop"] = node_pop
             current_x_pop = current_x_pop - node_pop
-    real_rho = (metrics.property_sum(G.graph, "x_pop") / 
-                (metrics.property_sum(G.graph, "x_pop") + 
-                 metrics.property_sum(G.graph, "y_pop")))
+    real_rho = metrics.property_sum(G.graph, "x_pop") / (
+        metrics.property_sum(G.graph, "x_pop") + metrics.property_sum(G.graph, "y_pop")
+    )
     return (G, real_rho)
 
-def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds, method = "bfs", blur = True, max_retries = 50):
+
+def generate_kclust_grid(
+    num_columns,
+    num_rows,
+    target_rho,
+    node_pop,
+    num_seeds,
+    method="bfs",
+    blur=True,
+    max_retries=50,
+):
     """
     Create an n×m gerrychain Grid with k contiguous x_pop clusters.
 
@@ -366,25 +386,25 @@ def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds,
         target_nodes = int((target_rho * num_columns * num_rows) / num_seeds)
 
         for i in range(num_seeds):
-            y_nodes = [node for node in G.graph.nodes() if G.graph.nodes[node]["x_pop"] == 0]
+            y_nodes = [
+                node for node in G.graph.nodes() if G.graph.nodes[node]["x_pop"] == 0
+            ]
             seed = random.choice(y_nodes)
             if method == "bfs":
-                G = populate_cluster_bfs(seed, G, node_pop, target_nodes*node_pop)
+                G = populate_cluster_bfs(seed, G, node_pop, target_nodes * node_pop)
             elif method == "random":
-                G = populate_cluster_random(seed, G, node_pop, target_nodes*node_pop)
+                G = populate_cluster_random(seed, G, node_pop, target_nodes * node_pop)
 
         for node in G.graph.nodes():
             if G.graph.nodes[node]["x_pop"] == 0:
                 G.graph.nodes[node]["y_pop"] = node_pop
-        
-        real_rho = (metrics.property_sum(G.graph, "x_pop") / 
-                    (metrics.property_sum(G.graph, "x_pop") + 
-                    metrics.property_sum(G.graph, "y_pop")))
-        
-        x_nodes = [
-            node for node in G.graph.nodes()
-            if G.graph.nodes[node]["x_pop"] > 0
-            ]
+
+        real_rho = metrics.property_sum(G.graph, "x_pop") / (
+            metrics.property_sum(G.graph, "x_pop")
+            + metrics.property_sum(G.graph, "y_pop")
+        )
+
+        x_nodes = [node for node in G.graph.nodes() if G.graph.nodes[node]["x_pop"] > 0]
 
         H = G.graph.subgraph(x_nodes)
 
@@ -393,6 +413,7 @@ def generate_kclust_grid(num_columns, num_rows, target_rho, node_pop, num_seeds,
         if components > 1:
             return (G, real_rho, components)
     return None
+
 
 def draw_grid_as_checkerboard(graph, id, rho, ax=None, title=""):
     """
@@ -421,7 +442,7 @@ def draw_grid_as_checkerboard(graph, id, rho, ax=None, title=""):
     # gerrychain grid nodes are (col, row) tuples
     cols = [n[0] for n in nodes]
     rows = [n[1] for n in nodes]
-    width  = max(cols) + 1
+    width = max(cols) + 1
     height = max(rows) + 1
 
     grid = np.zeros((height, width))
@@ -436,6 +457,6 @@ def draw_grid_as_checkerboard(graph, id, rho, ax=None, title=""):
 
     ax.axis("off")
     base_file_stem = f"figures/idealized_grids/fig-5_{id}_grid_visualization_rho={rho}"
-    file_stem = base_file_stem.replace('.', 'p')
+    file_stem = base_file_stem.replace(".", "p")
     plt.savefig(file_stem, dpi=300, bbox_inches="tight")
     return ax

@@ -1,6 +1,7 @@
 import sys
 import os
 import pathlib
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
@@ -14,24 +15,27 @@ import gerrychain
 from collections import deque
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 
-def colormap(rho, vmin = 0, vmax = 1):
+
+def colormap(rho, vmin=0, vmax=1):
     """
     Builds a diverging colormap and norm centered at rho, running from blue (rho=0) through white (rho=rho) to orange (rho=1).
     Parameters:
         Rho: float
         The rho value at which the colorbar diverges
     """
-    if not (vmin < rho < vmax): 
-        raise ValueError(f"rho={rho} must be strictly between vmin={vmin} and vmax={vmax}")
-    
+    if not (vmin < rho < vmax):
+        raise ValueError(
+            f"rho={rho} must be strictly between vmin={vmin} and vmax={vmax}"
+        )
+
     diverging_cmap = LinearSegmentedColormap.from_list(
-    "rho_diverging",
-    ["#2267BC", "#ffffff", "#FFA812"]
+        "rho_diverging", ["#2267BC", "#ffffff", "#FFA812"]
     )
     # Norm that maps 0→left, RHO→center (white), 1→right
     norm = TwoSlopeNorm(vmin=vmin, vcenter=rho, vmax=vmax)
 
     return diverging_cmap, norm
+
 
 def visualize_iowa(graph, rho):
     """
@@ -49,34 +53,50 @@ def visualize_iowa(graph, rho):
     """
 
     pos = {
-    node: (
-        float(graph.nodes[node]["INTPTLON"]),
-        math.degrees(math.log(math.tan(math.pi/4 + math.radians(float(graph.nodes[node]["INTPTLAT"]))/2)))
-    )
-    for node in graph.nodes()
-    }
-
-    pop = {
-        node: graph.nodes[node]["TOTPOP"]
+        node: (
+            float(graph.nodes[node]["INTPTLON"]),
+            math.degrees(
+                math.log(
+                    math.tan(
+                        math.pi / 4
+                        + math.radians(float(graph.nodes[node]["INTPTLAT"])) / 2
+                    )
+                )
+            ),
+        )
         for node in graph.nodes()
     }
+
+    pop = {node: graph.nodes[node]["TOTPOP"] for node in graph.nodes()}
 
     sizes = [pop[n] / 500 for n in graph.nodes]  # adjust scaling factor
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    node_rhos = [graph.nodes[node]["x_pop"] / graph.nodes[node]["TOTPOP"] for node in graph.nodes()]
+    node_rhos = [
+        graph.nodes[node]["x_pop"] / graph.nodes[node]["TOTPOP"]
+        for node in graph.nodes()
+    ]
 
     cmap, norm = colormap(rho)
     node_colors = [cmap(norm(r)) for r in node_rhos]
 
-    nx.draw_networkx_nodes(graph, pos=pos, node_size=sizes, node_color=node_colors,
-                            edgecolors='black', linewidths=0.5, ax=ax)
-    nx.draw_networkx_edges(graph, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax)
+    nx.draw_networkx_nodes(
+        graph,
+        pos=pos,
+        node_size=sizes,
+        node_color=node_colors,
+        edgecolors="black",
+        linewidths=0.5,
+        ax=ax,
+    )
+    nx.draw_networkx_edges(
+        graph, pos=pos, edge_color="black", width=0.2, alpha=0.5, ax=ax
+    )
 
-
-    ax.set_aspect('equal')
-    ax.axis('off')
+    ax.set_aspect("equal")
+    ax.axis("off")
     return fig, ax
+
 
 def populate_cluster_random(start_node, graph, target_x_pop, rng):
     """
@@ -96,7 +116,7 @@ def populate_cluster_random(start_node, graph, target_x_pop, rng):
         real_rho: float
             The actual achieved global group fraction, which may exceed the target due to discrete node assignments
     """
-    
+
     queue = deque([start_node])
 
     visited = set()
@@ -127,18 +147,20 @@ def populate_cluster_random(start_node, graph, target_x_pop, rng):
             if nbr not in visited:
                 queue.append(nbr)
 
-
     for node in graph.nodes():
         if graph.nodes[node]["x_pop"] == 0:
             graph.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
 
-    real_rho = metrics.property_sum(graph, "x_pop")/metrics.property_sum(graph, "TOTPOP")
-    
+    real_rho = metrics.property_sum(graph, "x_pop") / metrics.property_sum(
+        graph, "TOTPOP"
+    )
+
     return graph, real_rho
+
 
 def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
     """
-    Produces a standalone diverging colorbar figure with a horizontal marker at vcenter 
+    Produces a standalone diverging colorbar figure with a horizontal marker at vcenter
     labeled with the global rho value. Currently not used in iowa viz.
     Parameters:
         vcenter: float
@@ -158,16 +180,25 @@ def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
     cbar = fig.colorbar(sm, ax=ax, fraction=1.0, pad=0)
     cbar.ax.tick_params(labelsize=tick_size)
     cbar.ax.set_title(r"$\rho_i$", rotation=0, fontsize=tick_size * 3, pad=10)
-    cbar.ax.yaxis.set_ticks_position('right')
-    cbar.ax.text(1.6, vcenter, fr"$\rho = {vcenter}$", va='center', ha='left',
-             fontsize=tick_size, transform=cbar.ax.transData, clip_on=False)
-    cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
-    
+    cbar.ax.yaxis.set_ticks_position("right")
+    cbar.ax.text(
+        1.6,
+        vcenter,
+        rf"$\rho = {vcenter}$",
+        va="center",
+        ha="left",
+        fontsize=tick_size,
+        transform=cbar.ax.transData,
+        clip_on=False,
+    )
+    cbar.ax.axhline(vcenter, color="black", linestyle=":", linewidth=1, clip_on=False)
+
     ax.set_visible(False)
     return fig, ax
 
+
 def plot_metric_scatterplots(real_rhos, capys, morans):
-        #setting axis ticks
+    # setting axis ticks
 
     rho_step = 0.1
     xmin = math.floor(min(real_rhos) / rho_step) * rho_step
@@ -181,20 +212,20 @@ def plot_metric_scatterplots(real_rhos, capys, morans):
     capy_ymin = math.floor(min(capys) / capy_step) * capy_step
     capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
 
-    #scatterplotting
+    # scatterplotting
     fig_moran, ax_moran = plt.subplots(figsize=(10, 10))
     ax_moran.scatter(real_rhos, morans, s=0.1, color="#1560bd")
-    ax_moran.set_xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+    ax_moran.set_xticks(np.arange(xmin, xmax + rho_step / 2, rho_step))
     ax_moran.set_xlim(xmin, xmax)
-    ax_moran.set_yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
+    ax_moran.set_yticks(np.arange(moran_ymin, moran_ymax + moran_step / 2, moran_step))
     ax_moran.set_ylim(moran_ymin - 0.02, moran_ymax)
     fig_moran.tight_layout()
 
     fig_capy, ax_capy = plt.subplots(figsize=(10, 10))
     ax_capy.scatter(real_rhos, capys, s=0.1, color="#1560bd")
-    ax_capy.set_xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
+    ax_capy.set_xticks(np.arange(xmin, xmax + rho_step / 2, rho_step))
     ax_capy.set_xlim(xmin, xmax)
-    ax_capy.set_yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
+    ax_capy.set_yticks(np.arange(capy_ymin, capy_ymax + capy_step / 2, capy_step))
     ax_capy.set_ylim(capy_ymin - 0.02, capy_ymax)
     fig_capy.tight_layout()
 

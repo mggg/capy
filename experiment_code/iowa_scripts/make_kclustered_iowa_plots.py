@@ -15,6 +15,7 @@ import argparse
 import sys
 import os
 import pathlib
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
@@ -27,40 +28,55 @@ import numpy as np
 import random
 import pandas as pd
 import gerrychain
-from iowa_helpers import visualize_iowa, populate_cluster_random, plot_metric_scatterplots
+from iowa_helpers import (
+    visualize_iowa,
+    populate_cluster_random,
+    plot_metric_scatterplots,
+)
 
-plt.rcParams.update({"font.family": "serif", "mathtext.fontset": "cm", #setting to latex font
-                    "font.size": 28, "savefig.dpi": 300})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "cm",  # setting to latex font
+        "font.size": 28,
+        "savefig.dpi": 300,
+    }
+)
 
 RHO = 0.3
 num_start_nodes = 4
 num_samples = 500
 num_rhos = 100
 
-def main():
-    #loading iowa
-    g = gerrychain.Graph.from_json("data/experiment_specific/ia_files/ia_counties_2020.json")
 
-    #visualizing kcluster
+def main():
+    # loading iowa
+    g = gerrychain.Graph.from_json(
+        "data/experiment_specific/ia_files/ia_counties_2020.json"
+    )
+
+    # visualizing kcluster
     rng = random.Random(42)
-    result= generate_kclust_grid(g, RHO, num_start_nodes, rng, max_retries = 5000)
+    result = generate_kclust_grid(g, RHO, num_start_nodes, rng, max_retries=5000)
     if result is not None:
         g_, real_rho, num_components = result
         fig, ax = visualize_iowa(g_, real_rho)
         base_filename = f"figures/iowa/multicluster_iowa_visualization_rho={real_rho}_k={num_start_nodes}_numcomponents={num_components}"
-        filestem = base_filename.replace('.', 'p')
-        fig.savefig(f"{filestem}.png", dpi = 300, bbox_inches="tight")
+        filestem = base_filename.replace(".", "p")
+        fig.savefig(f"{filestem}.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
     else:
-        raise RuntimeError("Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_start_nodes") #something goes horribly wrong
+        raise RuntimeError(
+            "Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_start_nodes"
+        )  # something goes horribly wrong
 
-    #sampling kclusters
+    # sampling kclusters
     target_rhos = []
     real_rhos = []
     capys = []
-    morans =[]
+    morans = []
 
-    rho_grid = np.linspace(.001, .5, num_rhos)
+    rho_grid = np.linspace(0.001, 0.5, num_rhos)
 
     for i in range(num_samples):
         rng = random.Random(i)
@@ -73,27 +89,39 @@ def main():
                 capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
                 morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
 
-    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(real_rhos, capys, morans)
+    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(
+        real_rhos, capys, morans
+    )
 
-    base_filename_moran =f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_start_nodes}"
-    filestem_moran = base_filename_moran.replace('.', 'p')
-    fig_moran.savefig(f"{filestem_moran}.png", dpi = 300, bbox_inches="tight")
+    base_filename_moran = (
+        f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_start_nodes}"
+    )
+    filestem_moran = base_filename_moran.replace(".", "p")
+    fig_moran.savefig(f"{filestem_moran}.png", dpi=300, bbox_inches="tight")
 
-    base_filename_capy =f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_start_nodes}"
-    filestem_capy = base_filename_capy.replace('.', 'p')
-    fig_capy.savefig(f"{filestem_capy}.png", dpi = 300, bbox_inches="tight")
+    base_filename_capy = (
+        f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_start_nodes}"
+    )
+    filestem_capy = base_filename_capy.replace(".", "p")
+    fig_capy.savefig(f"{filestem_capy}.png", dpi=300, bbox_inches="tight")
 
-    pd.DataFrame({
-    "target_rho": target_rhos,
-    "real_rho": real_rhos,
-    "capy": capys,
-    "moran": morans,
-    }).to_csv(f"stats/iowa_runs/multicluster_samples_samples={num_samples}_rhos={num_rhos}.csv", index=False)
+    pd.DataFrame(
+        {
+            "target_rho": target_rhos,
+            "real_rho": real_rhos,
+            "capy": capys,
+            "moran": morans,
+        }
+    ).to_csv(
+        f"stats/iowa_runs/multicluster_samples_samples={num_samples}_rhos={num_rhos}.csv",
+        index=False,
+    )
 
-def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries = 50):
+
+def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries=50):
     """
-    Builds a k-cluster configuration by growing num_start_nodes independent random cluster growth clusters, 
-    each targeting an equal share of the total x_pop budget, then computes the achieved rho and number of 
+    Builds a k-cluster configuration by growing num_start_nodes independent random cluster growth clusters,
+    each targeting an equal share of the total x_pop budget, then computes the achieved rho and number of
     connected components. Clusters from different start nodes can merge into one another but the code only
     returns configurations with at least two unconnected clusters.
     Parameters:
@@ -118,7 +146,9 @@ def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries = 
             graph.nodes[node]["x_pop"] = 0
             graph.nodes[node]["y_pop"] = 0
 
-        target_pop = target_rho * metrics.property_sum(graph, "TOTPOP") / num_start_nodes
+        target_pop = (
+            target_rho * metrics.property_sum(graph, "TOTPOP") / num_start_nodes
+        )
 
         for _ in range(num_start_nodes):
             y_nodes = [node for node in graph.nodes if graph.nodes[node]["x_pop"] == 0]
@@ -131,15 +161,12 @@ def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries = 
         for node in G.nodes():
             if G.nodes[node]["x_pop"] == 0:
                 G.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
-        
-        real_rho = (metrics.property_sum(G, "x_pop") / 
-                    (metrics.property_sum(G, "x_pop") + 
-                    metrics.property_sum(G, "y_pop")))
-        
-        x_nodes = [
-            node for node in G.nodes()
-            if G.nodes[node]["x_pop"] > 0
-            ]
+
+        real_rho = metrics.property_sum(G, "x_pop") / (
+            metrics.property_sum(G, "x_pop") + metrics.property_sum(G, "y_pop")
+        )
+
+        x_nodes = [node for node in G.nodes() if G.nodes[node]["x_pop"] > 0]
 
         H = G.subgraph(x_nodes)
 
@@ -148,6 +175,7 @@ def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries = 
             return G, real_rho, components
 
     return None
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

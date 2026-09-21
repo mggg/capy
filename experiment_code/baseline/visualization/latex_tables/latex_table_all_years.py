@@ -3,8 +3,12 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root (for capy_core)
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/ (for visualization)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[4])
+)  # project root (for capy_core)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/ (for visualization)
 
 import pandas as pd
 
@@ -17,7 +21,7 @@ INPUT_CSV = Path("data/shared/outputs/tracts_in_cbsa/white_black.csv")
 
 YEARS = [1990, 2000, 2010, 2020]
 
-RANK_BY   = "half_edge_1"
+RANK_BY = "half_edge_1"
 RANK_YEAR = 2020
 RANK_LABEL: str | None = None
 RANK_ASCENDING = False
@@ -29,11 +33,7 @@ RANK_ASCENDING = False
 
 TOP_N = 1000
 
-COLUMNS = {
-    "half_edge_1":    "HE",
-    "moran_P":        r"$I$",
-    "dissimilarity_1": "$D$"
-}
+COLUMNS = {"half_edge_1": "HE", "moran_P": r"$I$", "dissimilarity_1": "$D$"}
 
 DECIMAL_PLACES = 3
 
@@ -41,11 +41,19 @@ OUTPUT_TEX: Path | None = None
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _escape_latex(text: str) -> str:
     replacements = {
-        "&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#",
-        "_": r"\_", "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}",
-        "^": r"\textasciicircum{}", "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+        "\\": r"\textbackslash{}",
     }
     for char, escaped in replacements.items():
         text = text.replace(char, escaped)
@@ -55,7 +63,13 @@ def _escape_latex(text: str) -> str:
 def _auto_output_path(input_csv: Path, rank_by: str, rank_year: int, n: int) -> Path:
     stem = input_csv.stem
     run_name = input_csv.parent.name  # e.g. "tracts_in_cbsa"
-    return Path("figures") / "baseline" / run_name / "latex_tables" / f"{stem}_table_{rank_by}_{rank_year}_top{n}_all_years.tex"
+    return (
+        Path("figures")
+        / "baseline"
+        / run_name
+        / "latex_tables"
+        / f"{stem}_table_{rank_by}_{rank_year}_top{n}_all_years.tex"
+    )
 
 
 def build_table(
@@ -90,12 +104,14 @@ def build_table(
     if missing:
         raise ValueError(
             f"Column(s) not found after pivot: {missing}\n"
-            f"Available: {list(wide.columns)}")
+            f"Available: {list(wide.columns)}"
+        )
 
     wide = (
         wide.sort_values(sort_col, ascending=rank_ascending)
-            .head(top_n)
-            .reset_index(drop=True))
+        .head(top_n)
+        .reset_index(drop=True)
+    )
     wide.insert(0, "rank", range(1, len(wide) + 1))
 
     ordered_metric_cols = [f"{m}_{yr}" for yr in years for m in metric_cols]
@@ -120,12 +136,12 @@ def build_table(
     n_metrics = len(metric_cols)
     cmidrules = []
     for i, _yr in enumerate(years):
-        left  = 3 + i * n_metrics
+        left = 3 + i * n_metrics
         right = left + n_metrics - 1
         cmidrules.append(rf"    \cmidrule(lr){{{left}-{right}}}")
 
-    pair_label  = "White--Black" if "black" in input_csv.stem.lower() else input_csv.stem
-    years_str   = ", ".join(str(y) for y in years)
+    pair_label = "White--Black" if "black" in input_csv.stem.lower() else input_csv.stem
+    years_str = ", ".join(str(y) for y in years)
     if rank_by == "area_title":
         caption = f"{top_n} CBSAs ({pair_label}), sorted alphabetically; metrics for {years_str}."
     else:
@@ -141,7 +157,8 @@ def build_table(
         f"  \\begin{{longtable}}{{{col_spec}}}",
         f"  \\caption{{{caption}}}",
         f"  \\label{{tab:{input_csv.stem}_{rank_by}_{rank_year}_all_years}}\\\\",
-        r"    \toprule"]
+        r"    \toprule",
+    ]
 
     header_cells = " & ".join(f"\\textbf{{{h}}}" for h in col_headers)
     lines.append(f"    {header_cells} \\\\")
@@ -153,9 +170,7 @@ def build_table(
         cells = [_escape_latex(str(v)) for v in row.tolist()]
         lines.append(f"    {' & '.join(cells)} \\\\")
 
-    lines += [
-        r"    \bottomrule",
-        r"  \end{longtable}"]
+    lines += [r"    \bottomrule", r"  \end{longtable}"]
 
     latex = "\n".join(lines) + "\n"
 

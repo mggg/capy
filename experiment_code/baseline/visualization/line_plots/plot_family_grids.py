@@ -14,18 +14,41 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))  # project root
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # experiment_code/baseline/
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/
 
 from typing import Optional
 from capy_core.process_results import join_study_area_metadata
-from experiment_code.visualization_settings import _shorten_prefix, METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _short_name
+from experiment_code.visualization_settings import (
+    _shorten_prefix,
+    METRIC_LABELS,
+    METRICS,
+    PALETTE,
+    _apply_panel_style,
+    _short_name,
+)
 
 
-def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir: Path, n: int = 10, n_cols: int = 6, geography_label: str = "tracts", area_label: str = "CBSA", fixed_y: bool = False) -> None:
+def plot_family_grids(
+    df: pd.DataFrame,
+    prefix: str,
+    month_year: str,
+    output_dir: Path,
+    n: int = 10,
+    n_cols: int = 6,
+    geography_label: str = "tracts",
+    area_label: str = "CBSA",
+    fixed_y: bool = False,
+) -> None:
     month_year_df = df[df["definition_month_year"] == month_year]
     top_n_metros = list(month_year_df["area_code"].drop_duplicates()[:n])
-    code_to_title = month_year_df.drop_duplicates("area_code").set_index("area_code")["area_title"]
-    plot_df = (month_year_df[month_year_df["area_code"].isin(top_n_metros)].sort_values(["area_code", "year"]))
+    code_to_title = month_year_df.drop_duplicates("area_code").set_index("area_code")[
+        "area_title"
+    ]
+    plot_df = month_year_df[month_year_df["area_code"].isin(top_n_metros)].sort_values(
+        ["area_code", "year"]
+    )
 
     color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
     years = sorted(plot_df["year"].unique())
@@ -35,27 +58,39 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
     for metric in METRICS:
         if metric not in plot_df.columns:
             continue
-        title, subtitle = METRIC_LABELS.get(metric, (metric.replace("_", " ").title(), ""))
+        title, subtitle = METRIC_LABELS.get(
+            metric, (metric.replace("_", " ").title(), "")
+        )
         families.setdefault(title, []).append((metric, subtitle))
 
     family_dir = output_dir / "metric_family_grids"
     family_dir.mkdir(parents=True, exist_ok=True)
 
-    handles = [plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))
-        for c in top_n_metros]
+    handles = [
+        plt.Line2D(
+            [0],
+            [0],
+            color=color_map[c],
+            linewidth=2.5,
+            label=_short_name(code_to_title[c]),
+        )
+        for c in top_n_metros
+    ]
 
     for family_title, members in families.items():
         n_metrics = len(members)
         cols = min(n_metrics, n_cols)
         rows = (n_metrics + cols - 1) // cols
         family_metrics = [m for m, _ in members]
-        ylim = (plot_df[family_metrics].min().min(), plot_df[family_metrics].max().max()) if fixed_y else None
+        ylim = (
+            (plot_df[family_metrics].min().min(), plot_df[family_metrics].max().max())
+            if fixed_y
+            else None
+        )
 
         fig, axes = plt.subplots(
-            rows, cols,
-            figsize=(5 * cols, 5 * rows),
-            sharey=False,
-            squeeze=False)
+            rows, cols, figsize=(5 * cols, 5 * rows), sharey=False, squeeze=False
+        )
 
         for idx, (metric, subtitle) in enumerate(members):
             ax = axes[idx // cols][idx % cols]
@@ -64,50 +99,118 @@ def plot_family_grids(df: pd.DataFrame, prefix: str, month_year: str, output_dir
             for cbsa in top_n_metros:
                 cbsa_df = plot_df[plot_df["area_code"] == cbsa]
                 ax.plot(
-                    cbsa_df["year"], cbsa_df[metric],
-                    color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2, alpha=0.8)
+                    cbsa_df["year"],
+                    cbsa_df[metric],
+                    color=color_map[cbsa],
+                    linewidth=1.8,
+                    marker="o",
+                    markersize=4,
+                    zorder=2,
+                    alpha=0.8,
+                )
 
         for idx in range(n_metrics, rows * cols):
             axes[idx // cols][idx % cols].set_visible(False)
 
         SUPTITLE_Y = 1.02
-        fig.suptitle(f"{family_title}. Segregation over time: {pair_label}", fontsize=14, fontweight="bold", color="#111111", y=SUPTITLE_Y)
-        fig.legend(handles=handles, loc="lower center", ncol=min(5, len(top_n_metros)), bbox_to_anchor=(0.5, -0.03), frameon=False, fontsize=8, handlelength=1.5, columnspacing=1.0, labelcolor="#333333")
+        fig.suptitle(
+            f"{family_title}. Segregation over time: {pair_label}",
+            fontsize=14,
+            fontweight="bold",
+            color="#111111",
+            y=SUPTITLE_Y,
+        )
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            ncol=min(5, len(top_n_metros)),
+            bbox_to_anchor=(0.5, -0.03),
+            frameon=False,
+            fontsize=8,
+            handlelength=1.5,
+            columnspacing=1.0,
+            labelcolor="#333333",
+        )
         subtitle_y = SUPTITLE_Y - 20 / (72 * fig.get_figheight())
-        fig.text(0.5, subtitle_y,
+        fig.text(
+            0.5,
+            subtitle_y,
             f"Top {n} U.S. metros by 2020 population. Census {geography_label} in {area_label}",
-            ha="center", va="top", fontsize=9, color="#555555")
+            ha="center",
+            va="top",
+            fontsize=9,
+            color="#555555",
+        )
 
-        safe_name = (family_title.lower().replace("'", "").replace("(", "").replace(")", "").replace(" ", "_"))
-        fig.savefig(family_dir / f"{prefix}_{safe_name}.png",
-            bbox_inches="tight")
+        safe_name = (
+            family_title.lower()
+            .replace("'", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace(" ", "_")
+        )
+        fig.savefig(family_dir / f"{prefix}_{safe_name}.png", bbox_inches="tight")
         plt.close(fig)
 
 
 if __name__ == "__main__":
-    def main(filename: str = "data/shared/outputs/tracts_in_cbsa/white_poc.csv", prefix: str = "white_poc",
-             study_area_type: Optional[str] = None,
-             n: int = 10, fixed_y: bool = False):
-        area_label = {"max_county": "most populous counties within CBSAs",
-                      "max_city": "most populous cities within CBSAs"}.get(study_area_type, "CBSAs")
-        geography_type = next((g for g in ("block_groups", "blocks", "tracts", "counties") if g in prefix), "tracts")
+
+    def main(
+        filename: str = "data/shared/outputs/tracts_in_cbsa/white_poc.csv",
+        prefix: str = "white_poc",
+        study_area_type: Optional[str] = None,
+        n: int = 10,
+        fixed_y: bool = False,
+    ):
+        area_label = {
+            "max_county": "most populous counties within CBSAs",
+            "max_city": "most populous cities within CBSAs",
+        }.get(study_area_type, "CBSAs")
+        geography_type = next(
+            (
+                g
+                for g in ("block_groups", "blocks", "tracts", "counties")
+                if g in prefix
+            ),
+            "tracts",
+        )
         geography_label = geography_type.replace("_", " ")
-        prefix = f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
-        output_dir = Path("figures") / "baseline" / f"{geography_type}_in_{study_area_type or 'cbsa'}"
+        prefix = (
+            f"{_shorten_prefix(prefix)}_{study_area_type or 'cbsa'}_{geography_type}"
+        )
+        output_dir = (
+            Path("figures")
+            / "baseline"
+            / f"{geography_type}_in_{study_area_type or 'cbsa'}"
+        )
         output_dir.mkdir(parents=True, exist_ok=True)
-        df = join_study_area_metadata(pd.read_csv(filename)).sort_values("total_population_2020", ascending=False)
+        df = join_study_area_metadata(pd.read_csv(filename)).sort_values(
+            "total_population_2020", ascending=False
+        )
         month_year = df["definition_month_year"].iloc[0]
-        plot_family_grids(df, prefix, month_year, output_dir, n,
-                          geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
+        plot_family_grids(
+            df,
+            prefix,
+            month_year,
+            output_dir,
+            n,
+            geography_label=geography_label,
+            area_label=area_label,
+            fixed_y=fixed_y,
+        )
 
     parser = argparse.ArgumentParser(
         description="Plot family grids.",
         allow_abbrev=False,
     )
-    parser.add_argument("--filename", default="data/shared/outputs/tracts_in_cbsa/white_poc.csv")
+    parser.add_argument(
+        "--filename", default="data/shared/outputs/tracts_in_cbsa/white_poc.csv"
+    )
     parser.add_argument("--prefix", default="white_poc")
     parser.add_argument("--study-area-type", default=None)
     parser.add_argument("--n", type=int, default=10)
-    parser.add_argument("--fixed-y", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument(
+        "--fixed-y", action=argparse.BooleanOptionalAction, default=False
+    )
     args = parser.parse_args()
     main(**vars(args))

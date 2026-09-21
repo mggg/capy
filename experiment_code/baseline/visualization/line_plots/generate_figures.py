@@ -23,28 +23,49 @@ For each vintage found in definition_month_year, produces figures in:
         metric_family_grids/ — one grid per metric family
 """
 
-
 import argparse
 import sys
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4])) # project root (for capy_core)
-sys.path.insert(0, str(Path(__file__).resolve().parents[2])) # experiment_code/baseline/ (for visualization)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[4])
+)  # project root (for capy_core)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/ (for visualization)
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from capy_core.process_results import join_study_area_metadata
-from experiment_code.visualization_settings import (METRIC_LABELS, METRICS, PALETTE, _apply_panel_style, _shorten_prefix, _short_name)
+from experiment_code.visualization_settings import (
+    METRIC_LABELS,
+    METRICS,
+    PALETTE,
+    _apply_panel_style,
+    _shorten_prefix,
+    _short_name,
+)
 from visualization.line_plots.plot_family_grids import plot_family_grids
-from visualization.line_plots.plot_grid_all_census_areas import plot_grid_all_census_areas
+from visualization.line_plots.plot_grid_all_census_areas import (
+    plot_grid_all_census_areas,
+)
 from visualization.line_plots.plot_grid_top10 import plot_grid_top10
 
 
-def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_type: Optional[str] = None, fixed_y: bool = False, study_area_type: Optional[str] = None):
+def main(
+    filename: str = "",
+    n: int = 10,
+    prefix: str = "white_poc",
+    geography_type: Optional[str] = None,
+    fixed_y: bool = False,
+    study_area_type: Optional[str] = None,
+):
     if filename:
-        inferred_geography_type, separator, inferred_study_area_type = Path(filename).parent.name.partition("_in_")
+        inferred_geography_type, separator, inferred_study_area_type = Path(
+            filename
+        ).parent.name.partition("_in_")
         if separator and inferred_geography_type and inferred_study_area_type:
             geography_type = geography_type or inferred_geography_type
             study_area_type = study_area_type or inferred_study_area_type
@@ -86,8 +107,12 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
     month_year_df = df[df["definition_month_year"] == month_year]
 
     top_n_metros = list(month_year_df["area_code"].drop_duplicates()[:n])
-    code_to_title = month_year_df.drop_duplicates("area_code").set_index("area_code")["area_title"]
-    top_n_df = month_year_df[month_year_df["area_code"].isin(top_n_metros)].sort_values(["area_code", "year"])
+    code_to_title = month_year_df.drop_duplicates("area_code").set_index("area_code")[
+        "area_title"
+    ]
+    top_n_df = month_year_df[month_year_df["area_code"].isin(top_n_metros)].sort_values(
+        ["area_code", "year"]
+    )
 
     color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
     years = sorted(top_n_df["year"].unique())
@@ -103,10 +128,19 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
         for cbsa in top_n_metros:
             cbsa_df = top_n_df[top_n_df["area_code"] == cbsa]
             ax.plot(
-                cbsa_df["year"], cbsa_df[metric],
-                color=color_map[cbsa], linewidth=1.8, marker="o", markersize=4, zorder=2, alpha=0.8)
+                cbsa_df["year"],
+                cbsa_df[metric],
+                color=color_map[cbsa],
+                linewidth=1.8,
+                marker="o",
+                markersize=4,
+                zorder=2,
+                alpha=0.8,
+            )
 
-        title, subtitle = METRIC_LABELS.get(metric, (metric.replace("_", " ").title(), ""))
+        title, subtitle = METRIC_LABELS.get(
+            metric, (metric.replace("_", " ").title(), "")
+        )
         # ax.set_title(title, fontsize=13, fontweight="bold",
         #              pad=30 if subtitle else 10, color="#111111")
         # if subtitle:
@@ -117,21 +151,72 @@ def main(filename: str = "", n: int = 10, prefix: str = "white_poc", geography_t
         # fig.text(0.5, 1, f"Top {n} U.S. metros by 2020 population. Census {geography_label} in {area_label}",
         #     ha="center", fontsize=9, color="#555555")
 
-        handles = [plt.Line2D([0], [0], color=color_map[c], linewidth=2.5, label=_short_name(code_to_title[c]))
-            for c in top_n_metros]
-        fig.legend(handles=handles, loc="lower center", ncol=min(5, len(top_n_metros)), bbox_to_anchor=(0.5, -0.05), frameon=False, fontsize=8, handlelength=1.5, columnspacing=1.0, labelcolor="#333333")
+        handles = [
+            plt.Line2D(
+                [0],
+                [0],
+                color=color_map[c],
+                linewidth=2.5,
+                label=_short_name(code_to_title[c]),
+            )
+            for c in top_n_metros
+        ]
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            ncol=min(5, len(top_n_metros)),
+            bbox_to_anchor=(0.5, -0.05),
+            frameon=False,
+            fontsize=8,
+            handlelength=1.5,
+            columnspacing=1.0,
+            labelcolor="#333333",
+        )
 
-        fig.savefig(output_dir / "lineplots" / f"{prefix}_{metric}.png",
-            bbox_inches="tight")
+        fig.savefig(
+            output_dir / "lineplots" / f"{prefix}_{metric}.png", bbox_inches="tight"
+        )
         plt.close(fig)
 
-    plot_grid_top10(df, prefix, month_year, output_dir, n, geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
-    plot_grid_all_census_areas(df, prefix, month_year, output_dir, geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
-    plot_family_grids(df, prefix, month_year, output_dir, n, geography_label=geography_label, area_label=area_label, fixed_y=fixed_y)
+    plot_grid_top10(
+        df,
+        prefix,
+        month_year,
+        output_dir,
+        n,
+        geography_label=geography_label,
+        area_label=area_label,
+        fixed_y=fixed_y,
+    )
+    plot_grid_all_census_areas(
+        df,
+        prefix,
+        month_year,
+        output_dir,
+        geography_label=geography_label,
+        area_label=area_label,
+        fixed_y=fixed_y,
+    )
+    plot_family_grids(
+        df,
+        prefix,
+        month_year,
+        output_dir,
+        n,
+        geography_label=geography_label,
+        area_label=area_label,
+        fixed_y=fixed_y,
+    )
 
 
 def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
-    required = {"definition_month_year", "year", "area_title", "area_code", "total_population_2020"}
+    required = {
+        "definition_month_year",
+        "year",
+        "area_title",
+        "area_code",
+        "total_population_2020",
+    }
     if required.issubset(df.columns):
         return df
     return join_study_area_metadata(df)
@@ -146,7 +231,9 @@ if __name__ == "__main__":
     parser.add_argument("--n", type=int, default=10)
     parser.add_argument("--prefix", default="white_poc")
     parser.add_argument("--geography-type", default=None)
-    parser.add_argument("--fixed-y", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument(
+        "--fixed-y", action=argparse.BooleanOptionalAction, default=False
+    )
     parser.add_argument("--study-area-type", default=None)
     args = parser.parse_args()
     main(**vars(args))
