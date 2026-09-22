@@ -159,18 +159,18 @@ def populate_cluster_random(start_node, graph, target_x_pop, rng):
 
 
 def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
-    """
-    Produces a standalone diverging colorbar figure with a horizontal marker at vcenter
-    labeled with the global rho value. Currently not used in iowa viz.
-    Parameters:
-        vcenter: float
-            The rho value at which the colormap centers (white); also where the dashed marker is drawn
-        vmin: float
-            Lower bound of the colorbar scale
-        vmax: float
-            Upper bound of the colorbar scale
-        tick_size: int
-            Font size for colorbar tick labels
+    """Create a diverging colorbar centered on the global population share.
+
+    A dotted horizontal marker and label identify vcenter.
+
+    Args:
+        vcenter (float): Population share at the colormap's white midpoint.
+        vmin (float, optional): Lower bound of the colorbar scale. Defaults to 0.
+        vmax (float, optional): Upper bound of the colorbar scale. Defaults to 1.
+        tick_size (int, optional): Font size for tick labels. Defaults to 10.
+
+    Returns:
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]: The figure and hidden parent axes.
     """
 
     fig, ax = plt.subplots(figsize=(1.2, 4))
@@ -198,8 +198,6 @@ def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
 
 
 def plot_metric_scatterplots(real_rhos, capys, morans):
-    # setting axis ticks
-
     rho_step = 0.1
     xmin = math.floor(min(real_rhos) / rho_step) * rho_step
     xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
@@ -212,7 +210,6 @@ def plot_metric_scatterplots(real_rhos, capys, morans):
     capy_ymin = math.floor(min(capys) / capy_step) * capy_step
     capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
 
-    # scatterplotting
     fig_moran, ax_moran = plt.subplots(figsize=(10, 10))
     ax_moran.scatter(real_rhos, morans, s=0.1, color="#1560bd")
     ax_moran.set_xticks(np.arange(xmin, xmax + rho_step / 2, rho_step))

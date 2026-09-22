@@ -164,7 +164,7 @@ def visualize_diffusion(graphs, core_rhos):
     )
     norm = TwoSlopeNorm(
         vmin=0, vcenter=core_rhos[-1], vmax=1
-    )  # diverges at the global rho, here thats rhos[-1] because the rho of the core region is 0 at the end of the process (this might be fragile)
+    )  # Center all snapshots on the final core share, which spans the graph after full diffusion.
 
     for i, G in enumerate(graphs):
         ax = axes[i // 5, i % 5]
@@ -278,12 +278,11 @@ def plot_metrics_over_diffusion_two_axes(graphs):
 
     ax_moran.set_ylim(
         -0.2, 1
-    )  # scaled so that substantively both metrics range from slightly hyperintegrated to fully segregated
+    )  # Align Capy=0.5 with Moran=0 and both upper display endpoints at 1.
     ax_capy.set_ylim(0.4, 1)
 
     ax_moran.tick_params(axis="y", labelcolor="#ED5113")
     ax_capy.tick_params(axis="y", labelcolor="#1560bd")
-    # ax_capy.axhline(0.5, color="black", linestyle="--", linewidth=1, label="Capy = 0.5, Moran's I = 0")
 
     lines_m, labels_m = ax_moran.get_legend_handles_labels()
     lines_c, labels_c = ax_capy.get_legend_handles_labels()
@@ -351,8 +350,6 @@ def plot_rho_colorbar_diverging(vcenter, vmin=0, vmax=1, tick_size=10):
     cb = fig.colorbar(sm, cax=ax)
     cb.ax.tick_params(labelsize=tick_size)
     cb.ax.yaxis.set_ticks_position("right")
-
-    # cbar.ax.axhline(vcenter, color='black', linestyle=':', linewidth=1, clip_on=False)
 
     return fig
 
@@ -468,23 +465,39 @@ def generate_outer_grid(num_columns, num_rows, node_pop):
 
 
 ###below code creates the plots
-# 2clusters-random
+# Random clusters grown from three seeds
 # G = generate_kclust_grid(10, 10, 0.3, node_pop, 3, method="random")[0]
 # graphs, rhos = diffuse(G, threshold=0.3)
 # visualize_diffusion(graphs, rhos)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_random_2cluster_rho=p3_graph_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_random_2cluster_rho=p3_graph_visualization.png",
+#     dpi=300,
+# )
 # plot_metrics_over_diffusion_two_axes(graphs)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_random_2cluster_rho=p3_metrics_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_random_2cluster_rho=p3_metrics_visualization.png",
+#     dpi=300,
+# )
 
 # 1cluster-random
 # G = generate_clust_grid(10, 10, 0.3, node_pop, method="random")
 # graphs, rhos = diffuse(G, threshold=0.3)
 # visualize_diffusion(graphs, rhos)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_random_1cluster_rho=p3_graph_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_random_1cluster_rho=p3_graph_visualization.png",
+#     dpi=300,
+# )
 # plot_metrics_over_diffusion_two_axes(graphs)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_random_1cluster_rho=p3_metrics_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_random_1cluster_rho=p3_metrics_visualization.png",
+#     dpi=300,
+# )
 
-# center 4
+# Four central nodes
 G = generate_center_grid(10, 10, node_pop)
 graphs, rhos = diffuse(G, threshold=0.3)
 for i, graph in enumerate(graphs):
@@ -522,18 +535,34 @@ fig.savefig(
 )
 
 
-# corner 4
+# Four nodes in one corner
 # G = generate_2_corner_grid(10, 10, node_pop)
 # graphs, rhos = diffuse(G, threshold=0.3)
 # visualize_diffusion(graphs, rhos)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_2_corner_cluster_graph_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_2_corner_cluster_graph_visualization.png",
+#     dpi=300,
+# )
 # plot_metrics_over_diffusion_two_axes(graphs)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_2_corner_cluster_metrics_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_2_corner_cluster_metrics_visualization.png",
+#     dpi=300,
+# )
 
-# center 4
+# Outer ring of nodes
 # G = generate_outer_grid(10, 10, node_pop)
 # graphs, rhos = diffuse(G, threshold=0.3)
 # visualize_diffusion(graphs, rhos)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_outer_cluster_graph_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_outer_cluster_graph_visualization.png",
+#     dpi=300,
+# )
 # plot_metrics_over_diffusion_two_axes(graphs)
-# plt.savefig("figures/idealized_grids_diffusion/diffusion_outer_cluster_metrics_visualization.png", dpi=300)
+# plt.savefig(
+#     "figures/idealized_grids_diffusion/"
+#     "diffusion_outer_cluster_metrics_visualization.png",
+#     dpi=300,
+# )

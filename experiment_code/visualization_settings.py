@@ -36,7 +36,7 @@ GRID_COLOR = "#eae8e0"
 SECONDARY = "#333333"
 PRIMARY_INK = "#0b0b0b"
 
-# Colors for the decades on the metric vs
+# Decade colors for metric-versus-rho plots.
 YEAR_COLORS = {
     1980: "#03336e",
     # 1990: "#006b3c",
@@ -252,8 +252,6 @@ def _apply_panel_style(
         labelcolor=SECONDARY,
         pad=15,
     )
-    # ax.tick_params(axis="y", length=0, labelsize=plt.rcParams['font.size'],
-    #    labelcolor=SECONDARY)
     ax.set_xticks(years)
     ax.set_xticklabels([str(y) for y in years], fontsize=plt.rcParams["font.size"])
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))

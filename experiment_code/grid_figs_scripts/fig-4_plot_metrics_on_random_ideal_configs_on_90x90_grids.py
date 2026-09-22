@@ -1,18 +1,14 @@
-"""
-This script generates lineplots of capy versus rho for isolated, clustered, and kclustered configurations. All of these configurations are random
-functions of rho.
+"""Plot Capy against achieved minority share for sampled 90 by 90 grid configurations.
+
+The configurations are isolated, single-cluster, and multiple-cluster arrangements. Assigning whole
+nodes can make the achieved share differ from its target.
 
 Global Parameters:
-    METHOD: str | "random" "bfs"
-        If set to random, clusters shapes are generated randomly, if set to bfs, cluster shapes are generated using a deterministic breadth first search procedure.
-    num_rhos: int
-        Set a number of evenly spaced target rhos between .1 and .5. For each target rho the script will attempt to produce, a configuration such that the graphs minority
-        proportion equals the target rho. However, sometimes the code overshoots (this is very rare on idealized grids).
-    num_samples: int
-        The number of times the script plots each configuration for a given target rho. If num_rhos = 3 and num+samples = 10 the script will plot the capy score of ten
-        grids.
-    node_pop: int
-        How many people live in each node.
+    METHOD (str): "random" for randomized cluster growth or "bfs" for breadth-first growth.
+    num_rhos (int): Number of evenly spaced target shares between 0.1 and 0.5.
+    num_samples (int): Number of sampling rounds over the target shares.
+    node_pop (int): Population per node.
+    num_seeds (int): Number of starting nodes for multiple-cluster configurations.
 """
 
 import sys
@@ -21,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))  # for grid_figs_helpers
 sys.path.insert(
     0, str(Path(__file__).parents[2])
-)  # for pipeline (2 levels up = capy-bara/)     # for pipeline (2 levels up = capy-bara/)
+)  # Repository root for capy_core imports.
 import capy_core.metrics as metrics
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +34,7 @@ from grid_figs_helpers import (
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 11,
         "savefig.dpi": 300,
     }
@@ -50,7 +46,6 @@ num_samples = 20
 node_pop = 1
 num_seeds = 4
 
-# generating graphs
 graphs_clust = []
 graphs_isol = []
 graphs_kclust = []
@@ -81,7 +76,6 @@ x_vals_isol = [real_rho for _, real_rho in graphs_isol]
 x_vals_kclust = [real_rho for _, real_rho, _ in graphs_kclust]
 
 
-# plotting graphs
 plt.scatter(
     x_vals_clust,
     half_edge_clust,

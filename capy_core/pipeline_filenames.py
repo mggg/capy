@@ -108,7 +108,15 @@ def format_definition_stem(identity: StudyAreaIdentity) -> str:
 
 
 def validate_study_area_identity(identity: StudyAreaIdentity) -> None:
-    """Reject unsupported types, non-string numeric codes, and invalid output labels."""
+    """Require a supported area type, an ASCII digit string as its code, and a valid label.
+
+    Args:
+        identity (StudyAreaIdentity): Study-area type, code, and output label to validate.
+
+    Raises:
+        ValueError: If the type is unsupported, the code is not a nonempty ASCII digit string,
+            or the label violates the output naming rules.
+    """
     if identity.study_area_type not in STUDY_AREA_TYPES:
         raise ValueError(f"Unsupported study-area type: {identity.study_area_type!r}")
     if (

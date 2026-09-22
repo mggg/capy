@@ -15,7 +15,7 @@ METRICS = [
     ("dissimilarity", "Dissimilarity"),
     ("half_edge", "Half Edge (capy)"),
     ("spread", "Spread"),
-]  # maybe add mass later?
+]
 norm = mcolors.Normalize(vmin=0, vmax=1)
 cmap = plt.cm.Blues
 

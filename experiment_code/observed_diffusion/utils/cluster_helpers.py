@@ -49,9 +49,9 @@ def find_graph_files(graphs_path, city_code):
 
 
 def add_border_hops(G_city, n_edges=1):
-    cluster_city_nodes = set(G_city.nodes)  # local copy
+    cluster_city_nodes = set(G_city.nodes)
     for _ in range(n_edges):
-        cluster_city_nodes.update(  # expand the copy, not the original
+        cluster_city_nodes.update(
             neighbor
             for n in list(cluster_city_nodes)
             for neighbor in G_city_2020.neighbors(n)
@@ -214,15 +214,31 @@ def compute_cluster_metrics(
 def calculate_cluster_spread(
     graph, gisjoins, fixed_center_gisjoin=None, distance="euclidean"
 ):
-    """
-    Calculates metrics for one supplied cluster-year area and core cluster.
-    Parameters:
-    graph: nx Graph. The dual graph for the city and year of interest.
-    gisjoins: a list of gisjoin IDs pointing to tracts
-    distance: What distance function is used to calculate the spread. Can either be "graph", which
-    uses graph distance, or "euclidean", which uses the euclidean distance between cluster centroids.
+    """Measure population and spread for selected tracts within a city graph.
+
+    Spread is the Black-population-weighted mean distance from a fixed center or the selected tract
+    minimizing that weighted distance. The n-ball radius reaches 90% of the selected Black
+    population. Population shares use BLACK + WHITE as the denominator.
+
+    The selection must have positive Black population. For graph distances, selected tracts
+    must be reachable from the center, including every candidate when choosing a center.
+
+    Args:
+        graph (nx.Graph): City graph with GISJOIN, BLACK, and WHITE node attributes, plus centroid_x
+            and centroid_y when using Euclidean distance.
+        gisjoins (list[str]): Selected tract identifiers. Identifiers absent from the graph are
+            ignored.
+        fixed_center_gisjoin (str | None, optional): Center to retain across selections. If None or
+            absent from the graph, choose a center among the selected tracts. Defaults to None.
+        distance (str, optional): "graph" for shortest-path edge counts or "euclidean" for centroid
+            distances in the coordinate system's units. Defaults to "euclidean".
+
     Returns:
-    dict: A dictionary containing the calculated metrics for the catchment area and core cluster.
+        dict: Selected tract/component counts, population totals and share, mean distance, n-ball
+            radius, and center identifiers.
+
+    Raises:
+        ValueError: If distance is neither "graph" nor "euclidean".
     """
     if distance not in ("euclidean", "graph"):
         raise ValueError
@@ -289,7 +305,6 @@ def calculate_cluster_spread(
                 best_objective = objective
                 best_distances = distances
 
-    # nball spread
     ball_target = 0.9 * area_black_population
     current_ball = 0
     n_ball_spread = None

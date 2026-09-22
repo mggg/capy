@@ -14,7 +14,7 @@ random.seed(42)
 
 
 ####CHANGE RHO TO TARGET RHO
-def populate_ch_grid(graph, rho, node_pop, eps):  # give graph x and y pop'scripts
+def populate_ch_grid(graph, rho, node_pop, eps):
     """
     Assign checkerboard x_pop/y_pop populations to an existing gerrychain Grid.
 

@@ -27,7 +27,6 @@ from experiment_code.assortativity_grids.utils.grid_utils import (
     compute_metrics,
 )
 
-# Config
 N_GRIDS = 10000  # grids per clustering level
 BASE_SEED = 1000  # seeds BASE_SEED ... BASE_SEED+N_GRIDS-1
 
@@ -35,9 +34,6 @@ BASE_SEED = 1000  # seeds BASE_SEED ... BASE_SEED+N_GRIDS-1
 OUT_DIR = HERE.parent.parent.parent / "figures" / "assortativity_grids"
 RESULTS_PATH = HERE / "simulations" / "metrics_results.json"
 EXEMPLARS_PATH = HERE / "simulations" / "exemplar_grids.json"
-
-
-# Simulation
 
 
 def run_simulation():

@@ -37,7 +37,7 @@ from iowa_helpers import (
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 28,
         "savefig.dpi": 300,
     }
@@ -50,12 +50,10 @@ num_rhos = 100
 
 
 def main():
-    # loading iowa
     g = gerrychain.Graph.from_json(
         "data/experiment_specific/ia_files/ia_counties_2020.json"
     )
 
-    # visualizing kcluster
     rng = random.Random(42)
     result = generate_kclust_grid(g, RHO, num_start_nodes, rng, max_retries=5000)
     if result is not None:
@@ -68,9 +66,8 @@ def main():
     else:
         raise RuntimeError(
             "Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_start_nodes"
-        )  # something goes horribly wrong
+        )
 
-    # sampling kclusters
     target_rhos = []
     real_rhos = []
     capys = []
@@ -119,27 +116,23 @@ def main():
 
 
 def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries=50):
-    """
-    Builds a k-cluster configuration by growing num_start_nodes independent random cluster growth clusters,
-    each targeting an equal share of the total x_pop budget, then computes the achieved rho and number of
-    connected components. Clusters from different start nodes can merge into one another but the code only
-    returns configurations with at least two unconnected clusters.
-    Parameters:
-        graph: nx.Graph
-            County adjacency graph with node attributes TOTPOP, x_pop, and y_pop; modified in place
-        target_rho: float
-            Target global group fraction to distribute across num_start_nodes clusters
-        num_start_nodes: int
-            Number of clusters to grow. Clusters can merge into one another
-        rng: random.Random
-            Local RNG instance passed through to each populate_cluster_random call
+    """Grow random clusters until group x occupies at least two connected components.
+
+    Each starting node targets an equal share of the total x_pop budget. Clusters can merge, so the
+    number of surviving components may differ from num_start_nodes. Each attempt resets x_pop and
+    y_pop on the supplied graph; an unsuccessful call also leaves it modified.
+
+    Args:
+        graph (nx.Graph): County adjacency graph with a TOTPOP attribute on every node.
+        target_rho (float): Target population share distributed across the clusters.
+        num_start_nodes (int): Number of clusters to start growing per attempt.
+        rng (random.Random): Random generator shared by seed selection and cluster growth.
+        max_retries (int, optional): Maximum number of attempts. Defaults to 50.
+
     Returns:
-        G: nx.Graph
-            The modified graph with x_pop and y_pop set on every node
-        real_rho: float
-            The actual achieved global group fraction across all clusters
-        components: int
-            Number of connected components among the x_pop-carrying nodes
+        tuple[nx.Graph, float, int] | None: The modified graph, achieved group share, and number of
+            x-populated components. Returns None if no unassigned seed remains or every attempt
+            produces fewer than two components.
     """
     for _ in range(max_retries):
         for node in graph.nodes():

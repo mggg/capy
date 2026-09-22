@@ -85,6 +85,12 @@ def test_1980_population_reader_sums_split_block_group_tables(tmp_path):
         }
     )
 
+    for suffix in ("AA", "AB"):
+        for index in range(4, 16):
+            source_population_df[f"C9D{suffix}{index:03d}"] = "0"
+        for index in range(3, 5):
+            source_population_df[f"C9G{suffix}{index:03d}"] = "0"
+
     population_df = parse_nhgis_1980_population(
         source_population_df, tmp_path / "nhgis_1980_block_groups.csv"
     )

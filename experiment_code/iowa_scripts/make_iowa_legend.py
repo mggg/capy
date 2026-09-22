@@ -19,7 +19,7 @@ def main():
     plt.rcParams.update(
         {
             "font.family": "serif",
-            "mathtext.fontset": "cm",  # setting to latex font
+            "mathtext.fontset": "cm",
             "font.size": 18,
             "savefig.dpi": 300,
         }

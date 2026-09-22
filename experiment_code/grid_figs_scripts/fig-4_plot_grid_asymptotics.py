@@ -42,29 +42,35 @@ def half_edge_a_isol(rho) -> float:
 
 
 def half_edge_a_const(rho: float) -> float:
-    """
-    Returns the capy value of an nxn grid where each node contains rho*M members of group x and (1-rh)*M group y,
-    where M is the node's total population as n goes to infinity.
-        params:
-        rho, int:
-            the grid's minority proportion
-        Returns: float
-            the half edge value of the grid for that value of rho
+    """Return the limiting Capy score for a grid with identical composition at every node.
+
+    Each node contains rho * M members of group x and (1 - rho) * M members of group y, where M is
+    the node population. The score is 0.5 as the grid side length tends to infinity.
+
+    Args:
+        rho (float): Minority population share, retained for the common plotting interface.
+
+    Returns:
+        float: The limiting half-edge score.
     """
     return 0.5
 
 
 def half_edge_a_one_clust(rho: float) -> float:
-    """
-    Returns the capy value of an nxn grid where each node is either all x or all y and x nodes are distributed
-    in a square with side length $\\sqrt{\\rho} \\cdot n$ as n goes to infinity.
-        Args: rho, the grid's minority proportion
-        Returns: the half edge value of the grid for that value of rho
+    """Return the limiting Capy score for one square cluster of single-group nodes.
+
+    Every node contains only x or only y, and the x nodes form a square with side length sqrt(rho) *
+    n on an n by n grid. The limit is taken as n tends to infinity.
+
+    Args:
+        rho (float): Minority population share.
+
+    Returns:
+        float: The limiting half-edge score.
     """
     return 1
 
 
-# plotting the image
 isol = []
 ch = []
 const = []
@@ -106,7 +112,7 @@ legend_ax.legend(
     borderpad=0.4,
     loc="center",
 )
-legend_fig.set_size_inches(1.5, 0.5)  # tune to fit
+legend_fig.set_size_inches(1.5, 0.5)
 legend_fig.savefig(
     "figures/idealized_grids/fig-4_capyx_v_rhoy_lineplot_asymptotic_grids_legend.png",
     dpi=300,

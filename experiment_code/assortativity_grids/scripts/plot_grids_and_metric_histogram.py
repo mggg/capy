@@ -101,7 +101,7 @@ def plot_metric_histogram(ax, vals, key, mean):
         ax.set_ylim(0, 1800)
         ax.set_xlim(
             -1, 1
-        )  # not the hard limit for the P matrix but the observed values do not go below -1 or above 1.
+        )  # Display range for observed values, not a theoretical bound for Moran P.
         ax.set_xticks([-1, -0.5, 0, 0.5, 1])
     else:
         ax.set_ylim(0, 1800)
@@ -143,7 +143,7 @@ def plot_distributions(results):
         filename = (
             f"metric_distributions_{slug}_ave_capy{avg_capy:.2f}_moran{avg_moran:.2f}"
         )
-        filename = filename.replace(".", "p")  # avoid dots in filename
+        filename = filename.replace(".", "p")
         path = out_dir / f"{filename}.png"
         fig.tight_layout()
         fig.savefig(str(path), bbox_inches="tight")

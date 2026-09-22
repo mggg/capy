@@ -22,8 +22,8 @@ from shapely.ops import unary_union
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent.parent  # to capy/
-sys.path.insert(0, str(ROOT))  # for pipeline.*
+ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(ROOT))  # For capy_core imports.
 sys.path.insert(0, str(ROOT / "experiment_code" / "observed_diffusion"))  # for utils.*
 
 # from pipeline.metrics import moran, dissimilarity, half_edge
@@ -53,7 +53,7 @@ CITY_CONFIG = {
 
 OVERLAP_THRESHOLD = 0.50
 YEARS = [1980, 1990, 2000, 2010, 2020]
-BUFFER_LIST = range(11)  # buffer size
+BUFFER_LIST = range(11)  # Number of adjacency steps from the core cluster.
 
 DUAL_GRAPHS_DIR = ROOT / "data" / "shared" / "processed" / "dual_graphs"
 CLIPPED_GEO_DIR = ROOT / "data" / "shared" / "processed" / "clipped_geographies"
@@ -198,7 +198,7 @@ for city_code in CITY_CONFIG:
                 G_year = nx.adjacency_graph(json.load(f))
 
             full_graph_yearly[year] = (
-                G_year  # keep full graph to calculate_cluster_spread
+                G_year  # Preserve the full city graph for spread calculations.
             )
 
             # GEOID to node-id index for this year's graph
@@ -236,7 +236,7 @@ for city_code in CITY_CONFIG:
                     graph=full_graph_yearly[year],
                     gisjoins=gisjoins,
                     fixed_center_gisjoin=core_medoids.get((year, label)),
-                    distance="graph",  # None on first pass (n_edges=0)
+                    distance="graph",
                 )
                 spread_metrics_euclidean = calculate_cluster_spread(
                     graph=full_graph_yearly[year],

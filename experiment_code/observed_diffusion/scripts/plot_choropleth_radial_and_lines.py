@@ -265,7 +265,7 @@ for (area_code, city_name, cluster), tract_selections in tracts.groupby(
         rd = radial_by_year[year]
         panel_radial(
             ax, rd["coords"], rd["share"], rmax, rd["reach"], title=""
-        )  # str(year)
+        )
 
     radial_path = figure_dir / f"{city_name}_{cluster}_radial.png"
     fig_radial.savefig(radial_path, dpi=300, bbox_inches="tight")

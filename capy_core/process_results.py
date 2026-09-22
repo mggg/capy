@@ -9,7 +9,23 @@ from capy_core.utils import definitions
 
 
 def parse_cbsa(config_loc: str) -> definitions.StudyArea:
-    """Load a study area definition JSON and return a StudyArea object. Fills in optional fields (geometry, total_population) before parsing"""
+    """Load study-area JSON, defaulting absent geometry and total_population to None.
+
+    Accepts a JSON object or a JSON-encoded string containing that object and validates it as a
+    StudyArea.
+
+    Args:
+        config_loc (str): Path to the study-area definition JSON file.
+
+    Returns:
+        definitions.StudyArea: Validated study-area metadata with defaults for absent optional
+            fields.
+
+    Raises:
+        FileNotFoundError: If the definition file does not exist.
+        json.JSONDecodeError: If either JSON decoding step fails.
+        pydantic.ValidationError: If the metadata fails StudyArea validation.
+    """
     with open(config_loc) as f:
         data = json.load(f)
 

@@ -1,13 +1,11 @@
-"""
-This script generates scatter plots of capy and Moran's I versus rho for randomly sampled single-cluster configurations of the
-Iowa county graph, plus a geographic visualization of one such configuration.
+"""Plot Capy and Moran's I against minority share for single-cluster Iowa configurations.
+
+Samples randomized clusters on the county graph and saves a map of one configuration.
+
 Global Parameters:
-    RHO: float
-        The target group fraction used for the geographic visualization figure
-    num_samples: int
-        Number of random clustered configurations to sample at each rho value
-    num_rhos: int
-        Number of evenly spaced rho values between 0.001 and 0.5 to sample over
+    RHO (float): Target minority share for the geographic visualization.
+    num_samples (int): Number of configurations to sample at each target share.
+    num_rhos (int): Number of evenly spaced target shares between 0.001 and 0.5.
 """
 
 import argparse
@@ -35,7 +33,7 @@ from iowa_helpers import (
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 28,
         "savefig.dpi": 300,
     }
@@ -47,7 +45,6 @@ num_rhos = 100
 
 
 def main():
-    # loading graph
     g = gerrychain.Graph.from_json(
         "data/experiment_specific/ia_files/ia_counties_2020.json"
     )
@@ -57,7 +54,6 @@ def main():
     capys = []
     morans = []
 
-    # generating samples
     rho_grid = np.linspace(0.001, 0.5, num_rhos)
     nodes = list(g.nodes())
     total_pop = metrics.property_sum(g, "TOTPOP")

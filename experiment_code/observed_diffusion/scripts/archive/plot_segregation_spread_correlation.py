@@ -5,7 +5,8 @@ import pandas as pd
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-DIFFUSION_METRIC = "core_amplitude"  # other options include 'core_spread', 'core_euclidean_spread', or 'euclidean_spread'
+# Other diffusion measures: core_spread, core_euclidean_spread, euclidean_spread.
+DIFFUSION_METRIC = "core_amplitude"
 SEGREGATION_METRIC = "dissimilarity"  # other options include 'gini', 'capy', or 'theil'
 
 df = pd.read_csv(

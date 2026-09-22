@@ -1,5 +1,4 @@
-"""
-Load pipeline settings and resolve input and output paths from a YAML configuration.
+"""Load pipeline settings and resolve input and output paths from YAML.
 
 Usage from Python:
     from pathlib import Path
@@ -31,16 +30,16 @@ class PipelineSettings:
 
     Attributes:
         study_area_type (StudyAreaType): Type of study area to analyze.
-        census_geography_type (CensusGeographyType): Type of census geography to use for
-            dual-graph construction.
-        census_geography_years (tuple[int, ...]): Census years for which boundaries are needed
-            for the selected geography type.
-        study_area_source_path (Path | None): Path to the CSV delineating study areas,
-            or None for county mode.
+        census_geography_type (CensusGeographyType): Type of census geography to use for dual-graph
+            construction.
+        census_geography_years (tuple[int, ...]): Census years for which boundaries are needed for
+            the selected geography type.
+        study_area_source_path (Path | None): Path to the CSV delineating study areas, or None for
+            county mode.
         study_area_vintage (int): Census year for which the study-area definitions are selected.
         study_area_label (str): Label for the study-area definition, used in output paths.
-        repo_root_path (Path | None): Base path for resolving relative paths in the settings,
-            or None to use the parent of the directory containing the config file.
+        repo_root_path (Path | None): Base path for resolving relative paths in the settings, or
+            None to use the parent of the directory containing the config file.
         data_root_path (Path): Base path for raw and processed pipeline data.
         output_root_path (Path): Base path beneath which run-specific results are stored.
         figure_root_path (Path): Base path beneath which run-specific figures are stored.
@@ -77,14 +76,14 @@ class GeographyRequest:
 
 @dataclass(frozen=True, slots=True)
 class ResolvedConfig:
-    """Configuration object that provides the pipeline with validated settings and resolved paths.
+    """Validated pipeline settings and resolved paths for inputs, results, and figures.
 
-    Properties derive the effective census years, definition geography, and shared input and
-    output paths so stages use the same conventions. Use load_config() to construct this object
-    from YAML; the class itself does not load files or validate its constructor arguments.
+    Properties derive the effective census years, definition geography, and shared input and output
+    paths so stages use the same conventions. Use load_config() to construct this object from YAML;
+    the class itself does not load files or validate its constructor arguments.
 
-    It is the responsibility of each pipeline stage to create its output directories and files.
-    Resolving the configuration computes their paths without creating them.
+    Each pipeline stage creates its own outputs. Resolving configuration computes their paths
+    without creating files or directories.
 
     Attributes:
         settings (PipelineSettings): Validated user settings, retaining paths as configured.
@@ -93,22 +92,22 @@ class ResolvedConfig:
         output_root_path (Path): Absolute base beneath which run-specific results are stored.
         figure_root_path (Path): Absolute base beneath which run-specific figures are stored.
         env_file_path (Path): Absolute path to the credentials file, which need not exist yet.
-        study_area_source_path (Path | None): Absolute path to the selected delineation CSV,
-            or None for county mode.
+        study_area_source_path (Path | None): Absolute path to the selected delineation CSV, or None
+            for county mode.
 
     Properties:
-        effective_years (tuple[int, ...]): Requested census years in their original order,
-            excluding 1980 for blocks and block groups, which lack boundaries for that year.
-        definition_geography_type (SourceGeographyType): Places for max-city definitions,
-            counties for all other study-area types.
+        effective_years (tuple[int, ...]): Requested census years in their original order, excluding
+            1980 for blocks and block groups, which lack boundaries for that year.
+        definition_geography_type (SourceGeographyType): Places for max-city definitions, counties
+            for all other study-area types.
         raw_population_path (Path): Directory for raw population data beneath data_root_path.
         raw_geographies_path (Path): Directory for raw boundary data beneath data_root_path.
         census_geographies_path (Path): Directory for processed census boundaries.
         study_area_definitions_path (Path): Directory for processed study-area definitions.
         selected_geographies_path (Path): Directory for census geographies clipped to study areas.
         graphs_path (Path): Directory for the resulting dual graphs.
-        definition_geography_glob (str): Pattern matching processed definition boundaries
-            for the configured study-area vintage and definition geography.
+        definition_geography_glob (str): Pattern matching processed definition boundaries for the
+            configured study-area vintage and definition geography.
         definition_county_glob (str): Pattern matching processed county boundaries for the
             study-area vintage, including those needed alongside places in max-city mode.
         run_relative_path (Path): Run subdirectory combining geography and study-area type,
@@ -243,7 +242,8 @@ def parse_pipeline_settings(raw_yaml: object) -> PipelineSettings:
         PipelineSettings: A dataclass containing the parsed settings.
 
     Raises:
-        ValueError: If the input is not a dictionary or if required fields are missing or invalid
+        ValueError: If the input is not a mapping, fields are missing or unknown, or values
+            are invalid.
     """
     if not isinstance(raw_yaml, dict):
         raise ValueError("Config YAML must be a mapping (dictionary)")  # noqa: TRY004
@@ -341,17 +341,17 @@ def validate_config_fields_exist(raw_yaml: dict[object, object]) -> None:
 
 
 def parse_census_years(raw: object) -> tuple[int, ...]:
-    """Parse and validate the census geography years from the raw YAML data.
+    """Parse distinct supported Census years while preserving their order.
 
     Args:
-        raw (object): The raw data for census geography years.
+        raw (object): A nonempty YAML list of integer Census years.
 
     Returns:
-        tuple[int,...]: A tuple of valid census geography years.
+        tuple[int, ...]: Supported years in the supplied order.
 
     Raises:
-        ValueError: If the input is not a nonempty list of integers or contains unsupported years
-        ValueError: If there are duplicate years in the input list
+        ValueError: If the input is not a nonempty list, contains unsupported or duplicate years, or
+            includes values other than integers, including booleans.
     """
     if not isinstance(raw, list) or not raw:
         raise ValueError("census_geography_years must be a nonempty list of integers")
@@ -382,7 +382,7 @@ def parse_study_area_vintage(raw: object) -> int:
     Raises:
         ValueError: If the input is not an integer or is not a supported year.
     """
-    # NOTE: Exact type checking rejects bool, which is a subclass of int.
+    # Exact type checking rejects bool, which is a subclass of int.
     if type(raw) is not int or raw not in SUPPORTED_YEARS:
         raise ValueError(f"Unsupported study_area_vintage: {raw!r}")
 
@@ -390,19 +390,18 @@ def parse_study_area_vintage(raw: object) -> int:
 
 
 def parse_study_area_source_path(raw: object, study_area_type: str) -> Path | None:
-    """Parse and validate the study area source from the raw YAML data.
+    """Parse the delineation CSV path, requiring None for county mode.
 
     Args:
-        raw (object): The raw data for study area source.
-        study_area_type (str): The type of study area.
+        raw (object): The study_area_source value loaded from YAML.
+        study_area_type (str): The configured study-area type.
 
     Returns:
         Path | None: The source path before root resolution, or None for county mode.
 
     Raises:
-        ValueError: If county mode is selected and a study area source is provided
-        ValueError: If the input is not a nonempty string.
-        ValueError: If the source path does not have a CSV extension.
+        ValueError: If county mode has a source, or another mode lacks a nonblank string path with a
+            .csv suffix.
     """
     if study_area_type == "county":
         if raw is not None:
@@ -449,8 +448,6 @@ def parse_study_area_label(raw: object) -> str:
     Raises:
         ValueError: If the label is empty, has an invalid character, or starts with punctuation.
     """
-    # NOTE: This regex allows only A-Z, a-z, and 0-9 as the first character of the label, and
-    # allows A-Z, a-z, 0-9, underscore, and hyphen for the rest of the label.
     if not isinstance(raw, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", raw):
         raise ValueError(
             "study_area_label must start with a letter or digit and contain only "
@@ -532,8 +529,8 @@ def build_geography_requests(config: ResolvedConfig) -> tuple[GeographyRequest, 
         config (ResolvedConfig): The configuration shared by source-preparation stages.
 
     Returns:
-        tuple[GeographyRequest, ...]: Node inputs followed by definition counties and, for
-            max-city mode, places at the definition year.
+        tuple[GeographyRequest, ...]: Node inputs followed by definition counties and, for max-city
+            mode, places at the definition year.
     """
     requests = [
         GeographyRequest(year=year, geography=config.settings.census_geography_type)

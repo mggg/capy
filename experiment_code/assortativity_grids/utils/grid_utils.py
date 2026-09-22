@@ -11,8 +11,8 @@ from pathlib import Path
 from scipy.ndimage import gaussian_filter
 
 # Project root
-HERE = Path(__file__).resolve().parent  # scripts/
-PROJECT_ROOT = (HERE / "../../../").resolve()  # capy-bara/
+HERE = Path(__file__).resolve().parent
+PROJECT_ROOT = (HERE / "../../../").resolve()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -27,9 +27,6 @@ LEVELS = [
     {"label": "Medium clustering", "mode": "random"},
     {"label": "High clustering", "mode": "gaussian", "sigma": 1.6},
 ]
-
-
-# Node attribute helper
 
 
 def _attach_attrs(nx_G, blue_arr, cell_pop):

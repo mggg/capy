@@ -33,13 +33,12 @@ def main(
 ):
     """Compute segregation metrics for every graph JSON matched by input_glob.
 
-    Runs in parallel via ProcessPoolExecutor. Writes one CSV row per successful file to
-    output. Failures are appended to the path in the METRIC_FAILURES_FILE
-    environment variable.
+    Runs in parallel via ProcessPoolExecutor. Writes one CSV row per successful file to output.
+    Failures are appended to the path in the METRIC_FAILURES_FILE environment variable.
 
-    Malformed filenames are recorded as failures and skipped. Other selected files
-    finish before a failure exit status is returned. Year selection uses the Census
-    year in the basename, independently of the parent directory.
+    Malformed filenames are recorded as failures and skipped. Other selected files finish before a
+    failure exit status is returned. Year selection uses the Census year in the basename,
+    independently of the parent directory.
 
     Args:
         input_glob (str): Pattern matching graph JSON files.
@@ -48,12 +47,12 @@ def main(
         tot_col (str): Node attribute containing total population counts.
         output (Path): Destination metrics CSV, including its header.
         workers (int, optional): Number of worker processes. Defaults to 6.
-        years (str | None, optional): Space-separated Census years, or None for all years.
-            Defaults to None.
+        years (str | None, optional): Space-separated Census years, or None for all years. Defaults
+            to None.
 
     Raises:
-        FileNotFoundError: If no valid files match the requested years and no filename
-            failures were recorded.
+        FileNotFoundError: If no valid files match the requested years and no filename failures were
+            recorded.
         SystemExit: With status 1 after processing if any filename or metric calculation failed.
     """
     files = []
@@ -363,7 +362,19 @@ def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> 
 
 
 def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
-    """Return the two summation components of the <<x, y>> inner product."""
+    """Return the two summation components of the <<x, y>> inner product.
+
+    Args:
+        graph (gerrychain.Graph): Adjacency graph with numeric population attributes on each node.
+        x_col (str): Node attribute containing the first population group's counts.
+        y_col (str): Node attribute containing the second population group's counts.
+        lam (float, optional): Unused here. The caller applies lambda to the returned components.
+            Defaults to 1.
+
+    Returns:
+        tuple[float, float]: The diagonal-corrected within-node sum and cross-neighbor sum,
+            before lambda weighting or multiplication by one half.
+    """
     first_summation = 0
     second_summation = 0
     for node in graph.nodes():
@@ -444,35 +455,40 @@ def half_edge(
 def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
     """Compute edge and half-edge assortativity via node majority classification.
 
-    Classifies each node as x-majority or y-majority based on whether its x
-    count meets or exceeds the global x-share threshold, then computes
-    skew_exact on the resulting binary majority vectors.
+    Classifies a node as x-majority when its local x share meets or exceeds the global x share.
+    Both shares use x + y as the denominator, with ties assigned to x. Writes x_maj and y_maj
+    attributes to the supplied graph and computes the metrics from those binary assignments.
 
-    Returns (e_assort, he_assort), either may be NaN if one class is absent.
+    Args:
+        graph (gerrychain.Graph): Adjacency graph with positive combined x/y population per node.
+            The x_maj and y_maj node attributes are written in place.
+        x_col (str): Node attribute containing the first population group's counts.
+        y_col (str): Node attribute containing the second population group's counts.
+
+    Returns:
+        tuple[float, float]: Edge and half-edge assortativity. Either value is NaN when its
+            normalization denominator is zero, including when one majority class is absent.
     """
-    # determine node majorities
     for node in graph.nodes():
         threshold = property_sum(graph, x_col) / (
             property_sum(graph, x_col) + property_sum(graph, y_col)
         )
-        # threshold = (graph.nodes[node][x_col] + graph.nodes[node][y_col]) / 2
         if (
             graph.nodes[node][x_col]
             / (graph.nodes[node][y_col] + graph.nodes[node][x_col])
             >= threshold
-        ):  # so ties break in favor of x_col
+        ):
             graph.nodes[node]["x_maj"] = 1
             graph.nodes[node]["y_maj"] = 0
         else:
             graph.nodes[node]["x_maj"] = 0
             graph.nodes[node]["y_maj"] = 1
 
-    # calculating E, He assortativity scores
     try:
         e_assort = 0.5 * (
             skew_exact(
                 graph, "x_maj", "y_maj", 0
-            )  # zero lambdas strictly speaking superfluous
+            )  # Binary assignments make the within-node terms zero for any lambda.
             + skew_exact(graph, "y_maj", "x_maj", 0)
         )
     except (

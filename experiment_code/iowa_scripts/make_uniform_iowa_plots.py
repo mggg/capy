@@ -29,7 +29,7 @@ random.seed(42)
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 28,
         "savefig.dpi": 300,
     }
@@ -40,7 +40,6 @@ num_rhos = 50
 
 
 def main():
-    # making plots
     graph = gerrychain.Graph.from_json(
         "data/experiment_specific/ia_files/ia_counties_2020.json"
     )
@@ -91,7 +90,7 @@ def plot_rho_vs_capy_uniform(graph, num_rhos):
         g1 = make_uniform_iowa(g1, rhos[i])
         capys[i] = metrics.half_edge(g1, "x_pop", "y_pop")
 
-    fig, ax = plt.subplots(figsize=(10, 10))  # add this
+    fig, ax = plt.subplots(figsize=(10, 10))
     ax.scatter(rhos, capys, s=1, color="#1560bd")  # plt. → ax.
     ax.set_xlim([0, 0.5])
     ax.set_ylim([0, 1])

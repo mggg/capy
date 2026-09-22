@@ -33,6 +33,9 @@ ruff = "^0.16.8"
 [tool.pytest.ini_options]
 testpaths = ["capy_core/tests"]
 
+[tool.ruff]
+line-length = 100
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

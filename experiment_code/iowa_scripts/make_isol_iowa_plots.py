@@ -31,7 +31,7 @@ from iowa_helpers import visualize_iowa, plot_metric_scatterplots
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 28,
         "savefig.dpi": 300,
     }
@@ -131,21 +131,20 @@ def valid_isolated_config(graph, column):
 
 
 def make_random_isolated_config(graph, target_rho, rng):
-    """
-    Randomly assigns x_pop to a greedy independent set of nodes until the global group fraction reaches rho, then sets y_pop as the remainder for every node.
-    Parameters:
-        graph: nx.Graph
-            County adjacency graph with node attribute TOTPOP; modified in place
-        rho: float
-            Target global group fraction; assignment stops once this value is reached or exceeded
-        rng: random.Random
-            Local RNG to shuffle node order
+    """Assign group x to a randomized greedy independent set of counties in place.
+
+    Selected counties receive their entire population in x_pop, and y_pop holds the remainder at
+    every node. Selection stops when the target share is reached or no eligible nodes remain.
+
+    Args:
+        graph (nx.Graph): County adjacency graph with a TOTPOP attribute on every node.
+        target_rho (float): Target share of the graph's population assigned to group x.
+        rng (random.Random): Random generator used to shuffle the node order.
+
     Returns:
-        graph: nx.Graph
-            The modified graph with x_pop and y_pop set on every node
-        real_rho: float
-    The actual achieved global group fraction. May exceed target_rho if the last selected node overshoots, or fall short of target_rho if the
-    maximal independent set is exhausted before the target is reached.
+        tuple[nx.Graph, float]: The modified graph and achieved group share. The share can exceed
+            the target when the last county overshoots, or fall short when the independent set is
+            exhausted.
     """
 
     # reset populations

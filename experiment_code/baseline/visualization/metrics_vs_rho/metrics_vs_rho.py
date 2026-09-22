@@ -39,7 +39,7 @@ ALL_YEARS = {1980, 1990, 2000, 2010, 2020}
 
 # theoretical minimum of capy for reference in plots, if we decide to include it. for now we don't know.
 def minimum_capy(x):
-    return  # formula
+    return
 
 
 def plot_metrics_vs_rho(filename: str, output_dir: str = "") -> None:

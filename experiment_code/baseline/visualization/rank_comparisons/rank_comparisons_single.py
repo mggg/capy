@@ -85,7 +85,7 @@ def plot_rank_comparisons(df: pd.DataFrame, out_dir: Path, stem: str) -> None:
 
         if "half_edge" in x_col:
             x_col = "capy"
-        rho = round(rho, 2).astype(str).replace(".", "p")  # for filename
+        rho = round(rho, 2).astype(str).replace(".", "p")  # Encode rho in the filename.
 
         out_path = (
             out_dir
@@ -103,7 +103,7 @@ def main(
 ) -> None:
     CSV = Path(filename)
 
-    stem = CSV.stem  # e.g. "white_black"
+    stem = CSV.stem
     # groups_compared = "White and Black" if stem == "white_black" else "White and POC"
 
     node_areas, separator, study_areas_key = CSV.parent.name.partition("_in_")

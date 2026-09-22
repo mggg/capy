@@ -44,7 +44,7 @@ figure_root: figures/baseline
 env_file: .env
 
 # Number of worker processes for graph construction and batch metric calculation. Use a positive
-# integer, and set to 1 process files sequentially; larger values can increase throughput but also
+# integer. A value of 1 uses one worker; larger values can increase throughput but also
 # increase memory use. This does not parallelize every pipeline stage.
 parallel_graph_workers: 6
 

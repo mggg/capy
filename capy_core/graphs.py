@@ -31,12 +31,12 @@ def main(
 ):
     """Build dual adjacency graphs for all .gpkg files matching *input_glob*.
 
-    Processes files in parallel, then aggregates any dropped zero-population
-    nodes across all study areas into one .gpkg per census year under
+    Processes files in parallel, then aggregates any dropped zero-population nodes across all study
+    areas into one .gpkg per census year under
     ``data/shared/outputs/<geography>_in_<study_area_type>/dropped_nodes/``.
 
-    Malformed filenames are reported to stderr and skipped before graph construction.
-    Year selection uses the Census year in each basename, not its parent directory.
+    Malformed filenames are reported to stderr and skipped before graph construction. Year selection
+    uses the Census year in each basename, not its parent directory.
 
     Args:
         input_glob (str): Pattern matching selected-geography GeoPackages.
@@ -44,8 +44,8 @@ def main(
             data/shared/processed/dual_graphs.
         workers (int, optional): Number of worker processes. Defaults to 6.
         attr (str, optional): Column identifying geographic units. Defaults to GISJOIN.
-        years (str | None, optional): Space-separated Census years, or None for all years.
-            Defaults to None.
+        years (str | None, optional): Space-separated Census years, or None for all years. Defaults
+            to None.
 
     Raises:
         FileNotFoundError: If no valid filenames match the requested years.
@@ -107,16 +107,16 @@ def _process_file(gpkg: str, output_base_dir: str, attr: str = "GISJOIN"):
 
     # read and reproject
     geofile = gpd.read_file(gpkg)
-    geofile = geofile.to_crs("esri:102003")  # so distances are in meters
+    geofile = geofile.to_crs("esri:102003")  # Distances are measured in meters.
     warnings.filterwarnings(
         "ignore", message=".*NA values found in column.*"
-    )  # some fields were introduced in 2000, so they're NA in earlier years. It's expected.
+    )  # Some fields introduced in 2000 are absent from earlier datasets.
     warnings.filterwarnings(
         "ignore", message=".*Found islands.*"
     )  # degree-0 nodes are handled explicitly by connect_components.
     warnings.filterwarnings(
         "ignore", message=".*Found overlaps.*"
-    )  # county boundaries sometimes have slight overlaps in Census TIGER files; not a problem for graph construction.
+    )  # Tolerate small overlaps in Census TIGER county boundaries.
 
     area_code = geography_identity.study_area.area_code
 

@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))  # for grid_figs_helpers
 sys.path.insert(
     0, str(Path(__file__).parents[2])
-)  # for pipeline (2 levels up = capy-bara/)     # for pipeline (3 levels up = capy-bara/)
+)  # Repository root for capy_core imports.
 import capy_core.metrics as metrics
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +25,7 @@ from grid_figs_helpers import generate_ch_grid, generate_const_grid
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 11,
         "savefig.dpi": 300,
     }

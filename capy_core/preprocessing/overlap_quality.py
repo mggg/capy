@@ -197,7 +197,7 @@ def _collect_clipped_records(
                 "year": str(geography_identity.census_year),
                 "vintage": geography_identity.study_area.study_area_label,
                 "unit_count": stats["count"],
-                "states": stats["states"],  # list[str]
+                "states": stats["states"],
             }
         )
     cols = ["geo_type", "sa_type", "sa_id", "year", "vintage", "unit_count", "states"]

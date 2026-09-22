@@ -31,7 +31,7 @@ from lambda_helpers import multi_rankr
 plt.rcParams.update(
     {
         "font.family": "serif",
-        "mathtext.fontset": "cm",  # setting to latex font
+        "mathtext.fontset": "cm",
         "font.size": 11,
         "savefig.dpi": 300,
     }
@@ -45,7 +45,6 @@ JITTER_X = 0
 JITTER_Y = 0.3
 WEIGHTS = "small"  # small or full
 
-# MAKE THIS A PREPROCESSING SCRIPT AND PUT IT IN THE DATA THING
 area_df = pd.read_csv(
     f"data/shared/outputs//{GEOGRAPHY}_in_{AREA_TYPE}/white_{COMPARISON}.csv"
 )
@@ -111,7 +110,6 @@ if WEIGHTS == "small":
         jitter_x=JITTER_X,
         jitter_y=JITTER_Y,
     )
-    # adding diagonal line
     n = len(top_100)
     plt.plot([1, n], [1, n], color="black", linestyle="--", linewidth=1, zorder=0)
 

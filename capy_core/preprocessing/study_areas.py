@@ -1,8 +1,8 @@
-"""
-The script builds study area definition files (.gpkg + .json), one per study area. It writes two files per study area into "data/shared/processed/study_area_definitions":
-{type}_{code}_{study_area_label}.gpkg with the boundary geometry
-{type}_{code}_{study_area_label}.json with metadata (CBSA code, title, component counties, total population)
-The .gpkg files are what overlaps.py reads as study_area_glob.
+"""Build a boundary GeoPackage and JSON metadata file for each study area.
+
+By default, files are written beneath data/shared/processed/study_area_definitions with stems of the
+form {type}_{code}_{study_area_label}. GeoPackages contain the boundaries consumed by overlaps.py.
+JSON files contain the area code, title, component county codes, and total population.
 """
 
 import argparse
@@ -238,7 +238,7 @@ def build_max_county_definitions(
 
     for cbsa_code, cbsa in tqdm.tqdm(metro_mappings.items(), file=tqdm_file):
         components = counties[counties["STCNTYFP"].isin(cbsa.component_counties_fips)]
-        try:  ##guard agains the extremely unlikely possibility of nonexistent counties in a cbsa.
+        try:  # Empty or all-null county selections cannot supply a population maximum.
             max_county = components.loc[components["TOTPOP"].idxmax()]
         except ValueError:
             print(f"CBSA {cbsa_code} contains no counties.", file=sys.stderr)
@@ -277,7 +277,25 @@ def build_max_city_definitions(
     study_area_label: str,
     cbsa_geographies: str = None,
 ) -> None:
-    """For each CBSA, write a definition file for the most populous Census place whose geometry intersects the CBSA boundary."""
+    """Write metadata and geometry for the most populous place intersecting each CBSA.
+
+    Selection uses the place's full population and retains its entire boundary, including any
+    portion outside the CBSA.
+
+    Args:
+        filename (str): Census delineation Excel file listing metropolitan areas and their counties.
+        definition_geographies (str): File path or glob for populated Census place GeoPackages.
+        output_dir (str): Directory for the selected places' JSON metadata and boundary GeoPackages.
+        study_area_label (str): Definition label used in output filenames.
+        cbsa_geographies (str | None, optional): File path or glob for populated county GeoPackages
+            used to construct CBSA boundaries. Defaults to None, but callers must supply a path
+            or glob because this function does not resolve county inputs itself.
+
+    Raises:
+        FileNotFoundError: If the delineation file is missing or a geography pattern matches
+            no files.
+        TypeError: If cbsa_geographies is None.
+    """
     metro_mappings = create_metro_mappings(fetch_metro_areas(filename))
     places = load_census_geography(definition_geographies).to_crs("esri:102003")
     counties = load_census_geography(cbsa_geographies).to_crs("esri:102003")

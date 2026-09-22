@@ -1,11 +1,10 @@
-"""
-This script visualizes isolated, clustered, kclustered, and checkerboard configurations on a 90x90 polygonal grid.
+"""Visualize isolated, clustered, multiple-cluster, and checkerboard grids.
+
+Each configuration uses a 90 by 90 polygonal grid.
 
 Global Parameters:
-    RHO: float
-        the minority proportion of the graphs being visualized
-    nod_pop: int
-        the population at each node
+    RHO (float): Target minority population share.
+    node_pop (int): Population per node.
 """
 
 import sys
@@ -14,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))  # for grid_figs_helpers
 sys.path.insert(
     0, str(Path(__file__).parents[2])
-)  # for pipeline (2 levels up = capy-bara/)
+)  # Repository root for capy_core imports.
 import random
 
 random.seed(42)

@@ -20,7 +20,7 @@ GLOBAL PARAMETERS:
     YEAR = int
         chosen year of analysis
 """
-CBSA = 16980  # Chicago = 16980
+CBSA = 16980  # Chicago
 YEAR = 2020
 
 
@@ -42,12 +42,10 @@ block["cbsa_code"] = (
     block["filename"].str.extract(rf"blocks_in_cbsa_(\d+)")[0].astype(int)
 )
 
-# subsetting by cbsa and year
 tract = tract[(tract["year"] == YEAR) & (tract["cbsa_code"] == CBSA)]
 block = block[(block["year"] == YEAR) & (block["cbsa_code"] == CBSA)]
 bg = bg[(bg["year"] == YEAR) & (bg["cbsa_code"] == 16980)]
 
-# calculating metrics
 metrics = ["Capy", "dissimilarity", "Moran_P"]
 
 bg_values = [
@@ -68,7 +66,6 @@ block_values = [
     block["moran_P"].iloc[0],
 ]
 
-# plotting
 x = np.arange(len(metrics))
 width = 0.1
 
