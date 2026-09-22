@@ -1,41 +1,39 @@
-[tool.poetry]
+[project]
 name = "capy"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Census geography pipelines and residential segregation analysis."
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "census>=0.8.27,<0.9",
+    "fiona>=1.10,<2",
+    "geopandas>=1.0,<2",
+    "gerrychain",
+    "ipumspy>=0.8.2,<0.9",
+    "matplotlib>=3.5",
+    "numpy>=2.0,<3",
+    "pandas>=2.2.3,<3",
+    "pydantic>=2.0,<3",
+    "pyyaml>=6.0,<7",
+    "rtree>=1.4,<2",
+    "scipy>=1.9",
+    "seaborn>=0.12",
+    "shapely>=2.0,<3",
+    "tqdm>=4.64.0,<5",
+    "us>=2.0.2,<3",
+    "xlrd>=2.0.1,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414,<2",
+    "pytest>=7.1.2,<8",
+    "ruff>=0.16.8,<0.17",
+]
+
+[tool.poetry]
+requires-poetry = ">=2.2"
 package-mode = false
-
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-numpy = "^2.0"
-pandas = "^2.2.3"
-geopandas = "^1.0"
-fiona = "^1.10"
-shapely = "^2.0"
-us = "^2.0.2"
-pydantic = "^2.0"
-xlrd = "^2.0.1"
-tqdm = "^4.64.0"
-Rtree = "^1.4"
-census = "^0.8.27"
-ipumspy = {version = "^0.8.2", python = ">=3.10,<4.0"}
-pyyaml = "^6.0"
-matplotlib = ">=3.5"
-scipy = ">=1.9"
-seaborn = ">=0.12"
-gerrychain = "*"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.1.2"
-pyright = "^1.1.414"
-ruff = "^0.16.8"
 
 [tool.pytest.ini_options]
 testpaths = ["capy_core/tests"]
-
-[tool.ruff]
-line-length = 100
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
