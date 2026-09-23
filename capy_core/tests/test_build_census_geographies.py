@@ -179,6 +179,30 @@ def test_state_county_series_reads_fipsstco():
     assert county.tolist() == ["013"]
 
 
+def test_mixed_1980_layers_preserve_bna_state_and_county(tmp_path):
+    import zipfile
+
+    extract = tmp_path / "ipums_geography_extracts/1980/tracts"
+    extract.mkdir(parents=True)
+    for name, identifiers in [
+        ("tract", {"NHGISST": ["010"], "NHGISCTY": ["0010"]}),
+        ("bna", {"STATE80": ["02"], "COUNTY80": ["013"]}),
+    ]:
+        frame = gpd.GeoDataFrame(
+            {"GISJOIN": [f"G{name}"], **identifiers},
+            geometry=[Point(0, 0)], crs="EPSG:4326",
+        )
+        frame.to_file(tmp_path / f"US_{name}_1980.shp")
+    with zipfile.ZipFile(extract / "mixed_shape.zip", "w") as archive:
+        for path in tmp_path.glob("US_*"):
+            archive.write(path, path.name)
+
+    result = load_nhgis_geography(1980, tmp_path, "tracts").set_index("GISJOIN")
+    assert result.loc["Gbna", "STATEFP"] == "02"
+    assert result.loc["Gbna", "COUNTYFP"] == "013"
+    assert result.loc["Gtract", "STATEFP"] == "01"
+
+
 def test_place_keys_do_not_create_county_codes():
     geography_gdf = gpd.GeoDataFrame(
         {"STATEFP": ["06"], "PLACEFP": ["12345"]}, geometry=[Point(0, 0)]

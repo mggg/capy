@@ -36,18 +36,28 @@ GEOGRAPHY_PARTS = {
 
 
 @dataclass(frozen=True, slots=True)
-class PopulationJoin:
-    """Carry matched Census geographies and row counts from a population join.
+class PopulationJoinResult:
+    """Carry population-attributed boundaries and counts explaining omitted units.
 
-    The join does not print or write files. Callers use these counts to report
-    losses separately from states excluded by the population table's coverage.
+    Census boundaries and population tables arrive separately. join_population() matches them by
+    JOIN_KEY, attaching the counts needed for graph construction and segregation metrics. This
+    result preserves diagnostics for the caller to report without making the join print or write
+    files.
+
+    Counts distinguish missing state coverage from unmatched units within represented states.
+    Absence from the table does not establish that a state's omission was intentional. All counts
+    describe geographic units, not people. Input count equals selected_count + excluded_state_count;
+    output count equals selected_count - unmatched_count.
 
     Attributes:
-        populated_geography_gdf (gpd.GeoDataFrame): Selected boundaries with matching
-            WHITE, BLACK, TOTPOP, and POC counts.
-        selected_count (int): Input rows in states represented by the population table.
-        unmatched_count (int): Selected rows without a population record.
-        excluded_state_count (int): Input rows outside those selected states.
+        populated_geography_gdf (gpd.GeoDataFrame): Successfully matched boundaries with WHITE,
+            BLACK, TOTPOP, and POC counts attached.
+        selected_count (int): Input boundaries in states represented by the population table, before
+            matching individual units. Denominator for the join-loss rate.
+        unmatched_count (int): Selected boundaries without a matching population record. These are
+            counted as join losses and omitted from the output frame.
+        excluded_state_count (int): Input boundaries in states entirely absent from the population
+            table. Excluded before matching and outside the join-loss rate.
     """
 
     populated_geography_gdf: gpd.GeoDataFrame
@@ -67,8 +77,8 @@ def iter_census_geographies(
         level_label (str): Canonical geography level in GEOGRAPHY_PARTS.
 
     Yields:
-        gpd.GeoDataFrame: A standardized shapefile in TARGET_CRS, in sorted path order.
-            County files may contain multiple states; other files normally contain one.
+        gpd.GeoDataFrame: A standardized shapefile in TARGET_CRS, in sorted path order. County files
+            may contain multiple states; other files normally contain one.
 
     Raises:
         FileNotFoundError: If the year/level directory contains no shapefiles.
@@ -91,18 +101,18 @@ def standardize_census_geography(
 ) -> gpd.GeoDataFrame:
     """Copy TIGER boundaries and add the identifiers used for population joins.
 
-    JOIN_KEY concatenates the fixed-width FIPS components for the level. GEOID equals
-    JOIN_KEY, and GISJOIN prepends G. COUNTYFP is standardized only when county is
-    part of the key. TIGER tract codes retain their fixed-width interpretation.
+    JOIN_KEY concatenates the fixed-width FIPS components for the level. GEOID equals JOIN_KEY, and
+    GISJOIN prepends G. COUNTYFP is standardized only when county is part of the key. TIGER tract
+    codes retain their fixed-width interpretation.
 
     Args:
-        geography_gdf (gpd.GeoDataFrame): Boundaries with identifier columns listed in
-            PART_COLUMNS; geometry, CRS, row order, and existing attributes are retained.
+        geography_gdf (gpd.GeoDataFrame): Boundaries with identifier columns listed in PART_COLUMNS;
+            geometry, CRS, row order, and existing attributes are retained.
         level_label (str): Canonical geography level in GEOGRAPHY_PARTS.
 
     Returns:
-        gpd.GeoDataFrame: A copy with JOIN_KEY, STATEFP, GEOID, GISJOIN, and COUNTYFP
-            for county-based levels. The source dataframe is not modified.
+        gpd.GeoDataFrame: A copy with JOIN_KEY, STATEFP, GEOID, and GISJOIN. County-based levels
+            also standardize COUNTYFP. The source dataframe is not modified.
 
     Raises:
         ValueError: If a required identifier column or value is missing.
@@ -147,8 +157,8 @@ def first_existing_column(
 def geography_part(geography_gdf: gpd.GeoDataFrame, part: str) -> pd.Series:
     """Read one TIGER identifier component and pad it to its fixed width.
 
-    TIGER tract fields are padded on the left, including for 2000. The short-code
-    conversion used for 2000 Census API population tables does not apply here.
+    TIGER tract fields are padded on the left, including for 2000. The short-code conversion used
+    for 2000 Census API population tables does not apply here.
 
     Args:
         geography_gdf (gpd.GeoDataFrame): Boundaries with a source column for the component.
@@ -173,9 +183,9 @@ def load_nhgis_geography(
 ) -> gpd.GeoDataFrame:
     """Load the newest usable NHGIS boundary extract for a year and level.
 
-    Searches only ipums_geography_extracts/{year}/{level_label} beneath geographies_dir.
-    Archives are tried newest first; those without a matching shapefile are skipped.
-    Retains the historical GISJOIN key and derives state/county codes from NHGIS fields.
+    Searches only ipums_geography_extracts/{year}/{level_label} beneath geographies_dir. Archives
+    are tried newest first; those without a matching shapefile are skipped. Retains the historical
+    GISJOIN key and derives state/county codes from NHGIS fields.
 
     Args:
         year (int): Census year: 1980 or 1990.
@@ -183,8 +193,8 @@ def load_nhgis_geography(
         level_label (str): Requested tracts, block_groups, blocks, or counties.
 
     Returns:
-        gpd.GeoDataFrame: Boundaries in their source CRS with JOIN_KEY, GEOID, STATEFP,
-            COUNTYFP, and GISJOIN. Projection is the caller's responsibility.
+        gpd.GeoDataFrame: Boundaries in their source CRS with JOIN_KEY, GEOID, STATEFP, COUNTYFP,
+            and GISJOIN. Projection is the caller's responsibility.
 
     Raises:
         FileNotFoundError: If the year/level directory contains no extract archives.
@@ -204,17 +214,8 @@ def load_nhgis_geography(
         if geography_gdf is None:
             continue
 
-        try:
-            state, county = state_county_series(geography_gdf)
-        except ValueError as exc:
-            raise ValueError(
-                f"{path} is missing state/county identifier columns."
-            ) from exc
-
         geography_gdf["JOIN_KEY"] = geography_gdf["GISJOIN"].astype("string")
         geography_gdf["GEOID"] = geography_gdf["GISJOIN"].astype("string").str[1:]
-        geography_gdf["STATEFP"] = normalize_census_part(state, "state", year)
-        geography_gdf["COUNTYFP"] = normalize_census_part(county, "county", year)
         return geography_gdf
 
     raise ValueError(
@@ -230,7 +231,8 @@ def read_nested_nhgis_shapefile(
 ) -> gpd.GeoDataFrame | None:
     """Read matching shapefiles from an NHGIS archive before removing temporary files.
 
-    Matching files are concatenated by filename. GISJOIN2 is used when GISJOIN is absent;
+    State/county identifiers are normalized per layer before concatenation, because tract and
+    BNA layers can use different schemas. GISJOIN2 is used when GISJOIN is absent;
     rows whose identifier contains nodata are excluded. No reprojection is performed.
 
     Args:
@@ -239,8 +241,8 @@ def read_nested_nhgis_shapefile(
         level_label (str): Geography level used by the NHGIS selection predicates.
 
     Returns:
-        gpd.GeoDataFrame | None: Matching boundaries in the first shapefile's CRS, or None
-            when no shapefile matches. Geometries are loaded before temporary extraction ends.
+        gpd.GeoDataFrame | None: Matching boundaries in the first shapefile's CRS, or None when no
+            shapefile matches. Geometries are loaded before temporary extraction ends.
 
     Raises:
         ValueError: If a selected shapefile has neither GISJOIN nor GISJOIN2.
@@ -263,19 +265,21 @@ def read_nested_nhgis_shapefile(
             if "GISJOIN" not in geography_gdf.columns:
                 if "GISJOIN2" not in geography_gdf.columns:
                     raise ValueError(f"{path} does not contain a GISJOIN column.")
-                # NOTE: We use the nullable string dtype here to avoid making bogus identifiers
-                # like "Gnan" when GISJOIN2 is null.
+                # Nullable strings prevent missing GISJOIN2 values from becoming "Gnan" identifiers.
                 geography_gdf["GISJOIN"] = "G" + geography_gdf["GISJOIN2"].astype(
                     "string"
                 )
+            geography_gdf = geography_gdf.loc[
+                ~geography_gdf["GISJOIN"].astype(str).str.contains("nodata", case=False)
+            ].copy()
+            state, county = state_county_series(geography_gdf)
+            geography_gdf["STATEFP"] = normalize_census_part(state, "state", year)
+            geography_gdf["COUNTYFP"] = normalize_census_part(county, "county", year)
             geography_gdfs.append(geography_gdf)
 
         geography_gdf = gpd.GeoDataFrame(
             pd.concat(geography_gdfs, ignore_index=True), crs=geography_gdfs[0].crs
         )
-        geography_gdf = geography_gdf[
-            ~geography_gdf["GISJOIN"].astype(str).str.contains("nodata", case=False)
-        ].copy()
         return geography_gdf
 
 
@@ -309,8 +313,8 @@ def clean_filename(value: str) -> str:
 def is_conflated_nhgis_path(path: Path) -> bool:
     """Return True if the NHGIS path is a conflated or TL-2008 variant.
 
-    Tracts, block groups, and blocks use original boundaries. County selection
-    permits these variants because older county extracts may provide no alternative.
+    Tracts, block groups, and blocks use original boundaries. County selection permits these
+    variants because older county extracts may provide no alternative.
 
     Args:
         path (Path): Shapefile path whose name and parent directory are inspected.
@@ -325,9 +329,14 @@ def is_conflated_nhgis_path(path: Path) -> bool:
 def is_county_sidecar_nhgis_path(path: Path) -> bool:
     """Return True if the shapefile is a county sidecar bundled with a tract file.
 
-    NHGIS sometimes includes a companion county shapefile alongside tract
-    shapefiles (e.g. tract_county_...). These should not be treated as
-    standalone county or tract geographies.
+    NHGIS sometimes bundles companion county shapefiles with tract files, using names such as
+    tract_county_*. These should not be treated as standalone county or tract geographies.
+
+    Args:
+        path (Path): Shapefile path whose stem is inspected without reading the file.
+
+    Returns:
+        bool: Whether the stem contains a combined tract/county naming pattern.
     """
     text = clean_filename(path.stem)
     compact = text.replace(" ", "")
@@ -342,8 +351,15 @@ def is_county_sidecar_nhgis_path(path: Path) -> bool:
 def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
     """Return True if path is a primary NHGIS tract or BNA shapefile for year.
 
-    Excludes conflated variants, county sidecars, and files that don't
-    contain the year string in their name.
+    Excludes conflated variants, county sidecars, and files that don't contain the year string in
+    their name.
+
+    Args:
+        path (Path): Candidate path. The filename and parent directory identify excluded variants.
+        year (str): Census year that must appear in the filename.
+
+    Returns:
+        bool: Whether the path matches an original tract or BNA shapefile for the requested year.
     """
     if path.suffix.lower() != ".shp":
         return False
@@ -361,7 +377,14 @@ def is_original_tract_family_shapefile(path: Path, year: str) -> bool:
 
 
 def is_block_group_name(path: Path) -> bool:
-    """Return True if the shapefile stem matches common NHGIS block-group naming patterns."""
+    """Return True if the shapefile stem matches common NHGIS block-group naming patterns.
+
+    Args:
+        path (Path): Candidate path whose stem is checked for block-group names and abbreviations.
+
+    Returns:
+        bool: Whether the stem identifies block groups, without checking the year or file contents.
+    """
     text = clean_filename(path.stem)
     compact = text.replace(" ", "")
     return (
@@ -376,10 +399,18 @@ def is_block_group_name(path: Path) -> bool:
 def is_nhgis_shapefile_for_level(path: Path, year: str, level_label: str) -> bool:
     """Return True if path is the correct NHGIS shapefile for year and level_label.
 
-    Applies level-specific rules: tracts accept original non-sidecar files;
-    counties accept conflated variants (often the only form available for older
-    years); block groups and blocks use name-pattern matching while excluding
-    sidecars and conflated files.
+    Applies level-specific rules: tracts accept original non-sidecar files; counties accept
+    conflated variants (often the only form available for older years); block groups and blocks use
+    name-pattern matching while excluding sidecars and conflated files.
+
+    Args:
+        path (Path): Candidate shapefile path, inspected without reading the file.
+        year (str): Census year that must appear in the filename.
+        level_label (str): Requested level: tracts, counties, block_groups, or blocks.
+
+    Returns:
+        bool: Whether the path matches the requested year and level. Unsupported levels
+            return False.
     """
     if path.suffix.lower() != ".shp" or str(year) not in path.name.lower():
         return False
@@ -393,9 +424,6 @@ def is_nhgis_shapefile_for_level(path: Path, year: str, level_label: str) -> boo
     text = clean_filename(path.stem)
     compact = text.replace(" ", "")
     if level_label == "counties":
-        # County shapefiles may only exist in conflated form for older years
-        # (e.g. 1980 NHGIS only provides US_county_1980_conflated.shp).
-        # The original-boundary requirement applies to the smaller units.
         return "county" in text and "tract" not in text
 
     if is_conflated_nhgis_path(path):
@@ -420,8 +448,8 @@ def first_existing_series(
         candidates (list[str]): Source column names in priority order.
 
     Returns:
-        pd.Series | None: Identifier values retaining the source index and nulls,
-            or None when none of the candidates exists.
+        pd.Series | None: Identifier values retaining the source index and nulls, or None when none
+            of the candidates exists.
     """
     for col in candidates:
         if col in geography_gdf.columns:
@@ -433,12 +461,12 @@ def state_county_series(geography_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.
     """Extract historical state/county identifiers from NHGIS boundary columns.
 
     Args:
-        geography_gdf (gpd.GeoDataFrame): Boundaries with separate NHGIS state/county
-            fields or a combined FIPSSTCO field.
+        geography_gdf (gpd.GeoDataFrame): Boundaries with separate NHGIS state/county fields or a
+            combined FIPSSTCO field.
 
     Returns:
-        tuple[pd.Series, pd.Series]: State and county strings padded to two and three
-            characters. Separate fields take precedence; nulls remain available for validation.
+        tuple[pd.Series, pd.Series]: State and county strings padded to two and three characters.
+            Separate fields take precedence; nulls remain available for validation.
 
     Raises:
         ValueError: If neither supported identifier layout is available.
@@ -458,27 +486,27 @@ def state_county_series(geography_gdf: gpd.GeoDataFrame) -> tuple[pd.Series, pd.
 
 def join_population(
     geography_gdf: gpd.GeoDataFrame, population_df: pd.DataFrame, year: int, level: str
-) -> PopulationJoin:
+) -> PopulationJoinResult:
     """Attach population counts to selected boundaries by a one-to-one JOIN_KEY match.
 
-    States absent from the population table are excluded first. Selected rows without
-    a population match are checked against the loss policy and then dropped. Geometry,
-    CRS, and boundary attributes are retained; the input dataframes are not modified.
+    States absent from the population table are excluded first. Selected rows without a population
+    match are checked against the loss policy and then dropped. Geometry, CRS, and boundary
+    attributes are retained; the input dataframes are not modified.
 
     Args:
         geography_gdf (gpd.GeoDataFrame): Boundaries with JOIN_KEY and STATEFP.
-        population_df (pd.DataFrame): Normalized population rows with JOIN_KEY, STATEFP,
-            WHITE, BLACK, TOTPOP, and POC.
+        population_df (pd.DataFrame): Normalized population rows with JOIN_KEY, STATEFP, WHITE,
+            BLACK, TOTPOP, and POC.
         year (int): Census year used by the join-loss policy.
         level (str): Canonical geography level used by the join-loss policy.
 
     Returns:
-        PopulationJoin: Matched boundaries with int64 counts and the numbers of selected,
+        PopulationJoinResult: Matched boundaries with int64 counts and the numbers of selected,
             unmatched, and state-excluded input rows. Does not print or write files.
 
     Raises:
-        ValueError: If required columns or values are missing, keys/state codes are blank,
-            or unmatched rows exceed the permitted loss rate.
+        ValueError: If required columns or values are missing, keys/state codes are blank, or
+            unmatched rows exceed the permitted loss rate.
         pd.errors.MergeError: If selected boundaries or population rows have duplicate keys.
     """
     population_columns = ["WHITE", "BLACK", "TOTPOP", "POC"]
@@ -519,7 +547,7 @@ def join_population(
     populated_geography_gdf[population_columns] = populated_geography_gdf[
         population_columns
     ].astype("int64")
-    return PopulationJoin(
+    return PopulationJoinResult(
         populated_geography_gdf,
         len(selected_geography_gdf),
         len(unmatched_geography_gdf),
@@ -535,9 +563,9 @@ def validate_population_join(
 ) -> None:
     """Reject loss above 30% of selected rows, except for 1990 blocks.
 
-    The 1990 block workflow permits unmatched units without a ceiling. This exception
-    does not establish why individual rows failed to match. Callers report all losses,
-    including those permitted by the exception. An empty selection passes validation.
+    The 1990 block workflow permits unmatched units without a ceiling. This exception does not
+    establish why individual rows failed to match. Callers report all losses, including those
+    permitted by the exception. An empty selection passes validation.
 
     Args:
         year (int): Census year of the join.
@@ -569,8 +597,8 @@ def write_state_geography(
 ) -> Path:
     """Write one state's population-attributed Census units to a GeoPackage.
 
-    Creates the level directory if necessary. The caller supplies one state's rows;
-    this function does not filter by state or reproject the geometries.
+    Creates the level directory if necessary. The caller supplies one state's rows; this function
+    does not filter by state or reproject the geometries.
 
     Args:
         state_geography_gdf (gpd.GeoDataFrame): Joined Census units for one state and year.
@@ -594,8 +622,8 @@ def check_source_inputs(
 ) -> None:
     """Check population and boundary file presence before geography construction.
 
-    Checks names and file presence, not file contents or completeness of a shapefile's
-    sidecar files. NHGIS uses year/level ZIP directories; Census uses shapefile directories.
+    Checks names and file presence, not file contents or completeness of a shapefile's sidecar
+    files. NHGIS uses year/level ZIP directories; Census uses shapefile directories.
 
     Args:
         year (int): Census year to prepare.
@@ -637,13 +665,13 @@ def check_source_inputs(
 def main(config: Path | None = None) -> None:
     """Build node and study-area definition geographies selected by a YAML config.
 
-    Checks source presence for every request before writing. Population is loaded once
-    per year/level; boundaries are joined and written by state beneath the resolved
+    Checks source presence for every request before writing. Population is loaded once per
+    year/level; boundaries are joined and written by state beneath the resolved
     census_geographies_path. Prints join losses and missing-state summaries by level.
 
     Args:
-        config (Path | None, optional): Pipeline YAML path. None selects config.yaml in
-            the capy_core directory, independently of the working directory. Defaults to None.
+        config (Path | None, optional): Pipeline YAML path. None selects config.yaml in the
+            capy_core directory, independently of the working directory. Defaults to None.
 
     Raises:
         FileNotFoundError: If configuration or required source files are absent.
@@ -728,12 +756,12 @@ def main(config: Path | None = None) -> None:
 def report_missing_states(states_by_year: dict[int, set[str]], level: str) -> None:
     """Print states missing from some requested years of one geography level.
 
+    Only states present in at least one year are reported. The function does not inspect files or
+    modify the supplied mapping.
+
     Args:
         states_by_year (dict[int, set[str]]): Successfully written state FIPS codes per year.
         level (str): Geography level named in the messages.
-
-    Only states present in at least one year are reported. The function does not inspect
-    files or modify the supplied mapping.
     """
     all_states: set[str] = set().union(*states_by_year.values())
     for state_fips in sorted(all_states):

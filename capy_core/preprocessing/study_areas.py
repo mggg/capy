@@ -111,7 +111,10 @@ def fetch_metro_areas(filename) -> pd.DataFrame:
     """
     Reads the Census Bureau's CBSA Excel file (the delineation file), filters to Metropolitan Statistical Areas only, returns a df of CBSA-codes and FIPS rows
     """
-    cbsa_counties = pd.read_excel(filename, skiprows=2)
+    if Path(filename).suffix.lower() == ".csv":
+        cbsa_counties = pd.read_csv(filename, dtype=str)
+    else:
+        cbsa_counties = pd.read_excel(filename, skiprows=2, dtype=str)
     cbsa_counties = cbsa_counties[~cbsa_counties["FIPS County Code"].isna()]
     cbsa_counties["FIPS County Code"] = (
         cbsa_counties["FIPS County Code"].astype(int).astype(str).str.zfill(3)
