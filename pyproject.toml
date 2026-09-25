@@ -3,23 +3,31 @@ name = "capy"
 version = "0.1.0"
 description = "Census geography pipelines and residential segregation analysis."
 readme = "README.md"
-requires-python = ">=3.10,<4.0"
+# Checksum publication uses hashlib.file_digest; NetworkX excludes Python 3.14.1.
+requires-python = ">=3.11,!=3.14.1,<4.0"
 dependencies = [
     "census>=0.8.27,<0.9",
     "fiona>=1.10,<2",
     "geopandas>=1.0,<2",
-    "gerrychain",
+    # GerryChain 1 requires pandas 3; ipumspy 0.8 requires pandas below 3.
+    "gerrychain>=0.3.2,<1",
     "ipumspy>=0.8.2,<0.9",
     "matplotlib>=3.5",
+    "networkx>=3.5,<4",
     "numpy>=2.0,<3",
     "pandas>=2.2.3,<3",
-    "pydantic>=2.0,<3",
+    "pillow>=9",
+    "pydantic>=2.11,<3",
+    "pyogrio>=0.13,<1",
+    "python-dotenv>=1.2,<2",
     "pyyaml>=6.0,<7",
+    "requests>=2.28,<3",
     "rtree>=1.4,<2",
     "scipy>=1.9",
     "seaborn>=0.12",
     "shapely>=2.0,<3",
     "tqdm>=4.64.0,<5",
+    # us 3 omits Washington, DC from default state lookups.
     "us>=2.0.2,<3",
     "xlrd>=2.0.1,<3",
 ]
@@ -27,13 +35,14 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pyright>=1.1.414,<2",
-    "pytest>=7.1.2,<8",
-    "ruff>=0.16.8,<0.17",
+    "pytest>=9.1.1,<10",
+    "ruff>=0.16.9,<0.17",
 ]
 
-[tool.poetry]
-requires-poetry = ">=2.2"
-package-mode = false
-
 [tool.pytest.ini_options]
-testpaths = ["capy_core/tests"]
+testpaths = ["code/tests"]
+pythonpath = ["code"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["code/archive"]

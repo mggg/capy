@@ -72,7 +72,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+documentation/_build/
 
 # PyBuilder
 .pybuilder/
@@ -166,7 +166,7 @@ cython_debug/
 # macOS
 **/.DS_Store
 
-# Project data and generated files
+# Source formats and generated working data
 *.shp
 *.dbf
 *.shx
@@ -177,19 +177,9 @@ cython_debug/
 *.gpkg
 *.zip
 *.xml
-# *.json  — kept commented out, specific generated paths are ignored below
-data/shared/processed/study_area_definitions/
-data/shared/processed/census_geographies/
-data/shared/processed/clipped_geographies/
-data/shared/outputs/**/*.png
-figures/baseline/**/*.png
-figures/assortativity_grids/**/*.png
-archive/
 *.tex
+/data/raw/
+/data/processed/
 
-# Archive
-archive/
-!experiment_code/observed_diffusion/scripts/archive/
-experiment_code/Misc
-/figures/observed_diffusion/metrics_panels_by_buffers
-/figures/observed_diffusion
+# Final graph release archives are intentionally versioned.
+!/data/graphs/*.zip

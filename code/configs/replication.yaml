@@ -1,0 +1,24 @@
+census_geography_levels: [counties, tracts, block_groups, blocks]
+census_geography_years: [1980, 1990, 2000, 2010, 2020]
+study_area_type: max_city
+study_area_vintage: 2020
+
+raw_data_directory: data/raw
+raw_data_subdirectories:
+  census_population_tables: census
+  nhgis_population_and_boundaries: nhgis
+  census_boundary_files: tiger
+  original_1980_population_tables: census_1980_stf1a
+  population_reference_tables: population_reference_tables
+  metro_membership_tables: metro_membership_tables
+  saved_nhgis_requests: saved_nhgis_requests
+# Optional .env path, relative to the repository root; existing environment variables win.
+env_file: null
+offline: false
+raw_checksums_file: data/raw_checksums.sha256
+file_path_patterns: ["*"]
+max_parallel_downloads: 4
+
+# Recheck pending NHGIS extracts after the initial downloads; 0 minutes disables retries.
+nhgis_retry_interval_seconds: 60
+nhgis_max_wait_minutes: 60

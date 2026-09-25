@@ -1,0 +1,140 @@
+# Copy this file and edit it for your run. Run it from the repository root with:
+#   uv run --locked python code/reproduce.py --config code/configs/example.yaml
+#
+# This example retrieves the data for tracts from 1990 through 2020, with cities
+# selected inside metropolitan areas using 2020 county and place data. Only the
+# retrieval stage is implemented: this command does not yet join populations to
+# shapes, select cities, build graphs, or calculate metrics.
+#
+# Run settings belong here. Source URLs, Census population column names, and NHGIS
+# table names live in the Python request definitions under code/capy_core/retrieve_data/.
+
+# Which Census units will become graph nodes? Choose one or more of:
+#   counties      Each county or county-equivalent is one unit.
+#   tracts        Census tracts; includes historical block numbering areas (BNAs).
+#   block_groups  Groups of Census blocks.
+#   blocks        Individual Census blocks.
+#
+# The same selection controls population tables AND boundary files, across both
+# Census and NHGIS downloads. Omitted setting: all four levels. An empty list is invalid.
+census_geography_levels: [tracts]
+
+# Census years for those units. Supported values: 1980, 1990, 2000, 2010, 2020.
+# Omitted setting: all five years. An empty list is invalid.
+#
+# There are no supported 1980 block or block-group boundaries in this pipeline.
+# Those combinations are left out; other requested combinations still run. If no
+# supported node combination remains, the run stops before retrieving anything.
+#
+# NHGIS population and boundary archives are grouped by year and level, for example:
+#   nhgis/1990/tracts/population.zip
+#   nhgis/1990/tracts/boundaries.zip
+# A tract run does not request block or block-group tables. State totals are added
+# for population checks. Each file is reused independently when retrying a run.
+# 1980 tract/BNA matching also needs hierarchy, place-part, and original STF1A inputs;
+# county-only 1980 runs omit them. Published STF1A archives cannot be split by level
+# at download time. Historical reference workbooks follow the required years.
+census_geography_years: [1990, 2000, 2010, 2020]
+
+# What kind of area will contain each graph?
+#   county      An individual county.
+#   cbsa        A metropolitan area made up of its member counties.
+#   max_county  The county with the largest population within each metro area.
+#   max_city    The city with the greatest estimated population inside each metro area.
+#
+# All modes add county population and boundary inputs at study_area_vintage.
+# max_city also adds place population and boundary inputs. These supporting inputs
+# are included even if their year or level is absent from the node settings above.
+# Requests needed for more than one reason are included only once.
+# Omitted setting: max_city.
+study_area_type: max_city
+
+# Year of the populations and boundaries used to define the enclosing areas.
+# These areas will stay fixed when comparing node data from different census years.
+# Supported values: 1980, 1990, 2000, 2010, 2020. Omitted setting: 2020.
+# max_city requires 2020 because the current place definitions support only that year.
+#
+# This DOES NOT change the metro membership list. Metro modes use the March 2020
+# Census delineation workbook. County mode does not request that workbook.
+# A historical boundary year does not produce historical metro membership.
+study_area_vintage: 2020
+
+# Raw downloaded files and saved NHGIS submission numbers go here.
+# Relative paths start at the repository root, not at the directory containing
+# this YAML or the shell's current directory. Absolute paths also work.
+# For example, /mnt/census-data/raw can keep the data on a separate drive.
+raw_data_directory: data/raw
+
+# Folder names beneath raw_data_directory. These are relative paths; subfolders
+# such as tables/census are allowed. Absolute paths and '..' are not allowed here.
+# Changing a name changes the requested destination; it does not move existing files.
+raw_data_subdirectories:
+  # Population tables for 2000 onward, downloaded directly from the Census Bureau.
+  census_population_tables: census
+  # Historical population tables and boundary files downloaded from NHGIS.
+  nhgis_population_and_boundaries: nhgis
+  # Modern boundary files from the Census Bureau's TIGER/Line products.
+  census_boundary_files: tiger
+  # Original 1980 archives, needed for tract/BNA matching but not county-only runs.
+  original_1980_population_tables: census_1980_stf1a
+  # Published totals used to check population counts during later processing.
+  population_reference_tables: population_reference_tables
+  # The workbook listing which counties belong to each metro area.
+  metro_membership_tables: metro_membership_tables
+  # NHGIS request details and extract numbers used to continue unfinished downloads.
+  saved_nhgis_requests: saved_nhgis_requests
+
+# Optional file of environment variables, such as IPUMS_API_KEY and CENSUS_API_KEY.
+# Set this to .env for a file at the repository root, or use an absolute path.
+# null (the default) loads no file. Existing environment variables take precedence.
+# Online retrieval requires the file to be readable when configured. Offline runs
+# and the checksum command do not read it. Keep the credentials out of this YAML.
+env_file: null
+
+# true: only check files already in the configured raw-data folders.
+# false: also download missing files. --offline overrides this setting to true.
+# Missing files are reported as failures; an offline run does not silently omit them.
+offline: false
+
+# Advanced: narrow the configured requests by their relative destination filenames.
+# Keep ["*"] for all inputs needed by the selections above, including supporting data.
+# For a partial download, examples include:
+#   ["census/2020/*", "tiger/2020/*"]  # Only configured modern inputs for 2020.
+#   ["nhgis/*"]                       # Only configured historical extracts.
+#
+# Patterns apply AFTER the geography/year settings. They cannot add excluded inputs,
+# and each pattern must match at least one configured file. '*' can span subfolders.
+# These filters can remove study-area inputs, populations, or boundaries: success
+# then means only that the requested partial download is ready, not a complete graph run.
+# 2010 block downloads can still add county tables needed to form their Census query.
+file_path_patterns: ["*"]
+
+# Maximum simultaneous file retrievals, including checks of files already present.
+# Use 1 for one file at a time. Must be at least 1. Omitted setting: 4.
+# This does not set the number of workers for later graph or metric calculations.
+# Start with 4; higher download concurrency can trigger server rate limits (HTTP 429).
+max_parallel_downloads: 4
+
+# After the initial downloads, recheck only pending NHGIS extracts at this interval.
+# Each round reuses saved extract numbers; it does not submit new extracts.
+# Positive seconds, default 60. No worker is occupied during the wait between rounds.
+nhgis_retry_interval_seconds: 60
+
+# Maximum minutes to keep checking pending extracts after the initial downloads.
+# Default 60. Set 0 to report pending extracts without waiting. Each wait is capped
+# by the time remaining. The following round, including queued files, may finish
+# after the limit; the limit does not cancel requests or downloads within a round.
+# Any extracts still pending leave the run incomplete and can resume on the next run.
+nhgis_max_wait_minutes: 60
+
+# Destination for the SEPARATE checksum command; normal retrieval does not write it:
+#   uv run --locked python code/record_raw_checksums.py --config code/configs/example.yaml
+# Keep this outside raw_data_directory. Relative paths start at the repository root.
+# The file records checksums for diagnosing different replication results. Retrieval
+# does not compare downloaded files against it. --output overrides this path.
+raw_checksums_file: data/raw_checksums.sha256
+
+# Set IPUMS_API_KEY in your shell or configured env_file for NHGIS.
+# Census requests use CENSUS_API_KEY when provided.
+# NHGIS extracts still pending after the wait limit can resume with the same command later.
+# Existing files are reused, and interrupted downloads do not appear as finished files.
