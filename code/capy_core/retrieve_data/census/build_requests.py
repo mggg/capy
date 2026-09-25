@@ -3,6 +3,7 @@
 from typing import Literal
 
 from capy_core.geography_types import GeographyLevel, StudyAreaType
+from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.retrieve_data.raw_file_requests import (
     CensusDataset,
     CensusFileRequest,
@@ -10,7 +11,6 @@ from capy_core.retrieve_data.raw_file_requests import (
     PublicFileRequest,
 )
 
-from ..retrieval_config import RawDataSubdirectories
 from ..state_codes import STATE_FIPS_CODES
 from .build_published_file_requests import build_census_published_file_requests
 

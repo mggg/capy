@@ -113,10 +113,9 @@ configured Census folder. Filename selection patterns must follow this layout, t
 settings does not move existing raw files or saved NHGIS submission records.
 
 Settings omitted from the YAML use the defaults in
-[`retrieval_config.py`](../code/capy_core/retrieve_data/retrieval_config.py). You can enable offline
-mode with `--offline` even when the YAML setting is false. For the checksum command, `--output`
-overrides `raw_checksums_file`, with a relative path starting at the directory where you run the
-command.
+[`pipeline_config.py`](../code/capy_core/pipeline_config.py). You can enable offline mode with
+`--offline` even when the YAML setting is false. For the checksum command, `--output` overrides
+`raw_checksums_file`, with a relative path starting at the directory where you run the command.
 
 Use each raw-data directory for one retrieval run at a time, with parallel workers writing to
 separate file destinations within that run. Independent runs sharing a directory are not supported.
@@ -169,11 +168,11 @@ metro workbook uses `list1_march_2020.xls` to identify the date of its county-me
 | `tableE-01.xlsx`    | `census_working_paper_56_1990_tableE-01.xlsx`     | 1990 race counts separated by Hispanic origin.                                      |
 | `tableE-03.xlsx`    | `census_working_paper_56_1980_tableE-03.xlsx`     | 1980 race counts separated by Hispanic origin.                                      |
 
-The four Excel reference tables come from Census
-[Population Division Working Paper 56][working-paper-56], published in 2002. The years in their
-local names identify the populations described, not the publication year; all four use 100-percent
-census counts. Their table numbers retain the direct connection to the source publication. The
-builders keep the original URLs beside these local names.
+The four Excel reference tables come from Census [Population Division Working Paper
+56][working-paper-56], published in 2002. The years in their local names identify the populations
+described, not the publication year; all four use 100-percent census counts. Their table numbers
+retain the direct connection to the source publication. The builders keep the original URLs beside
+these local names.
 
 TIGER and original STF1A archives retain their provider filenames in their source-specific folders.
 Selection patterns use the configured local destinations. If you rename a request, move the existing
@@ -400,8 +399,8 @@ The reusable retrieval operations live under
 
 NHGIS request translation and comparison with the prepared extract live in
 [`nhgis/extract_definition.py`](../code/capy_core/retrieve_data/nhgis/extract_definition.py). All
-download paths use [`stage_files.py`](../code/capy_core/retrieve_data/stage_files.py) to manage
-temporary files and move completed files to their final names.
+download paths use [`stage_files.py`](../code/capy_core/stage_files.py) to manage temporary files
+and move completed files to their final names.
 
 When NHGIS returns a pending extract, the run saves its extract number and rechecks it after the
 initial downloads, as described in the [run guide](../code/README.md#run-retrieval). Those records

@@ -10,7 +10,7 @@ from email.utils import parsedate_to_datetime
 import requests
 from tqdm import tqdm
 
-from .stage_files import StagedFile
+from capy_core.stage_files import StagedFile
 
 
 class DataProviderError(Exception):

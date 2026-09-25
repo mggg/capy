@@ -5,12 +5,12 @@ import os
 from pathlib import Path
 
 import pytest
-from capy_core.retrieve_data.prepare_file_requests import build_raw_file_requests
-from capy_core.retrieve_data.retrieval_config import (
+from capy_core.pipeline_config import (
+    PipelineConfig,
     RawDataSubdirectories,
-    RetrievalConfig,
     load_configuration,
 )
+from capy_core.retrieve_data.prepare_file_requests import build_raw_file_requests
 from capy_core.retrieve_data.retrieve_files import retrieve_files
 from capy_core.retrieve_data.retrieve_raw_file import ReadyFile
 
@@ -56,7 +56,7 @@ def test_env_file_reaches_workers_without_replacing_shell_variables(
 
 @pytest.mark.parametrize("offline", [False, True])
 def test_configured_missing_env_file_is_required_only_for_online_retrieval(tmp_path, offline):
-    config = RetrievalConfig(env_file=Path("missing.env"), offline=offline)
+    config = PipelineConfig(env_file=Path("missing.env"), offline=offline)
 
     if offline:
         assert retrieve_files(config, tmp_path, []).complete
@@ -68,12 +68,12 @@ def test_configured_missing_env_file_is_required_only_for_online_retrieval(tmp_p
 def test_unconfigured_env_file_is_not_discovered(tmp_path, monkeypatch):
     monkeypatch.delenv("IPUMS_API_KEY", raising=False)
     (tmp_path / ".env").write_text("IPUMS_API_KEY=unused-key\n")
-    assert retrieve_files(RetrievalConfig(), tmp_path, []).complete
+    assert retrieve_files(PipelineConfig(), tmp_path, []).complete
     assert "IPUMS_API_KEY" not in os.environ
 
 
 def test_positive_download_limit_has_no_fixed_ceiling_and_rejects_zero():
-    config = RetrievalConfig(max_parallel_downloads=32)
+    config = PipelineConfig(max_parallel_downloads=32)
     config.max_parallel_downloads = 64
 
     with pytest.raises(ValueError):

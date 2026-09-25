@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from capy_core.retrieve_data.stage_files import stage_file
+from capy_core.stage_files import stage_file
 
 
 def test_failed_stream_cannot_be_published_or_retried(tmp_path):

@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from capy_core.retrieve_data.retrieval_config import load_configuration
+from capy_core.pipeline_config import load_configuration
 from capy_core.retrieve_data.retrieve_files import retrieve_raw_data
 
 

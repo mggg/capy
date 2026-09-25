@@ -14,9 +14,10 @@ from typing import Literal
 from ipumspy import IpumsApiClient
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_serializer
 
+from capy_core.stage_files import StagedFile, stage_file
+
 from ..http_transport import DataProviderError, download_file
 from ..raw_file_requests import NhgisBoundaryFileRequest, NhgisTableFileRequest
-from ..stage_files import StagedFile, stage_file
 from .extract_definition import (
     NhgisExtractDefinition,
     NhgisExtractResponse,

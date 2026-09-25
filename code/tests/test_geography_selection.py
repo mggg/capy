@@ -2,6 +2,11 @@
 
 import pytest
 from capy_core.geography_types import GeographyLevel
+from capy_core.pipeline_config import (
+    PipelineConfig,
+    RawDataSubdirectories,
+    load_configuration,
+)
 from capy_core.retrieve_data.census.build_published_file_requests import build_tiger_file_requests
 from capy_core.retrieve_data.census.retrieve_tables import resolve_census_query_parameters
 from capy_core.retrieve_data.prepare_file_requests import (
@@ -14,11 +19,6 @@ from capy_core.retrieve_data.raw_file_requests import (
     CensusFileRequest,
     GeographyRequest,
     NhgisTableFileRequest,
-)
-from capy_core.retrieve_data.retrieval_config import (
-    RawDataSubdirectories,
-    RetrievalConfig,
-    load_configuration,
 )
 from capy_core.retrieve_data.retrieve_files import retrieve_raw_data
 
@@ -80,7 +80,7 @@ def test_geography_enums_produce_census_api_names(tmp_path, level, provider_name
 def test_shared_selection_adds_definition_inputs_and_omits_unsupported_pairs(
     levels, years, area_type, vintage, expected
 ):
-    config = RetrievalConfig(
+    config = PipelineConfig(
         census_geography_levels=levels,
         census_geography_years=years,
         study_area_type=area_type,
@@ -93,7 +93,7 @@ def test_shared_selection_adds_definition_inputs_and_omits_unsupported_pairs(
 
 
 def test_modern_selection_matches_populations_and_boundaries():
-    config = RetrievalConfig(
+    config = PipelineConfig(
         census_geography_levels=("tracts",),
         census_geography_years=(2010,),
         study_area_type="county",
@@ -181,13 +181,13 @@ def test_tiger_requests_keep_vintage_names_and_geographic_coverage(
 
 
 def test_historical_selection_downloads_only_required_levels_with_stable_paths():
-    config = RetrievalConfig(census_geography_levels=("tracts",), census_geography_years=(1990,))
+    config = PipelineConfig(census_geography_levels=("tracts",), census_geography_years=(1990,))
     requests = {
         request.destination_relative_path: request for request in build_raw_file_requests(config)
     }
     default_requests = {
         request.destination_relative_path: request
-        for request in build_raw_file_requests(RetrievalConfig())
+        for request in build_raw_file_requests(PipelineConfig())
     }
 
     assert (
@@ -211,7 +211,7 @@ def test_historical_selection_downloads_only_required_levels_with_stable_paths()
 
 
 def test_historical_definition_year_adds_its_population_and_reference_inputs():
-    config = RetrievalConfig(
+    config = PipelineConfig(
         census_geography_levels=("tracts",),
         census_geography_years=(2020,),
         study_area_type="county",
@@ -236,7 +236,7 @@ def test_historical_definition_year_adds_its_population_and_reference_inputs():
 def test_each_supported_run_requests_only_selected_levels_and_required_support(year, level):
     if year == 1980 and level in ("block_groups", "blocks"):
         pytest.skip("No supported 1980 block or block-group boundaries")
-    config = RetrievalConfig(
+    config = PipelineConfig(
         census_geography_levels=(level,),
         census_geography_years=(year,),
         study_area_type="county",
@@ -289,7 +289,7 @@ def test_each_supported_run_requests_only_selected_levels_and_required_support(y
 )
 def test_invalid_selection_values_are_rejected(settings):
     with pytest.raises(ValueError):
-        RetrievalConfig(**settings)
+        PipelineConfig(**settings)
 
 
 @pytest.mark.parametrize(
@@ -306,7 +306,7 @@ def test_invalid_selection_values_are_rejected(settings):
     ],
 )
 def test_unsupported_combinations_fail_before_creating_raw_files(tmp_path, settings, message):
-    config = RetrievalConfig(raw_data_directory=tmp_path / "raw", **settings)
+    config = PipelineConfig(raw_data_directory=tmp_path / "raw", **settings)
 
     with pytest.raises(ValueError, match=message):
         retrieve_raw_data(config, tmp_path)

@@ -1,13 +1,13 @@
 """Editable NHGIS population, boundary, and geographic-hierarchy extract definitions."""
 
 from capy_core.geography_types import GeographyLevel
+from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.retrieve_data.raw_file_requests import (
     GeographyRequest,
     NhgisBoundaryFileRequest,
     NhgisTableFileRequest,
 )
 
-from ..retrieval_config import RawDataSubdirectories
 from ..state_codes import STATE_FIPS_CODES
 
 # NOTE: NT7 supplies race counts and NT9B supplies Spanish-origin race counts, allowing

@@ -3,14 +3,14 @@
 import fnmatch
 
 from capy_core.geography_types import GeographyLevel, StudyAreaType
+from capy_core.pipeline_config import PipelineConfig
 from capy_core.retrieve_data.raw_file_requests import GeographyRequest, RawFileRequest
 
 from .census.build_requests import build_census_file_requests
 from .nhgis.build_requests import build_nhgis_file_requests
-from .retrieval_config import RetrievalConfig
 
 
-def build_raw_file_requests(config: RetrievalConfig) -> list[RawFileRequest]:
+def build_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
     """List the population, boundary, and supporting files needed by the configured run.
 
     Edit the Census or NHGIS builders in this package to change variables, source coverage, URLs,
@@ -18,7 +18,7 @@ def build_raw_file_requests(config: RetrievalConfig) -> list[RawFileRequest]:
     the files to retrieve; it does not open files or start downloads.
 
     Args:
-        config (RetrievalConfig): Geography levels and years, study areas, and raw-data folders.
+        config (PipelineConfig): Geography levels and years, study areas, and raw-data folders.
             File-path patterns are applied separately by select_raw_file_requests().
 
     Returns:
@@ -38,7 +38,7 @@ def build_raw_file_requests(config: RetrievalConfig) -> list[RawFileRequest]:
     return sorted(requests, key=lambda request: request.destination_relative_path)
 
 
-def build_geography_requests(config: RetrievalConfig) -> tuple[GeographyRequest, ...]:
+def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, ...]:
     """List the years and geography levels needed for graph nodes and their enclosing areas.
 
     For example, 1990 tracts inside cities defined using 2020 data need three selections:
@@ -46,7 +46,7 @@ def build_geography_requests(config: RetrievalConfig) -> tuple[GeographyRequest,
          list so they request matching data.
 
     Args:
-        config (RetrievalConfig): Requested node levels and years, plus the type and year of the
+        config (PipelineConfig): Requested node levels and years, plus the type and year of the
             enclosing study areas.
 
     Returns:

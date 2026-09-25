@@ -8,6 +8,9 @@ from zipfile import BadZipFile
 
 from tqdm import tqdm
 
+from capy_core.pipeline_config import RawDataSubdirectories
+from capy_core.stage_files import stage_file
+
 from .census.retrieve_tables import download_census_table
 from .check_raw_files import check_raw_file
 from .http_transport import DataProviderError, RetryableDownloadError, download_file
@@ -23,8 +26,6 @@ from .raw_file_requests import (
     NhgisTableFileRequest,
     RawFileRequest,
 )
-from .retrieval_config import RawDataSubdirectories
-from .stage_files import stage_file
 
 
 @dataclass(frozen=True)

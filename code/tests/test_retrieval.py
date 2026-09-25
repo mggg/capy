@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 from capy_core.geography_types import GeographyLevel
+from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
 from capy_core.retrieve_data.http_transport import (
     DataProviderError,
     download_file,
@@ -20,14 +21,13 @@ from capy_core.retrieve_data.raw_file_requests import (
     PublicFileRequest,
     RawFileFormat,
 )
-from capy_core.retrieve_data.retrieval_config import RawDataSubdirectories, RetrievalConfig
 from capy_core.retrieve_data.retrieve_files import retrieve_files
 from capy_core.retrieve_data.retrieve_raw_file import (
     FailedFile,
     ReadyFile,
     retrieve_raw_file,
 )
-from capy_core.retrieve_data.stage_files import stage_file
+from capy_core.stage_files import stage_file
 
 
 def build_census_request(path="census/state.json"):
@@ -56,7 +56,7 @@ def test_failed_file_does_not_hide_independent_success(tmp_path):
     good = build_census_request()
     missing = build_census_request("missing.json")
     write_population(tmp_path / "raw" / good.destination_relative_path)
-    config = RetrievalConfig(raw_data_directory="raw", offline=True)
+    config = PipelineConfig(raw_data_directory="raw", offline=True)
     result = retrieve_files(config, tmp_path, [good, missing])
     assert not result.complete
     assert [type(item) for item in result.file_results] == [ReadyFile, FailedFile]
@@ -137,7 +137,7 @@ def test_basic_census_checks_reject_empty_or_malformed_existing_tables(tmp_path,
 def test_raw_file_definitions_and_geographic_coverage():
     with pytest.raises(ValueError):
         build_census_request("../outside.json")
-    file_requests = build_raw_file_requests(RetrievalConfig())
+    file_requests = build_raw_file_requests(PipelineConfig())
     assert all(isinstance(request.file_format, RawFileFormat) for request in file_requests)
     groups = {
         tuple(file_request.destination_relative_path.split("/")[1:4])

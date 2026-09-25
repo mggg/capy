@@ -10,10 +10,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from tqdm import tqdm
 
+from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
+
 from .census.retrieve_tables import prepare_download_batches_with_2010_counties_first
 from .prepare_file_requests import build_raw_file_requests, select_raw_file_requests
 from .raw_file_requests import RawFileRequest
-from .retrieval_config import RawDataSubdirectories, RetrievalConfig
 from .retrieve_raw_file import (
     FailedFile,
     FileRetrievalResult,
@@ -40,13 +41,13 @@ class RetrievalResult:
 
 
 def retrieve_raw_data(
-    config: RetrievalConfig,
+    config: PipelineConfig,
     repository: Path,
 ) -> RetrievalResult:
     """Select raw inputs from the versioned definitions and retrieve them.
 
     Args:
-        config (RetrievalConfig): Complete run settings, including selection, layout, and offline
+        config (PipelineConfig): Complete run settings, including selection, layout, and offline
             mode.
         repository (Path): Base for a relative raw-data directory.
 
@@ -65,7 +66,7 @@ def retrieve_raw_data(
 
 
 def retrieve_files(
-    config: RetrievalConfig,
+    config: PipelineConfig,
     repository: Path,
     file_requests: list[RawFileRequest],
 ) -> RetrievalResult:
@@ -79,7 +80,7 @@ def retrieve_files(
     Existing environment variables take precedence. Offline runs do not read the env file.
 
     Args:
-        config (RetrievalConfig): Folder paths, env file, offline setting, and maximum number of
+        config (PipelineConfig): Folder paths, env file, offline setting, and maximum number of
             simultaneous retrievals. The caller supplies the selected files separately.
         repository (Path): Repository directory, used as the base for relative configured paths.
         file_requests (list[RawFileRequest]): Selected raw inputs. The caller must already have
@@ -205,7 +206,7 @@ def retrieve_files_in_parallel(
 def retry_pending_nhgis_files(
     requests: list[RawFileRequest],
     results: list[FileRetrievalResult],
-    config: RetrievalConfig,
+    config: PipelineConfig,
     raw_data_directory: Path,
     file_progress: tqdm,
 ) -> list[FileRetrievalResult]:
@@ -221,7 +222,7 @@ def retry_pending_nhgis_files(
     Args:
         requests (list[RawFileRequest]): Attempted inputs, in the same order as results.
         results (list[FileRetrievalResult]): Initial outcomes, left unchanged by this function.
-        config (RetrievalConfig): Retry interval, wait limit, and retrieval settings.
+        config (PipelineConfig): Retry interval, wait limit, and retrieval settings.
         raw_data_directory (Path): Resolved directory containing raw files and saved submissions.
         file_progress (tqdm): Shared counter; each pending file is counted once when finished.
 

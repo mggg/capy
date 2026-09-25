@@ -9,12 +9,12 @@ from dataclasses import replace
 from pathlib import Path
 
 from capy_core.geography_types import GeographyLevel
+from capy_core.pipeline_config import RawDataSubdirectories
+from capy_core.stage_files import StagedFile
 
 from ..check_raw_files import load_census_table
 from ..http_transport import download_file
 from ..raw_file_requests import CensusFileRequest, RawFileRequest
-from ..retrieval_config import RawDataSubdirectories
-from ..stage_files import StagedFile
 from .build_requests import build_census_table_relative_path
 
 

@@ -1,13 +1,13 @@
 """Editable definitions for TIGER boundaries, original STF1A files, and reference tables."""
 
 from capy_core.geography_types import GeographyLevel, StudyAreaType
+from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.retrieve_data.raw_file_requests import (
     GeographyRequest,
     PublicFileRequest,
     RawFileFormat,
 )
 
-from ..retrieval_config import RawDataSubdirectories
 from ..state_codes import STATE_FIPS_CODES, STF1A_STATE_ABBREVIATIONS
 
 

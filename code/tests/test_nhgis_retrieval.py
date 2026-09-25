@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 import requests
+from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.retrieve_data.http_transport import DataProviderError
 from capy_core.retrieve_data.nhgis.extract_definition import (
     NhgisDatasetSelection,
@@ -23,7 +24,6 @@ from capy_core.retrieve_data.raw_file_requests import (
     NhgisBoundaryFileRequest,
     NhgisTableFileRequest,
 )
-from capy_core.retrieve_data.retrieval_config import RawDataSubdirectories
 from capy_core.retrieve_data.retrieve_raw_file import (
     FailedFile,
     PendingFile,
@@ -321,11 +321,11 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
     expected_waits,
     expected_type,
 ):
+    from capy_core.pipeline_config import PipelineConfig
     from capy_core.retrieve_data import retrieve_files as retrieval
     from capy_core.retrieve_data.prepare_file_requests import build_raw_file_requests
-    from capy_core.retrieve_data.retrieval_config import RetrievalConfig
 
-    config = RetrievalConfig(
+    config = PipelineConfig(
         census_geography_levels=("tracts", "blocks"),
         census_geography_years=(1990,),
         max_parallel_downloads=1,

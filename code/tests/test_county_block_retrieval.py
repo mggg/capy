@@ -3,11 +3,11 @@
 import json
 
 import pytest
-from capy_core.retrieve_data.census.retrieve_tables import load_county_codes
-from capy_core.retrieve_data.retrieval_config import (
-    RetrievalConfig,
+from capy_core.pipeline_config import (
+    PipelineConfig,
     load_configuration,
 )
+from capy_core.retrieve_data.census.retrieve_tables import load_county_codes
 from capy_core.retrieve_data.retrieve_files import retrieve_raw_data
 from capy_core.retrieve_data.retrieve_raw_file import FailedFile, ReadyFile
 
@@ -21,7 +21,7 @@ def test_reusing_blocks_needs_no_unselected_county_table(tmp_path, select_counti
     block_file.write_text(json.dumps([["state", "county", "block"], ["10", "001", "1000"]]))
     county_path = "census/2010/counties/10/state.json"
     patterns = (block_path, county_path) if select_counties else (block_path,)
-    config = RetrievalConfig(
+    config = PipelineConfig(
         raw_data_directory=raw,
         file_path_patterns=patterns,
         offline=True,
@@ -49,7 +49,7 @@ def test_county_failure_does_not_stop_unrelated_downloads(tmp_path):
     existing.parent.mkdir(parents=True)
     contents = json.dumps([["NAME", "state"], ["Delaware", "10"]])
     existing.write_text(contents)
-    config = RetrievalConfig(
+    config = PipelineConfig(
         raw_data_directory=tmp_path / "raw",
         file_path_patterns=("census/2010/blocks/10/*", independent),
         offline=True,

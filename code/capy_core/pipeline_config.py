@@ -1,4 +1,4 @@
-"""Load raw-data destination, file selection, and concurrency settings from YAML."""
+"""Load the shared input selections, output folders, and execution settings from YAML."""
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from capy_core.geography_types import GeographyLevel, StudyAreaType
 
-from .raw_file_requests import (
+from .retrieve_data.raw_file_requests import (
     CensusYear,
     validate_relative_file_path,
 )
@@ -53,8 +53,8 @@ class RawDataSubdirectories(BaseModel):
         return validate_relative_file_path(value)
 
 
-class RetrievalConfig(BaseModel):
-    """Choose which data to retrieve, where to save it, and how to run the downloads.
+class PipelineConfig(BaseModel):
+    """Choose pipeline inputs, file locations, and retrieval settings for a complete run.
 
     The geography levels and years describe the units to analyze. Study-area settings describe the
     enclosing areas, which may need additional county or city data. Request preparation combines
@@ -76,6 +76,8 @@ class RetrievalConfig(BaseModel):
             to data/raw. Relative paths start at the repository root.
         raw_data_subdirectories (RawDataSubdirectories): Folders beneath raw_data_directory.
             Omitted folder settings use the defaults documented on RawDataSubdirectories.
+        processed_population_directory (Path): Folder for derived population CSV files.
+            Defaults to data/processed/population. Relative paths start at the repository root.
         env_file (Path | None): Optional file of environment variables, such as API keys. Defaults
             to None. Relative paths start at the repository root. Online retrieval reads it
             without replacing existing environment variables; offline runs do not read it.
@@ -117,6 +119,7 @@ class RetrievalConfig(BaseModel):
     study_area_vintage: CensusYear = 2020
     raw_data_directory: Path = Path("data/raw")
     raw_data_subdirectories: RawDataSubdirectories = Field(default_factory=RawDataSubdirectories)
+    processed_population_directory: Path = Path("data/processed/population")
     env_file: Path | None = None
     offline: bool = False
     raw_checksums_file: Path = Path("data/raw_checksums.sha256")
@@ -138,7 +141,7 @@ class RetrievalConfig(BaseModel):
         return levels
 
 
-def load_configuration(path: Path) -> RetrievalConfig:
+def load_configuration(path: Path) -> PipelineConfig:
     """Read a YAML configuration, check individual settings, and fill in omitted defaults.
 
     This opens only the YAML file, not any of the requested data files. Paths in the settings are
@@ -151,7 +154,7 @@ def load_configuration(path: Path) -> RetrievalConfig:
         path (Path): YAML filename. Relative filenames start at the shell's current directory.
 
     Returns:
-        RetrievalConfig: Settings with defaults for omitted optional fields.
+        PipelineConfig: Settings with defaults for omitted optional fields.
 
     Raises:
         OSError: The configuration cannot be read.
@@ -168,7 +171,7 @@ def load_configuration(path: Path) -> RetrievalConfig:
         raise ValueError(f"Invalid YAML in {path}") from None
 
     try:
-        return RetrievalConfig.model_validate(settings)
+        return PipelineConfig.model_validate(settings)
     except ValidationError as error:
         problems = []
         for issue in error.errors(include_input=False, include_url=False):

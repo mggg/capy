@@ -5,13 +5,13 @@ from threading import Event
 from unittest.mock import MagicMock
 
 import pytest
+from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.retrieve_data import http_transport
 from capy_core.retrieve_data import retrieve_files as retrieval
 from capy_core.retrieve_data.nhgis.retrieve_extract import PendingNhgisExtract
 from capy_core.retrieve_data.raw_file_requests import PublicFileRequest, RawFileFormat
-from capy_core.retrieve_data.retrieval_config import RawDataSubdirectories
 from capy_core.retrieve_data.retrieve_raw_file import FailedFile, PendingFile, ReadyFile
-from capy_core.retrieve_data.stage_files import stage_file
+from capy_core.stage_files import stage_file
 from tqdm import tqdm
 
 
