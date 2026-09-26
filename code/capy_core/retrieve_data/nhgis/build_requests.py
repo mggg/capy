@@ -9,6 +9,12 @@ from capy_core.retrieve_data.raw_file_requests import (
 )
 
 from ..state_codes import STATE_FIPS_CODES
+from .identifiers import (
+    NHGIS_DATASETS_BY_YEAR,
+    NHGIS_LEVELS_BY_GEOGRAPHY,
+    NhgisDataset,
+    NhgisGeographyLevel,
+)
 
 # NOTE: NT7 supplies race counts and NT9B supplies Spanish-origin race counts, allowing
 # non-Hispanic White and Black counts to be derived. NT1A and NT9A supply totals for checks.
@@ -102,14 +108,6 @@ def build_historical_population_requests(
         list[NhgisTableFileRequest]: One archive per required historical year and population
             level.
     """
-    level_codes = {
-        GeographyLevel.STATE: "state",
-        GeographyLevel.COUNTY: "county",
-        GeographyLevel.TRACT: "tract",
-        GeographyLevel.BLOCK_GROUP: "blck_grp",
-        GeographyLevel.BLOCK: "block",
-    }
-
     requests = []
     for year in (1980, 1990):
         levels = {
@@ -127,9 +125,9 @@ def build_historical_population_requests(
                 build_table_request(
                     directories,
                     f"{year}/{level.value}/population.zip",
-                    dataset_name=f"{year}_STF1",
+                    dataset_name=NHGIS_DATASETS_BY_YEAR[year],
                     tables=POPULATION_TABLES_1980 if year == 1980 else ("NP1", "NP10"),
-                    geographic_levels=(level_codes[level],),
+                    geographic_levels=(NHGIS_LEVELS_BY_GEOGRAPHY[level],),
                     breakdowns=TOTAL_AND_SUBAREA_BREAKDOWNS_1980 if year == 1980 else (),
                 )
             )
@@ -156,23 +154,23 @@ def build_1980_geographic_correspondence_requests(
         build_table_request(
             directories,
             "1980/tracts/diagnostic_hierarchies.zip",
-            dataset_name="1980_STF1",
+            dataset_name=NhgisDataset.STF1_1980,
             tables=POPULATION_TABLES_1980,
             geographic_levels=(
-                "tract_080",
-                "tract_02098",
-                "tract_02498",
-                "enumdist_02298",
-                "enumdist_02698",
+                NhgisGeographyLevel.TRACT_BY_COUNTY_SUBDIVISION_PLACE_REMAINDER,
+                NhgisGeographyLevel.TRACT_BNA_BY_SMSA_COUNTY_SUBDIVISION_PLACE,
+                NhgisGeographyLevel.TRACT_BNA_BY_SMSA_PLACE,
+                NhgisGeographyLevel.ENUMERATION_DISTRICT_BY_SMSA_COUNTY_SUBDIVISION_PLACE_TRACT_BNA,
+                NhgisGeographyLevel.ENUMERATION_DISTRICT_BY_SMSA_PLACE_TRACT_BNA,
             ),
             breakdowns=TOTAL_AND_SUBAREA_BREAKDOWNS_1980,
         ),
         build_table_request(
             directories,
             "1980/tracts/diagnostic_place_parts.zip",
-            dataset_name="1980_STF1",
+            dataset_name=NhgisDataset.STF1_1980,
             tables=POPULATION_TABLES_1980,
-            geographic_levels=("place_070",),
+            geographic_levels=(NhgisGeographyLevel.PLACE_REMAINDER_BY_COUNTY_SUBDIVISION,),
         ),
     ]
 
@@ -181,9 +179,9 @@ def build_table_request(
     directories: RawDataSubdirectories,
     archive_name: str,
     *,
-    dataset_name: str,
+    dataset_name: NhgisDataset,
     tables: tuple[str, ...],
-    geographic_levels: tuple[str, ...],
+    geographic_levels: tuple[NhgisGeographyLevel, ...],
     breakdowns: tuple[str, ...] = (),
 ) -> NhgisTableFileRequest:
     """Build an NHGIS table download using CSV headers and a single-file layout.
@@ -191,9 +189,9 @@ def build_table_request(
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
         archive_name (str): ZIP path within the NHGIS folder, grouped by year and level.
-        dataset_name (str): Fixed-year dataset identifier, such as 1980_STF1.
+        dataset_name (NhgisDataset): Fixed-year dataset identifier, such as 1980_STF1.
         tables (tuple[str, ...]): NHGIS table identifiers within the dataset.
-        geographic_levels (tuple[str, ...]): Geographic level codes to include.
+        geographic_levels (tuple[NhgisGeographyLevel, ...]): Geographic level codes to include.
         breakdowns (tuple[str, ...]): Codes selecting the whole area or parts such as urban areas.
             Empty uses the dataset's default selection.
 

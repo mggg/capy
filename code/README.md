@@ -1,7 +1,8 @@
 # Run and understand the replication pipeline
 
-The pipeline currently implements raw-data retrieval. Use the links below to run it, understand the
-inputs, or follow the code, and consult the pipeline plan for the later processing stages.
+The pipeline implements raw-data retrieval and population processing for 1980–2020. Use the links
+below to run it, understand the inputs, or follow the code, and consult the pipeline plan for the
+later processing stages.
 
 | What you want to do                                             | Where to start                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -12,6 +13,7 @@ inputs, or follow the code, and consult the pipeline plan for the later processi
 | Find official API documentation and where requests are made     | [API reference](../documentation/raw_source_acquisition.md#api-documentation-and-request-addresses)                                                                      |
 | Reuse downloaded files or resume retrieval                      | [Run instructions below](#run-retrieval) and [reusing local files](../documentation/raw_source_acquisition.md#reusing-local-files)                                        |
 | Follow execution or change which tables are requested           | [Code walkthrough](../documentation/raw_source_acquisition.md#following-the-code) and [input definitions](../documentation/raw_source_acquisition.md#editing-raw-inputs) |
+| Process downloaded population tables | [Population processing](../documentation/population_processing.md) |
 | Understand the planned processing, study-area, and graph stages | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
 
 ## Run retrieval
@@ -23,22 +25,22 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 uv run --locked python code/reproduce.py --config code/configs/replication.yaml
 ```
 
-The first command downloads 2020 Delaware tract populations and boundaries, while the second
-requests the full collection of 1,275 raw files. For NHGIS downloads, supply `IPUMS_API_KEY` in your
-shell or set `env_file: .env` in the YAML to load credentials from a file at the repository root.
-Census downloads require `CENSUS_API_KEY` the same way, and existing environment variables take
-precedence over values in the file. By default, `env_file: null` loads no file, and neither offline
-runs nor the checksum command reads one.
+The first command downloads 2020 Delaware tract populations, boundaries, and population references;
+the second requests the full collection of 1,275 raw files. For NHGIS downloads, supply
+`IPUMS_API_KEY` in your shell or set `env_file: .env` in the YAML to load credentials from a file at
+the repository root. Census requests also use `CENSUS_API_KEY` when supplied, and existing
+environment variables take precedence over values in the file. By default, `env_file: null` loads no
+file, and neither offline runs nor the checksum command reads one.
 
 Start with the commented [`configs/example.yaml`](configs/example.yaml) to make a custom run. Choose
 geography levels and census years for both population and boundary data, plus the study-area type
 and boundary year. The code adds the county and city inputs needed to define those areas.
 [`configs/replication.yaml`](configs/replication.yaml) requests the full collection;
-[`configs/small_example.yaml`](configs/small_example.yaml) filters down to two Delaware files. The
-settings also control folders, download workers, offline mode, and checksum output. Input
-definitions live alongside their retrieval code in
+[`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts and the
+references needed to check their population. The settings also control folders, download workers,
+offline mode, and checksum output. Input definitions live alongside their retrieval code in
 [`capy_core/retrieve_data/`](capy_core/retrieve_data/), grouped into `census/` and `nhgis/`
-workflows with shared file handling alongside them.
+workflows. Configuration and temporary-file handling are shared under `capy_core/`.
 
 The command calls `retrieve_raw_data(config, repository)` in
 [`retrieve_files.py`](capy_core/retrieve_data/retrieve_files.py), which is also the entry point for
@@ -90,8 +92,22 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml 
 
 See [raw-data retrieval](../documentation/raw_source_acquisition.md) for file locations, input
 coverage, editing the Python input definitions, parallel Census/NHGIS workflows, and the separate
-command used to publish diagnostic checksums. Population processing, geographic joins, study-area
-assignment, and graph construction follow the [pipeline plan](../plans/pipeline.md).
+command used to publish diagnostic checksums. Geographic joins, study-area assignment, and graph
+construction follow the [pipeline plan](../plans/pipeline.md).
 
 Run checks with `uv run --locked python -m pytest`. Use one retrieval run per raw-data directory;
 `max_parallel_downloads` controls parallel workers within that run.
+
+## Process population tables
+
+After retrieval, process the small example with:
+
+```bash
+uv run --locked python code/process_population.py --config code/configs/small_example.yaml
+```
+
+Use `code/configs/replication.yaml` for all supported years and levels, or
+`code/configs/modern_population.yaml` for only 2000–2020. The command reads existing inputs, checks
+population counts, and saves Parquet tables beneath `processed_population_directory`. See the
+[population-processing guide](../documentation/population_processing.md) for output fields, checks,
+file locations, and rerun behavior.

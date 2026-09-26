@@ -76,7 +76,7 @@ class PipelineConfig(BaseModel):
             to data/raw. Relative paths start at the repository root.
         raw_data_subdirectories (RawDataSubdirectories): Folders beneath raw_data_directory.
             Omitted folder settings use the defaults documented on RawDataSubdirectories.
-        processed_population_directory (Path): Folder for derived population CSV files.
+        processed_population_directory (Path): Folder for derived population Parquet files.
             Defaults to data/processed/population. Relative paths start at the repository root.
         env_file (Path | None): Optional file of environment variables, such as API keys. Defaults
             to None. Relative paths start at the repository root. Online retrieval reads it

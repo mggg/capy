@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..http_transport import DataProviderError
 from ..raw_file_requests import NhgisBoundaryFileRequest, NhgisTableFileRequest
+from .identifiers import NhgisDataset
 
 
 class NhgisDatasetSelection(BaseModel):
@@ -251,10 +252,7 @@ def validate_nhgis_definition(
         raise DataProviderError("NHGIS changed the requested datasets")
 
     for dataset_name, selection in requested.datasets.items():
-        requested_selection = resolve_dataset_defaults(dataset_name, selection)
-        actual_selection = resolve_dataset_defaults(dataset_name, actual.datasets[dataset_name])
-
-        validate_dataset_selection(actual_selection, requested_selection)
+        validate_dataset_selection(dataset_name, actual.datasets[dataset_name], selection)
 
 
 def can_omit_data_layout(definition: NhgisExtractDefinition) -> bool:
@@ -272,23 +270,25 @@ def can_omit_data_layout(definition: NhgisExtractDefinition) -> bool:
         bool: True only for known STF1 datasets with at most one selected breakdown each.
     """
     return bool(definition.datasets) and all(
-        dataset_name in ("1980_STF1", "1990_STF1") and len(selection.breakdowns) <= 1
+        dataset_name in (NhgisDataset.STF1_1980, NhgisDataset.STF1_1990)
+        and len(selection.breakdowns) <= 1
         for dataset_name, selection in definition.datasets.items()
     )
 
 
 def validate_dataset_selection(
-    actual: NhgisDatasetSelection, requested: NhgisDatasetSelection
+    dataset_name: str, actual: NhgisDatasetSelection, requested: NhgisDatasetSelection
 ) -> None:
     """Require matching table and area selections, regardless of the order NHGIS lists them.
 
-    Call resolve_dataset_defaults() on both selections first so an omitted default and an
-    explicitly named default count as the same request.
+    For 1980/1990 STF1, omitted years and breakdowns mean the dataset's Census year and whole
+    area. Compare those defaults without changing either selection. Other datasets receive no
+    defaults, and explicit selections always take precedence.
 
     Args:
-        actual (NhgisDatasetSelection): NHGIS's completed selections with known defaults filled
-            in.
-        requested (NhgisDatasetSelection): Original selections with those same defaults filled in.
+        dataset_name (str): NHGIS dataset whose selections are being compared.
+        actual (NhgisDatasetSelection): Selections reported by NHGIS.
+        requested (NhgisDatasetSelection): Original requested selections.
 
     Raises:
         DataProviderError: A selected table, geographic level, year, or breakdown differs.
@@ -299,39 +299,16 @@ def validate_dataset_selection(
     if set(actual.geographic_levels) != set(requested.geographic_levels):
         raise DataProviderError("NHGIS changed the requested dataset geographies")
 
-    if set(actual.years) != set(requested.years):
+    dataset_defaults: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+        NhgisDataset.STF1_1980: (("1980",), ("bs03.ge0000",)),
+        NhgisDataset.STF1_1990: (("1990",), ("bs09.ge00",)),
+    }
+    default_years, default_breakdowns = dataset_defaults.get(dataset_name, ((), ()))
+
+    if set(actual.years or default_years) != set(requested.years or default_years):
         raise DataProviderError("NHGIS changed the requested dataset years")
 
-    if set(actual.breakdowns) != set(requested.breakdowns):
+    if set(actual.breakdowns or default_breakdowns) != set(
+        requested.breakdowns or default_breakdowns
+    ):
         raise DataProviderError("NHGIS changed the requested dataset breakdowns")
-
-
-def resolve_dataset_defaults(
-    dataset_name: str, selection: NhgisDatasetSelection
-) -> NhgisDatasetSelection:
-    """Fill omitted years and area breakdowns for comparing 1980/1990 STF1 selections.
-
-    NHGIS may report a default explicitly even when the request left it out. For these two
-    datasets, use the dataset's Census year and whole-area code so those forms compare equally.
-    Other datasets and explicit selections are unchanged. The original object is never modified.
-
-    Args:
-        dataset_name (str): NHGIS dataset identifier used to select known defaults.
-        selection (NhgisDatasetSelection): Selections being checked. Filled defaults are for
-            comparison only, not for changing the request sent to NHGIS.
-
-    Returns:
-        NhgisDatasetSelection: Selections with known empty years and breakdowns filled in.
-    """
-    dataset_defaults = {"1980_STF1": ("1980", "bs03.ge0000"), "1990_STF1": ("1990", "bs09.ge00")}
-    if dataset_name not in dataset_defaults:
-        return selection
-
-    census_year, total_area_code = dataset_defaults[dataset_name]
-
-    return selection.model_copy(
-        update={
-            "years": selection.years or (census_year,),
-            "breakdowns": selection.breakdowns or (total_area_code,),
-        }
-    )

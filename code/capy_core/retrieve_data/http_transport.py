@@ -6,11 +6,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 
 import requests
 from tqdm import tqdm
-
-from capy_core.stage_files import StagedFile
 
 
 class DataProviderError(Exception):
@@ -127,7 +126,7 @@ def get_rate_limit_wait_seconds(retry_after: str | None, retry_number: int) -> f
 
 def download_file(
     url: str,
-    destination: StagedFile,
+    temporary_path: Path,
     authorization: str | None = None,
     *,
     parameters: dict[str, str] | None = None,
@@ -143,7 +142,7 @@ def download_file(
 
     Args:
         url (str): Address of the file to download.
-        destination (StagedFile): Empty temporary file. The caller checks its contents and moves
+        temporary_path (Path): Empty temporary file. The caller checks its contents and moves
             it to the final filename after this function returns.
         authorization (str | None): Optional Authorization header value. Defaults to None.
         parameters (dict[str, str] | None): Query settings, including an API key if needed.
@@ -155,7 +154,6 @@ def download_file(
         RetryableDownloadError: The connection fails transiently or the byte count is incomplete.
         DataProviderError: The response status is not 200, a permanent connection error occurs, or
             Content-Length is invalid.
-        ValueError: The temporary file was already used.
         OSError: Writing or inspecting the temporary file fails.
     """
     with open_http_response(url, parameters=parameters, authorization=authorization) as response:
@@ -174,34 +172,24 @@ def download_file(
         if len(display_label) > 28:
             display_label = f"...{display_label[-25:]}"
 
-        with tqdm(
-            total=expected_byte_count,
-            desc=display_label,
-            unit="B",
-            unit_scale=True,
-            unit_divisor=1024,
-            miniters=1,
-            leave=False,
-            dynamic_ncols=True,
-            disable=None,
-        ) as byte_progress:
-            destination.write_chunks(iter_download_chunks(response, byte_progress))
+        with (
+            tqdm(
+                total=expected_byte_count,
+                desc=display_label,
+                unit="B",
+                unit_scale=True,
+                unit_divisor=1024,
+                miniters=1,
+                leave=False,
+                dynamic_ncols=True,
+                disable=None,
+            ) as byte_progress,
+            temporary_path.open("wb") as stream,
+        ):
+            for chunk in response.iter_content(1024 * 1024):
+                stream.write(chunk)
+                byte_progress.update(len(chunk))
 
-        downloaded_bytes = destination.path.stat().st_size
+        downloaded_bytes = temporary_path.stat().st_size
         if expected_byte_count is not None and expected_byte_count != downloaded_bytes:
             raise RetryableDownloadError("Downloaded byte count differs from Content-Length")
-
-
-def iter_download_chunks(response: requests.Response, byte_progress: tqdm) -> Iterator[bytes]:
-    """Yield response bytes and update progress after the caller writes each chunk.
-
-    Args:
-        response (requests.Response): Open response, owned by open_http_response().
-        byte_progress (tqdm): Byte counter, opened and closed by download_file().
-
-    Yields:
-        bytes: Next piece of the file, unchanged. Response-reading errors propagate.
-    """
-    for chunk in response.iter_content(1024 * 1024):
-        yield chunk
-        byte_progress.update(len(chunk))

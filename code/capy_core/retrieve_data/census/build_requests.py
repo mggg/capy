@@ -13,73 +13,21 @@ from capy_core.retrieve_data.raw_file_requests import (
 
 from ..state_codes import STATE_FIPS_CODES
 from .build_published_file_requests import build_census_published_file_requests
+from .table_columns import CENSUS_POPULATION_COLUMNS, CensusGeographyColumn
 
-# NOTE: The study uses non-Hispanic White-alone and Black-alone counts for modern years.
-# POC means total population minus non-Hispanic White, not just Black. The additional race and
-# Hispanic-origin columns support checks of those population definitions. Each quoted piece names
-# one requested column; Python joins adjacent strings into the comma-separated list sent as the
-# Census API's get parameter. See the variable guide in documentation/raw_source_acquisition.md
-# for table definitions and the cross-year mapping.
+# Request the same named count columns that processing uses to derive and check populations.
 POPULATION_VARIABLES_BY_YEAR: dict[Literal[2000, 2010, 2020], str] = {
-    2000: (
-        "NAME,"  # Geographic area's display name.
-        "PL001001,"  # Total population, all ages.
-        "PL001003,"  # White alone, including Hispanic residents.
-        "PL001004,"  # Black or African American alone, including Hispanic residents.
-        "PL001005,"  # American Indian and Alaska Native alone, including Hispanic residents.
-        "PL001006,"  # Asian alone, including Hispanic residents.
-        "PL001007,"  # Native Hawaiian and Other Pacific Islander alone, including Hispanic residents.
-        "PL001008,"  # Some other race alone, including Hispanic residents.
-        "PL001009,"  # Two or more races, including Hispanic residents.
-        "PL002002,"  # Hispanic or Latino, of any race.
-        "PL002005,"  # Non-Hispanic White alone: the study's WHITE count.
-        "PL002006"  # Non-Hispanic Black or African American alone: the study's BLACK count.
-    ),
-    2010: (
-        "NAME,"  # Geographic area's display name.
-        "P001001,"  # Total population, all ages.
-        "P001003,"  # White alone, including Hispanic residents.
-        "P001004,"  # Black or African American alone, including Hispanic residents.
-        "P001005,"  # American Indian and Alaska Native alone, including Hispanic residents.
-        "P001006,"  # Asian alone, including Hispanic residents.
-        "P001007,"  # Native Hawaiian and Other Pacific Islander alone, including Hispanic residents.
-        "P001008,"  # Some other race alone, including Hispanic residents.
-        "P001009,"  # Two or more races, including Hispanic residents.
-        "P002002,"  # Hispanic or Latino, of any race.
-        "P002005,"  # Non-Hispanic White alone: the study's WHITE count.
-        "P002006"  # Non-Hispanic Black or African American alone: the study's BLACK count.
-    ),
-    2020: (
-        "NAME,"  # Geographic area's display name.
-        "P1_001N,"  # Total population, all ages.
-        "P1_003N,"  # White alone, including Hispanic residents.
-        "P1_004N,"  # Black or African American alone, including Hispanic residents.
-        "P1_005N,"  # American Indian and Alaska Native alone, including Hispanic residents.
-        "P1_006N,"  # Asian alone, including Hispanic residents.
-        "P1_007N,"  # Native Hawaiian and Other Pacific Islander alone, including Hispanic residents.
-        "P1_008N,"  # Some other race alone, including Hispanic residents.
-        "P1_009N,"  # Two or more races, including Hispanic residents.
-        "P2_002N,"  # Hispanic or Latino, of any race.
-        "P2_005N,"  # Non-Hispanic White alone: the study's WHITE count.
-        "P2_006N"  # Non-Hispanic Black or African American alone: the study's BLACK count.
-    ),
+    year: ",".join((CensusGeographyColumn.NAME, *columns.count_columns))
+    for (year, dataset), columns in CENSUS_POPULATION_COLUMNS.items()
+    if dataset == CensusDataset.PL_94_171
 }
 
-# NOTE: The selected source for 2000 block groups is SF1. Its column codes differ from PL,
-# so switching the dataset also requires switching variables to preserve the definitions above.
-BLOCK_GROUP_VARIABLES_2000 = (
-    "NAME,"  # Geographic area's display name.
-    "P001001,"  # Total population, all ages.
-    "P003003,"  # White alone, including Hispanic residents.
-    "P003004,"  # Black or African American alone, including Hispanic residents.
-    "P003005,"  # American Indian and Alaska Native alone, including Hispanic residents.
-    "P003006,"  # Asian alone, including Hispanic residents.
-    "P003007,"  # Native Hawaiian and Other Pacific Islander alone, including Hispanic residents.
-    "P003008,"  # Some other race alone, including Hispanic residents.
-    "P003009,"  # Two or more races, including Hispanic residents.
-    "P004002,"  # Hispanic or Latino, of any race.
-    "P004005,"  # Non-Hispanic White alone: the study's WHITE count.
-    "P004006"  # Non-Hispanic Black or African American alone: the study's BLACK count.
+# The 2000 block-group source is SF1; its codes differ from PL for the same population groups.
+BLOCK_GROUP_VARIABLES_2000 = ",".join(
+    (
+        CensusGeographyColumn.NAME,
+        *CENSUS_POPULATION_COLUMNS[2000, CensusDataset.SUMMARY_FILE_1].count_columns,
+    )
 )
 
 

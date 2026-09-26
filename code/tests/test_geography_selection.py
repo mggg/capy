@@ -314,7 +314,7 @@ def test_unsupported_combinations_fail_before_creating_raw_files(tmp_path, setti
     assert not config.raw_data_directory.exists()
 
 
-@pytest.mark.parametrize("filename", ["example.yaml", "replication.yaml", "small_example.yaml"])
+@pytest.mark.parametrize("filename", ["example.yaml", "replication.yaml", "small_example.yaml", "modern_population.yaml"])
 def test_shipped_yaml_files_select_valid_inputs(filename):
     from pathlib import Path
 
@@ -326,4 +326,4 @@ def test_shipped_yaml_files_select_valid_inputs(filename):
     if filename == "replication.yaml":
         assert len(selected) == 1275
     elif filename == "small_example.yaml":
-        assert len(selected) == 2
+        assert len(selected) == 4

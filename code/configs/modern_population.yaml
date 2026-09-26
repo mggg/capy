@@ -1,5 +1,7 @@
+# Modern population processing, all supported levels and states, including 2020 places.
+# First retrieve inputs with code/reproduce.py, then run code/process_population.py.
 census_geography_levels: [counties, tracts, block_groups, blocks]
-census_geography_years: [1980, 1990, 2000, 2010, 2020]
+census_geography_years: [2000, 2010, 2020]
 study_area_type: max_city
 study_area_vintage: 2020
 

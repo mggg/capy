@@ -81,13 +81,13 @@ def test_download_progress_counts_bytes_without_exposing_urls(
     monkeypatch.setattr(http_transport, "tqdm", progress_factory)
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: response)
 
-    with stage_file(tmp_path) as staged:
+    with stage_file(tmp_path) as temporary_path:
         http_transport.download_file(
             "https://example.org/file?key=private-key",
-            staged,
+            temporary_path,
             download_label="population_reference_tables/census_working_paper_56_1990_tableA-01.xlsx",
         )
-        assert staged.path.read_bytes() == b"abcdefg"
+        assert temporary_path.read_bytes() == b"abcdefg"
 
     assert progress.n == 7
     assert progress_factory.call_args.kwargs["total"] == expected_total

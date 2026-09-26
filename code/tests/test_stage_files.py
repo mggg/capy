@@ -1,4 +1,4 @@
-"""Storage ownership across writes, publication, and failures."""
+"""Temporary-file cleanup and replacement preserve completed outputs."""
 
 from pathlib import Path
 
@@ -6,33 +6,17 @@ import pytest
 from capy_core.stage_files import stage_file
 
 
-def test_failed_stream_cannot_be_published_or_retried(tmp_path):
-    def failed_chunks():
-        yield b"first"
-        raise OSError("read failed")
+@pytest.mark.parametrize("failure", [OSError("write failed"), KeyboardInterrupt()])
+def test_failed_write_discards_partial_file_and_preserves_previous_output(tmp_path, failure):
+    destination = tmp_path / "record.json"
+    destination.write_bytes(b"previous record")
 
-    with stage_file(tmp_path) as staged:
-        with pytest.raises(OSError, match="read failed"):
-            staged.write_chunks(failed_chunks())
+    with pytest.raises(type(failure)), stage_file(tmp_path) as temporary_path:
+        temporary_path.write_bytes(b"partial replacement")
+        raise failure
 
-        with pytest.raises(ValueError, match="completed staged file"):
-            staged.publish(tmp_path / "published")
-
-        with pytest.raises(ValueError, match="only once"):
-            staged.write_chunks((b"replacement",))
-
-    assert not list(tmp_path.iterdir())
-
-
-def test_interrupted_stream_discards_written_bytes(tmp_path):
-    def interrupted_chunks():
-        yield b"first"
-        raise KeyboardInterrupt
-
-    with pytest.raises(KeyboardInterrupt), stage_file(tmp_path) as staged:
-        staged.write_chunks(interrupted_chunks())
-
-    assert not list(tmp_path.iterdir())
+    assert destination.read_bytes() == b"previous record"
+    assert not list(tmp_path.glob(".retrieval-*"))
 
 
 def test_failed_publication_preserves_existing_file(tmp_path, monkeypatch):
@@ -43,9 +27,9 @@ def test_failed_publication_preserves_existing_file(tmp_path, monkeypatch):
         raise OSError("Cannot replace destination")
 
     monkeypatch.setattr(Path, "replace", refuse_replacement)
-    with pytest.raises(OSError, match="Cannot replace"), stage_file(tmp_path) as staged:
-        staged.write_chunks((b"replacement bytes",))
-        staged.publish(destination)
+    with pytest.raises(OSError, match="Cannot replace"), stage_file(tmp_path) as temporary_path:
+        temporary_path.write_bytes(b"replacement bytes")
+        temporary_path.replace(destination)
 
     assert destination.read_bytes() == b"previous record"
     assert not list(tmp_path.glob(".retrieval-*"))
@@ -56,23 +40,10 @@ def test_file_replacement_preserves_other_hard_links(tmp_path):
     destination.write_bytes(b"previous record")
     (tmp_path / "old_record.json").hardlink_to(destination)
 
-    with stage_file(tmp_path) as staged:
-        staged.write_chunks((b"replacement bytes",))
-        staged.publish(destination)
+    with stage_file(tmp_path) as temporary_path:
+        temporary_path.write_bytes(b"replacement bytes")
+        temporary_path.replace(destination)
 
     assert destination.read_bytes() == b"replacement bytes"
     assert (tmp_path / "old_record.json").read_bytes() == b"previous record"
-
     assert not list(tmp_path.glob(".retrieval-*"))
-
-
-def test_published_file_cannot_be_published_again(tmp_path):
-    with stage_file(tmp_path) as staged:
-        staged.write_chunks((b"bytes",))
-        staged.publish(tmp_path / "first")
-
-        with pytest.raises(ValueError, match="completed staged file"):
-            staged.publish(tmp_path / "second")
-
-    assert (tmp_path / "first").read_bytes() == b"bytes"
-    assert not (tmp_path / "second").exists()

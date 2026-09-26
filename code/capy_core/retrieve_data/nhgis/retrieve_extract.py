@@ -8,13 +8,14 @@ import json
 import os
 import warnings
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
 from ipumspy import IpumsApiClient
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_serializer
 
-from capy_core.stage_files import StagedFile, stage_file
+from capy_core.stage_files import stage_file
 
 from ..http_transport import DataProviderError, download_file
 from ..raw_file_requests import NhgisBoundaryFileRequest, NhgisTableFileRequest
@@ -26,23 +27,42 @@ from .extract_definition import (
 )
 
 
+class NhgisExtractStatus(StrEnum):
+    """Provider statuses for extracts that are still being prepared or are ready to download.
+
+    Failed and unrecognized responses are reported as errors rather than pending work.
+    """
+
+    QUEUED = "queued"
+    STARTED = "started"
+    PROCESSING = "processing"
+    SUBMITTED = "submitted"
+    COMPLETED = "completed"
+
+
 @dataclass(frozen=True)
 class PendingNhgisExtract:
     """An NHGIS request that is still being prepared and has no downloaded file yet.
 
     Attributes:
         extract_id (int): Positive account-specific extract number to check on a retry.
-        status (Literal["queued", "started", "processing", "submitted"]): Status reported on this
-            attempt. A retry uses the saved extract number to check the same request again.
+        status (NhgisExtractStatus): QUEUED, STARTED, PROCESSING, or SUBMITTED on this attempt.
+            A retry uses the saved extract number to check the same request again.
     """
 
     extract_id: int
-    status: Literal["queued", "started", "processing", "submitted"]
+    # A completed status cannot describe a pending result.
+    status: Literal[
+        NhgisExtractStatus.QUEUED,
+        NhgisExtractStatus.STARTED,
+        NhgisExtractStatus.PROCESSING,
+        NhgisExtractStatus.SUBMITTED,
+    ]
 
 
 def retrieve_nhgis_extract(
     request: NhgisTableFileRequest | NhgisBoundaryFileRequest,
-    destination: StagedFile,
+    temporary_path: Path,
     submission_directory: Path,
 ) -> PendingNhgisExtract | None:
     """Submit or find an NHGIS request, check its status once, and download it if ready.
@@ -63,7 +83,7 @@ def retrieve_nhgis_extract(
     Args:
         request (NhgisTableFileRequest | NhgisBoundaryFileRequest): Table or boundary selection
             and destination used to find its saved submission.
-        destination (StagedFile): Empty temporary file to receive a completed download.
+        temporary_path (Path): Empty temporary file to receive a completed download.
         submission_directory (Path): Directory containing saved extract definitions and IDs.
 
     Returns:
@@ -87,16 +107,24 @@ def retrieve_nhgis_extract(
     submitted = submit_or_resume_extract(client, definition, submission_path)
 
     try:
-        status = client.extract_status(submitted.extract_id, "nhgis")
+        reported_status = client.extract_status(submitted.extract_id, "nhgis")
     except Exception as error:  # noqa: BLE001 - SDK errors may contain credentials
         raise DataProviderError(
             f"Could not check NHGIS extract {submitted.extract_id} ({type(error).__name__})"
         ) from None
 
-    if status in ("queued", "started", "processing", "submitted"):
+    try:
+        status = NhgisExtractStatus(reported_status)
+    except ValueError:
+        raise DataProviderError(f"NHGIS extract {submitted.extract_id} did not complete") from None
+
+    if status in (
+        NhgisExtractStatus.QUEUED,
+        NhgisExtractStatus.STARTED,
+        NhgisExtractStatus.PROCESSING,
+        NhgisExtractStatus.SUBMITTED,
+    ):
         return PendingNhgisExtract(extract_id=submitted.extract_id, status=status)
-    if status != "completed":
-        raise DataProviderError(f"NHGIS extract {submitted.extract_id} did not complete")
 
     try:
         # The SDK warns for warnings: []; inspect the list without printing provider text.
@@ -127,7 +155,7 @@ def retrieve_nhgis_extract(
 
     download_file(
         extract_response.download_links[download_kind].url,
-        destination,
+        temporary_path,
         authorization=api_key,
         download_label=request.destination_relative_path,
     )
@@ -259,6 +287,6 @@ def save_nhgis_submission(path: Path, submission: NhgisSubmissionRecord) -> None
     record = submission.model_dump(mode="json", by_alias=True)
     content = (json.dumps(record, indent=2, allow_nan=False) + "\n").encode("utf-8")
 
-    with stage_file(path.parent) as staged:
-        staged.write_chunks((content,))
-        staged.publish(path)
+    with stage_file(path.parent) as temporary_path:
+        temporary_path.write_bytes(content)
+        temporary_path.replace(path)

@@ -17,6 +17,7 @@ from capy_core.retrieve_data.nhgis.extract_definition import (
     validate_nhgis_definition,
 )
 from capy_core.retrieve_data.nhgis.retrieve_extract import (
+    NhgisExtractStatus,
     NhgisSubmissionRecord,
     submit_or_resume_extract,
 )
@@ -307,7 +308,9 @@ def test_nhgis_boundary_download_retry_reuses_submission(tmp_path, monkeypatch):
     [
         ("completed", 1, [1, 2, 2], [40], ReadyFile),
         ("queued", 1, [1, 2, 2, 2], [40, 20], PendingFile),
+        ("processing", 1, [1, 2, 2, 2], [40, 20], PendingFile),
         ("failed", 1, [1, 2, 2], [40], FailedFile),
+        ("unrecognized_status", 1, [1, 2, 2], [40], FailedFile),
         ("completed", 0, [1, 2], [], PendingFile),
         ("interrupted", 1, [1, 2, 2], [40], ReadyFile),
     ],
@@ -387,6 +390,8 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
     outcome = retrieval.retrieve_files(config, tmp_path, selected)
     assert isinstance(outcome.file_results[0], ReadyFile)
     assert isinstance(outcome.file_results[1], expected_type)
+    if isinstance(outcome.file_results[1], PendingFile):
+        assert isinstance(outcome.file_results[1].pending_extract.status, NhgisExtractStatus)
     assert outcome.complete == (expected_type is ReadyFile)
     assert len(submissions) == 2
     assert status_checks == expected_checks
@@ -436,7 +441,7 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
     ],
 )
 def test_changed_nhgis_request_rejects_saved_archive_or_submission(
-    tmp_path, original, changed, file_exists
+    tmp_path, monkeypatch, original, changed, file_exists
 ):
     from capy_core.retrieve_data.nhgis.retrieve_extract import save_nhgis_submission
 
@@ -455,11 +460,22 @@ def test_changed_nhgis_request_rejects_saved_archive_or_submission(
         archive_path.write_bytes(content)
         assert isinstance(retrieve_raw_file(original, tmp_path, True, directories), ReadyFile)
 
-    result = retrieve_raw_file(changed, tmp_path, True, directories)
+    client = Mock()
+    monkeypatch.setenv("IPUMS_API_KEY", "secret")
+    monkeypatch.setattr(
+        "capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", lambda key: client
+    )
+    if not file_exists:
+        offline_result = retrieve_raw_file(changed, tmp_path, True, directories)
+        assert isinstance(offline_result, FailedFile)
+        assert "missing in offline mode" in offline_result.error_message
+
+    result = retrieve_raw_file(changed, tmp_path, file_exists, directories)
 
     assert isinstance(result, FailedFile)
     assert result.destination_relative_path == changed.destination_relative_path
     assert "different request" in result.error_message
+    assert not client.mock_calls
     assert str(submission_path) in result.error_message
     assert "archive" in result.error_message
     assert submission_path.read_bytes() == saved_record

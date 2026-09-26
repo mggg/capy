@@ -223,6 +223,11 @@ and destination can be read together.
 
 ## Census population variable guide
 
+Edit Census column definitions in
+[`census/table_columns.py`](../code/capy_core/retrieve_data/census/table_columns.py). It names the
+population columns for each year and dataset, along with the geographic fields. Retrieval and
+processing share these definitions so a requested count keeps the same meaning when processed.
+
 The strings in `POPULATION_VARIABLES_BY_YEAR` and `BLOCK_GROUP_VARIABLES_2000` are Census API column
 identifiers. They select the columns to download, not filters on which residents to include. For
 example, `get=NAME,P1_001N,P2_005N,P2_006N` requests an area's name, total population, non-Hispanic
@@ -270,8 +275,8 @@ synonymous with Black population.
 The six single-race counts plus the two-or-more-races count partition the total population. Those
 columns support checks of population totals; the Hispanic and non-Hispanic columns describe
 overlapping subsets and must not be added to that race sum. Retrieval saves these columns unchanged.
-Deriving study fields and performing these population checks belong to the population-processing
-stage, which is not yet implemented in the maintained pipeline.
+The [population-processing stage](population_processing.md) derives the study fields and performs
+these checks for modern Census tables.
 
 ## NHGIS request comparisons
 

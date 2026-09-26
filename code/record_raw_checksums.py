@@ -44,9 +44,9 @@ def record_raw_checksums(
 
         lines.append(f"{checksum}  {relative_path}\n")
 
-    with stage_file(output_path.parent) as staged:
-        staged.write_chunks(("".join(lines).encode("utf-8"),))
-        staged.publish(output_path)
+    with stage_file(output_path.parent) as temporary_path:
+        temporary_path.write_bytes("".join(lines).encode("utf-8"))
+        temporary_path.replace(output_path)
 
 
 def main() -> None:

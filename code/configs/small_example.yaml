@@ -4,6 +4,9 @@ study_area_type: county
 study_area_vintage: 2020
 
 raw_data_directory: data/raw
+
+# Derived population Parquet files; relative paths start at the repository root.
+processed_population_directory: data/processed/population
 raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis
@@ -19,6 +22,8 @@ raw_checksums_file: data/raw_checksums.sha256
 file_path_patterns:
   - census/2020/tracts/10/state.json
   - tiger/2020/tracts/tl_2020_10_tract.zip
+  - population_reference_tables/2020_states.json
+  - population_reference_tables/census_state_population_totals_2020_release.csv
 max_parallel_downloads: 2
 
 # Recheck pending NHGIS extracts after the initial downloads; 0 minutes disables retries.

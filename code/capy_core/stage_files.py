@@ -2,28 +2,28 @@
 
 import os
 import tempfile
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
 
 
 @contextmanager
-def stage_file(directory: Path) -> Iterator["StagedFile"]:
-    """Create a temporary file and remove it when the ``with`` block ends unless it was saved.
+def stage_file(directory: Path) -> Iterator[Path]:
+    """Create a temporary path and remove it when the ``with`` block ends unless it was moved.
 
-    Staging means filling and checking a file under a temporary name before giving it its final
-    filename. Call publish() inside the block to keep the completed file. If the block ends
-    without publication, including after an error, the temporary file is removed.
+    Write to the path with ordinary file operations or a library such as pandas. After writing
+    and checking the file, call temporary_path.replace(destination) inside the block to keep it.
+    Close any open file handles before replacing it. If writing or checking fails, let the error
+    leave the block so cleanup removes the partial file. Leaving the block never publishes a file
+    automatically, including when a download is still pending.
 
     Args:
-        directory (Path): Directory for the temporary file, created if absent. It must be on the
-            same filesystem as the final file so publication can use a single rename.
+        directory (Path): Directory for the temporary file, created if absent. Use the final
+            file's directory so replacement is a single operation on the same filesystem.
 
     Yields:
-        StagedFile: Empty file that can be filled once and then moved to its final filename.
-            Published files remain there after the block ends.
+        Path: Empty temporary file, owned by this context. A completed file moved to its final
+            name remains there after the block ends.
 
     Raises:
         OSError: Creating or cleaning up the temporary file fails.
@@ -32,72 +32,8 @@ def stage_file(directory: Path) -> Iterator["StagedFile"]:
     descriptor, temporary_name = tempfile.mkstemp(prefix=".retrieval-", dir=directory)
     os.close(descriptor)
 
-    staged = StagedFile(Path(temporary_name))
+    temporary_path = Path(temporary_name)
     try:
-        yield staged
+        yield temporary_path
     finally:
-        staged.path.unlink(missing_ok=True)
-
-
-@dataclass
-class StagedFile:
-    """Keep track of a temporary file until it is removed or moved to its final filename.
-
-    Create this object through stage_file(), which handles cleanup. Use write_chunks() to write
-    bytes. The path is available for reading and checking those bytes, not for writing them
-    directly. After a failed write, start a new staging block instead of reusing this file.
-
-    The file is "empty" until written, "ready" after a complete write, and "spent" once a write
-    has failed or the file has been published. A spent file accepts no further writes or
-    publication. Do not use the object after its stage_file() block ends; the temporary name has
-    been removed by then and nothing prevents a write from recreating it.
-    """
-
-    path: Path
-    _state: Literal["empty", "ready", "spent"] = field(default="empty", init=False)
-
-    def write_chunks(self, chunks: Iterable[bytes]) -> None:
-        """Fill the temporary file once, writing each supplied piece of data in order.
-
-        If producing or writing a piece fails, the partial file cannot be published or written
-        again. The surrounding stage_file() block removes it when that block ends.
-
-        Args:
-            chunks (Iterable[bytes]): Pieces of file data, produced one at a time.
-
-        Raises:
-            ValueError: The file has already been used.
-            OSError: Writing the file fails.
-
-        Errors raised while producing chunks also pass back to the caller.
-        """
-        if self._state != "empty":
-            raise ValueError("A staged file can be written only once")
-
-        self._state = "spent"
-        with self.path.open("wb") as stream:
-            for chunk in chunks:
-                stream.write(chunk)
-
-        self._state = "ready"
-
-    def publish(self, destination: Path) -> None:
-        """Move the completed file to its final name, replacing any file already there.
-
-        The rename happens as one filesystem operation, so a reader of the final path sees either
-        the previous file or the completed replacement. The caller must check the file before
-        calling this method; publication itself does not inspect its contents.
-
-        Args:
-            destination (Path): Final filename, in an existing directory on the same filesystem as
-                the temporary file.
-
-        Raises:
-            ValueError: The staged file has not been filled successfully or was already published.
-            OSError: Replacing the destination fails.
-        """
-        if self._state != "ready":
-            raise ValueError("Only a completed staged file can be published")
-
-        self.path.replace(destination)
-        self._state = "spent"
+        temporary_path.unlink(missing_ok=True)

@@ -10,12 +10,12 @@ from pathlib import Path
 
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import RawDataSubdirectories
-from capy_core.stage_files import StagedFile
 
 from ..check_raw_files import load_census_table
 from ..http_transport import DataProviderError, download_file
 from ..raw_file_requests import CensusFileRequest, RawFileRequest
 from .build_requests import build_census_table_relative_path
+from .table_columns import CensusGeographyColumn
 
 
 def prepare_download_batches_with_2010_counties_first(
@@ -86,7 +86,7 @@ def prepare_download_batches_with_2010_counties_first(
 
 def download_census_table(
     request: CensusFileRequest,
-    destination: StagedFile,
+    temporary_path: Path,
     raw_data_directory: Path,
     directories: RawDataSubdirectories,
 ) -> None:
@@ -99,14 +99,14 @@ def download_census_table(
 
     Args:
         request (CensusFileRequest): Census year, dataset, variables, and geographic selection.
-        destination (StagedFile): Empty file owned by the caller's staging context.
+        temporary_path (Path): Empty file owned by the caller's staging context.
         raw_data_directory (Path): Contains county tables needed by 2010 block queries.
         directories (RawDataSubdirectories): Configured folders beneath raw_data_directory.
 
     Raises:
         DataProviderError: CENSUS_API_KEY is unset, transport fails, or the response fails the
             download's byte-count check.
-        ValueError: A county prerequisite is invalid, or staging is not empty.
+        ValueError: A county prerequisite is invalid.
         OSError: Reading a county prerequisite or writing the staged file fails.
     """
     api_key = os.environ.get("CENSUS_API_KEY")
@@ -118,7 +118,7 @@ def download_census_table(
 
     url = f"https://api.census.gov/data/{request.census_year}/dec/{request.dataset.value}"
     download_file(
-        url, destination, parameters=parameters, download_label=request.destination_relative_path
+        url, temporary_path, parameters=parameters, download_label=request.destination_relative_path
     )
 
 
@@ -140,12 +140,12 @@ def resolve_census_query_parameters(
         ValueError: A county table is malformed or contains invalid county codes.
     """
     census_geography_names = {
-        GeographyLevel.STATE: "state",
-        GeographyLevel.COUNTY: "county",
-        GeographyLevel.TRACT: "tract",
-        GeographyLevel.BLOCK_GROUP: "block group",
-        GeographyLevel.BLOCK: "block",
-        GeographyLevel.PLACE: "place",
+        GeographyLevel.STATE: CensusGeographyColumn.STATE,
+        GeographyLevel.COUNTY: CensusGeographyColumn.COUNTY,
+        GeographyLevel.TRACT: CensusGeographyColumn.TRACT,
+        GeographyLevel.BLOCK_GROUP: CensusGeographyColumn.BLOCK_GROUP,
+        GeographyLevel.BLOCK: CensusGeographyColumn.BLOCK,
+        GeographyLevel.PLACE: CensusGeographyColumn.PLACE,
     }
     geography_name = census_geography_names[request.geography_level]
     parameters = {"get": request.variables, "for": f"{geography_name}:*"}
@@ -153,7 +153,7 @@ def resolve_census_query_parameters(
     if request.state_code is None:
         return parameters
 
-    parent_geography = f"state:{request.state_code}"
+    parent_geography = f"{CensusGeographyColumn.STATE}:{request.state_code}"
 
     if request.geography_level in (
         GeographyLevel.TRACT,
@@ -168,13 +168,13 @@ def resolve_census_query_parameters(
                 directories, 2010, GeographyLevel.COUNTY, request.state_code
             )
             county_codes = load_county_codes(county_path, request.state_code)
-            parent_geography += f" county:{','.join(county_codes)}"
+            parent_geography += f" {CensusGeographyColumn.COUNTY}:{','.join(county_codes)}"
 
         else:
-            parent_geography += " county:*"
+            parent_geography += f" {CensusGeographyColumn.COUNTY}:*"
 
     if request.geography_level in (GeographyLevel.BLOCK_GROUP, GeographyLevel.BLOCK):
-        parent_geography += " tract:*"
+        parent_geography += f" {CensusGeographyColumn.TRACT}:*"
 
     parameters["in"] = parent_geography
     return parameters
@@ -195,8 +195,8 @@ def load_county_codes(county_table_path: Path, state_code: str) -> tuple[str, ..
         ValueError: The table is malformed, empty, repeats counties, or contains another state.
     """
     header, *rows = load_census_table(county_table_path)
-    state_column = header.index("state")
-    county_column = header.index("county")
+    state_column = header.index(CensusGeographyColumn.STATE)
+    county_column = header.index(CensusGeographyColumn.COUNTY)
 
     county_codes = []
     for row in rows:

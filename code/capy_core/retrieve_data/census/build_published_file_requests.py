@@ -10,6 +10,15 @@ from capy_core.retrieve_data.raw_file_requests import (
 
 from ..state_codes import STATE_FIPS_CODES, STF1A_STATE_ABBREVIATIONS
 
+CENSUS_RESIDENT_TOTALS_FILENAME = "census_state_population_totals_2020_release.csv"
+
+# E tables cross race with Hispanic origin and supply the study's state comparisons.
+HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES = {1980: "tableE-03.xlsx", 1990: "tableE-01.xlsx"}
+HISTORICAL_STUDY_TOTALS_FILENAMES = {
+    year: f"census_working_paper_56_{year}_{source_filename}"
+    for year, source_filename in HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES.items()
+}
+
 
 def build_census_published_file_requests(
     directories: RawDataSubdirectories,
@@ -137,7 +146,7 @@ def build_reference_file_requests(
         requests.append(
             PublicFileRequest(
                 destination_relative_path=(
-                    f"{directories.population_reference_tables}/census_state_population_totals_2020_release.csv"
+                    f"{directories.population_reference_tables}/{CENSUS_RESIDENT_TOTALS_FILENAME}"
                 ),
                 file_format=RawFileFormat.CSV,
                 url="https://www2.census.gov/programs-surveys/decennial/2020/data/apportionment/apportionment.csv",
@@ -155,18 +164,23 @@ def build_reference_file_requests(
             )
         )
 
-    # A tables summarize race and Hispanic origin; E tables cross race with Hispanic origin.
-    table_numbers_by_year = {1980: ("tableA-03", "tableE-03"), 1990: ("tableA-01", "tableE-01")}
-    for year in sorted(years & table_numbers_by_year.keys()):
-        for table_name in table_numbers_by_year[year]:
+    race_table_source_filenames = {1980: "tableA-03.xlsx", 1990: "tableA-01.xlsx"}
+    for year in sorted(years & HISTORICAL_STUDY_TOTALS_FILENAMES.keys()):
+        race_source_filename = race_table_source_filenames[year]
+        for source_filename, local_filename in (
+            (race_source_filename, f"census_working_paper_56_{year}_{race_source_filename}"),
+            (
+                HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES[year],
+                HISTORICAL_STUDY_TOTALS_FILENAMES[year],
+            ),
+        ):
             requests.append(
                 PublicFileRequest(
                     destination_relative_path=(
-                        f"{directories.population_reference_tables}/"
-                        f"census_working_paper_56_{year}_{table_name}.xlsx"
+                        f"{directories.population_reference_tables}/{local_filename}"
                     ),
                     file_format=RawFileFormat.EXCEL_XLSX,
-                    url=f"https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/{table_name}.xlsx",
+                    url=f"https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/{source_filename}",
                 )
             )
 

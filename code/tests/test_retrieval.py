@@ -87,10 +87,10 @@ def test_invalid_provider_length_does_not_expose_header_contents(tmp_path, monke
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: response)
 
     with (
-        stage_file(tmp_path) as staged,
+        stage_file(tmp_path) as temporary_path,
         pytest.raises(DataProviderError, match="invalid Content-Length") as failure,
     ):
-        download_file("https://example.org/data", staged)
+        download_file("https://example.org/data", temporary_path)
 
     assert "private-provider-value" not in str(failure.value)
 
@@ -115,9 +115,9 @@ def test_partial_download_is_rejected_and_discarded(tmp_path, monkeypatch):
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: Response())
     with (
         pytest.raises(DataProviderError, match="Content-Length"),
-        stage_file(tmp_path) as staged,
+        stage_file(tmp_path) as temporary_path,
     ):
-        download_file("https://example.org/a", staged)
+        download_file("https://example.org/a", temporary_path)
     assert not list(tmp_path.iterdir())
 
 

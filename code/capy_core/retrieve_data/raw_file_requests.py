@@ -10,6 +10,8 @@ from pydantic import AfterValidator
 
 from capy_core.geography_types import GeographyLevel
 
+from .nhgis.identifiers import NhgisDataset, NhgisGeographyLevel
+
 
 class RawFileFormat(StrEnum):
     """Expected contents of a raw file, used to choose its basic validation checks.
@@ -164,16 +166,16 @@ class NhgisTableFileRequest(RawFileDestination):
     """An NHGIS table extract, downloaded as a ZIP of CSV files with headers.
 
     Attributes:
-        dataset_name (str): NHGIS dataset identifier, such as 1980_STF1.
+        dataset_name (NhgisDataset): NHGIS dataset identifier, such as 1980_STF1.
         tables (tuple[str, ...]): One or more table identifiers within that dataset.
-        geographic_levels (tuple[str, ...]): NHGIS level codes, such as county or tract_080.
+        geographic_levels (tuple[NhgisGeographyLevel, ...]): NHGIS level codes, such as county or tract_080.
         breakdowns (tuple[str, ...]): Area breakdown codes; empty uses the dataset default.
         description (str): Optional label displayed in the NHGIS account.
     """
 
-    dataset_name: str
+    dataset_name: NhgisDataset
     tables: tuple[str, ...]
-    geographic_levels: tuple[str, ...]
+    geographic_levels: tuple[NhgisGeographyLevel, ...]
     breakdowns: tuple[str, ...] = ()
     description: str = ""
     file_format: ClassVar[RawFileFormat] = RawFileFormat.ZIP_ARCHIVE

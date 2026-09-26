@@ -91,16 +91,16 @@ def retrieve_raw_file(
         if not destination.resolve().is_relative_to(raw_data_directory.resolve()):
             raise ValueError("File destination escapes the raw data directory")
 
-        if isinstance(request, (NhgisTableFileRequest, NhgisBoundaryFileRequest)):
-            submission_path = (
-                raw_data_directory
-                / directories.saved_nhgis_requests
-                / f"{request.destination_relative_path}.json"
-            )
-            if submission_path.exists():
-                load_matching_nhgis_submission(submission_path, build_nhgis_definition(request))
-
         if destination.exists():
+            if isinstance(request, (NhgisTableFileRequest, NhgisBoundaryFileRequest)):
+                submission_path = (
+                    raw_data_directory
+                    / directories.saved_nhgis_requests
+                    / f"{request.destination_relative_path}.json"
+                )
+                if submission_path.exists():
+                    load_matching_nhgis_submission(submission_path, build_nhgis_definition(request))
+
             check_existing_raw_file(destination, request.file_format)
             return ReadyFile(request.destination_relative_path)
 
@@ -166,22 +166,24 @@ def acquire_missing_file(
     if offline:
         raise ValueError("Raw file is missing in offline mode")
 
-    with stage_file(destination.parent) as staged:
+    with stage_file(destination.parent) as temporary_path:
         if isinstance(request, CensusFileRequest):
-            download_census_table(request, staged, raw_data_directory, directories)
+            download_census_table(request, temporary_path, raw_data_directory, directories)
 
         elif isinstance(request, (NhgisTableFileRequest, NhgisBoundaryFileRequest)):
             pending_extract = retrieve_nhgis_extract(
-                request, staged, raw_data_directory / directories.saved_nhgis_requests
+                request, temporary_path, raw_data_directory / directories.saved_nhgis_requests
             )
 
             if pending_extract is not None:
                 return PendingFile(request.destination_relative_path, pending_extract)
 
         else:
-            download_file(request.url, staged, download_label=request.destination_relative_path)
+            download_file(
+                request.url, temporary_path, download_label=request.destination_relative_path
+            )
 
-        check_raw_file(staged.path, request.file_format)
-        staged.publish(destination)
+        check_raw_file(temporary_path, request.file_format)
+        temporary_path.replace(destination)
 
     return ReadyFile(request.destination_relative_path)
