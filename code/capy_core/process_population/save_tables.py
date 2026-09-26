@@ -64,14 +64,17 @@ def build_population_output_path(
         ValueError: The supplied state code has no known postal abbreviation.
     """
     area_name = "national"
+
     if state_code is not None:
         state_abbreviations_by_fips = us.states.mapping("fips", "abbr")
+
         if state_code not in state_abbreviations_by_fips:
             raise ValueError(f"Unknown state FIPS code: {state_code}")
 
         area_name = state_abbreviations_by_fips[state_code]
 
     filename = f"{area_name}_{census_year}_populations.parquet"
+
     return Path(str(census_year)) / geography_level.value / filename
 
 
@@ -108,6 +111,7 @@ def save_population_summary(
         OSError: Writing or renaming the summary fails; temporary files are removed.
     """
     summary_df = pd.DataFrame([asdict(summary) for summary in summaries])
+
     with stage_file(summary_output_path.parent) as temporary_path:
         summary_df.to_csv(temporary_path, index=False, lineterminator="\n", encoding="utf-8")
         temporary_path.replace(summary_output_path)

@@ -46,6 +46,7 @@ def build_census_published_file_requests(
             and joins.
     """
     requests = build_tiger_file_requests(directories, geography_requests)
+
     if any(
         request.census_year == 1980 and request.geography_level == GeographyLevel.TRACT
         for request in geography_requests
@@ -62,11 +63,13 @@ def build_census_published_file_requests(
         )
 
     requests.extend(build_reference_file_requests(directories, geography_requests, study_area_type))
+
     if any(
         request.census_year == 1990 and request.geography_level == GeographyLevel.BLOCK
         for request in geography_requests
     ):
         requests.extend(build_1990_block_reference_requests(directories))
+
     return requests
 
 
@@ -93,6 +96,7 @@ def build_1990_block_reference_requests(
         )
         for disc_number in range(1, 11)
     ]
+
     for source_directory, filename in (
         ("CD7%20-%20CA%20NY", "pl9417ca.dbf"),
         ("CD5%20-%20CT%20DC%20MD%20NC%20OH%20RI", "pl9417ct.dbf"),
@@ -133,17 +137,21 @@ def build_tiger_file_requests(
     }
 
     requests = []
+
     for census_year, geography_level in sorted(selected_pairs):
         if census_year not in (2000, 2010, 2020) or geography_level not in geo_product_codes:
             continue
+
         if geography_level == GeographyLevel.PLACE and census_year != 2020:
             continue
 
         geo_product_code = geo_product_codes[geography_level]
+
         if census_year == 2020 and geography_level == GeographyLevel.BLOCK:
             geo_product_code = "tabblock20"
 
         area_codes = ("us",) if geography_level == GeographyLevel.COUNTY else STATE_FIPS_CODES
+
         for area_code in area_codes:
             if census_year == 2020:
                 filename = f"tl_2020_{area_code}_{geo_product_code}.zip"
@@ -188,6 +196,7 @@ def build_reference_file_requests(
     """
     years = {request.census_year for request in geography_requests}
     requests = []
+
     if 2000 in years or 2010 in years or 2020 in years:
         # The 2020 release also contains state resident-population totals for earlier years.
         requests.append(
@@ -212,8 +221,10 @@ def build_reference_file_requests(
         )
 
     race_table_source_filenames = {1980: "tableA-03.xlsx", 1990: "tableA-01.xlsx"}
+
     for year in sorted(years & HISTORICAL_STUDY_TOTALS_FILENAMES.keys()):
         race_source_filename = race_table_source_filenames[year]
+
         for source_filename, local_filename in (
             (race_source_filename, f"census_working_paper_56_{year}_{race_source_filename}"),
             (

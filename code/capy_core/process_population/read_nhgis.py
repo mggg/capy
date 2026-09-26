@@ -60,14 +60,17 @@ def describe_nhgis_population_request(request: NhgisTableFileRequest) -> tuple[i
             or the level is not supported for that Census year.
     """
     census_years_by_dataset = {dataset: year for year, dataset in NHGIS_DATASETS_BY_YEAR.items()}
+
     if request.dataset_name not in census_years_by_dataset or len(request.geographic_levels) != 1:
         raise ValueError("Population processing requires one supported NHGIS dataset and level")
 
     census_year = census_years_by_dataset[request.dataset_name]
     geography_level = NHGIS_POPULATION_LEVELS.get(request.geographic_levels[0])
     supported_levels = {GeographyLevel.STATE, GeographyLevel.COUNTY, GeographyLevel.TRACT}
+
     if census_year == 1990:
         supported_levels |= {GeographyLevel.BLOCK_GROUP, GeographyLevel.BLOCK}
+
     if geography_level is None or geography_level not in supported_levels:
         raise ValueError(
             "NHGIS correspondence tables are inputs to geographic joins, not populations"
@@ -109,6 +112,7 @@ def read_nhgis_population_by_state(
     current_state_code = None
 
     state_table_parts = []
+
     with closing(
         read_nhgis_population_chunks(population_archive_path, request)
     ) as population_chunks:
@@ -123,16 +127,21 @@ def read_nhgis_population_by_state(
                 .ne(population_chunk_df[GeographyColumn.STATE_CODE].shift())
                 .cumsum()
             )
+
             for _, state_rows_df in population_chunk_df.groupby(state_run_numbers, sort=False):
                 state_code = state_rows_df[GeographyColumn.STATE_CODE].iloc[0]
+
                 if current_state_code is not None and state_code != current_state_code:
                     completed_state_codes.add(current_state_code)
+
                     yield (
                         pd.concat(state_table_parts)
                         .sort_values(GeographyColumn.GEOGRAPHIC_ID)
                         .reset_index(drop=True)
                     )
+
                     state_table_parts = []
+
                 if state_code in completed_state_codes:
                     raise ValueError(f"NHGIS rows are not grouped by state: {state_code}")
 
@@ -141,6 +150,7 @@ def read_nhgis_population_by_state(
 
         if not state_table_parts:
             raise ValueError("NHGIS population table contains no data rows")
+
         yield (
             pd.concat(state_table_parts)
             .sort_values(GeographyColumn.GEOGRAPHIC_ID)
@@ -177,6 +187,7 @@ def read_nhgis_population_chunks(
         BadZipFile: The ZIP is damaged.
     """
     census_year, geography_level = describe_nhgis_population_request(request)
+
     with ZipFile(population_archive_path) as archive:
         csv_member_name, description_row_indexes = inspect_nhgis_population_header(archive, request)
 
@@ -189,6 +200,7 @@ def read_nhgis_population_chunks(
                 skiprows=description_row_indexes,
                 chunksize=100_000,
             )
+
             seen_gisjoins: set[str] = set()
             first_source_row = 1
 
@@ -257,6 +269,7 @@ def inspect_nhgis_population_header(
         NhgisGeographyColumn.STATE_CODE,
         *NHGIS_COUNT_COLUMNS[census_year],
     }
+
     if len(header) != len(set(header)) or not required_columns.issubset(header):
         raise ValueError("Missing or duplicate NHGIS population columns")
 
@@ -268,6 +281,7 @@ def inspect_nhgis_population_header(
         raise ValueError("Expected whole-area population columns without additional breakdowns")
 
     description_row_indexes = []
+
     if (
         len(first_row) == len(header)
         and first_row[header.index(NhgisGeographyColumn.GEOGRAPHIC_ID)] == "GIS Join Match Code"
@@ -301,6 +315,7 @@ def normalize_nhgis_population(
         ValueError: Year, state, required county code, source ID, or population values are invalid.
     """
     population_df = source_population_df.copy()
+
     if not pd.Series(population_df[NhgisGeographyColumn.CENSUS_YEAR]).eq(str(census_year)).all():
         raise ValueError(f"NHGIS table contains records outside {census_year}")
 
@@ -344,6 +359,7 @@ def normalize_nhgis_population(
             .all()
         ):
             raise ValueError("1990 race/origin categories do not sum to total population")
+
         population_df[PopulationColumn.TOTAL] = population_df[Nhgis1990Column.TOTAL]
         population_df[PopulationColumn.WHITE] = population_df[Nhgis1990Column.NON_HISPANIC_WHITE]
         population_df[PopulationColumn.BLACK] = population_df[Nhgis1990Column.NON_HISPANIC_BLACK]
@@ -351,6 +367,7 @@ def normalize_nhgis_population(
     population_df[PopulationColumn.POC] = (
         population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.WHITE]
     )
+
     population_df[GeographyColumn.GEOGRAPHIC_ID] = population_df[NhgisGeographyColumn.GEOGRAPHIC_ID]
     population_df[GeographyColumn.STATE_CODE] = population_df[NhgisGeographyColumn.STATE_CODE]
     population_df[PopulationSourceColumn.CENSUS_YEAR] = census_year

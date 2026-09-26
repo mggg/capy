@@ -21,6 +21,7 @@ def main() -> int:
     args = parser.parse_args()
 
     repository = Path(__file__).resolve().parents[1]
+
     try:
         config = load_configuration(args.config)
         summaries = process_population_tables(config, repository)
@@ -28,6 +29,7 @@ def main() -> int:
         parser.exit(1, f"Population processing could not complete: {error}\n")
 
     print(f"Population processing complete: {len(summaries)} tables saved")
+
     return 0
 
 

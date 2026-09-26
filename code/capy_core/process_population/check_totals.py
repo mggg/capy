@@ -99,6 +99,7 @@ def check_population_state_sum(
     ):
         observed_total = int(population_df[local_column].sum())
         reference_total = int(state_reference_df.iloc[0][state_column])
+
         if observed_total != reference_total:
             raise ValueError(
                 f"State {request.state_code}: {local_column} sums to {observed_total}, "

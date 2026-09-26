@@ -62,6 +62,7 @@ def read_census_population(population_json_path: Path, request: CensusFileReques
     """
     header, *rows = load_census_table(population_json_path)
     population_columns = CENSUS_POPULATION_COLUMNS.get((request.census_year, request.dataset))
+
     if population_columns is None:
         raise ValueError("Unsupported Census year and dataset for population processing")
 
@@ -73,6 +74,7 @@ def read_census_population(population_json_path: Path, request: CensusFileReques
         *population_columns.count_columns,
         *GEOGRAPHIC_COLUMNS[request.geography_level],
     }
+
     if len(header) != len(set(header)) or set(header) != expected_columns:
         raise ValueError(
             f"Unexpected Census columns in {population_json_path}; "
@@ -84,13 +86,16 @@ def read_census_population(population_json_path: Path, request: CensusFileReques
     population_df[GeographyColumn.GEOGRAPHIC_ID] = build_census_geographic_ids(
         population_df, request
     )
+
     convert_and_check_census_population_counts(population_df, population_columns)
+
     population_df[PopulationColumn.TOTAL] = population_df[population_columns.total]
     population_df[PopulationColumn.WHITE] = population_df[population_columns.non_hispanic_white]
     population_df[PopulationColumn.BLACK] = population_df[population_columns.non_hispanic_black]
     population_df[PopulationColumn.POC] = (
         population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.WHITE]
     )
+
     population_df[PopulationSourceColumn.SOURCE_FILE] = request.destination_relative_path
     population_df[PopulationSourceColumn.CENSUS_YEAR] = request.census_year
     population_df[PopulationSourceColumn.CENSUS_DATASET] = request.dataset.value
@@ -116,8 +121,10 @@ def build_census_geographic_ids(
         ValueError: An ID is missing, malformed, duplicated, or belongs to another state.
     """
     geographic_ids = pd.Series("", index=population_df.index, dtype="string")
+
     for geographic_column, code_width in GEOGRAPHIC_COLUMNS[request.geography_level].items():
         geographic_codes = pd.Series(population_df[geographic_column], index=population_df.index)
+
         if not all(isinstance(geographic_code, str) for geographic_code in geographic_codes):
             raise ValueError(f"Census {geographic_column} identifiers must be strings")
 
@@ -139,6 +146,7 @@ def build_census_geographic_ids(
         state_code != request.state_code for state_code in population_df[GeographyColumn.STATE_CODE]
     ):
         raise ValueError(f"Population table contains a state other than {request.state_code}")
+
     if geographic_ids.duplicated().any():
         raise ValueError("Duplicate Census GEOIDs after normalization")
 
@@ -161,6 +169,7 @@ def convert_and_check_census_population_counts(
     """
     for population_column in population_columns.count_columns:
         count_strings = population_df[population_column].astype("string")
+
         if not count_strings.str.fullmatch(r"[0-9]+").fillna(False).all():
             raise ValueError(
                 f"{population_column} must contain nonnegative integer counts in every row"
@@ -181,11 +190,15 @@ def convert_and_check_census_population_counts(
 
     if not race_category_total.eq(total_population).all():
         raise ValueError("Race category counts do not sum to total population")
+
     if (hispanic_population > total_population).any():
         raise ValueError("Hispanic population exceeds total population")
+
     if (non_hispanic_white > population_df[population_columns.race_categories[0]]).any():
         raise ValueError("Non-Hispanic White population exceeds White-alone population")
+
     if (non_hispanic_black > population_df[population_columns.race_categories[1]]).any():
         raise ValueError("Non-Hispanic Black population exceeds Black-alone population")
+
     if (non_hispanic_white + non_hispanic_black > total_population - hispanic_population).any():
         raise ValueError("White and Black study counts exceed non-Hispanic population")

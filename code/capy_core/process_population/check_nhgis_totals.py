@@ -44,15 +44,18 @@ def check_historical_published_totals(
         raise ValueError(
             f"Incomplete historical population reference: {published_totals_workbook_path}"
         )
+
     if f"{census_year} (100-Percent Data)" not in published_totals_df.iat[0, 0]:
         raise ValueError(
             "Historical reference has the wrong year or data series: "
             f"{published_totals_workbook_path}"
         )
+
     if published_totals_df.iat[3, 4] != "White" or published_totals_df.iat[3, 7] != "Black":
         raise ValueError(
             f"Historical reference race headings changed: {published_totals_workbook_path}"
         )
+
     if any(
         " ".join(published_totals_df.iat[4, column].split()) != "Not of Hispanic origin"
         for column in (6, 9)
@@ -76,6 +79,7 @@ def check_historical_published_totals(
         raise ValueError("Published historical reference must identify each state once")
 
     published_state_totals_df = published_state_totals_df.set_index(GeographyColumn.STATE_CODE)
+
     for population_column, workbook_column_index in (
         (PopulationColumn.TOTAL, 1),
         (PopulationColumn.WHITE, 6),
@@ -124,6 +128,7 @@ def check_nhgis_state_sum(
         ValueError: The state is ambiguous/missing or a population sum fails its comparison.
     """
     state_codes = population_df[GeographyColumn.STATE_CODE].unique()
+
     if len(state_codes) != 1:
         raise ValueError("Expected a single state's NHGIS population records")
 
@@ -133,6 +138,7 @@ def check_nhgis_state_sum(
         raise ValueError(f"Expected one reference for state {state_codes[0]}")
 
     partial_tract_coverage = census_year == 1980 and geography_level == GeographyLevel.TRACT
+
     for population_column in (
         *NHGIS_COUNT_COLUMNS[census_year],
         PopulationColumn.WHITE,

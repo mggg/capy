@@ -74,6 +74,7 @@ def process_population_tables(
         raise ValueError("Raw and processed population folders must be separate, without nesting")
 
     remove_selected_population_outputs(census_requests, nhgis_requests, output_directory)
+
     summaries = process_census_population_tables(
         census_requests, config, raw_directory, output_directory
     )
@@ -85,6 +86,7 @@ def process_population_tables(
             nhgis_requests, raw_directory, output_directory, reference_directory
         )
     )
+
     save_population_summary(summaries, output_directory / "processing_summary.csv")
 
     return summaries
@@ -125,6 +127,7 @@ def remove_selected_population_outputs(
             if geography_level == GeographyLevel.STATE
             else tuple(state_code for state_code in STATE_FIPS_CODES if state_code != "72")
         )
+
         output_paths.extend(
             output_directory
             / build_population_output_path(census_year, geography_level, state_code)
@@ -168,6 +171,7 @@ def process_census_population_tables(
     state_tables_by_year = load_checked_state_references(raw_directory, config, state_requests)
 
     summaries = []
+
     for request in tqdm(census_requests, desc="Population tables", unit="table", disable=None):
         try:
             if request.geography_level == GeographyLevel.STATE:
@@ -180,6 +184,7 @@ def process_census_population_tables(
             check_population_state_sum(
                 population_df, request, state_tables_by_year[request.census_year]
             )
+
             output_path = build_population_output_path(
                 request.census_year, request.geography_level, request.state_code
             )
@@ -262,6 +267,7 @@ def select_population_requests(
             request.destination_relative_path,
         )
     )
+
     return census_requests, nhgis_requests
 
 
@@ -288,11 +294,14 @@ def load_checked_state_references(
         / CENSUS_RESIDENT_TOTALS_FILENAME
     )
     state_tables_by_year = {}
+
     for request in state_requests:
         states_df = read_census_population(
             raw_directory / request.destination_relative_path, request
         )
+
         check_published_state_totals(states_df, published_totals_csv_path, request.census_year)
+
         state_tables_by_year[request.census_year] = states_df
 
     return state_tables_by_year
@@ -332,15 +341,18 @@ def process_historical_population_tables(
     )
 
     summaries = []
+
     for request in tqdm(
         nhgis_requests, desc="NHGIS population archives", unit="archive", disable=None
     ):
         try:
             census_year, geography_level = describe_nhgis_population_request(request)
             states_df = state_tables_by_year[census_year]
+
             if geography_level == GeographyLevel.STATE:
                 output_path = build_population_output_path(census_year, geography_level)
                 save_population_parquet(states_df, output_directory / output_path)
+
                 summaries.append(
                     summarize_population_table(
                         states_df,
@@ -349,12 +361,14 @@ def process_historical_population_tables(
                         PopulationComparison.STUDY_COUNTS_MATCH_PUBLISHED,
                     )
                 )
+
             else:
                 summaries.extend(
                     process_historical_substate_archive(
                         request, raw_directory, output_directory, states_df
                     )
                 )
+
         except (OSError, ValueError, OverflowError, BadZipFile) as error:
             raise ValueError(f"{request.destination_relative_path}: {error}") from error
 
@@ -381,9 +395,11 @@ def load_historical_state_references(
             the state archive; filesystem errors also identify the unreadable file.
     """
     state_tables_by_year = {}
+
     for request in state_requests:
         try:
             census_year, _ = describe_nhgis_population_request(request)
+
             with closing(
                 read_nhgis_population_by_state(
                     raw_directory / request.destination_relative_path, request
@@ -394,10 +410,13 @@ def load_historical_state_references(
             published_totals_workbook_path = (
                 reference_directory / HISTORICAL_STUDY_TOTALS_FILENAMES[census_year]
             )
+
             check_historical_published_totals(
                 states_df, published_totals_workbook_path, census_year
             )
+
             state_tables_by_year[census_year] = states_df
+
         except (OSError, ValueError, OverflowError, BadZipFile) as error:
             raise ValueError(f"{request.destination_relative_path}: {error}") from error
 
@@ -440,13 +459,16 @@ def process_historical_substate_archive(
     ) as population_tables:
         for population_df in population_tables:
             seen_state_codes.update(population_df[GeographyColumn.STATE_CODE])
+
             state_code = population_df[GeographyColumn.STATE_CODE].iloc[0]
+
             comparison = check_nhgis_state_sum(
                 population_df, states_df, census_year, geography_level
             )
 
             output_path = build_population_output_path(census_year, geography_level, state_code)
             save_population_parquet(population_df, output_directory / output_path)
+
             summaries.append(
                 summarize_population_table(
                     population_df, request.destination_relative_path, output_path, comparison
