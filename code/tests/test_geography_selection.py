@@ -265,9 +265,12 @@ def test_each_supported_run_requests_only_selected_levels_and_required_support(y
         } == expected_levels
         assert not any(path.startswith("nhgis/") for path in paths)
 
-    needs_1980_correspondence = year == 1980 and level == "tracts"
-    assert any("diagnostic_" in path for path in paths) == needs_1980_correspondence
-    assert any(path.startswith("census_1980_stf1a/") for path in paths) == needs_1980_correspondence
+    needs_1980_boundaries = year == 1980 and level == "tracts"
+    assert any(path.startswith("tiger_1992/") for path in paths) == needs_1980_boundaries
+    assert any(path.startswith("census_1990_blocks/") for path in paths) == (
+        year == 1990 and level == "blocks"
+    )
+    assert not any("diagnostic_" in path or "stf1a" in path for path in paths)
     assert not any("metro_membership" in path for path in paths)
     for other_year in {1980, 1990, 2000, 2010, 2020} - {year}:
         assert not any(f"/{other_year}/" in path for path in paths)
@@ -324,6 +327,6 @@ def test_shipped_yaml_files_select_valid_inputs(filename):
 
     assert selected
     if filename == "replication.yaml":
-        assert len(selected) == 1275
+        assert len(selected) == 1239
     elif filename == "small_example.yaml":
         assert len(selected) == 4

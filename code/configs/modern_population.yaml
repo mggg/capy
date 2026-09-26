@@ -13,7 +13,8 @@ raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis
   census_boundary_files: tiger
-  original_1980_population_tables: census_1980_stf1a
+  original_1980_boundary_files: tiger_1992
+  original_1990_block_references: census_1990_blocks
   population_reference_tables: population_reference_tables
   metro_membership_tables: metro_membership_tables
   saved_nhgis_requests: saved_nhgis_requests

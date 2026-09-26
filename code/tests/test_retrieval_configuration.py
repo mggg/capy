@@ -119,7 +119,8 @@ raw_data_subdirectories:
   census_population_tables: tables/census
   nhgis_population_and_boundaries: historical/nhgis
   census_boundary_files: boundaries/tiger
-  original_1980_population_tables: historical/stf1a
+  original_1980_boundary_files: historical/tiger_1992
+  original_1990_block_references: historical/blocks_1990
   population_reference_tables: references/populations
   metro_membership_tables: references/metros
   saved_nhgis_requests: .status/nhgis
@@ -133,7 +134,8 @@ raw_data_subdirectories:
         "tables/census/2010/blocks/10/state.json",
         "historical/nhgis/1980/tracts/population.zip",
         "boundaries/tiger/2020/tracts/tl_2020_10_tract.zip",
-        "historical/stf1a/stf1axde.zip",
+        "historical/tiger_1992/12107.zip",
+        "historical/blocks_1990/disc1.zip",
         "references/populations/2020_states.json",
         "references/populations/census_state_population_totals_2020_release.csv",
         "references/populations/census_working_paper_56_1990_tableA-01.xlsx",

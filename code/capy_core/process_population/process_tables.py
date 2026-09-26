@@ -209,9 +209,6 @@ def select_population_requests(
 ) -> tuple[list[CensusFileRequest], list[NhgisTableFileRequest]]:
     """Select Census and NHGIS populations, adding the state references needed for checks.
 
-    NHGIS hierarchy/place-part tables describe overlapping geographies. They are left for the
-    boundary-join stage and never appended to population totals.
-
     Args:
         config (PipelineConfig): Shared year, level, study-area, and filename selections.
 

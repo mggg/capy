@@ -26,6 +26,7 @@ class RawFileFormat(StrEnum):
     EXCEL_XLS = "xls"
     EXCEL_XLSX = "xlsx"
     CSV = "csv"
+    DBASE_TABLE = "dbf"
 
 
 def validate_relative_file_path(value: str) -> str:
@@ -138,7 +139,7 @@ class PublicFileRequest(RawFileDestination):
 
     Attributes:
         url (str): HTTPS download URL without credentials, query parameters, or a fragment.
-        file_format (RawFileFormat): ZIP_ARCHIVE, SHAPEFILE_ZIP, EXCEL_XLS, EXCEL_XLSX, or CSV.
+        file_format (RawFileFormat): ZIP_ARCHIVE, SHAPEFILE_ZIP, EXCEL_XLS, EXCEL_XLSX, CSV, or DBASE_TABLE.
             Selects the basic file check without converting the file.
     """
 
@@ -168,7 +169,7 @@ class NhgisTableFileRequest(RawFileDestination):
     Attributes:
         dataset_name (NhgisDataset): NHGIS dataset identifier, such as 1980_STF1.
         tables (tuple[str, ...]): One or more table identifiers within that dataset.
-        geographic_levels (tuple[NhgisGeographyLevel, ...]): NHGIS level codes, such as county or tract_080.
+        geographic_levels (tuple[NhgisGeographyLevel, ...]): NHGIS level codes, such as county or tract.
         breakdowns (tuple[str, ...]): Area breakdown codes; empty uses the dataset default.
         description (str): Optional label displayed in the NHGIS account.
     """

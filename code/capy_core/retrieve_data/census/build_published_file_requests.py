@@ -1,4 +1,4 @@
-"""Editable definitions for TIGER boundaries, original STF1A files, and reference tables."""
+"""Editable definitions for TIGER boundaries and published reference tables."""
 
 from capy_core.geography_types import GeographyLevel, StudyAreaType
 from capy_core.pipeline_config import RawDataSubdirectories
@@ -8,7 +8,7 @@ from capy_core.retrieve_data.raw_file_requests import (
     RawFileFormat,
 )
 
-from ..state_codes import STATE_FIPS_CODES, STF1A_STATE_ABBREVIATIONS
+from ..state_codes import STATE_FIPS_CODES
 
 CENSUS_RESIDENT_TOTALS_FILENAME = "census_state_population_totals_2020_release.csv"
 
@@ -17,6 +17,15 @@ HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES = {1980: "tableE-03.xlsx", 1990: "table
 HISTORICAL_STUDY_TOTALS_FILENAMES = {
     year: f"census_working_paper_56_{year}_{source_filename}"
     for year, source_filename in HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES.items()
+}
+
+# These counties contain the twelve 1980 BNAs absent from the NHGIS tract/BNA product.
+MISSING_1980_BNAS_BY_COUNTY = {
+    "12107": ("9901", "9902", "9903"),
+    "38033": ("9901",),
+    "40023": ("9901", "9902"),
+    "49021": ("9901", "9902"),
+    "49025": ("9901", "9902", "9903", "9904"),
 }
 
 
@@ -33,19 +42,69 @@ def build_census_published_file_requests(
         study_area_type (StudyAreaType): county needs no metro workbook; the other modes require it.
 
     Returns:
-        list[PublicFileRequest]: Boundaries and reference tables, plus original STF1A records for
-            1980 tract/BNA matching.
+        list[PublicFileRequest]: Boundaries and reference tables needed for population checks
+            and joins.
     """
     requests = build_tiger_file_requests(directories, geography_requests)
     if any(
         request.census_year == 1980 and request.geography_level == GeographyLevel.TRACT
         for request in geography_requests
     ):
-        # Original records help match 1980 tract/BNA population identities to boundaries. They are
-        # published as whole state archives, without a per-level download.
-        requests.extend(build_stf1a_file_requests(directories))
+        requests.extend(
+            PublicFileRequest(
+                destination_relative_path=(
+                    f"{directories.original_1980_boundary_files}/{county_code}.zip"
+                ),
+                file_format=RawFileFormat.ZIP_ARCHIVE,
+                url=f"https://www2.census.gov/geo/tiger/TIGER1992/{county_code[:2]}/{county_code}.zip",
+            )
+            for county_code in MISSING_1980_BNAS_BY_COUNTY
+        )
 
     requests.extend(build_reference_file_requests(directories, geography_requests, study_area_type))
+    if any(
+        request.census_year == 1990 and request.geography_level == GeographyLevel.BLOCK
+        for request in geography_requests
+    ):
+        requests.extend(build_1990_block_reference_requests(directories))
+    return requests
+
+
+def build_1990_block_reference_requests(
+    directories: RawDataSubdirectories,
+) -> list[PublicFileRequest]:
+    """Request original tables that establish which unmatched 1990 land blocks are empty.
+
+    STF1B zero-population tables are published in ten whole disc archives. Two PL tables supply
+    additional California and Connecticut records absent from those zero-population tables.
+
+    Args:
+        directories (RawDataSubdirectories): Configured raw-data subfolders.
+
+    Returns:
+        list[PublicFileRequest]: Ten unchanged ZIP archives and two unchanged dBase tables.
+    """
+    directory = directories.original_1990_block_references
+    requests = [
+        PublicFileRequest(
+            destination_relative_path=f"{directory}/disc{disc_number}.zip",
+            file_format=RawFileFormat.ZIP_ARCHIVE,
+            url=f"https://www2.census.gov/census_1990/stf1b/disc{disc_number}.zip",
+        )
+        for disc_number in range(1, 11)
+    ]
+    for source_directory, filename in (
+        ("CD7%20-%20CA%20NY", "pl9417ca.dbf"),
+        ("CD5%20-%20CT%20DC%20MD%20NC%20OH%20RI", "pl9417ct.dbf"),
+    ):
+        requests.append(
+            PublicFileRequest(
+                destination_relative_path=f"{directory}/{filename}",
+                file_format=RawFileFormat.DBASE_TABLE,
+                url=f"https://www2.census.gov/census_1990/1990_PL94-171/{source_directory}/{filename}",
+            )
+        )
+
     return requests
 
 
@@ -107,18 +166,6 @@ def build_tiger_file_requests(
             )
 
     return requests
-
-
-def build_stf1a_file_requests(directories: RawDataSubdirectories) -> list[PublicFileRequest]:
-    """Request original 1980 STF1A archives for the 50 states and DC."""
-    return [
-        PublicFileRequest(
-            destination_relative_path=f"{directories.original_1980_population_tables}/stf1ax{state}.zip",
-            file_format=RawFileFormat.ZIP_ARCHIVE,
-            url=f"https://www2.census.gov/census_1980/stf1a/stf1ax{state}.zip",
-        )
-        for state in STF1A_STATE_ABBREVIATIONS
-    ]
 
 
 def build_reference_file_requests(

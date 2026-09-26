@@ -10,14 +10,3 @@ STATE_FIPS_CODES: tuple[str, ...] = (
     "54", "55", "56", "72",
 )
 # fmt: on
-
-
-# The original 1980 STF1A archives cover the 50 states and DC, without Puerto Rico.
-# fmt: off
-STF1A_STATE_ABBREVIATIONS = (
-    "ak", "al", "ar", "az", "ca", "co", "ct", "dc", "de", "fl", "ga", "hi", "ia",
-    "id", "il", "in", "ks", "ky", "la", "ma", "md", "me", "mi", "mn", "mo", "ms",
-    "mt", "nc", "nd", "ne", "nh", "nj", "nm", "nv", "ny", "oh", "ok", "or", "pa",
-    "ri", "sc", "sd", "tn", "tx", "ut", "va", "vt", "wa", "wi", "wv", "wy",
-)
-# fmt: on

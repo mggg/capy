@@ -54,15 +54,15 @@ Supporting inputs follow their actual use:
 - Historical reference workbooks are requested only for the required historical years.
 - Runs that need 2000, 2010, or 2020 data also request the Census 2020 apportionment release, which
   includes historical state population totals for comparison.
-- Only 1980 tract/BNA runs need hierarchy, place-part, and original STF1A records to match
-  population records with boundaries. County-only 1980 runs omit these. These supporting NHGIS
-  tables live under `nhgis/1980/tracts/` and describe relationships between geographic units.
+- Five original TIGER 1992 county archives supply the missing 1980 BNA outlines for tract runs.
+- For 1990 block runs, original STF1B disc archives and California/Connecticut PL tables establish
+  empty land blocks. These remain ZIP and DBF files in their published formats.
 - County and place files, along with metro membership, follow the selected study-area definition.
 
-Some sources bundle more data than a run needs. Original STF1A files bundle multiple geographic
-levels within each state, national county shapefiles include their full geographic coverage, and
-reference files retain their published contents. The pipeline downloads these files as supplied
-rather than rewriting them to remove unused rows.
+Some sources bundle more data than a run needs. Original STF1B disc archives contain several
+states and geographic levels, national county shapefiles include their full geographic coverage,
+and reference files retain their published contents. The pipeline downloads these files as
+supplied rather than rewriting them to remove unused rows.
 
 If you have already downloaded the data, you can
 [place the files in their configured folders](#reusing-local-files) so the pipeline can reuse them.
@@ -92,7 +92,8 @@ raw_data_subdirectories:
   census_population_tables: tables/census
   nhgis_population_and_boundaries: historical/nhgis
   census_boundary_files: boundaries/tiger
-  original_1980_population_tables: historical/stf1a
+  original_1980_boundary_files: boundaries/tiger_1992
+  original_1990_block_references: references/1990_blocks
   population_reference_tables: references/populations
   metro_membership_tables: references/metros
   saved_nhgis_requests: saved_nhgis_requests
@@ -174,9 +175,10 @@ described, not the publication year; all four use 100-percent census counts. The
 retain the direct connection to the source publication. The builders keep the original URLs beside
 these local names.
 
-TIGER and original STF1A archives retain their provider filenames in their source-specific folders.
-Selection patterns use the configured local destinations. If you rename a request, move the existing
-file to its new location to reuse it; changing the request does not move the file for you.
+TIGER archives and original 1990 block references retain their provider filenames in their
+source-specific folders. Selection patterns use the configured local destinations. If you rename
+a request, move the existing file to its new location to reuse it; changing the request does not
+move the file for you.
 
 Edit the appropriate retrieval definition module:
 
@@ -184,16 +186,16 @@ Edit the appropriate retrieval definition module:
   complete Census input selection, PL/SF1 variables, and table filename rules. The 2010 block
   queries use county codes read from the retrieved 2010 county tables.
 - [`census/build_published_file_requests.py`][published-requests]: Census TIGER files, original
-  STF1A archives, population reference tables, and metro membership.
+  1990 block references, population reference tables, and metro membership.
 - [`nhgis/build_requests.py`](../code/capy_core/retrieve_data/nhgis/build_requests.py): named
-  population, boundary, and hierarchy extracts.
+  population and boundary extracts.
 
 [`prepare_file_requests.py`](../code/capy_core/retrieve_data/prepare_file_requests.py) contains
 `build_raw_file_requests(config)` and `select_raw_file_requests()`: build the run's input list in
 destination-path order, then select the configured paths without reading files or contacting APIs.
-The complete replication configuration requests 1,275 files. Shared FIPS codes and the STF1A archive
-abbreviations live in [`state_codes.py`](../code/capy_core/retrieve_data/state_codes.py), with their
-respective coverage documented beside each list. The records in
+The complete replication configuration requests 1,239 files. Shared state FIPS codes live in
+[`state_codes.py`](../code/capy_core/retrieve_data/state_codes.py), with their coverage documented
+beside the list. Records in
 [`raw_file_requests.py`](../code/capy_core/retrieve_data/raw_file_requests.py) describe Census
 years, datasets, variables, and geographies; NHGIS table or boundary selections; or public URLs.
 Census and NHGIS retrieval translate these records into each API's field names.
@@ -216,7 +218,7 @@ For NHGIS, `IpumsApiClient` handles the API endpoint addresses. Completed extrac
 download links, which can be temporary; they are read from the response rather than fixed in the
 code. The table and boundary choices are described separately in the request definitions.
 
-TIGER archives, original STF1A files, and reference workbooks use direct file-download URLs rather
+TIGER archives, original 1990 block references, and workbooks use direct file-download URLs rather
 than population API queries. Their addresses stay beside their source definitions in
 [`census/build_published_file_requests.py`][published-requests], where the file's year, contents,
 and destination can be read together.
@@ -350,8 +352,8 @@ The source is the [1980_STF1 metadata endpoint][1980-metadata], accessed through
 API described in the
 [NHGIS metadata documentation](https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/).
 
-Codebooks inside each downloaded NHGIS population or diagnostic archive identify the geographic
-subarea and the breakdowns actually returned. For example, the tract codebook in
+Codebooks inside each downloaded NHGIS population archive identify the geographic subarea and the
+breakdowns actually returned. For example, the tract codebook in
 `nhgis/1980/tracts/population.zip` identifies `Total area (0000)`. Read the accompanying codebook
 rather than assuming every geographic level returns all three requested breakdowns. Extract-number
 prefixes inside archives may vary between downloads.
@@ -457,12 +459,13 @@ population processing and geographic joins. Retrieval does not compare checksums
 | ------------------------------------- | ----: | ------------------------------------------------------------------ |
 | Census API response tables            |   676 | All four resolutions in 2000, 2010, and 2020, plus 2020 places     |
 | TIGER boundary archives               |   523 | Corresponding modern census boundaries and 2020 places             |
-| Original 1980 STF1A archives          |    51 | 1980 population records and geographic identifiers                 |
-| NHGIS extract archives                |    16 | 1980/1990 populations, boundaries, and geographic hierarchy tables |
+| Original TIGER 1992 county archives | 5 | Reconstruction of omitted 1980 BNA outlines |
+| Original 1990 block references | 12 | STF1B and PL evidence for unmatched empty land blocks |
+| NHGIS extract archives                |    14 | 1980/1990 populations and boundaries |
 | Published population reference tables |     8 | Independent totals for checking population counts and definitions  |
 | March 2020 metro delineation workbook |     1 | Metro membership definitions for geographic assignment             |
 
-The full configuration requests 1,275 files across the source families above. Its 676 modern
+The full configuration requests 1,239 files across the source families above. Its 676 modern
 population tables cover the 50 states, DC, and Puerto Rico, with one response per state for each
 required year and geography level, including 2020 places. The 2000 block-group tables use SF1, while
 the other modern population inputs use PL 94-171.

@@ -226,14 +226,7 @@ def test_raw_file_definitions_and_geographic_coverage():
         for year in (2000, 2010, 2020)
         for resolution in ("counties", "tracts", "block_groups", "blocks")
     )
-    assert (
-        sum(
-            file_request.destination_relative_path.startswith("census_1980_stf1a/")
-            for file_request in file_requests
-        )
-        == 51
-    )
-    assert len(file_requests) == 1275
+    assert len(file_requests) == 1239
     destinations = [request.destination_relative_path for request in file_requests]
     assert destinations == sorted(destinations)
 

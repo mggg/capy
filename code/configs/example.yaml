@@ -32,9 +32,9 @@ census_geography_levels: [tracts]
 #   nhgis/1990/tracts/boundaries.zip
 # A tract run does not request block or block-group tables. State totals are added
 # for population checks. Each file is reused independently when retrying a run.
-# 1980 tract/BNA matching also needs hierarchy, place-part, and original STF1A inputs;
-# county-only 1980 runs omit them. Published STF1A archives cannot be split by level
-# at download time. Historical reference workbooks follow the required years.
+# 1980 tract/BNA matching also needs five original TIGER 1992 county archives to
+# reconstruct omitted outlines; county-only 1980 runs omit them. Original STF1B/PL
+# references establish empty 1990 blocks. Reference workbooks follow the required years.
 census_geography_years: [1990, 2000, 2010, 2020]
 
 # What kind of area will contain each graph?
@@ -79,8 +79,10 @@ raw_data_subdirectories:
   nhgis_population_and_boundaries: nhgis
   # Modern boundary files from the Census Bureau's TIGER/Line products.
   census_boundary_files: tiger
-  # Original 1980 archives, needed for tract/BNA matching but not county-only runs.
-  original_1980_population_tables: census_1980_stf1a
+  # Five original county archives needed only to restore omitted 1980 BNA outlines.
+  original_1980_boundary_files: tiger_1992
+  # Original STF1B/PL files needed only to establish empty 1990 land blocks.
+  original_1990_block_references: census_1990_blocks
   # Published totals used to check population counts during later processing.
   population_reference_tables: population_reference_tables
   # The workbook listing which counties belong to each metro area.

@@ -18,7 +18,7 @@ class NhgisDatasetSelection(BaseModel):
     Attributes:
         tables (tuple[str, ...]): One or more NHGIS table identifiers, such as "NT7".
         geographic_levels (tuple[str, ...]): NHGIS codes for kinds of areas, such as "county" or
-            "tract_080". Defaults to ().
+            "tract". Defaults to ().
         years (tuple[str, ...]): Census years as strings, such as "1980". Defaults to ().
         breakdowns (tuple[str, ...]): Codes selecting whole areas or their subareas, such as
             "bs03.ge0000" for the whole area in 1980_STF1. Defaults to ().

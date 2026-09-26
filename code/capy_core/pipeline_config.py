@@ -22,8 +22,10 @@ class RawDataSubdirectories(BaseModel):
         nhgis_population_and_boundaries (str): Historical population and boundary ZIP files.
             Defaults to nhgis.
         census_boundary_files (str): Census TIGER/Line boundary ZIP files. Defaults to tiger.
-        original_1980_population_tables (str): Original 1980 population archives. Defaults to
-            census_1980_stf1a.
+        original_1980_boundary_files (str): Original TIGER 1992 county archives used to restore
+            twelve omitted 1980 BNA outlines. Defaults to tiger_1992.
+        original_1990_block_references (str): Original STF1B and PL files that establish empty
+            1990 land blocks omitted from NHGIS population tables. Defaults to census_1990_blocks.
         population_reference_tables (str): Published totals used to check population counts.
             Defaults to population_reference_tables.
         metro_membership_tables (str): Workbook listing the counties in each metro area. Defaults
@@ -41,7 +43,8 @@ class RawDataSubdirectories(BaseModel):
     census_population_tables: str = "census"
     nhgis_population_and_boundaries: str = "nhgis"
     census_boundary_files: str = "tiger"
-    original_1980_population_tables: str = "census_1980_stf1a"
+    original_1980_boundary_files: str = "tiger_1992"
+    original_1990_block_references: str = "census_1990_blocks"
     population_reference_tables: str = "population_reference_tables"
     metro_membership_tables: str = "metro_membership_tables"
     saved_nhgis_requests: str = "saved_nhgis_requests"

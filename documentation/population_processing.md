@@ -179,11 +179,9 @@ coverage. Instead, processing checks that their sums do not exceed the state cou
 but cannot show that every historically available tract is present. Residents outside the source
 coverage are not assigned to nearby tracts.
 
-The hierarchy and place-part tables help match populations to boundaries, but their residents
-overlap those in the main tables. Processing leaves these archives and the original 1980 STF1A
-records for the boundary-join stage. The supported population tables already supply whole-area
-counts, so urban and rural components are not needed to reconstruct their totals. Archives with
-extra breakdown columns are rejected to avoid combining overlapping counts; the
+The supported population tables supply whole-area counts, so urban and rural components are not
+needed to reconstruct their totals. Archives with extra breakdown columns are rejected to avoid
+combining overlapping counts; the
 [retrieval guide](raw_source_acquisition.md#nhgis-1980-geographic-subareas) explains those layouts.
 
 ## Geographic identifiers

@@ -1,4 +1,4 @@
-"""Editable NHGIS population, boundary, and geographic-hierarchy extract definitions."""
+"""Editable NHGIS population and boundary extract definitions."""
 
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import RawDataSubdirectories
@@ -37,8 +37,7 @@ def build_nhgis_file_requests(
     block archive covers the states and DC, excluding Puerto Rico.
 
     Each selected population level has its own archive. State totals support population checks;
-    1980 tract/BNA selections also need geographic correspondence tables. Boundary files follow
-         the selected levels. No downloads start here.
+    boundary files follow the selected levels. No downloads start here.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
@@ -46,8 +45,8 @@ def build_nhgis_file_requests(
             analysis and the areas enclosing it. The modern Census builder uses the same list.
 
     Returns:
-        list[NhgisBoundaryFileRequest | NhgisTableFileRequest]: Selected historical inputs,
-            including tables that help match population records to boundaries for 1980.
+        list[NhgisBoundaryFileRequest | NhgisTableFileRequest]: Selected historical population
+            and boundary inputs.
     """
     boundary_products = {
         (1980, GeographyLevel.COUNTY): "us_county_1980_tl2008",
@@ -82,11 +81,6 @@ def build_nhgis_file_requests(
         )
 
     requests.extend(build_historical_population_requests(directories, geography_requests))
-    if any(
-        request.census_year == 1980 and request.geography_level == GeographyLevel.TRACT
-        for request in geography_requests
-    ):
-        requests.extend(build_1980_geographic_correspondence_requests(directories))
 
     return requests
 
@@ -135,46 +129,6 @@ def build_historical_population_requests(
     return requests
 
 
-def build_1980_geographic_correspondence_requests(
-    directories: RawDataSubdirectories,
-) -> list[NhgisTableFileRequest]:
-    """Request the hierarchy and place-part tables needed for 1980 tract/BNA correspondence.
-
-    These describe how historical areas fit together. County-only runs do not need them. Their
-    overlapping counts must not be appended as extra residents.
-
-    Args:
-        directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-
-    Returns:
-        list[NhgisTableFileRequest]: Two archives with tract/BNA hierarchy and place-part tables,
-            plus the population tables needed to check their sums.
-    """
-    return [
-        build_table_request(
-            directories,
-            "1980/tracts/diagnostic_hierarchies.zip",
-            dataset_name=NhgisDataset.STF1_1980,
-            tables=POPULATION_TABLES_1980,
-            geographic_levels=(
-                NhgisGeographyLevel.TRACT_BY_COUNTY_SUBDIVISION_PLACE_REMAINDER,
-                NhgisGeographyLevel.TRACT_BNA_BY_SMSA_COUNTY_SUBDIVISION_PLACE,
-                NhgisGeographyLevel.TRACT_BNA_BY_SMSA_PLACE,
-                NhgisGeographyLevel.ENUMERATION_DISTRICT_BY_SMSA_COUNTY_SUBDIVISION_PLACE_TRACT_BNA,
-                NhgisGeographyLevel.ENUMERATION_DISTRICT_BY_SMSA_PLACE_TRACT_BNA,
-            ),
-            breakdowns=TOTAL_AND_SUBAREA_BREAKDOWNS_1980,
-        ),
-        build_table_request(
-            directories,
-            "1980/tracts/diagnostic_place_parts.zip",
-            dataset_name=NhgisDataset.STF1_1980,
-            tables=POPULATION_TABLES_1980,
-            geographic_levels=(NhgisGeographyLevel.PLACE_REMAINDER_BY_COUNTY_SUBDIVISION,),
-        ),
-    ]
-
-
 def build_table_request(
     directories: RawDataSubdirectories,
     archive_name: str,
@@ -196,7 +150,7 @@ def build_table_request(
             Empty uses the dataset's default selection.
 
     Returns:
-        NhgisTableFileRequest: Population or geographic-hierarchy table selections.
+        NhgisTableFileRequest: Population table selections.
     """
     return NhgisTableFileRequest(
         destination_relative_path=f"{directories.nhgis_population_and_boundaries}/{archive_name}",
