@@ -13,6 +13,10 @@ processed_population_directory: data/processed/population
 # Joined boundaries and unmatched records; relative paths start at the repository root.
 joined_geography_directory: data/processed/geography
 
+# Study-area definitions, candidate scores, and Census-unit memberships.
+# Relative paths start at the repository root. Keep this separate from all input folders.
+study_area_directory: data/processed/study_areas
+
 raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis

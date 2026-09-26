@@ -259,7 +259,7 @@ readable names while keeping the saved column labels unchanged.
 Source-specific names stay with their definitions. Census retrieval and processing share
 [`census/table_columns.py`](../code/capy_core/retrieve_data/census/table_columns.py), while the
 historical count and geographic columns are defined in
-[`nhgis_columns.py`](../code/capy_core/process_population/nhgis_columns.py) using the downloaded
+[`nhgis/table_columns.py`](../code/capy_core/retrieve_data/nhgis/table_columns.py) using the downloaded
 codebooks. NHGIS dataset and geography selections are named in
 [`nhgis/identifiers.py`](../code/capy_core/retrieve_data/nhgis/identifiers.py).
 

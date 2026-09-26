@@ -11,10 +11,10 @@ from pathlib import Path
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import RawDataSubdirectories
 
-from ..check_raw_files import load_census_table
 from ..http_transport import DataProviderError, download_file
 from ..raw_file_requests import CensusFileRequest, RawFileRequest
 from .build_requests import build_census_table_relative_path
+from .read_tables import load_census_table
 from .table_columns import CensusGeographyColumn
 
 

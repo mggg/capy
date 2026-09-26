@@ -10,12 +10,12 @@ from capy_core.population_table_columns import (
     PopulationColumn,
     PopulationSourceColumn,
 )
+from capy_core.retrieve_data.census.read_tables import load_census_table
 from capy_core.retrieve_data.census.table_columns import (
     CENSUS_POPULATION_COLUMNS,
     CensusGeographyColumn,
     CensusPopulationColumns,
 )
-from capy_core.retrieve_data.check_raw_files import load_census_table
 from capy_core.retrieve_data.raw_file_requests import CensusFileRequest
 
 GEOGRAPHIC_COLUMNS = {

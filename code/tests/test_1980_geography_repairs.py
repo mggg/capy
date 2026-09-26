@@ -15,7 +15,7 @@ from capy_core.join_geographies.repair_1980_sources import (
     reconstruct_missing_1980_bnas,
 )
 from capy_core.join_geographies.select_inputs import GeographyJoinInputs
-from capy_core.process_population.nhgis_columns import Nhgis1980Column
+from capy_core.retrieve_data.nhgis.table_columns import Nhgis1980Column
 
 
 @pytest.mark.parametrize("geography_level", [GeographyLevel.TRACT, GeographyLevel.COUNTY])

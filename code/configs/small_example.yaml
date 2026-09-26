@@ -11,6 +11,10 @@ processed_population_directory: data/processed/population
 # Joined boundaries and unmatched records; relative paths start at the repository root.
 joined_geography_directory: data/processed/geography
 
+# Study-area definitions, candidate scores, and Census-unit memberships.
+# Relative paths start at the repository root. Keep this separate from all input folders.
+study_area_directory: data/processed/study_areas
+
 raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis
@@ -26,6 +30,8 @@ offline: false
 raw_checksums_file: data/raw_checksums.sha256
 file_path_patterns:
   - census/2020/tracts/10/state.json
+  - census/2020/counties/10/state.json
+  - tiger/2020/counties/tl_2020_us_county.zip
   - tiger/2020/tracts/tl_2020_10_tract.zip
   - population_reference_tables/2020_states.json
   - population_reference_tables/census_state_population_totals_2020_release.csv

@@ -19,10 +19,7 @@ from capy_core.retrieve_data.nhgis.identifiers import (
     NHGIS_DATASETS_BY_YEAR,
     NHGIS_LEVELS_BY_GEOGRAPHY,
 )
-from capy_core.retrieve_data.raw_file_requests import NhgisTableFileRequest
-from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
-
-from .nhgis_columns import (
+from capy_core.retrieve_data.nhgis.table_columns import (
     NHGIS_1980_HISPANIC_RACE_COLUMNS,
     NHGIS_1980_INDIGENOUS_ASIAN_PACIFIC_ISLANDER_COLUMNS,
     NHGIS_1980_RACE_COLUMNS,
@@ -32,6 +29,8 @@ from .nhgis_columns import (
     Nhgis1990Column,
     NhgisGeographyColumn,
 )
+from capy_core.retrieve_data.raw_file_requests import NhgisTableFileRequest
+from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
 
 NHGIS_POPULATION_LEVELS = {
     nhgis_level: geography_level

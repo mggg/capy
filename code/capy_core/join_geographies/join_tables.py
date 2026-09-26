@@ -31,6 +31,9 @@ from .select_inputs import GeographyJoinInputs, select_geography_join_inputs
 def join_geography_tables(config: PipelineConfig, repository_root: Path) -> pd.DataFrame:
     """Join selected boundaries to processed populations without downloading or building graphs.
 
+    Blocks requested only to rank cities are read from their raw internal points at the study-area
+    stage and do not need a population–polygon join. Selected block graph nodes are still joined.
+
     Each output state has matched GeoParquet, unmatched-population Parquet, and unmatched-boundary
     GeoParquet files, including empty tables. Reruns remove selected outputs and both run summaries
     first. Files from other selections remain; join_summary.csv is written only after all selected
@@ -49,7 +52,15 @@ def join_geography_tables(config: PipelineConfig, repository_root: Path) -> pd.D
         OSError: A required input is missing or unreadable, or an output cannot be written.
         ValueError: Selections, folders, source identities, geometry, or population checks fail.
     """
-    selections = select_geography_join_inputs(config)
+    selections = [
+        selection
+        for selection in select_geography_join_inputs(config)
+        if selection.geography_level != GeographyLevel.BLOCK
+        or (
+            GeographyLevel.BLOCK in config.census_geography_levels
+            and selection.census_year in config.census_geography_years
+        )
+    ]
     raw_data_directory = (repository_root / config.raw_data_directory).resolve()
     population_table_directory = (repository_root / config.processed_population_directory).resolve()
     joined_geography_directory = (repository_root / config.joined_geography_directory).resolve()

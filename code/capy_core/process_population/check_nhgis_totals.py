@@ -11,9 +11,13 @@ from capy_core.retrieve_data.census.build_published_file_requests import (
     HISTORICAL_STUDY_TOTALS_FILENAMES,
     RACE_TOTALS_1980_FILENAME,
 )
+from capy_core.retrieve_data.nhgis.table_columns import (
+    NHGIS_COUNT_COLUMNS,
+    Nhgis1980Column,
+    Nhgis1990Column,
+)
 from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
 
-from .nhgis_columns import NHGIS_COUNT_COLUMNS, Nhgis1980Column, Nhgis1990Column
 from .save_tables import PopulationComparison
 
 

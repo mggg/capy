@@ -6,7 +6,8 @@
 # retrieval command downloads inputs. A separate process_population.py command
 # processes Census and NHGIS population tables into Parquet files.
 # Run join_geographies.py afterward to attach populations to boundaries and save
-# unmatched records. Study-area assignment, graphs, and metrics are later stages.
+# unmatched records. Run assign_study_areas.py next to select whole units inside
+# the study areas. Graphs and metrics are later stages.
 #
 # Run settings belong here. Source URLs, Census population column names, and NHGIS
 # table names live in the Python request definitions under code/capy_core/retrieve_data/.
@@ -31,8 +32,8 @@ census_geography_levels: [tracts]
 # NHGIS population and boundary archives are grouped by year and level, for example:
 #   nhgis/1990/tracts/population.zip
 #   nhgis/1990/tracts/boundaries.zip
-# A tract run does not request block or block-group tables. State totals are added
-# for population checks. Each file is reused independently when retrying a run.
+# A tract run requests blocks only when max_city needs 2020 blocks for city ranking.
+# State totals are added for population checks. Each file is reused independently when retrying a run.
 # 1980 tract/BNA matching also needs five original TIGER 1992 county archives to
 # reconstruct omitted outlines; county-only 1980 runs omit them. Original STF1B/PL
 # references establish empty 1990 blocks. Reference workbooks follow the required years.
@@ -45,7 +46,9 @@ census_geography_years: [1990, 2000, 2010, 2020]
 #   max_city    The city with the greatest estimated population inside each metro area.
 #
 # All modes add county population and boundary inputs at study_area_vintage.
-# max_city also adds place population and boundary inputs. These supporting inputs
+# max_city also adds 2020 place and block populations and boundaries. Census block
+# internal points and populations determine how many city residents live in each metro.
+# These supporting inputs
 # are included even if their year or level is absent from the node settings above.
 # Requests needed for more than one reason are included only once.
 # Omitted setting: max_city.
@@ -74,6 +77,10 @@ processed_population_directory: data/processed/population
 # Relative paths start at the repository root. This folder must neither contain
 # nor sit inside the raw-data or processed-population folder.
 joined_geography_directory: data/processed/geography
+
+# Study-area definitions, candidate scores, and Census-unit memberships.
+# Relative paths start at the repository root. Keep this separate from all input folders.
+study_area_directory: data/processed/study_areas
 
 # Folder names beneath raw_data_directory. These are relative paths; subfolders
 # such as tables/census are allowed. Absolute paths and '..' are not allowed here.

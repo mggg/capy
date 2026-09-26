@@ -41,9 +41,9 @@ def build_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
 def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, ...]:
     """List the years and geography levels needed for graph nodes and their enclosing areas.
 
-    For example, 1990 tracts inside cities defined using 2020 data need three selections:
-    1990 tracts, 2020 counties, and 2020 places. Population and boundary builders receive the same
-    list so they request matching data.
+    For example, 1990 tracts inside cities defined using 2020 data need four selections:
+    1990 tracts, 2020 counties, 2020 places, and 2020 blocks for city population ranking. Population
+    and boundary builders receive the same list so they request matching data.
 
     Args:
         config (PipelineConfig): Requested node levels and years, plus the type and year of the
@@ -52,7 +52,7 @@ def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, 
     Returns:
         tuple[GeographyRequest, ...]: Each needed year/level pair once, sorted by year and level.
             Unsupported 1980 blocks and block groups are left out. County data for the study-area
-            year is always included; max_city also needs places for that year.
+            year is always included; max_city also needs places and blocks for 2020.
 
     Raises:
         ValueError: No supported node pairs remain, or max_city uses a vintage other than 2020.
@@ -88,6 +88,8 @@ def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, 
                 census_year=config.study_area_vintage, geography_level=GeographyLevel.PLACE
             )
         )
+
+        requests.add(GeographyRequest(census_year=2020, geography_level=GeographyLevel.BLOCK))
 
     return tuple(
         sorted(requests, key=lambda request: (request.census_year, request.geography_level))

@@ -3,9 +3,9 @@
 A replication pipeline for Census population and geographic data, study-area assignments, dual
 graphs, and residential segregation metrics.
 
-Raw-source retrieval, population processing, and boundary–population joins for 1980–2020 are
-implemented. Study-area assignment and graph construction follow in the
-[pipeline plan](plans/pipeline.md).
+Raw-source retrieval, population processing, boundary–population joins, and study-area assignment
+for 1980–2020 are implemented. See the [assignment guide](documentation/study_area_assignment.md)
+for study-area selection and the [pipeline plan](plans/pipeline.md) for graph and metric stages.
 
 ## Run
 
@@ -16,8 +16,8 @@ uv sync --locked
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
 ```
 
-The small example retrieves 2020 Delaware tract populations and boundaries. For the complete input
-collection, credentials, offline retrieval, and reuse of existing files, see the
+The small example retrieves 2020 Delaware tract and county inputs, with population references.
+For the complete input collection, credentials, offline retrieval, and reuse of existing files, see the
 [run guide](code/README.md). [Source documentation](documentation/raw_source_acquisition.md)
 describes coverage, provenance, and validation limits.
 

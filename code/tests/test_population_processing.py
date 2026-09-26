@@ -299,9 +299,9 @@ def test_processed_folder_cannot_replace_raw_inputs(tmp_path):
 
 def test_historical_references_load_once_before_out_of_order_archives(tmp_path, monkeypatch):
     from capy_core.process_population import process_tables
-    from capy_core.process_population.nhgis_columns import NHGIS_COUNT_COLUMNS
     from capy_core.retrieve_data.nhgis.build_requests import build_historical_population_requests
     from capy_core.retrieve_data.nhgis.identifiers import NhgisGeographyLevel
+    from capy_core.retrieve_data.nhgis.table_columns import NHGIS_COUNT_COLUMNS
     from capy_core.retrieve_data.raw_file_requests import GeographyRequest
 
     requests = build_historical_population_requests(
@@ -397,8 +397,8 @@ def test_census_count_conversion_leaves_source_unchanged(invalid):
 
 @pytest.mark.parametrize("invalid", [False, True])
 def test_1980_derivation_returns_counts_without_changing_source(invalid):
-    from capy_core.process_population.nhgis_columns import NHGIS_COUNT_COLUMNS, Nhgis1980Column
     from capy_core.process_population.read_nhgis import derive_1980_population_counts
+    from capy_core.retrieve_data.nhgis.table_columns import NHGIS_COUNT_COLUMNS, Nhgis1980Column
 
     counts = dict.fromkeys(NHGIS_COUNT_COLUMNS[1980], 0)
     counts.update(

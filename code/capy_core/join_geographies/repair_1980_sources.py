@@ -17,8 +17,8 @@ import shapely
 
 from capy_core.geography_types import GeographyLevel
 from capy_core.population_table_columns import GeographyColumn, PopulationColumn
-from capy_core.process_population.nhgis_columns import Nhgis1980Column
 from capy_core.retrieve_data.census.build_published_file_requests import MISSING_1980_BNAS_BY_COUNTY
+from capy_core.retrieve_data.nhgis.table_columns import Nhgis1980Column
 
 from .read_boundaries import BoundaryColumn
 

@@ -15,7 +15,7 @@ from capy_core.population_table_columns import (
     PopulationColumn,
     PopulationSourceColumn,
 )
-from capy_core.process_population.nhgis_columns import NhgisGeographyColumn
+from capy_core.retrieve_data.nhgis.table_columns import NhgisGeographyColumn
 
 from .read_1990_zero_blocks import (
     CONFLICTING_1990_ZERO_BLOCK_ID,

@@ -11,6 +11,7 @@ from capy_core.retrieve_data.raw_file_requests import (
 
 from ..state_codes import STATE_FIPS_CODES
 
+METRO_MEMBERSHIP_FILENAME = "list1_march_2020.xls"
 CENSUS_RESIDENT_TOTALS_FILENAME = "census_state_population_totals_2020_release.csv"
 
 # E tables cross race with Hispanic origin and supply the study's state comparisons.
@@ -222,7 +223,7 @@ def build_reference_file_requests(
         # Changing study_area_vintage changes boundary inputs, not this county membership list.
         requests.append(
             PublicFileRequest(
-                destination_relative_path=f"{directories.metro_membership_tables}/list1_march_2020.xls",
+                destination_relative_path=f"{directories.metro_membership_tables}/{METRO_MEMBERSHIP_FILENAME}",
                 file_format=RawFileFormat.EXCEL_XLS,
                 url="https://www2.census.gov/programs-surveys/metro-micro/geographies/reference-files/2020/delineation-files/list1_2020.xls",
             )

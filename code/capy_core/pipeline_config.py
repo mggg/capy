@@ -71,7 +71,7 @@ class PipelineConfig(BaseModel):
             groups are requested because their boundaries are unsupported.
         study_area_type (StudyAreaType): county, cbsa, max_county, or max_city. Defaults to
             max_city. All modes need county data to define the enclosing areas; max_city also
-            needs city data.
+            needs city and 2020 block data for population-based selection.
         study_area_vintage (CensusYear): Year of the boundaries and populations defining those
             areas. Defaults to 2020. max_city supports only 2020. Metro membership uses the
             separately defined March 2020 workbook regardless of this boundary vintage.
@@ -84,6 +84,9 @@ class PipelineConfig(BaseModel):
         joined_geography_directory (Path): Folder for population-attributed boundaries and join
             accounting. Defaults to data/processed/geography. Relative paths start at the
             repository root; this folder must be separate from raw and population folders.
+        study_area_directory (Path): Definitions, candidate scores, and Census-unit memberships.
+            Defaults to data/processed/study_areas. Relative paths start at the repository root;
+            this folder must be separate from raw, population, and joined-geography folders.
         env_file (Path | None): Optional file of environment variables, such as API keys. Defaults
             to None. Relative paths start at the repository root. Online retrieval reads it
             without replacing existing environment variables; offline runs do not read it.
@@ -127,6 +130,7 @@ class PipelineConfig(BaseModel):
     raw_data_subdirectories: RawDataSubdirectories = Field(default_factory=RawDataSubdirectories)
     processed_population_directory: Path = Path("data/processed/population")
     joined_geography_directory: Path = Path("data/processed/geography")
+    study_area_directory: Path = Path("data/processed/study_areas")
     env_file: Path | None = None
     offline: bool = False
     raw_checksums_file: Path = Path("data/raw_checksums.sha256")

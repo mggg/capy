@@ -1,8 +1,8 @@
 # Run and understand the replication pipeline
 
-The pipeline implements raw-data retrieval, population processing, and boundary–population joins for
-1980–2020. Use the links below to run it, understand the inputs, or follow the code. The pipeline
-plan describes the later processing stages.
+The pipeline implements raw-data retrieval, population processing, boundary–population joins, and
+study-area assignment for 1980–2020. Use the links below to run it, understand the inputs, or follow
+the code. The pipeline plan describes the later processing stages.
 
 | What you want to do                                             | Where to start                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -15,7 +15,8 @@ plan describes the later processing stages.
 | Follow execution or change which tables are requested           | [Code walkthrough](../documentation/raw_source_acquisition.md#following-the-code) and [input definitions](../documentation/raw_source_acquisition.md#editing-raw-inputs) |
 | Process downloaded population tables | [Population processing](../documentation/population_processing.md) |
 | Join boundaries and inspect unmatched records | [Geography joining](../documentation/geography_population_joining.md) |
-| Understand the planned processing, study-area, and graph stages | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
+| Define study areas and select their Census units | [Study-area assignment](../documentation/study_area_assignment.md) |
+| Understand the planned graph and metric stages | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
 
 ## Run retrieval
 
@@ -26,7 +27,7 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 uv run --locked python code/reproduce.py --config code/configs/replication.yaml
 ```
 
-The first command downloads 2020 Delaware tract populations, boundaries, and population references;
+The first command downloads 2020 Delaware tract and county inputs, with population references;
 the second requests the full raw-data collection. For NHGIS downloads, supply
 `IPUMS_API_KEY` in your shell or set `env_file: .env` in the YAML to load credentials from a file at
 the repository root. Census downloads require `CENSUS_API_KEY`. Existing environment variables
@@ -37,9 +38,9 @@ Start with the commented [`configs/example.yaml`](configs/example.yaml) to make 
 geography levels and census years for both population and boundary data, plus the study-area type
 and boundary year. The code adds the county and city inputs needed to define those areas.
 [`configs/replication.yaml`](configs/replication.yaml) requests the full collection;
-[`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts and the
-references needed to check their population. The settings also control folders, download workers,
-offline mode, and checksum output. Input definitions live alongside their retrieval code in
+[`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts, their county
+study-area definitions, and population references. The settings also control folders, download
+workers, offline mode, and checksum output. Input definitions live alongside their retrieval code in
 [`capy_core/retrieve_data/`](capy_core/retrieve_data/), grouped into `census/` and `nhgis/`
 workflows. Configuration and temporary-file handling are shared under `capy_core/`.
 
@@ -93,8 +94,9 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml 
 
 See [raw-data retrieval](../documentation/raw_source_acquisition.md) for file locations, input
 coverage, editing the Python input definitions, parallel Census/NHGIS workflows, and the separate
-command used to publish diagnostic checksums. Geographic joins, study-area assignment, and graph
-construction follow the [pipeline plan](../plans/pipeline.md).
+command used to publish diagnostic checksums. The sections below cover population processing,
+geographic joins, and study-area assignment; graph construction follows in the
+[pipeline plan](../plans/pipeline.md).
 
 Run checks with `uv run --locked python -m pytest`. Use one retrieval run per raw-data directory;
 `max_parallel_downloads` controls parallel workers within that run.
@@ -125,3 +127,18 @@ The command saves GeoParquet files, unmatched records, and population accounting
 `joined_geography_directory`. Use the same configuration for retrieval, population processing,
 and joining. The [geography-joining guide](../documentation/geography_population_joining.md)
 explains historical corrections, geometry repair, source limitations, and rerun behavior.
+
+
+## Assign study areas
+
+After geographic joining, construct definitions and select whole Census units inside them:
+
+```bash
+uv run --locked python code/assign_study_areas.py --config code/configs/small_example.yaml
+```
+
+The small example assigns Delaware tracts to its three counties. Metro modes use the March 2020
+county roster; `max_city` ranks places by 2020 block population inside each metro. Outputs include
+boundaries, candidate scores, unit memberships, and explicit empty or unavailable outcomes under
+`study_area_directory`. See the [study-area guide](../documentation/study_area_assignment.md) for
+selection rules, required inputs, and output interpretation. This command does not build graphs.

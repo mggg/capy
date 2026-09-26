@@ -70,7 +70,7 @@ def test_geography_enums_produce_census_api_names(tmp_path, level, provider_name
             [1990],
             "max_city",
             2020,
-            {(1990, "tracts"), (2020, "counties"), (2020, "places")},
+            {(1990, "tracts"), (2020, "counties"), (2020, "places"), (2020, "blocks")},
         ),
         (["blocks"], [1980, 2020], "county", 2020, {(2020, "blocks"), (2020, "counties")}),
         (["counties"], [2020, 2020], "county", 2020, {(2020, "counties")}),
@@ -333,4 +333,4 @@ def test_shipped_yaml_files_select_valid_inputs(filename):
     if filename == "replication.yaml":
         assert len(selected) == 1238
     elif filename == "small_example.yaml":
-        assert len(selected) == 4
+        assert len(selected) == 6
