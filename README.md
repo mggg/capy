@@ -16,8 +16,9 @@ uv sync --locked
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
 ```
 
-The small example retrieves 2020 Delaware tract and county inputs, with population references.
-For the complete input collection, credentials, offline retrieval, and reuse of existing files, see the
+The small example retrieves 2020 Delaware inputs, processes their population tables, joins counts
+to boundaries, and assigns tracts to county study areas. To select individual stages or configure
+the full run, credentials, offline retrieval, and reuse of existing files, see the
 [run guide](code/README.md). [Source documentation](documentation/raw_source_acquisition.md)
 describes coverage, provenance, and validation limits.
 

@@ -22,8 +22,9 @@ After choosing the inputs in a YAML configuration, use that same configuration t
 process them. For example, run the Delaware tract example from the repository root:
 
 ```bash
-uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
-uv run --locked python code/process_population.py --config code/configs/small_example.yaml
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml retrieve
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml \
+    process-population
 ```
 
 The first command retrieves Delaware's 2020 tract population and boundaries, together with the
@@ -233,7 +234,7 @@ configuration.
 
 ## Following the code
 
-[`process_population.py`](../code/process_population.py) reads the shared
+The `process-population` stage in [`reproduce.py`](../code/reproduce.py) reads the shared
 [`PipelineConfig`](../code/capy_core/pipeline_config.py) and starts processing through
 `process_population_tables()` in
 [`process_tables.py`](../code/capy_core/process_population/process_tables.py). That function
@@ -247,8 +248,13 @@ their counts and identifiers, and derives the study populations. The correspondi
 [`check_totals.py`](../code/capy_core/process_population/check_totals.py) and
 [`check_nhgis_totals.py`](../code/capy_core/process_population/check_nhgis_totals.py) compare
 those counts with state and published references. Once the comparisons pass,
-[`save_tables.py`](../code/capy_core/process_population/save_tables.py) names and writes the
-Parquet table, using the same temporary-file writer as retrieval.
+[`save_tables.py`](../code/capy_core/process_population/save_tables.py) writes the Parquet table,
+using the same temporary-file writer as retrieval. Population, joined-geography, and membership
+filenames are defined together in
+[`derived_file_paths.py`](../code/capy_core/derived_file_paths.py), so writers and later stages
+agree on where to find each table. Each processing stage checks its output folder against its
+inputs through [`data_directories.py`](../code/capy_core/data_directories.py) before removing
+previous outputs.
 
 For the meanings of column names used in calculations, start with
 [`population_table_columns.py`](../code/capy_core/population_table_columns.py). It separates study

@@ -8,6 +8,8 @@ import geopandas as gpd
 import pandas as pd
 from tqdm import tqdm
 
+from capy_core.data_directories import resolve_separate_output_directory
+from capy_core.derived_file_paths import build_join_output_paths
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import PipelineConfig
 from capy_core.population_table_columns import GeographyColumn, PopulationColumn
@@ -52,43 +54,41 @@ def join_geography_tables(config: PipelineConfig, repository_root: Path) -> pd.D
         OSError: A required input is missing or unreadable, or an output cannot be written.
         ValueError: Selections, folders, source identities, geometry, or population checks fail.
     """
-    selections = [
-        selection
-        for selection in select_geography_join_inputs(config)
-        if selection.geography_level != GeographyLevel.BLOCK
+    selected_geography_inputs = [
+        geography_inputs
+        for geography_inputs in select_geography_join_inputs(config)
+        if geography_inputs.geography_level != GeographyLevel.BLOCK
         or (
             GeographyLevel.BLOCK in config.census_geography_levels
-            and selection.census_year in config.census_geography_years
+            and geography_inputs.census_year in config.census_geography_years
         )
     ]
     raw_data_directory = (repository_root / config.raw_data_directory).resolve()
     population_table_directory = (repository_root / config.processed_population_directory).resolve()
-    joined_geography_directory = (repository_root / config.joined_geography_directory).resolve()
+    joined_geography_directory = resolve_separate_output_directory(
+        repository_root,
+        config.joined_geography_directory,
+        (raw_data_directory, population_table_directory),
+    )
 
-    for input_directory in (raw_data_directory, population_table_directory):
-        if joined_geography_directory.is_relative_to(
-            input_directory
-        ) or input_directory.is_relative_to(joined_geography_directory):
-            raise ValueError(
-                "Joined geography folder must be separate from raw and population folders"
-            )
-
-    remove_selected_join_outputs(selections, joined_geography_directory)
+    remove_selected_join_outputs(selected_geography_inputs, joined_geography_directory)
 
     population_summary_tables = []
     geometry_repair_tables = []
 
-    for selection in tqdm(selections, desc="Geography selections", unit="selection", disable=None):
-        selection_summary_tables, selection_repair_tables = join_selected_geography(
-            selection,
+    for geography_inputs in tqdm(
+        selected_geography_inputs, desc="Geography selections", unit="selection", disable=None
+    ):
+        geography_summary_tables, geography_repair_tables = join_selected_geography(
+            geography_inputs,
             config,
             raw_data_directory,
             population_table_directory,
             joined_geography_directory,
         )
 
-        population_summary_tables.extend(selection_summary_tables)
-        geometry_repair_tables.extend(selection_repair_tables)
+        population_summary_tables.extend(geography_summary_tables)
+        geometry_repair_tables.extend(geography_repair_tables)
 
     repairs_df = pd.concat(geometry_repair_tables, ignore_index=True)
     save_join_table(repairs_df, joined_geography_directory / "geometry_repairs.csv")
@@ -100,7 +100,7 @@ def join_geography_tables(config: PipelineConfig, repository_root: Path) -> pd.D
 
 
 def join_selected_geography(
-    selection: GeographyJoinInputs,
+    geography_inputs: GeographyJoinInputs,
     config: PipelineConfig,
     raw_data_directory: Path,
     population_table_directory: Path,
@@ -113,7 +113,8 @@ def join_selected_geography(
     Exceptions raised by ZIP, geospatial, or Parquet readers propagate unchanged.
 
     Args:
-        selection (GeographyJoinInputs): Boundary paths and expected population tables by state.
+        geography_inputs (GeographyJoinInputs): Boundary paths and expected population tables
+            by state.
         config (PipelineConfig): Configured folders for TIGER 1992 supplements and original
             1990 empty-block reference tables.
         raw_data_directory (Path): Raw-data root.
@@ -138,15 +139,15 @@ def join_selected_geography(
 
     with (
         tqdm(
-            total=len(selection.population_paths_by_state),
-            desc=f"{selection.census_year} {selection.geography_level.value}",
+            total=len(geography_inputs.population_paths_by_state),
+            desc=f"{geography_inputs.census_year} {geography_inputs.geography_level.value}",
             unit="state",
             leave=False,
             disable=None,
         ) as state_progress,
         closing(
             read_prepared_boundary_tables(
-                selection,
+                geography_inputs,
                 raw_data_directory,
                 raw_data_directory / config.raw_data_subdirectories.original_1980_boundary_files,
             )
@@ -155,7 +156,7 @@ def join_selected_geography(
         for boundaries_df, repairs_df in prepared_tables:
             state_codes = sorted(
                 set(boundaries_df[GeographyColumn.STATE_CODE])
-                & set(selection.population_paths_by_state)
+                & set(geography_inputs.population_paths_by_state)
             )
             repeated_state_codes = seen_state_codes.intersection(state_codes)
 
@@ -167,7 +168,7 @@ def join_selected_geography(
             population_summary_tables.extend(
                 join_and_save_boundary_states(
                     boundaries_df,
-                    selection,
+                    geography_inputs,
                     state_codes,
                     population_table_directory,
                     joined_geography_directory,
@@ -178,7 +179,7 @@ def join_selected_geography(
             seen_state_codes.update(state_codes)
             geometry_repair_tables.append(repairs_df)
 
-    missing_state_codes = set(selection.population_paths_by_state) - seen_state_codes
+    missing_state_codes = set(geography_inputs.population_paths_by_state) - seen_state_codes
 
     if missing_state_codes:
         raise ValueError(
@@ -189,7 +190,7 @@ def join_selected_geography(
 
 
 def read_prepared_boundary_tables(
-    selection: GeographyJoinInputs, raw_data_directory: Path, tiger_1992_directory: Path
+    geography_inputs: GeographyJoinInputs, raw_data_directory: Path, tiger_1992_directory: Path
 ) -> Generator[tuple[gpd.GeoDataFrame, pd.DataFrame], None, None]:
     """Read and prepare one boundary table at a time, closing each archive before the next.
 
@@ -199,7 +200,7 @@ def read_prepared_boundary_tables(
     ZIP and geospatial reader exceptions propagate unchanged.
 
     Args:
-        selection (GeographyJoinInputs): Boundary archives, expected states, year, and level.
+        geography_inputs (GeographyJoinInputs): Boundary archives, expected states, year, and level.
         raw_data_directory (Path): Root of downloaded source files.
         tiger_1992_directory (Path): Configured folder for original 1980 boundary supplements.
 
@@ -211,19 +212,21 @@ def read_prepared_boundary_tables(
         OSError: A source file cannot be read.
         ValueError: Source states, geometry, or historical corrections are inconsistent.
     """
-    for expected_state_code, boundary_relative_path in selection.boundary_paths_by_state.items():
+    boundary_paths_by_state = geography_inputs.boundary_paths_by_state
+
+    for expected_state_code, boundary_relative_path in boundary_paths_by_state.items():
         with closing(
             read_boundary_archive(
                 raw_data_directory / boundary_relative_path,
                 boundary_relative_path,
-                selection.census_year,
-                selection.geography_level,
+                geography_inputs.census_year,
+                geography_inputs.geography_level,
             )
         ) as boundary_tables:
             for boundaries_df in boundary_tables:
                 yield prepare_selected_boundaries(
                     boundaries_df,
-                    selection,
+                    geography_inputs,
                     raw_data_directory,
                     tiger_1992_directory,
                     expected_state_code=expected_state_code,
@@ -232,7 +235,7 @@ def read_prepared_boundary_tables(
 
 def prepare_selected_boundaries(
     boundaries_df: gpd.GeoDataFrame,
-    selection: GeographyJoinInputs,
+    geography_inputs: GeographyJoinInputs,
     raw_data_directory: Path,
     tiger_1992_directory: Path,
     *,
@@ -245,7 +248,7 @@ def prepare_selected_boundaries(
 
     Args:
         boundaries_df (gpd.GeoDataFrame): A complete boundary table from the source reader.
-        selection (GeographyJoinInputs): Census year and geography level being joined.
+        geography_inputs (GeographyJoinInputs): Census year and geography level being joined.
         raw_data_directory (Path): Base for raw source paths.
         tiger_1992_directory (Path): Configured folder for original 1980 boundary supplements.
         expected_state_code (str | None): State required by the archive filename, or None for
@@ -265,18 +268,18 @@ def prepare_selected_boundaries(
         raise ValueError(f"Boundary contents disagree with state {expected_state_code}")
 
     boundaries_df = boundaries_df.loc[
-        boundaries_df[GeographyColumn.STATE_CODE].isin(selection.population_paths_by_state)
+        boundaries_df[GeographyColumn.STATE_CODE].isin(geography_inputs.population_paths_by_state)
     ].copy()
 
     boundaries_df, repairs_df = repair_and_project_boundaries(boundaries_df)
     boundaries_df[JoinColumn.BOUNDARY_PART_COUNT] = 1
     boundaries_df[JoinColumn.MERGED_BOUNDARY_SOURCES] = ""
 
-    repairs_df["census_year"] = selection.census_year
-    repairs_df["geography_level"] = selection.geography_level.value
+    repairs_df["census_year"] = geography_inputs.census_year
+    repairs_df["geography_level"] = geography_inputs.geography_level.value
 
     boundaries_df = prepare_1980_tract_boundaries(
-        boundaries_df, selection, raw_data_directory, tiger_1992_directory
+        boundaries_df, geography_inputs, raw_data_directory, tiger_1992_directory
     )
 
     return boundaries_df, repairs_df
@@ -284,7 +287,7 @@ def prepare_selected_boundaries(
 
 def prepare_1980_tract_boundaries(
     boundaries_df: gpd.GeoDataFrame,
-    selection: GeographyJoinInputs,
+    geography_inputs: GeographyJoinInputs,
     raw_data_directory: Path,
     tiger_1992_directory: Path,
 ) -> gpd.GeoDataFrame:
@@ -297,7 +300,7 @@ def prepare_1980_tract_boundaries(
     Args:
         boundaries_df (gpd.GeoDataFrame): Repaired study-coordinate boundaries with initial
             boundary-part counts and merge-source columns.
-        selection (GeographyJoinInputs): Year and level being prepared.
+        geography_inputs (GeographyJoinInputs): Year and level being prepared.
         raw_data_directory (Path): Base for the supplements' saved source paths.
         tiger_1992_directory (Path): Folder containing the five original county archives.
 
@@ -309,7 +312,10 @@ def prepare_1980_tract_boundaries(
         BadZipFile: A supplement archive is damaged.
         ValueError: Reconstruction, geometry, overlap, identifiers, or parent merging fails.
     """
-    if selection.census_year != 1980 or selection.geography_level != GeographyLevel.TRACT:
+    if (
+        geography_inputs.census_year != 1980
+        or geography_inputs.geography_level != GeographyLevel.TRACT
+    ):
         return boundaries_df
 
     supplement_df = reconstruct_missing_1980_bnas(tiger_1992_directory)
@@ -348,7 +354,7 @@ def prepare_1980_tract_boundaries(
 
 def join_and_save_boundary_states(
     boundaries_df: gpd.GeoDataFrame,
-    selection: GeographyJoinInputs,
+    geography_inputs: GeographyJoinInputs,
     state_codes: list[str],
     population_table_directory: Path,
     joined_geography_directory: Path,
@@ -362,7 +368,7 @@ def join_and_save_boundary_states(
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Prepared boundaries covering the requested states.
-        selection (GeographyJoinInputs): Year, level, and population paths for the join.
+        geography_inputs (GeographyJoinInputs): Year, level, and population paths for the join.
         state_codes (list[str]): Selected states in processing order. The caller checks that
             none has already been processed from another boundary table.
         population_table_directory (Path): Root of processed population tables.
@@ -385,7 +391,7 @@ def join_and_save_boundary_states(
         ]
         summary_df = join_and_save_state(
             state_boundaries_df,
-            selection,
+            geography_inputs,
             state_code,
             population_table_directory,
             joined_geography_directory,
@@ -399,7 +405,7 @@ def join_and_save_boundary_states(
 
 def join_and_save_state(
     boundaries_df: gpd.GeoDataFrame,
-    selection: GeographyJoinInputs,
+    geography_inputs: GeographyJoinInputs,
     state_code: str,
     population_table_directory: Path,
     joined_geography_directory: Path,
@@ -412,7 +418,7 @@ def join_and_save_state(
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Valid, corrected polygons for this state.
-        selection (GeographyJoinInputs): Year, level, and population paths.
+        geography_inputs (GeographyJoinInputs): Year, level, and population paths.
         state_code (str): Two-digit state FIPS code.
         population_table_directory (Path): Root of processed population tables.
         joined_geography_directory (Path): Root of derived geography outputs.
@@ -425,29 +431,29 @@ def join_and_save_state(
         OSError: Reading or writing a table fails.
         ValueError: Input metadata, population correction, or join checks fail.
     """
-    population_relative_path = selection.population_paths_by_state[state_code]
+    population_relative_path = geography_inputs.population_paths_by_state[state_code]
     population_df = pd.read_parquet(population_table_directory / population_relative_path)
 
     check_population_join_input(
-        population_df, selection.census_year, selection.geography_level, state_code
+        population_df, geography_inputs.census_year, geography_inputs.geography_level, state_code
     )
 
     original_population_totals = {
         column: int(population_df[column].sum()) for column in PopulationColumn
     }
 
-    population_df = correct_richmond_population_1980(population_df, selection)
+    population_df = correct_richmond_population_1980(population_df, geography_inputs)
 
     for column, original_population_total in original_population_totals.items():
         if int(population_df[column].sum()) != original_population_total:
             raise ValueError(f"Population corrections changed statewide {column}")
 
     result = join_population_to_boundaries(
-        boundaries_df, population_df, selection.census_year, selection.geography_level
+        boundaries_df, population_df, geography_inputs.census_year, geography_inputs.geography_level
     )
 
     result = classify_1990_zero_population_blocks(
-        result, selection, state_code, block_reference_directory
+        result, geography_inputs, state_code, block_reference_directory
     )
 
     matched_path, unmatched_population_path, unmatched_boundaries_path = build_join_output_paths(
@@ -467,7 +473,7 @@ def join_and_save_state(
 
     return summarize_state_join(
         result,
-        selection,
+        geography_inputs,
         state_code,
         original_population_totals,
     )
@@ -475,7 +481,7 @@ def join_and_save_state(
 
 def summarize_state_join(
     result: PopulationBoundaryJoin,
-    selection: GeographyJoinInputs,
+    geography_inputs: GeographyJoinInputs,
     state_code: str,
     original_population_totals: dict[PopulationColumn, int],
 ) -> pd.DataFrame:
@@ -487,7 +493,7 @@ def summarize_state_join(
 
     Args:
         result (PopulationBoundaryJoin): Matched and unmatched tables for one state.
-        selection (GeographyJoinInputs): Census year and geographic resolution.
+        geography_inputs (GeographyJoinInputs): Census year and geographic resolution.
         state_code (str): Two-digit state FIPS code.
         original_population_totals (dict[PopulationColumn, int]): Statewide counts before
             corrections, for TOTPOP, WHITE, BLACK, and POC.
@@ -497,8 +503,8 @@ def summarize_state_join(
     """
     return pd.DataFrame(
         {
-            "census_year": selection.census_year,
-            "geography_level": selection.geography_level.value,
+            "census_year": geography_inputs.census_year,
+            "geography_level": geography_inputs.geography_level.value,
             "state_code": state_code,
             "population_group": [column.value for column in PopulationColumn],
             "input_population": [original_population_totals[column] for column in PopulationColumn],
@@ -509,27 +515,6 @@ def summarize_state_join(
                 int(result.unmatched_population_df[column].sum()) for column in PopulationColumn
             ],
         }
-    )
-
-
-def build_join_output_paths(population_relative_path: Path) -> tuple[Path, Path, Path]:
-    """Build the three output names from a processed population table's relative path.
-
-    Args:
-        population_relative_path (Path): Path beneath the population folder, such as
-            2020/tracts/DE_2020_populations.parquet.
-
-    Returns:
-        tuple[Path, Path, Path]: Matched geography, unmatched population, and unmatched boundary
-            paths, in that order, beneath the joined-geography folder. The year/level folders
-            and state/year filename prefix are preserved. No files are created.
-    """
-    state_year = population_relative_path.stem.removesuffix("_populations")
-
-    return (
-        population_relative_path.with_name(f"{state_year}_geography.parquet"),
-        population_relative_path.with_name(f"{state_year}_unmatched_population.parquet"),
-        population_relative_path.with_name(f"{state_year}_unmatched_boundaries.parquet"),
     )
 
 
@@ -556,7 +541,7 @@ def save_join_table(records_df: pd.DataFrame, output_path: Path) -> None:
 
 
 def remove_selected_join_outputs(
-    selections: list[GeographyJoinInputs], joined_geography_directory: Path
+    selected_geography_inputs: list[GeographyJoinInputs], joined_geography_directory: Path
 ) -> None:
     """Remove selected derived files and both run summaries before rebuilding the joins.
 
@@ -564,8 +549,8 @@ def remove_selected_join_outputs(
     outputs for unselected states, years, and levels remain in place.
 
     Args:
-        selections (list[GeographyJoinInputs]): Selected population tables that determine the
-            matched and unmatched output filenames.
+        selected_geography_inputs (list[GeographyJoinInputs]): Selected population tables that
+            determine the matched and unmatched output filenames.
         joined_geography_directory (Path): Resolved, absolute root for joined outputs, already
             checked by the caller to be separate from the input folders.
 
@@ -578,8 +563,8 @@ def remove_selected_join_outputs(
         joined_geography_directory / "geometry_repairs.csv",
     ]
 
-    for selection in selections:
-        for population_relative_path in selection.population_paths_by_state.values():
+    for geography_inputs in selected_geography_inputs:
+        for population_relative_path in geography_inputs.population_paths_by_state.values():
             output_paths.extend(
                 joined_geography_directory / path
                 for path in build_join_output_paths(population_relative_path)

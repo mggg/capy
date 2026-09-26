@@ -42,7 +42,7 @@ def prepare_download_batches_with_2010_counties_first(
         ValueError: A selected input conflicts with a required county-table definition.
     """
     selected_by_path = {request.destination_relative_path: request for request in requests}
-    counties_by_path: dict[str, RawFileRequest] = {}
+    county_requests_by_path: dict[str, RawFileRequest] = {}
 
     for request in requests:
         if not isinstance(request, CensusFileRequest):
@@ -64,20 +64,24 @@ def prepare_download_batches_with_2010_counties_first(
         )
         county_path = county_request.destination_relative_path
 
-        existing_request = selected_by_path.get(county_path, counties_by_path.get(county_path))
+        existing_request = selected_by_path.get(
+            county_path, county_requests_by_path.get(county_path)
+        )
 
         if existing_request is not None and existing_request != county_request:
             raise ValueError(f"Conflicting Census county prerequisite: {county_path}")
 
-        counties_by_path[county_path] = county_request
+        county_requests_by_path[county_path] = county_request
 
     remaining = [
-        request for request in requests if request.destination_relative_path not in counties_by_path
+        request
+        for request in requests
+        if request.destination_relative_path not in county_requests_by_path
     ]
 
     batches = []
-    if counties_by_path:
-        batches.append(list(counties_by_path.values()))
+    if county_requests_by_path:
+        batches.append(list(county_requests_by_path.values()))
     if remaining:
         batches.append(remaining)
 
@@ -195,14 +199,14 @@ def load_county_codes(county_table_path: Path, state_code: str) -> tuple[str, ..
         ValueError: The table is malformed, empty, repeats counties, or contains another state.
     """
     header, *rows = load_census_table(county_table_path)
-    state_column = header.index(CensusGeographyColumn.STATE)
-    county_column = header.index(CensusGeographyColumn.COUNTY)
+    state_column_index = header.index(CensusGeographyColumn.STATE)
+    county_column_index = header.index(CensusGeographyColumn.COUNTY)
 
     county_codes = []
     for row in rows:
-        county_code = row[county_column]
+        county_code = row[county_column_index]
 
-        if row[state_column] != state_code:
+        if row[state_column_index] != state_code:
             raise ValueError(f"County table contains a different state: {county_table_path}")
 
         if not isinstance(county_code, str) or len(county_code) != 3 or not county_code.isdecimal():

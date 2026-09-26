@@ -11,6 +11,10 @@ from capy_core.retrieve_data.raw_file_requests import (
 
 from ..state_codes import STATE_FIPS_CODES
 
+# Whole STF1B discs and supplemental PL tables used to identify empty 1990 blocks.
+STF1B_1990_ARCHIVE_FILENAMES = tuple(f"disc{disc_number}.zip" for disc_number in range(1, 11))
+PL_1990_REFERENCE_FILENAMES = {"06": "pl9417ca.dbf", "09": "pl9417ct.dbf"}
+
 METRO_MEMBERSHIP_FILENAME = "list1_march_2020.xls"
 CENSUS_RESIDENT_TOTALS_FILENAME = "census_state_population_totals_2020_release.csv"
 
@@ -97,17 +101,20 @@ def build_1990_block_reference_requests(
     directory = directories.original_1990_block_references
     requests = [
         PublicFileRequest(
-            destination_relative_path=f"{directory}/disc{disc_number}.zip",
+            destination_relative_path=f"{directory}/{filename}",
             file_format=RawFileFormat.ZIP_ARCHIVE,
-            url=f"https://www2.census.gov/census_1990/stf1b/disc{disc_number}.zip",
+            url=f"https://www2.census.gov/census_1990/stf1b/{filename}",
         )
-        for disc_number in range(1, 11)
+        for filename in STF1B_1990_ARCHIVE_FILENAMES
     ]
 
-    for source_directory, filename in (
-        ("CD7%20-%20CA%20NY", "pl9417ca.dbf"),
-        ("CD5%20-%20CT%20DC%20MD%20NC%20OH%20RI", "pl9417ct.dbf"),
-    ):
+    source_directories_by_state = {
+        "06": "CD7%20-%20CA%20NY",
+        "09": "CD5%20-%20CT%20DC%20MD%20NC%20OH%20RI",
+    }
+
+    for state_code, filename in PL_1990_REFERENCE_FILENAMES.items():
+        source_directory = source_directories_by_state[state_code]
         requests.append(
             PublicFileRequest(
                 destination_relative_path=f"{directory}/{filename}",
@@ -139,13 +146,13 @@ def build_tiger_file_requests(
         GeographyLevel.PLACE: "place",
         GeographyLevel.TRACT: "tract",
     }
-    selected_pairs = {
+    selected_years_and_levels = {
         (request.census_year, request.geography_level) for request in geography_requests
     }
 
     requests = []
 
-    for census_year, geography_level in sorted(selected_pairs):
+    for census_year, geography_level in sorted(selected_years_and_levels):
         if census_year not in (2000, 2010, 2020) or geography_level not in geo_product_codes:
             continue
 

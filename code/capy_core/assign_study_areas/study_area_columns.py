@@ -6,9 +6,10 @@ from enum import StrEnum
 class StudyAreaColumn(StrEnum):
     """Area identities and definition fields, reused wherever those areas are referenced.
 
-    COUNTY_CODE is a full five-digit county identifier, unlike the three-digit county component
-    in GeographyColumn.COUNTY_CODE. COUNTY_CODES lists counties intersecting the selected area;
-    METRO_COUNTY_CODES retains the selecting metro's full county roster.
+    COUNTY_ID is a full five-digit county identifier, unlike the three-digit county component
+    in GeographyColumn.COUNTY_CODE. COUNTY_IDS lists counties intersecting the selected area;
+    METRO_COUNTY_IDS retains the selecting metro's full county roster. Saved column labels retain
+    their existing "code" spelling, such as county_code and county_codes.
     """
 
     STUDY_AREA_ID = "study_area_id"
@@ -17,11 +18,11 @@ class StudyAreaColumn(StrEnum):
     NAME = "name"
     METRO_CODE = "metro_code"
     METRO_NAME = "metro_name"
-    COUNTY_CODE = "county_code"
-    COUNTY_CODES = "county_codes"
-    METRO_COUNTY_CODES = "metro_county_codes"
-    SELECTED_COUNTY_CODE = "selected_county_code"
-    SELECTED_PLACE_CODE = "selected_place_code"
+    COUNTY_ID = "county_code"
+    COUNTY_IDS = "county_codes"
+    METRO_COUNTY_IDS = "metro_county_codes"
+    SELECTED_COUNTY_ID = "selected_county_code"
+    SELECTED_PLACE_ID = "selected_place_code"
     DEFINITION_POPULATION = "definition_population"
 
 
@@ -31,11 +32,13 @@ class SelectionColumn(StrEnum):
     Block counts support city population estimates. POPULATION_INSIDE_METRO counts residents
     within the candidate city and selecting metro; CITY_POPULATION covers the whole city.
     Shared metro and county identifiers use StudyAreaColumn rather than being repeated here.
+    PLACE_ID and BLOCK_ID are full seven- and fifteen-digit geographic IDs, respectively;
+    their saved labels remain place_code and block_code.
     """
 
-    PLACE_CODE = "place_code"
+    PLACE_ID = "place_code"
     PLACE_NAME = "place_name"
-    BLOCK_CODE = "block_code"
+    BLOCK_ID = "block_code"
     BLOCK_POPULATION = "block_population"
     CITY_POPULATION = "city_population"
     POPULATION_INSIDE_METRO = "population_inside_metro"

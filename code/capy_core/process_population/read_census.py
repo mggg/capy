@@ -91,10 +91,14 @@ def read_census_population(population_json_path: Path, request: CensusFileReques
     population_df[counts_df.columns] = counts_df
 
     population_df[PopulationColumn.TOTAL] = population_df[population_columns.total]
-    population_df[PopulationColumn.WHITE] = population_df[population_columns.non_hispanic_white]
-    population_df[PopulationColumn.BLACK] = population_df[population_columns.non_hispanic_black]
+    population_df[PopulationColumn.NON_HISPANIC_WHITE] = population_df[
+        population_columns.non_hispanic_white
+    ]
+    population_df[PopulationColumn.NON_HISPANIC_BLACK] = population_df[
+        population_columns.non_hispanic_black
+    ]
     population_df[PopulationColumn.POC] = (
-        population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.WHITE]
+        population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.NON_HISPANIC_WHITE]
     )
 
     population_df[PopulationSourceColumn.SOURCE_FILE] = request.destination_relative_path

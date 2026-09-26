@@ -18,19 +18,23 @@ on race, connect graph components, or calculate metrics.
 
 ## Run the stage
 
-Use the same configuration for all four implemented stages:
+Run all four implemented stages with one configuration:
 
 ```bash
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
-uv run --locked python code/process_population.py --config code/configs/small_example.yaml
-uv run --locked python code/join_geographies.py --config code/configs/small_example.yaml
-uv run --locked python code/assign_study_areas.py --config code/configs/small_example.yaml
 ```
 
 The small example selects 2020 Delaware tracts and the county definitions needed to assign them.
 For national work, use `code/configs/replication.yaml` or adapt the
-[commented example](../code/configs/example.yaml). The assignment command reads existing inputs;
-`offline` and download-worker settings do not change its behavior.
+[commented example](../code/configs/example.yaml). If the preceding stages have completed, run
+assignment alone:
+
+```bash
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml assign-study-areas
+```
+
+The assignment stage reads existing inputs; `offline` and download-worker settings do not change
+its behavior.
 
 `study_area_directory` defaults to `data/processed/study_areas`. As with the other top-level paths,
 relative paths start at the repository root. Keep this folder separate from the raw, population,

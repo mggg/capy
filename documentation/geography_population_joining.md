@@ -17,18 +17,18 @@ without treating an absent population record as evidence that a polygon is empty
 
 ## Run a join
 
-From the repository root, run all three preparation commands with the same configuration:
+From the repository root, run the three preparation stages with the same configuration:
 
 ```bash
-uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
-uv run --locked python code/process_population.py --config code/configs/small_example.yaml
-uv run --locked python code/join_geographies.py --config code/configs/small_example.yaml
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml \
+    retrieve process-population join-geographies
 ```
 
 The small example joins Delaware's 2020 tracts. Use `code/configs/replication.yaml` for the
 complete selection, or edit the [commented configuration](../code/configs/example.yaml) to choose
-years and levels. The join reads existing files. Study-area assignment, graph construction, and
-metric calculation follow in later stages.
+years and levels. If the raw boundaries and processed population tables are already available,
+select only `join-geographies`. The join reads existing files. Study-area assignment, graph
+construction, and metric calculation follow in later stages.
 
 As in population processing, filename patterns narrow the run. Include both population and
 boundary requests for each selected year and level. For a statewide modern run, select that
@@ -232,7 +232,7 @@ existing derived files. Raw and processed-population inputs are never modified.
 
 ## Following the code
 
-[`code/join_geographies.py`](../code/join_geographies.py) calls `join_geography_tables()` in
+The `join-geographies` stage in [`reproduce.py`](../code/reproduce.py) calls `join_geography_tables()` in
 [`join_tables.py`](../code/capy_core/join_geographies/join_tables.py). Read that workflow first:
 select inputs, read and prepare one boundary table at a time, join and save its states, then write
 the summaries. The outer workflow checks that each selected state is processed exactly once.

@@ -369,7 +369,7 @@ value is missing, it cannot be assumed to represent zero population.
 
 ## Following the code
 
-[`reproduce.py`](../code/reproduce.py) starts retrieval by calling
+The `retrieve` stage in [`reproduce.py`](../code/reproduce.py) starts retrieval by calling
 `retrieve_raw_data(config, repository)` in
 [`retrieve_files.py`](../code/capy_core/retrieve_data/retrieve_files.py), which builds the input
 list and applies the configured filename filters. From there, `retrieve_raw_file()` handles each
@@ -501,7 +501,8 @@ data/raw/tiger/2020/tracts/tl_2020_10_tract.zip
 Use `--offline` to check that the selected inputs are available without downloading anything:
 
 ```bash
-uv run --locked python code/reproduce.py --config code/configs/small_example.yaml --offline
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml \
+    --offline retrieve
 ```
 
 Missing or invalid files are reported as failures, and existing files are never overwritten.

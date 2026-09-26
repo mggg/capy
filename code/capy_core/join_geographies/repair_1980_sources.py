@@ -6,6 +6,8 @@ TIGER record layouts and the NAD27 coordinate system are described in the 1992 d
 https://assets.nhgis.org/original-data/gis/TIGER_1992_TechDoc.pdf
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -62,7 +64,7 @@ RICHMOND_0164_SOURCE_COUNTS = {
 
 
 def correct_richmond_population_1980(
-    population_df: pd.DataFrame, selection: "GeographyJoinInputs"
+    population_df: pd.DataFrame, geography_inputs: GeographyJoinInputs
 ) -> pd.DataFrame:
     """Transfer Richmond tract 0164's population to Kings in a copy of the 1980 table.
 
@@ -77,7 +79,7 @@ def correct_richmond_population_1980(
     Args:
         population_df (pd.DataFrame): Processed records whose metadata matches the selection.
             The joining stage checks that contract before applying corrections.
-        selection (GeographyJoinInputs): Year and level of the table. Only 1980 counties and
+        geography_inputs (GeographyJoinInputs): Year and level of the table. Only 1980 counties and
             tracts containing New York records receive this correction.
 
     Returns:
@@ -89,9 +91,9 @@ def correct_richmond_population_1980(
             with the source correction, or a county subtraction would produce a negative count.
         KeyError: A required geographic or count column is missing.
     """
-    geography_level = selection.geography_level
+    geography_level = geography_inputs.geography_level
 
-    if selection.census_year != 1980 or geography_level not in (
+    if geography_inputs.census_year != 1980 or geography_level not in (
         GeographyLevel.COUNTY,
         GeographyLevel.TRACT,
     ):
@@ -129,8 +131,8 @@ def correct_richmond_population_1980(
     transfer_counts = {
         **RICHMOND_0164_SOURCE_COUNTS,
         PopulationColumn.TOTAL: 92,
-        PopulationColumn.WHITE: 88,
-        PopulationColumn.BLACK: 0,
+        PopulationColumn.NON_HISPANIC_WHITE: 88,
+        PopulationColumn.NON_HISPANIC_BLACK: 0,
         PopulationColumn.POC: 4,
     }
 
@@ -147,8 +149,8 @@ def correct_richmond_population_1980(
         corrected_population_df.loc[richmond_rows, population_column] -= transfer_count
 
     remaining_white_black_counts = (
-        corrected_population_df[PopulationColumn.WHITE]
-        + corrected_population_df[PopulationColumn.BLACK]
+        corrected_population_df[PopulationColumn.NON_HISPANIC_WHITE]
+        + corrected_population_df[PopulationColumn.NON_HISPANIC_BLACK]
     )
 
     if remaining_white_black_counts.gt(corrected_population_df[PopulationColumn.TOTAL]).any():

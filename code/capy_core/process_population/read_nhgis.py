@@ -366,11 +366,15 @@ def normalize_nhgis_population(
             raise ValueError("1990 race/origin categories do not sum to total population")
 
         population_df[PopulationColumn.TOTAL] = population_df[Nhgis1990Column.TOTAL]
-        population_df[PopulationColumn.WHITE] = population_df[Nhgis1990Column.NON_HISPANIC_WHITE]
-        population_df[PopulationColumn.BLACK] = population_df[Nhgis1990Column.NON_HISPANIC_BLACK]
+        population_df[PopulationColumn.NON_HISPANIC_WHITE] = population_df[
+            Nhgis1990Column.NON_HISPANIC_WHITE
+        ]
+        population_df[PopulationColumn.NON_HISPANIC_BLACK] = population_df[
+            Nhgis1990Column.NON_HISPANIC_BLACK
+        ]
 
     population_df[PopulationColumn.POC] = (
-        population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.WHITE]
+        population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.NON_HISPANIC_WHITE]
     )
 
     population_df[GeographyColumn.GEOGRAPHIC_ID] = population_df[NhgisGeographyColumn.GEOGRAPHIC_ID]
@@ -429,10 +433,10 @@ def derive_1980_population_counts(population_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(
         {
             PopulationColumn.TOTAL: population_df[Nhgis1980Column.TOTAL],
-            PopulationColumn.WHITE: (
+            PopulationColumn.NON_HISPANIC_WHITE: (
                 population_df[Nhgis1980Column.WHITE] - population_df[Nhgis1980Column.HISPANIC_WHITE]
             ),
-            PopulationColumn.BLACK: (
+            PopulationColumn.NON_HISPANIC_BLACK: (
                 population_df[Nhgis1980Column.BLACK] - population_df[Nhgis1980Column.HISPANIC_BLACK]
             ),
         },

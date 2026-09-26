@@ -1,5 +1,5 @@
 # Modern population processing, all supported levels and states, including 2020 places.
-# First retrieve inputs with code/reproduce.py, then run code/process_population.py.
+# Append retrieve process-population to the code/reproduce.py command to run only those stages.
 census_geography_levels: [counties, tracts, block_groups, blocks]
 census_geography_years: [2000, 2010, 2020]
 study_area_type: max_city

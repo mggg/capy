@@ -8,6 +8,8 @@ from zipfile import BadZipFile
 import pandas as pd
 from tqdm import tqdm
 
+from capy_core.data_directories import resolve_separate_output_directory
+from capy_core.derived_file_paths import build_population_output_path
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
 from capy_core.population_table_columns import GeographyColumn
@@ -39,7 +41,6 @@ from .read_nhgis import (
 from .save_tables import (
     PopulationComparison,
     PopulationTableSummary,
-    build_population_output_path,
     build_population_output_paths,
     save_population_parquet,
     save_population_summary,
@@ -75,29 +76,34 @@ def process_population_tables(
     census_requests, nhgis_requests = select_population_requests(
         selected_requests, config.raw_data_subdirectories
     )
-    raw_directory = (repository_root / config.raw_data_directory).resolve()
-    output_directory = (repository_root / config.processed_population_directory).resolve()
+    raw_data_directory = (repository_root / config.raw_data_directory).resolve()
+    population_table_directory = resolve_separate_output_directory(
+        repository_root, config.processed_population_directory, (raw_data_directory,)
+    )
 
-    if output_directory.is_relative_to(raw_directory) or raw_directory.is_relative_to(
-        output_directory
-    ):
-        raise ValueError("Raw and processed population folders must be separate, without nesting")
+    remove_selected_population_outputs(census_requests, nhgis_requests, population_table_directory)
 
-    remove_selected_population_outputs(census_requests, nhgis_requests, output_directory)
-
-    reference_directory = raw_directory / config.raw_data_subdirectories.population_reference_tables
+    population_reference_directory = (
+        raw_data_directory / config.raw_data_subdirectories.population_reference_tables
+    )
 
     summaries = process_census_population_tables(
-        census_requests, raw_directory, output_directory, reference_directory
+        census_requests,
+        raw_data_directory,
+        population_table_directory,
+        population_reference_directory,
     )
 
     summaries.extend(
         process_historical_population_tables(
-            nhgis_requests, raw_directory, output_directory, reference_directory
+            nhgis_requests,
+            raw_data_directory,
+            population_table_directory,
+            population_reference_directory,
         )
     )
 
-    save_population_summary(summaries, output_directory / "processing_summary.csv")
+    save_population_summary(summaries, population_table_directory / "processing_summary.csv")
 
     return summaries
 
@@ -105,7 +111,7 @@ def process_population_tables(
 def remove_selected_population_outputs(
     census_requests: list[CensusFileRequest],
     nhgis_requests: list[NhgisTableFileRequest],
-    output_directory: Path,
+    population_table_directory: Path,
 ) -> None:
     """Remove selected derived tables and the summary so stale results cannot survive a rerun.
 
@@ -115,22 +121,25 @@ def remove_selected_population_outputs(
     Args:
         census_requests (list[CensusFileRequest]): Selected modern inputs and state references.
         nhgis_requests (list[NhgisTableFileRequest]): Selected historical population archives.
-        output_directory (Path): Resolved root for processed files, separate from raw inputs.
+        population_table_directory (Path): Resolved root for processed files, separate from
+            raw inputs.
 
     Raises:
         ValueError: An output resolves outside the configured folder.
         OSError: A selected file cannot be removed.
     """
-    summary_path = output_directory / "processing_summary.csv"
-    population_paths_by_selection = build_population_output_paths(census_requests, nhgis_requests)
+    summary_path = population_table_directory / "processing_summary.csv"
+    population_paths_by_year_and_level = build_population_output_paths(
+        census_requests, nhgis_requests
+    )
     output_paths = [
-        output_directory / relative_path
-        for state_paths in population_paths_by_selection.values()
+        population_table_directory / relative_path
+        for state_paths in population_paths_by_year_and_level.values()
         for relative_path in state_paths.values()
     ]
 
     for output_path in [summary_path, *output_paths]:
-        if not output_path.resolve().is_relative_to(output_directory):
+        if not output_path.resolve().is_relative_to(population_table_directory):
             raise ValueError(
                 f"Processed output resolves outside its configured folder: {output_path}"
             )
@@ -141,17 +150,18 @@ def remove_selected_population_outputs(
 
 def process_census_population_tables(
     census_requests: list[CensusFileRequest],
-    raw_directory: Path,
-    output_directory: Path,
-    reference_directory: Path,
+    raw_data_directory: Path,
+    population_table_directory: Path,
+    population_reference_directory: Path,
 ) -> list[PopulationTableSummary]:
     """Check modern state references, then process each selected Census PL/SF1 table.
 
     Args:
         census_requests (list[CensusFileRequest]): Selected population inputs and state references.
-        raw_directory (Path): Configured raw-data root.
-        output_directory (Path): Separate derived-population root.
-        reference_directory (Path): Folder containing the published resident-population CSV.
+        raw_data_directory (Path): Configured raw-data root.
+        population_table_directory (Path): Separate derived-population root.
+        population_reference_directory (Path): Folder containing the published
+            resident-population CSV.
 
     Returns:
         list[PopulationTableSummary]: Accounting for each saved national/state Parquet table.
@@ -163,9 +173,9 @@ def process_census_population_tables(
     state_requests = [
         request for request in census_requests if request.geography_level == GeographyLevel.STATE
     ]
-    published_totals_csv_path = reference_directory / CENSUS_RESIDENT_TOTALS_FILENAME
-    state_tables_by_year = load_checked_state_references(
-        raw_directory, published_totals_csv_path, state_requests
+    published_totals_csv_path = population_reference_directory / CENSUS_RESIDENT_TOTALS_FILENAME
+    state_tables_by_year = load_census_state_references(
+        raw_data_directory, published_totals_csv_path, state_requests
     )
 
     summaries = []
@@ -177,7 +187,7 @@ def process_census_population_tables(
                 comparison = PopulationComparison.RESIDENT_TOTALS_MATCH_PUBLISHED
             else:
                 population_df = read_census_population(
-                    raw_directory / request.destination_relative_path, request
+                    raw_data_directory / request.destination_relative_path, request
                 )
 
                 comparison = check_population_state_sum(
@@ -187,7 +197,7 @@ def process_census_population_tables(
             output_path = build_population_output_path(
                 request.census_year, request.geography_level, request.state_code
             )
-            save_population_parquet(population_df, output_directory / output_path)
+            save_population_parquet(population_df, population_table_directory / output_path)
 
         except (OSError, ValueError, OverflowError, BadZipFile) as error:
             raise ValueError(f"{request.destination_relative_path}: {error}") from error
@@ -267,13 +277,15 @@ def select_population_requests(
     return census_requests, nhgis_requests
 
 
-def load_checked_state_references(
-    raw_directory: Path, published_totals_csv_path: Path, state_requests: list[CensusFileRequest]
+def load_census_state_references(
+    raw_data_directory: Path,
+    published_totals_csv_path: Path,
+    state_requests: list[CensusFileRequest],
 ) -> dict[int, pd.DataFrame]:
     """Read the small state tables and compare them with published resident population totals.
 
     Args:
-        raw_directory (Path): Resolved raw-data root.
+        raw_data_directory (Path): Resolved raw-data root.
         published_totals_csv_path (Path): Published resident totals used to check every state.
         state_requests (list[CensusFileRequest]): One national state table per needed Census year.
 
@@ -288,7 +300,7 @@ def load_checked_state_references(
 
     for request in state_requests:
         states_df = read_census_population(
-            raw_directory / request.destination_relative_path, request
+            raw_data_directory / request.destination_relative_path, request
         )
 
         check_published_state_totals(states_df, published_totals_csv_path, request.census_year)
@@ -300,9 +312,9 @@ def load_checked_state_references(
 
 def process_historical_population_tables(
     nhgis_requests: list[NhgisTableFileRequest],
-    raw_directory: Path,
-    output_directory: Path,
-    reference_directory: Path,
+    raw_data_directory: Path,
+    population_table_directory: Path,
+    population_reference_directory: Path,
 ) -> list[PopulationTableSummary]:
     """Load and check NHGIS state references, then process each selected historical level.
 
@@ -311,9 +323,10 @@ def process_historical_population_tables(
 
     Args:
         nhgis_requests (list[NhgisTableFileRequest]): Population extracts and their state references.
-        raw_directory (Path): Configured raw-data root.
-        output_directory (Path): Separate derived-population root.
-        reference_directory (Path): Configured folder for Census Working Paper 56 workbooks.
+        raw_data_directory (Path): Configured raw-data root.
+        population_table_directory (Path): Separate derived-population root.
+        population_reference_directory (Path): Configured folder for Census Working Paper 56
+            workbooks.
 
     Returns:
         list[PopulationTableSummary]: Accounting for each saved national/state Parquet table.
@@ -327,8 +340,8 @@ def process_historical_population_tables(
         for request in nhgis_requests
         if request.geographic_levels == (NhgisGeographyLevel.STATE,)
     ]
-    state_tables_by_year = load_historical_state_references(
-        state_requests, raw_directory, reference_directory
+    state_tables_by_year = load_nhgis_state_references(
+        state_requests, raw_data_directory, population_reference_directory
     )
 
     summaries = []
@@ -346,7 +359,7 @@ def process_historical_population_tables(
 
             if geography_level == GeographyLevel.STATE:
                 output_path = build_population_output_path(census_year, geography_level)
-                save_population_parquet(states_df, output_directory / output_path)
+                save_population_parquet(states_df, population_table_directory / output_path)
 
                 summaries.append(
                     summarize_population_table(
@@ -360,7 +373,7 @@ def process_historical_population_tables(
             else:
                 summaries.extend(
                     process_historical_substate_archive(
-                        request, raw_directory, output_directory, states_df
+                        request, raw_data_directory, population_table_directory, states_df
                     )
                 )
 
@@ -370,17 +383,17 @@ def process_historical_population_tables(
     return summaries
 
 
-def load_historical_state_references(
+def load_nhgis_state_references(
     state_requests: list[NhgisTableFileRequest],
-    raw_directory: Path,
-    reference_directory: Path,
+    raw_data_directory: Path,
+    population_reference_directory: Path,
 ) -> dict[int, pd.DataFrame]:
     """Read NHGIS state tables and compare study and source counts with published workbooks.
 
     Args:
         state_requests (list[NhgisTableFileRequest]): One national state extract per required year.
-        raw_directory (Path): Configured raw-data root containing the archives.
-        reference_directory (Path): Folder containing Census Working Paper 56 workbooks.
+        raw_data_directory (Path): Configured raw-data root containing the archives.
+        population_reference_directory (Path): Folder containing Census Working Paper 56 workbooks.
 
     Returns:
         dict[int, pd.DataFrame]: State tables by Census year, after population and coverage checks.
@@ -397,12 +410,14 @@ def load_historical_state_references(
 
             with closing(
                 read_nhgis_population_by_state(
-                    raw_directory / request.destination_relative_path, request
+                    raw_data_directory / request.destination_relative_path, request
                 )
             ) as population_tables:
                 (states_df,) = population_tables
 
-            check_historical_published_totals(states_df, reference_directory, census_year)
+            check_historical_published_totals(
+                states_df, population_reference_directory, census_year
+            )
 
             state_tables_by_year[census_year] = states_df
 
@@ -414,8 +429,8 @@ def load_historical_state_references(
 
 def process_historical_substate_archive(
     request: NhgisTableFileRequest,
-    raw_directory: Path,
-    output_directory: Path,
+    raw_data_directory: Path,
+    population_table_directory: Path,
     states_df: pd.DataFrame,
 ) -> list[PopulationTableSummary]:
     """Compare one substate NHGIS archive with its state reference and save each state's units.
@@ -425,8 +440,8 @@ def process_historical_substate_archive(
 
     Args:
         request (NhgisTableFileRequest): One national population archive below state level.
-        raw_directory (Path): Folder containing the downloaded archive.
-        output_directory (Path): Separate folder for processed population tables.
+        raw_data_directory (Path): Folder containing the downloaded archive.
+        population_table_directory (Path): Separate folder for processed population tables.
         states_df (pd.DataFrame): National state table for the same Census year, already compared
             with published totals. This function does not change it.
 
@@ -444,7 +459,9 @@ def process_historical_substate_archive(
     summaries = []
 
     with closing(
-        read_nhgis_population_by_state(raw_directory / request.destination_relative_path, request)
+        read_nhgis_population_by_state(
+            raw_data_directory / request.destination_relative_path, request
+        )
     ) as population_tables:
         for population_df in population_tables:
             seen_state_codes.update(population_df[GeographyColumn.STATE_CODE])
@@ -456,7 +473,7 @@ def process_historical_substate_archive(
             )
 
             output_path = build_population_output_path(census_year, geography_level, state_code)
-            save_population_parquet(population_df, output_directory / output_path)
+            save_population_parquet(population_df, population_table_directory / output_path)
 
             summaries.append(
                 summarize_population_table(

@@ -13,6 +13,10 @@ import geopandas as gpd
 import pandas as pd
 import us
 
+from capy_core.retrieve_data.census.build_published_file_requests import (
+    PL_1990_REFERENCE_FILENAMES,
+    STF1B_1990_ARCHIVE_FILENAMES,
+)
 from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
 
 BLOCK_REFERENCE_COLUMNS = (
@@ -25,7 +29,6 @@ BLOCK_REFERENCE_COLUMNS = (
     "POP100",
     "HU100",
 )
-PL_REFERENCE_FILENAMES = {"06": "pl9417ca.dbf", "09": "pl9417ct.dbf"}
 
 # This block is in Queens, NY.
 # STF1BXNY LOGRECNU 161405 reports 106 people and 52 housing units, agreeing with NHGIS.
@@ -72,8 +75,8 @@ def read_1990_zero_population_block_ids(
     zero_table_member_name = f"STF1BZ{state_abbreviation}.DBF"
     matching_archive_paths = []
 
-    for disc_number in range(1, 11):
-        disc_archive_path = block_reference_directory / f"disc{disc_number}.zip"
+    for archive_filename in STF1B_1990_ARCHIVE_FILENAMES:
+        disc_archive_path = block_reference_directory / archive_filename
 
         with ZipFile(disc_archive_path) as archive:
             matching_archive_paths.extend(
@@ -102,10 +105,10 @@ def read_1990_zero_population_block_ids(
     zero_block_ids = set(zero_reference_block_ids)
     zero_block_ids.discard(CONFLICTING_1990_ZERO_BLOCK_ID)
 
-    if state_code in PL_REFERENCE_FILENAMES:
+    if state_code in PL_1990_REFERENCE_FILENAMES:
         zero_block_ids.update(
             read_1990_pl_zero_block_ids(
-                block_reference_directory / PL_REFERENCE_FILENAMES[state_code], state_code
+                block_reference_directory / PL_1990_REFERENCE_FILENAMES[state_code], state_code
             )
         )
 

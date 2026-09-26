@@ -11,17 +11,16 @@ from capy_core.assign_study_areas.build_definitions import (
     build_city_candidates,
     build_metro_boundaries,
     build_study_area_definitions,
-    rank_city_candidates,
+    rank_and_select_city_candidates,
 )
 from capy_core.assign_study_areas.count_city_populations import (
     assign_block_populations_to_places,
     read_2020_block_internal_points,
 )
 from capy_core.assign_study_areas.run_assignment import assign_study_areas
+from capy_core.derived_file_paths import build_join_output_paths, build_population_output_path
 from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.join_geographies.join_tables import build_join_output_paths
 from capy_core.pipeline_config import PipelineConfig
-from capy_core.process_population.save_tables import build_population_output_path
 from shapely.geometry import Point, box
 
 
@@ -71,7 +70,7 @@ def test_city_ranking_counts_people_inside_metro_and_preserves_full_city(countie
     before_df = places_df.copy()
     candidates_df = build_city_candidates(places_df, metros_df)
     city_counties_df = assign_block_populations_to_places(points_df, places_df)
-    scores_df = rank_city_candidates(candidates_df, city_counties_df, roster_df)
+    scores_df = rank_and_select_city_candidates(candidates_df, city_counties_df, roster_df)
     definitions_df, _ = build_study_area_definitions(
         counties_df, StudyAreaType.MAX_CITY, 2020, metros_df, places_df, scores_df
     )
@@ -95,7 +94,7 @@ def test_city_ranking_counts_people_inside_metro_and_preserves_full_city(countie
         city_counties_df.place_code.eq("1000001") & city_counties_df.county_code.eq("10003"),
         "block_population",
     ] = 500
-    scores_df = rank_city_candidates(candidates_df, city_counties_df, roster_df)
+    scores_df = rank_and_select_city_candidates(candidates_df, city_counties_df, roster_df)
     definitions_df, _ = build_study_area_definitions(
         counties_df, StudyAreaType.MAX_CITY, 2020, metros_df, places_df, scores_df
     )
@@ -248,8 +247,10 @@ def test_tied_city_scores_are_stable_under_input_order():
         }
     )
     roster_df = pd.DataFrame({"county_code": ["10001"], "metro_code": ["12345"]})
-    scores_df = rank_city_candidates(candidates_df, counts_df, roster_df)
-    reversed_df = rank_city_candidates(candidates_df.iloc[::-1], counts_df.iloc[::-1], roster_df)
+    scores_df = rank_and_select_city_candidates(candidates_df, counts_df, roster_df)
+    reversed_df = rank_and_select_city_candidates(
+        candidates_df.iloc[::-1], counts_df.iloc[::-1], roster_df
+    )
 
     pd.testing.assert_frame_equal(scores_df, reversed_df)
     assert scores_df.loc[scores_df.selected, "place_code"].tolist() == ["1000001"]

@@ -1,12 +1,12 @@
-"""Name and save processed population tables and their row/population accounting."""
+"""Plan and save processed population tables and their row/population accounting."""
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 
 import pandas as pd
-import us
 
+from capy_core.derived_file_paths import build_population_output_path
 from capy_core.geography_types import GeographyLevel
 from capy_core.population_table_columns import PopulationColumn
 from capy_core.retrieve_data.raw_file_requests import CensusFileRequest, NhgisTableFileRequest
@@ -46,42 +46,6 @@ class PopulationTableSummary:
     comparison: PopulationComparison
 
 
-def build_population_output_path(
-    census_year: int, geography_level: GeographyLevel, state_code: str | None = None
-) -> Path:
-    """Build a relative Parquet path using the Census year, geography level, and state.
-
-    For example, 1990 tracts with state code "10" produce
-    ``1990/tracts/DE_1990_populations.parquet``. This only constructs the path; it does not create
-    folders or write a table.
-
-    Args:
-        census_year (int): Census year used in the folder and filename.
-        geography_level (GeographyLevel): Geographic units represented by the table.
-        state_code (str | None): Two-digit state FIPS code, including its leading zero. Defaults
-            to None for a national table, whose filename starts with "national".
-
-    Returns:
-        Path: Table path relative to the configured processed-population directory.
-
-    Raises:
-        ValueError: The supplied state code has no known postal abbreviation.
-    """
-    area_name = "national"
-
-    if state_code is not None:
-        state_abbreviations_by_fips = us.states.mapping("fips", "abbr")
-
-        if state_code not in state_abbreviations_by_fips:
-            raise ValueError(f"Unknown state FIPS code: {state_code}")
-
-        area_name = state_abbreviations_by_fips[state_code]
-
-    filename = f"{area_name}_{census_year}_populations.parquet"
-
-    return Path(str(census_year)) / geography_level.value / filename
-
-
 def build_population_output_paths(
     census_requests: list[CensusFileRequest], nhgis_requests: list[NhgisTableFileRequest]
 ) -> dict[tuple[int, GeographyLevel], dict[str | None, Path]]:
@@ -102,11 +66,11 @@ def build_population_output_paths(
     Raises:
         ValueError: An NHGIS request is unsupported or a state has no postal abbreviation.
     """
-    output_paths_by_selection: dict[tuple[int, GeographyLevel], dict[str | None, Path]] = {}
+    output_paths_by_year_and_level: dict[tuple[int, GeographyLevel], dict[str | None, Path]] = {}
 
     for request in census_requests:
         year_and_level = (request.census_year, request.geography_level)
-        state_paths = output_paths_by_selection.setdefault(year_and_level, {})
+        state_paths = output_paths_by_year_and_level.setdefault(year_and_level, {})
         output_path = build_population_output_path(
             request.census_year, request.geography_level, request.state_code
         )
@@ -119,12 +83,12 @@ def build_population_output_paths(
             if geography_level == GeographyLevel.STATE
             else tuple(state_code for state_code in STATE_FIPS_CODES if state_code != "72")
         )
-        output_paths_by_selection[census_year, geography_level] = {
+        output_paths_by_year_and_level[census_year, geography_level] = {
             state_code: build_population_output_path(census_year, geography_level, state_code)
             for state_code in state_codes
         }
 
-    return output_paths_by_selection
+    return output_paths_by_year_and_level
 
 
 def save_population_parquet(population_df: pd.DataFrame, population_output_path: Path) -> None:
@@ -199,8 +163,8 @@ def summarize_population_table(
         input_rows=len(population_df),
         output_rows=len(population_df),
         total_population=int(population_df[PopulationColumn.TOTAL].sum()),
-        white_population=int(population_df[PopulationColumn.WHITE].sum()),
-        black_population=int(population_df[PopulationColumn.BLACK].sum()),
+        white_population=int(population_df[PopulationColumn.NON_HISPANIC_WHITE].sum()),
+        black_population=int(population_df[PopulationColumn.NON_HISPANIC_BLACK].sum()),
         poc_population=int(population_df[PopulationColumn.POC].sum()),
         comparison=comparison,
     )

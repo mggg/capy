@@ -6,13 +6,17 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from capy_core.derived_file_paths import (
+    build_join_output_paths,
+    build_membership_output_path,
+    build_population_output_path,
+)
 from capy_core.geography_types import GeographyLevel, StudyAreaType
 from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
 from capy_core.process_population.process_tables import process_population_tables
 from capy_core.process_population.read_census import read_census_population
 from capy_core.process_population.save_tables import (
     PopulationComparison,
-    build_population_output_path,
     save_population_parquet,
 )
 from capy_core.retrieve_data.census.build_requests import (
@@ -71,7 +75,7 @@ def test_source_definitions_preserve_ids_and_derive_non_hispanic_counts(tmp_path
 @pytest.mark.parametrize(
     "state_code,area_name", [("01", "AL"), ("11", "DC"), ("72", "PR"), (None, "national")]
 )
-def test_population_filenames_identify_state_and_year(state_code, area_name):
+def test_derived_filenames_preserve_shared_state_year_and_level(state_code, area_name):
     request = CensusFileRequest(
         destination_relative_path="table.json",
         census_year=2020,
@@ -81,9 +85,20 @@ def test_population_filenames_identify_state_and_year(state_code, area_name):
         state_code=state_code,
     )
 
-    assert build_population_output_path(
+    population_path = build_population_output_path(
         request.census_year, request.geography_level, request.state_code
-    ) == (Path("2020") / request.geography_level.value / f"{area_name}_2020_populations.parquet")
+    )
+    relative_directory = Path("2020") / request.geography_level.value
+
+    assert population_path == relative_directory / f"{area_name}_2020_populations.parquet"
+    assert build_join_output_paths(population_path) == (
+        relative_directory / f"{area_name}_2020_geography.parquet",
+        relative_directory / f"{area_name}_2020_unmatched_population.parquet",
+        relative_directory / f"{area_name}_2020_unmatched_boundaries.parquet",
+    )
+    assert build_membership_output_path(population_path) == (
+        relative_directory / f"{area_name}_2020_memberships.parquet"
+    )
 
 
 def test_unrepresentable_parquet_count_does_not_replace_existing_file(tmp_path):

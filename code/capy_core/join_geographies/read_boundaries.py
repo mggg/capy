@@ -370,7 +370,7 @@ def normalize_nhgis_boundaries(
     boundaries_df[BoundaryColumn.WATER_BLOCK] = False
 
     if geography_level in (GeographyLevel.BLOCK, GeographyLevel.BLOCK_GROUP):
-        prepare_1990_block_fields_in_place(boundaries_df, geography_level)
+        prepare_1990_block_and_block_group_fields_in_place(boundaries_df, geography_level)
 
     elif "BNA80" in boundaries_df:
         if census_year != 1980 or geography_level != GeographyLevel.TRACT:
@@ -488,13 +488,14 @@ def correct_kalawao_county_attribute_in_place(boundaries_df: gpd.GeoDataFrame) -
     boundaries_df.loc[kalawao_rows, BoundaryColumn.CORRECTION] = "kalawao_county_from_gisjoin"
 
 
-def prepare_1990_block_fields_in_place(
+def prepare_1990_block_and_block_group_fields_in_place(
     boundaries_df: gpd.GeoDataFrame, geography_level: GeographyLevel
 ) -> None:
-    """Correct and check 1990 block identifiers, then set Census IDs and water flags in place.
+    """Check 1990 block and block-group identifiers, correcting known block errors in place.
 
-    Block groups undergo the same component checks but receive no block-specific corrections,
-    Census-ID column, or water classification. The working table's GISJOIN column stays unchanged.
+    Blocks also receive Census IDs and water flags. Block groups undergo the same component
+    checks but receive no block-specific corrections, Census-ID column, or water classification.
+    The working table's GISJOIN column stays unchanged.
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Working copy with GEOID initialized from GISJOIN and

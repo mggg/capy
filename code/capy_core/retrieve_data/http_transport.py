@@ -157,12 +157,12 @@ def download_file(
         OSError: Writing or inspecting the temporary file fails.
     """
     with open_http_response(url, parameters=parameters, authorization=authorization) as response:
-        expected_bytes = response.headers.get("Content-Length")
+        content_length_header = response.headers.get("Content-Length")
         content_encoding = response.headers.get("Content-Encoding", "identity")
         expected_byte_count = None
-        if expected_bytes is not None and content_encoding == "identity":
+        if content_length_header is not None and content_encoding == "identity":
             try:
-                expected_byte_count = int(expected_bytes)
+                expected_byte_count = int(content_length_header)
             except ValueError:
                 raise DataProviderError(
                     "Provider returned an invalid Content-Length header"

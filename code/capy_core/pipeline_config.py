@@ -152,7 +152,7 @@ class PipelineConfig(BaseModel):
         return levels
 
 
-def load_configuration(path: Path) -> PipelineConfig:
+def load_configuration(configuration_path: Path) -> PipelineConfig:
     """Read a YAML configuration, check individual settings, and fill in omitted defaults.
 
     This opens only the YAML file, not any of the requested data files. Paths in the settings are
@@ -162,7 +162,8 @@ def load_configuration(path: Path) -> PipelineConfig:
     directory.
 
     Args:
-        path (Path): YAML filename. Relative filenames start at the shell's current directory.
+        configuration_path (Path): YAML filename. Relative filenames start at the shell's
+            current directory.
 
     Returns:
         PipelineConfig: Settings with defaults for omitted optional fields.
@@ -172,14 +173,16 @@ def load_configuration(path: Path) -> PipelineConfig:
         ValueError: YAML syntax or configuration fields are invalid. The message identifies the
             file and the affected setting or YAML line.
     """
-    content = path.read_text()
+    content = configuration_path.read_text()
     try:
         settings = yaml.safe_load(content)
     except yaml.MarkedYAMLError as error:
         line = error.problem_mark.line + 1 if error.problem_mark is not None else "unknown"
-        raise ValueError(f"Invalid YAML in {path}, line {line}: {error.problem}") from None
+        raise ValueError(
+            f"Invalid YAML in {configuration_path}, line {line}: {error.problem}"
+        ) from None
     except yaml.YAMLError:
-        raise ValueError(f"Invalid YAML in {path}") from None
+        raise ValueError(f"Invalid YAML in {configuration_path}") from None
 
     try:
         return PipelineConfig.model_validate(settings)
@@ -189,4 +192,6 @@ def load_configuration(path: Path) -> PipelineConfig:
             setting = ".".join(str(part) for part in issue["loc"]) or "document"
             problems.append(f"{setting}: {issue['msg']}")
 
-        raise ValueError(f"Invalid configuration {path}: {'; '.join(problems)}") from None
+        raise ValueError(
+            f"Invalid configuration {configuration_path}: {'; '.join(problems)}"
+        ) from None

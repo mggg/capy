@@ -45,7 +45,7 @@ def test_env_file_reaches_workers_without_replacing_shell_variables(
 
     monkeypatch.setattr("capy_core.retrieve_data.retrieve_files.retrieve_raw_file", retrieve_file)
     monkeypatch.setattr(reproduce, "__file__", str(tmp_path / "code/reproduce.py"))
-    monkeypatch.setattr("sys.argv", ["reproduce.py", "--config", str(config_path)])
+    monkeypatch.setattr("sys.argv", ["reproduce.py", "--config", str(config_path), "retrieve"])
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     monkeypatch.chdir(elsewhere)
@@ -190,7 +190,7 @@ raw_checksums_file: {configured_checksums}
         record_raw_checksums, "__file__", str(tmp_path / "code/record_raw_checksums.py")
     )
     monkeypatch.chdir(elsewhere)
-    retrieval_args = ["reproduce.py", "--config", str(config)]
+    retrieval_args = ["reproduce.py", "--config", str(config), "retrieve"]
     if use_cli_overrides:
         retrieval_args += ["--offline"]
     monkeypatch.setattr("sys.argv", retrieval_args)

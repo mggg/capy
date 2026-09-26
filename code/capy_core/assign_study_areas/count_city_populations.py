@@ -15,7 +15,7 @@ from capy_core.population_table_columns import GeographyColumn, PopulationColumn
 from .study_area_columns import SelectionColumn, StudyAreaColumn
 
 
-def count_city_county_populations(
+def count_2020_city_populations_by_county(
     places_df: gpd.GeoDataFrame,
     block_geography_inputs: GeographyJoinInputs,
     raw_data_directory: Path,
@@ -86,24 +86,24 @@ def count_city_county_populations(
 
     city_county_populations_df = pd.concat(state_city_county_population_tables, ignore_index=True)
     block_population_by_place = pd.Series(
-        city_county_populations_df.groupby(SelectionColumn.PLACE_CODE)[
+        city_county_populations_df.groupby(SelectionColumn.PLACE_ID)[
             SelectionColumn.BLOCK_POPULATION
         ].sum()
     )
-    place_codes = pd.Series(places_df[GeographyColumn.GEOGRAPHIC_ID])
-    city_populations_from_blocks = place_codes.map(block_population_by_place).fillna(0)
-    mismatched_place_codes = places_df.loc[
+    place_ids = pd.Series(places_df[GeographyColumn.GEOGRAPHIC_ID])
+    city_populations_from_blocks = place_ids.map(block_population_by_place).fillna(0)
+    mismatched_place_ids = places_df.loc[
         city_populations_from_blocks.ne(places_df[PopulationColumn.TOTAL]),
         GeographyColumn.GEOGRAPHIC_ID,
     ]
 
-    if not mismatched_place_codes.empty:
+    if not mismatched_place_ids.empty:
         raise ValueError(
-            f"Block populations disagree with whole-city totals: {mismatched_place_codes.tolist()}"
+            f"Block populations disagree with whole-city totals: {mismatched_place_ids.tolist()}"
         )
 
     return city_county_populations_df.sort_values(
-        [SelectionColumn.PLACE_CODE, StudyAreaColumn.COUNTY_CODE]
+        [SelectionColumn.PLACE_ID, StudyAreaColumn.COUNTY_ID]
     ).reset_index(drop=True)
 
 
@@ -164,8 +164,8 @@ def read_2020_block_internal_points(
 
     return gpd.GeoDataFrame(
         {
-            SelectionColumn.BLOCK_CODE: blocks_df.GEOID20,
-            StudyAreaColumn.COUNTY_CODE: blocks_df.GEOID20.str[:5],
+            SelectionColumn.BLOCK_ID: blocks_df.GEOID20,
+            StudyAreaColumn.COUNTY_ID: blocks_df.GEOID20.str[:5],
             SelectionColumn.BLOCK_POPULATION: blocks_df.POP20,
         },
         geometry=gpd.points_from_xy(longitudes, latitudes),
@@ -194,20 +194,20 @@ def assign_block_populations_to_places(
         raise ValueError("Block internal points need a coordinate reference system")
 
     place_boundaries_df = places_df.rename(
-        columns={GeographyColumn.GEOGRAPHIC_ID: SelectionColumn.PLACE_CODE}
+        columns={GeographyColumn.GEOGRAPHIC_ID: SelectionColumn.PLACE_ID}
     )
     place_boundaries_df = gpd.GeoDataFrame(
-        place_boundaries_df[[SelectionColumn.PLACE_CODE, "geometry"]], crs=places_df.crs
+        place_boundaries_df[[SelectionColumn.PLACE_ID, "geometry"]], crs=places_df.crs
     ).to_crs(block_internal_points_df.crs)
     assigned_blocks_df = gpd.sjoin(
         block_internal_points_df, place_boundaries_df, how="inner", predicate="within"
     )
 
-    if assigned_blocks_df[SelectionColumn.BLOCK_CODE].duplicated().any():
+    if assigned_blocks_df[SelectionColumn.BLOCK_ID].duplicated().any():
         raise ValueError("A Census block internal point lies in more than one candidate place")
 
     return pd.DataFrame(
         assigned_blocks_df.groupby(
-            [SelectionColumn.PLACE_CODE, StudyAreaColumn.COUNTY_CODE], as_index=False
+            [SelectionColumn.PLACE_ID, StudyAreaColumn.COUNTY_ID], as_index=False
         )[[SelectionColumn.BLOCK_POPULATION]].sum()
     )

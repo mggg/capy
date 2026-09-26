@@ -1,13 +1,11 @@
 # Copy this file and edit it for your run. Run it from the repository root with:
 #   uv run --locked python code/reproduce.py --config code/configs/example.yaml
 #
-# This example retrieves the data for tracts from 1990 through 2020, with cities
-# selected inside metropolitan areas using 2020 county and place data. The
-# retrieval command downloads inputs. A separate process_population.py command
-# processes Census and NHGIS population tables into Parquet files.
-# Run join_geographies.py afterward to attach populations to boundaries and save
-# unmatched records. Run assign_study_areas.py next to select whole units inside
-# the study areas. Graphs and metrics are later stages.
+# This example runs all four implemented stages for tracts from 1990 through 2020,
+# with cities selected inside metropolitan areas using 2020 county and place data.
+# To run a subset, append positional stage names: retrieve, process-population,
+# join-geographies, or assign-study-areas. Selected stages run in pipeline order;
+# unselected prerequisites must already exist. Graphs and metrics are later stages.
 #
 # Run settings belong here. Source URLs, Census population column names, and NHGIS
 # table names live in the Python request definitions under code/capy_core/retrieve_data/.

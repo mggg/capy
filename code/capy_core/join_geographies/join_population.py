@@ -1,5 +1,7 @@
 """Repair polygon geometry, attach population counts, and retain both sides of an unmatched join."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -271,10 +273,11 @@ def check_population_join_input(
             raise ValueError(f"{column} must contain nonnegative integer counts")
 
     expected_poc_counts = (
-        population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.WHITE]
+        population_df[PopulationColumn.TOTAL] - population_df[PopulationColumn.NON_HISPANIC_WHITE]
     )
     white_black_counts = (
-        population_df[PopulationColumn.WHITE] + population_df[PopulationColumn.BLACK]
+        population_df[PopulationColumn.NON_HISPANIC_WHITE]
+        + population_df[PopulationColumn.NON_HISPANIC_BLACK]
     )
 
     if not bool(population_df[PopulationColumn.POC].eq(expected_poc_counts).all()) or bool(
@@ -381,8 +384,8 @@ def join_population_to_boundaries(
 
 
 def add_exclusion_reasons_in_place(
-    population_df: pd.DataFrame,
-    boundaries_df: gpd.GeoDataFrame,
+    unmatched_population_df: pd.DataFrame,
+    unmatched_boundaries_df: gpd.GeoDataFrame,
     census_year: int,
     geography_level: GeographyLevel,
 ) -> None:
@@ -394,57 +397,57 @@ def add_exclusion_reasons_in_place(
     boundaries retain unknown population, including the unassigned Denver placeholder.
 
     Args:
-        population_df (pd.DataFrame): Population records without a matching polygon.
-        boundaries_df (gpd.GeoDataFrame): Polygons without a matching population record.
+        unmatched_population_df (pd.DataFrame): Population records without a matching polygon.
+        unmatched_boundaries_df (gpd.GeoDataFrame): Polygons without a matching population record.
         census_year (int): Year of both tables.
         geography_level (GeographyLevel): Resolution of both tables.
     """
-    population_df[JoinColumn.EXCLUSION_REASON] = ExclusionReason.UNRESOLVED.value
-    population_df.loc[population_df[PopulationColumn.TOTAL].eq(0), JoinColumn.EXCLUSION_REASON] = (
-        ExclusionReason.ZERO_POPULATION_WITHOUT_BOUNDARY.value
-    )
+    unmatched_population_df[JoinColumn.EXCLUSION_REASON] = ExclusionReason.UNRESOLVED.value
+    unmatched_population_df.loc[
+        unmatched_population_df[PopulationColumn.TOTAL].eq(0), JoinColumn.EXCLUSION_REASON
+    ] = ExclusionReason.ZERO_POPULATION_WITHOUT_BOUNDARY.value
 
     if census_year in (1980, 1990) and geography_level == GeographyLevel.TRACT:
-        tract_codes = population_df[GeographyColumn.GEOGRAPHIC_ID].str[8:]
-        population_df.loc[tract_codes.str.fullmatch(r"[0-9]{4}99"), JoinColumn.EXCLUSION_REASON] = (
-            ExclusionReason.SHIP_CREW.value
-        )
+        tract_codes = unmatched_population_df[GeographyColumn.GEOGRAPHIC_ID].str[8:]
+        unmatched_population_df.loc[
+            tract_codes.str.fullmatch(r"[0-9]{4}99"), JoinColumn.EXCLUSION_REASON
+        ] = ExclusionReason.SHIP_CREW.value
 
         if census_year == 1980:
-            population_df.loc[tract_codes.eq("999999"), JoinColumn.EXCLUSION_REASON] = (
+            unmatched_population_df.loc[tract_codes.eq("999999"), JoinColumn.EXCLUSION_REASON] = (
                 ExclusionReason.UNTRACTED_REMAINDER_1980.value
             )
     elif census_year == 1990 and geography_level in (
         GeographyLevel.BLOCK_GROUP,
         GeographyLevel.BLOCK,
     ):
-        ship_crew_rows = population_df["TRACTA"].str.fullmatch(r"[0-9]{4}99")
-        population_df.loc[ship_crew_rows, JoinColumn.EXCLUSION_REASON] = (
+        ship_crew_rows = unmatched_population_df["TRACTA"].str.fullmatch(r"[0-9]{4}99")
+        unmatched_population_df.loc[ship_crew_rows, JoinColumn.EXCLUSION_REASON] = (
             ExclusionReason.SHIP_CREW.value
         )
 
-    boundaries_df[JoinColumn.EXCLUSION_REASON] = ExclusionReason.UNRESOLVED.value
-    boundaries_df[JoinColumn.KNOWN_TOTAL_POPULATION] = pd.Series(
-        pd.NA, index=boundaries_df.index, dtype="Int64"
+    unmatched_boundaries_df[JoinColumn.EXCLUSION_REASON] = ExclusionReason.UNRESOLVED.value
+    unmatched_boundaries_df[JoinColumn.KNOWN_TOTAL_POPULATION] = pd.Series(
+        pd.NA, index=unmatched_boundaries_df.index, dtype="Int64"
     )
 
-    water_block_rows = boundaries_df[BoundaryColumn.WATER_BLOCK]
-    boundaries_df.loc[water_block_rows, JoinColumn.EXCLUSION_REASON] = (
+    water_block_rows = unmatched_boundaries_df[BoundaryColumn.WATER_BLOCK]
+    unmatched_boundaries_df.loc[water_block_rows, JoinColumn.EXCLUSION_REASON] = (
         ExclusionReason.WATER_BLOCK_1990.value
     )
-    boundaries_df.loc[water_block_rows, JoinColumn.KNOWN_TOTAL_POPULATION] = 0
+    unmatched_boundaries_df.loc[water_block_rows, JoinColumn.KNOWN_TOTAL_POPULATION] = 0
 
-    placeholder_rows = boundaries_df[GeographyColumn.GEOGRAPHIC_ID].str.contains(
+    placeholder_rows = unmatched_boundaries_df[GeographyColumn.GEOGRAPHIC_ID].str.contains(
         "nodata", case=False
     )
-    boundaries_df.loc[placeholder_rows, JoinColumn.EXCLUSION_REASON] = (
+    unmatched_boundaries_df.loc[placeholder_rows, JoinColumn.EXCLUSION_REASON] = (
         ExclusionReason.UNASSIGNED_PLACEHOLDER.value
     )
 
 
 def classify_1990_zero_population_blocks(
     result: PopulationBoundaryJoin,
-    selection: "GeographyJoinInputs",
+    geography_inputs: GeographyJoinInputs,
     state_code: str,
     block_reference_directory: Path,
 ) -> PopulationBoundaryJoin:
@@ -454,7 +457,7 @@ def classify_1990_zero_population_blocks(
 
     Args:
         result (PopulationBoundaryJoin): Join for the supplied selection and state, left unchanged.
-        selection (GeographyJoinInputs): Year and level of the join.
+        geography_inputs (GeographyJoinInputs): Year and level of the join.
         state_code (str): Two-digit state FIPS code whose original references should be read.
         block_reference_directory (Path): Folder containing original STF1B and PL reference files.
 
@@ -467,7 +470,10 @@ def classify_1990_zero_population_blocks(
         BadZipFile: A reference ZIP is damaged.
         ValueError: Reference identities or population counts disagree.
     """
-    if selection.census_year != 1990 or selection.geography_level != GeographyLevel.BLOCK:
+    if (
+        geography_inputs.census_year != 1990
+        or geography_inputs.geography_level != GeographyLevel.BLOCK
+    ):
         return result
 
     zero_population_block_ids = read_1990_zero_population_block_ids(

@@ -101,19 +101,21 @@ def retrieve_nhgis_extract(
         raise DataProviderError("Set IPUMS_API_KEY to download NHGIS extracts")
 
     client = IpumsApiClient(api_key)
-    submitted = submit_or_resume_extract(client, request, submission_directory)
+    submission_record = submit_or_resume_extract(client, request, submission_directory)
 
     try:
-        reported_status = client.extract_status(submitted.extract_id, "nhgis")
+        reported_status = client.extract_status(submission_record.extract_id, "nhgis")
     except Exception as error:  # noqa: BLE001 - SDK errors may contain credentials
         raise DataProviderError(
-            f"Could not check NHGIS extract {submitted.extract_id} ({type(error).__name__})"
+            f"Could not check NHGIS extract {submission_record.extract_id} ({type(error).__name__})"
         ) from None
 
     try:
         status = NhgisExtractStatus(reported_status)
     except ValueError:
-        raise DataProviderError(f"NHGIS extract {submitted.extract_id} did not complete") from None
+        raise DataProviderError(
+            f"NHGIS extract {submission_record.extract_id} did not complete"
+        ) from None
 
     if status in (
         NhgisExtractStatus.QUEUED,
@@ -121,33 +123,33 @@ def retrieve_nhgis_extract(
         NhgisExtractStatus.PROCESSING,
         NhgisExtractStatus.SUBMITTED,
     ):
-        return PendingNhgisExtract(extract_id=submitted.extract_id, status=status)
+        return PendingNhgisExtract(extract_id=submission_record.extract_id, status=status)
 
     try:
         # The SDK warns for warnings: []; inspect the list without printing provider text.
         with warnings.catch_warnings(record=True):
-            response = client.get_extract_info(submitted.extract_id, "nhgis")
+            response = client.get_extract_info(submission_record.extract_id, "nhgis")
     except Exception as error:  # noqa: BLE001 - SDK errors may contain signed URLs or keys
         raise DataProviderError(
-            f"Could not read NHGIS extract {submitted.extract_id} ({type(error).__name__})"
+            f"Could not read NHGIS extract {submission_record.extract_id} ({type(error).__name__})"
         ) from None
 
     try:
         extract_response = NhgisExtractResponse.model_validate(response)
     except ValidationError:
         raise DataProviderError(
-            f"NHGIS extract {submitted.extract_id} has invalid metadata"
+            f"NHGIS extract {submission_record.extract_id} has invalid metadata"
         ) from None
 
     if response.get("warnings"):
         raise DataProviderError("NHGIS modified the requested extract; review its definition")
 
-    validate_nhgis_definition(extract_response.request_definition, submitted.request)
+    validate_nhgis_definition(extract_response.request_definition, submission_record.request)
     download_kind = "tableData" if isinstance(request, NhgisTableFileRequest) else "gisData"
 
     if download_kind not in extract_response.download_links:
         raise DataProviderError(
-            f"NHGIS extract {submitted.extract_id} has no {download_kind} download"
+            f"NHGIS extract {submission_record.extract_id} has no {download_kind} download"
         )
 
     download_file(
@@ -211,10 +213,10 @@ def submit_or_resume_extract(
     Submission errors become DataProviderError messages without provider response text. Local file
     errors retain their filenames so the caller can report which record could not be read or saved.
     """
-    submitted = load_matching_nhgis_submission(request, submission_directory)
+    submission_record = load_matching_nhgis_submission(request, submission_directory)
 
-    if submitted is not None:
-        return submitted
+    if submission_record is not None:
+        return submission_record
 
     definition = build_nhgis_definition(request)
     provider_request = definition.to_provider_request()
@@ -227,14 +229,14 @@ def submit_or_resume_extract(
         ) from None
 
     try:
-        submitted = NhgisSubmissionRecord(extract_id=extract.extract_id, request=definition)
+        submission_record = NhgisSubmissionRecord(extract_id=extract.extract_id, request=definition)
     except ValidationError:
         raise DataProviderError("NHGIS returned an invalid extract number") from None
 
     submission_path = submission_directory / f"{request.destination_relative_path}.json"
-    save_nhgis_submission(submission_path, submitted)
+    save_nhgis_submission(submission_path, submission_record)
 
-    return submitted
+    return submission_record
 
 
 def load_matching_nhgis_submission(
@@ -269,28 +271,28 @@ def load_matching_nhgis_submission(
     content = submission_path.read_text()
 
     try:
-        submitted = NhgisSubmissionRecord.model_validate_json(content)
+        submission_record = NhgisSubmissionRecord.model_validate_json(content)
     except ValidationError:
         raise ValueError(f"Invalid saved NHGIS request: {submission_path}") from None
 
-    if submitted.request != definition:
+    if submission_record.request != definition:
         raise DataProviderError(
             f"Saved NHGIS submission has a different request: {submission_path}. "
             "For changed selections, use a new raw_data_directory or remove both the old archive "
             "and this submission record before rerunning."
         )
 
-    return submitted
+    return submission_record
 
 
-def save_nhgis_submission(path: Path, submission: NhgisSubmissionRecord) -> None:
+def save_nhgis_submission(submission_path: Path, submission: NhgisSubmissionRecord) -> None:
     """Save the extract number and selections so later runs can check the same NHGIS request.
 
     The record is written under a temporary name, then moved to the final path in one operation.
     This prevents a partially written record from being mistaken for a completed one.
 
     Args:
-        path (Path): Record path for the requested file; missing directories are created.
+        submission_path (Path): Record path for the requested file; missing directories are created.
         submission (NhgisSubmissionRecord): Extract number and original request. Contains neither
             credentials nor temporary download URLs.
 
@@ -301,6 +303,6 @@ def save_nhgis_submission(path: Path, submission: NhgisSubmissionRecord) -> None
     record = submission.model_dump(mode="json", by_alias=True)
     content = (json.dumps(record, indent=2, allow_nan=False) + "\n").encode("utf-8")
 
-    with stage_file(path.parent) as temporary_path:
+    with stage_file(submission_path.parent) as temporary_path:
         temporary_path.write_bytes(content)
-        temporary_path.replace(path)
+        temporary_path.replace(submission_path)

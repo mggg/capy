@@ -51,8 +51,10 @@ def select_geography_join_inputs(config: PipelineConfig) -> list[GeographyJoinIn
     census_requests, nhgis_requests = select_population_requests(
         selected_requests, config.raw_data_subdirectories
     )
-    population_paths_by_selection = build_population_output_paths(census_requests, nhgis_requests)
-    boundary_paths_by_selection: dict[tuple[int, GeographyLevel], dict[str | None, str]] = {}
+    population_paths_by_year_and_level = build_population_output_paths(
+        census_requests, nhgis_requests
+    )
+    boundary_paths_by_year_and_level: dict[tuple[int, GeographyLevel], dict[str | None, str]] = {}
 
     for request in selected_requests:
         if not isinstance(request, (TigerBoundaryFileRequest, NhgisBoundaryFileRequest)):
@@ -60,20 +62,24 @@ def select_geography_join_inputs(config: PipelineConfig) -> list[GeographyJoinIn
 
         year_and_level = (request.census_year, request.geography_level)
         state_code = request.state_code if isinstance(request, TigerBoundaryFileRequest) else None
-        state_paths = boundary_paths_by_selection.setdefault(year_and_level, {})
+        state_paths = boundary_paths_by_year_and_level.setdefault(year_and_level, {})
         state_paths[state_code] = request.destination_relative_path
 
-    selected_pairs = set(population_paths_by_selection) | set(boundary_paths_by_selection)
+    selected_years_and_levels = set(population_paths_by_year_and_level) | set(
+        boundary_paths_by_year_and_level
+    )
     join_inputs = []
 
-    for census_year, geography_level in sorted(selected_pairs):
+    for census_year, geography_level in sorted(selected_years_and_levels):
         if geography_level == GeographyLevel.STATE:
             continue
 
-        boundary_paths_by_state = boundary_paths_by_selection.get(
+        boundary_paths_by_state = boundary_paths_by_year_and_level.get(
             (census_year, geography_level), {}
         )
-        population_paths = population_paths_by_selection.get((census_year, geography_level), {})
+        population_paths = population_paths_by_year_and_level.get(
+            (census_year, geography_level), {}
+        )
         population_paths_by_state = {
             state_code: relative_path
             for state_code, relative_path in population_paths.items()

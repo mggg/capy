@@ -6,21 +6,23 @@ from enum import StrEnum
 class PopulationColumn(StrEnum):
     """Study population counts, with enum values matching the column labels written to disk.
 
-    WHITE and BLACK count non-Hispanic residents in the respective race groups. POC counts
-    everyone except non-Hispanic White residents, so it includes more than the BLACK group.
+    NON_HISPANIC_WHITE and NON_HISPANIC_BLACK count non-Hispanic residents in the respective
+    race groups. Their saved column labels are WHITE and BLACK. POC counts everyone except
+    non-Hispanic White residents, so it includes more than the non-Hispanic Black group.
     """
 
     TOTAL = "TOTPOP"
-    WHITE = "WHITE"
-    BLACK = "BLACK"
+    NON_HISPANIC_WHITE = "WHITE"
+    NON_HISPANIC_BLACK = "BLACK"
     POC = "POC"
 
 
 class GeographyColumn(StrEnum):
     """Geographic identifiers and resolution of each processed population record.
 
-    Geographic IDs and state codes remain strings to preserve leading zeros. GEOGRAPHY_LEVEL
-    identifies the kind of unit, such as a tract or block. Enum values are saved column labels.
+    Geographic IDs and state codes remain strings to preserve leading zeros. COUNTY_CODE is the
+    three-digit county component within a state. GEOGRAPHY_LEVEL identifies the kind of unit,
+    such as a tract or block. Enum values are saved column labels.
     """
 
     GEOGRAPHIC_ID = "GEOID"

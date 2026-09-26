@@ -7,7 +7,7 @@ import geopandas as gpd
 import pandas as pd
 from pyarrow import parquet
 
-from capy_core.join_geographies.join_tables import build_join_output_paths
+from capy_core.derived_file_paths import build_join_output_paths
 from capy_core.join_geographies.select_inputs import GeographyJoinInputs
 from capy_core.population_table_columns import (
     GeographyColumn,
@@ -117,10 +117,13 @@ def read_joined_state(
 
     if not bool(
         units_df[PopulationColumn.POC]
-        .eq(units_df[PopulationColumn.TOTAL] - units_df[PopulationColumn.WHITE])
+        .eq(units_df[PopulationColumn.TOTAL] - units_df[PopulationColumn.NON_HISPANIC_WHITE])
         .all()
     ) or bool(
-        (units_df[PopulationColumn.WHITE] + units_df[PopulationColumn.BLACK])
+        (
+            units_df[PopulationColumn.NON_HISPANIC_WHITE]
+            + units_df[PopulationColumn.NON_HISPANIC_BLACK]
+        )
         .gt(units_df[PopulationColumn.TOTAL])
         .any()
     ):
@@ -211,7 +214,7 @@ def check_node_state_coverage(
 
     for _, study_area in study_area_definitions_df.iterrows():
         required_state_codes = {
-            county_code[:2] for county_code in study_area[StudyAreaColumn.COUNTY_CODES]
+            county_id[:2] for county_id in study_area[StudyAreaColumn.COUNTY_IDS]
         }
 
         if not required_state_codes:

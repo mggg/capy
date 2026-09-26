@@ -58,7 +58,7 @@ def read_metro_counties(metro_membership_workbook_path: Path) -> pd.DataFrame:
         {
             StudyAreaColumn.METRO_CODE: metro_roster_df["CBSA Code"],
             StudyAreaColumn.METRO_NAME: metro_roster_df["CBSA Title"],
-            StudyAreaColumn.COUNTY_CODE: metro_roster_df["FIPS State Code"]
+            StudyAreaColumn.COUNTY_ID: metro_roster_df["FIPS State Code"]
             + metro_roster_df["FIPS County Code"],
         }
     )
@@ -66,12 +66,12 @@ def read_metro_counties(metro_membership_workbook_path: Path) -> pd.DataFrame:
     if metro_counties_df.empty:
         raise ValueError("Metro workbook contains no metropolitan counties")
 
-    for column in (StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_CODE):
+    for column in (StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_ID):
         if not metro_counties_df[column].str.fullmatch(r"[0-9]{5}", na=False).all():
             raise ValueError(f"Metro workbook has invalid {column}")
 
     if (
-        metro_counties_df[StudyAreaColumn.COUNTY_CODE].duplicated().any()
+        metro_counties_df[StudyAreaColumn.COUNTY_ID].duplicated().any()
         or metro_counties_df[StudyAreaColumn.METRO_NAME].fillna("").str.strip().eq("").any()
         or bool(
             metro_counties_df.groupby(StudyAreaColumn.METRO_CODE)[StudyAreaColumn.METRO_NAME]
@@ -83,7 +83,7 @@ def read_metro_counties(metro_membership_workbook_path: Path) -> pd.DataFrame:
         raise ValueError("Metro county memberships or names are ambiguous")
 
     return metro_counties_df.sort_values(
-        [StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_CODE]
+        [StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_ID]
     ).reset_index(drop=True)
 
 
@@ -102,18 +102,18 @@ def build_metro_boundaries(
     Raises:
         ValueError: A required county is absent or supplied more than once.
     """
-    missing_county_codes = set(metro_counties_df[StudyAreaColumn.COUNTY_CODE]) - set(
-        counties_df[StudyAreaColumn.COUNTY_CODE]
+    missing_county_ids = set(metro_counties_df[StudyAreaColumn.COUNTY_ID]) - set(
+        counties_df[StudyAreaColumn.COUNTY_ID]
     )
 
-    if missing_county_codes or counties_df[StudyAreaColumn.COUNTY_CODE].duplicated().any():
+    if missing_county_ids or counties_df[StudyAreaColumn.COUNTY_ID].duplicated().any():
         raise ValueError(
             "Metro definitions require complete, unique counties; "
-            f"missing {sorted(missing_county_codes)}"
+            f"missing {sorted(missing_county_ids)}"
         )
 
     metro_county_boundaries_df = metro_counties_df.merge(
-        counties_df, on=StudyAreaColumn.COUNTY_CODE, validate="many_to_one"
+        counties_df, on=StudyAreaColumn.COUNTY_ID, validate="many_to_one"
     )
     metro_records = []
 
@@ -124,8 +124,8 @@ def build_metro_boundaries(
             {
                 StudyAreaColumn.METRO_CODE: metro_code,
                 StudyAreaColumn.METRO_NAME: member_counties_df[StudyAreaColumn.METRO_NAME].iloc[0],
-                StudyAreaColumn.COUNTY_CODES: sorted(
-                    member_counties_df[StudyAreaColumn.COUNTY_CODE].tolist()
+                StudyAreaColumn.COUNTY_IDS: sorted(
+                    member_counties_df[StudyAreaColumn.COUNTY_ID].tolist()
                 ),
                 PopulationColumn.TOTAL: int(member_counties_df[PopulationColumn.TOTAL].sum()),
                 "geometry": gpd.GeoSeries(
@@ -163,7 +163,7 @@ def build_city_candidates(places_df: gpd.GeoDataFrame, metros_df: gpd.GeoDataFra
                 {
                     StudyAreaColumn.METRO_CODE: metro[StudyAreaColumn.METRO_CODE],
                     StudyAreaColumn.METRO_NAME: metro[StudyAreaColumn.METRO_NAME],
-                    SelectionColumn.PLACE_CODE: place[GeographyColumn.GEOGRAPHIC_ID],
+                    SelectionColumn.PLACE_ID: place[GeographyColumn.GEOGRAPHIC_ID],
                     SelectionColumn.PLACE_NAME: place[CensusGeographyColumn.NAME],
                     SelectionColumn.CITY_POPULATION: int(place[PopulationColumn.TOTAL]),
                     SelectionColumn.AREA_INSIDE_METRO_KM2: overlap_area_square_metres / 1_000_000,
@@ -178,7 +178,7 @@ def build_city_candidates(places_df: gpd.GeoDataFrame, metros_df: gpd.GeoDataFra
                 [
                     StudyAreaColumn.METRO_CODE,
                     StudyAreaColumn.METRO_NAME,
-                    SelectionColumn.PLACE_CODE,
+                    SelectionColumn.PLACE_ID,
                     SelectionColumn.PLACE_NAME,
                     SelectionColumn.CITY_POPULATION,
                     SelectionColumn.AREA_INSIDE_METRO_KM2,
@@ -186,12 +186,12 @@ def build_city_candidates(places_df: gpd.GeoDataFrame, metros_df: gpd.GeoDataFra
                 ]
             ),
         )
-        .sort_values([StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_CODE])
+        .sort_values([StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_ID])
         .reset_index(drop=True)
     )
 
 
-def rank_city_candidates(
+def rank_and_select_city_candidates(
     city_candidates_df: pd.DataFrame,
     city_county_populations_df: pd.DataFrame,
     metro_counties_df: pd.DataFrame,
@@ -217,13 +217,13 @@ def rank_city_candidates(
             populated city/metro membership lacks positive polygon overlap.
     """
     city_county_populations_with_metros_df = city_county_populations_df.merge(
-        metro_counties_df[[StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_CODE]],
-        on=StudyAreaColumn.COUNTY_CODE,
+        metro_counties_df[[StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_ID]],
+        on=StudyAreaColumn.COUNTY_ID,
         validate="many_to_one",
     )
     city_metro_populations_df = pd.DataFrame(
         city_county_populations_with_metros_df.groupby(
-            [StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_CODE], as_index=False
+            [StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_ID], as_index=False
         )[[SelectionColumn.BLOCK_POPULATION]].sum()
     )
     city_metro_populations_df = city_metro_populations_df.rename(
@@ -232,7 +232,7 @@ def rank_city_candidates(
     ranked_city_candidates_df = city_candidates_df.merge(
         city_metro_populations_df,
         how="outer",
-        on=[StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_CODE],
+        on=[StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_ID],
         validate="one_to_one",
     )
 
@@ -267,7 +267,7 @@ def rank_city_candidates(
         [
             StudyAreaColumn.METRO_CODE,
             SelectionColumn.POPULATION_INSIDE_METRO,
-            SelectionColumn.PLACE_CODE,
+            SelectionColumn.PLACE_ID,
         ],
         ascending=[True, False, True],
     ).reset_index(drop=True)
@@ -314,7 +314,7 @@ def rank_city_candidates(
 def build_study_area_definitions(
     counties_df: gpd.GeoDataFrame,
     study_area_type: StudyAreaType,
-    census_year: int,
+    definition_year: int,
     metros_df: gpd.GeoDataFrame | None = None,
     places_df: gpd.GeoDataFrame | None = None,
     city_candidates_df: pd.DataFrame | None = None,
@@ -324,7 +324,7 @@ def build_study_area_definitions(
     Args:
         counties_df (gpd.GeoDataFrame): Counties with county_code, NAME, and study populations.
         study_area_type (StudyAreaType): county, cbsa, max_county, or max_city.
-        census_year (int): Definition vintage, fixed across graph-node years.
+        definition_year (int): Definition vintage, fixed across graph-node years.
         metros_df (gpd.GeoDataFrame | None): Required complete metros for non-county modes.
         places_df (gpd.GeoDataFrame | None): Required 2020 places for max_city.
         city_candidates_df (pd.DataFrame | None): Ranked candidates for max_city.
@@ -344,20 +344,20 @@ def build_study_area_definitions(
             }
         ).copy()
         selected_areas_df[StudyAreaColumn.STUDY_AREA_ID] = (
-            StudyAreaType.COUNTY.value + "_" + selected_areas_df[StudyAreaColumn.COUNTY_CODE]
+            StudyAreaType.COUNTY.value + "_" + selected_areas_df[StudyAreaColumn.COUNTY_ID]
         )
-        selected_areas_df[StudyAreaColumn.COUNTY_CODES] = selected_areas_df[
-            StudyAreaColumn.COUNTY_CODE
-        ].map(lambda county_code: [county_code])
-        selected_areas_df[StudyAreaColumn.SELECTED_COUNTY_CODE] = selected_areas_df[
-            StudyAreaColumn.COUNTY_CODE
+        selected_areas_df[StudyAreaColumn.COUNTY_IDS] = selected_areas_df[
+            StudyAreaColumn.COUNTY_ID
+        ].map(lambda county_id: [county_id])
+        selected_areas_df[StudyAreaColumn.SELECTED_COUNTY_ID] = selected_areas_df[
+            StudyAreaColumn.COUNTY_ID
         ]
-        selected_areas_df[StudyAreaColumn.SELECTED_PLACE_CODE] = None
+        selected_areas_df[StudyAreaColumn.SELECTED_PLACE_ID] = None
         (
             selected_areas_df[StudyAreaColumn.METRO_CODE],
             selected_areas_df[StudyAreaColumn.METRO_NAME],
         ) = None, None
-        selected_areas_df[StudyAreaColumn.METRO_COUNTY_CODES] = [
+        selected_areas_df[StudyAreaColumn.METRO_COUNTY_IDS] = [
             [] for _ in range(len(selected_areas_df))
         ]
         selected_areas_df[SelectionColumn.SELECTION_REASON] = SelectionReason.COUNTY_SELECTED.value
@@ -367,14 +367,16 @@ def build_study_area_definitions(
             raise ValueError("Metro definitions are required")
 
         if study_area_type == StudyAreaType.MAX_COUNTY:
-            selected_areas_df, selection_candidates_df = select_maximum_counties(
+            selected_areas_df, selection_candidates_df = select_most_populous_counties(
                 counties_df, metros_df
             )
         elif study_area_type == StudyAreaType.MAX_CITY:
             if places_df is None or city_candidates_df is None:
                 raise ValueError("City definitions require places and ranked population scores")
 
-            selected_areas_df = select_maximum_cities(counties_df, places_df, city_candidates_df)
+            selected_areas_df = build_selected_city_definitions(
+                counties_df, places_df, city_candidates_df
+            )
             selection_candidates_df = city_candidates_df
         else:
             selected_areas_df = metros_df.rename(
@@ -384,8 +386,8 @@ def build_study_area_definitions(
                 }
             ).copy()
             (
-                selected_areas_df[StudyAreaColumn.SELECTED_COUNTY_CODE],
-                selected_areas_df[StudyAreaColumn.SELECTED_PLACE_CODE],
+                selected_areas_df[StudyAreaColumn.SELECTED_COUNTY_ID],
+                selected_areas_df[StudyAreaColumn.SELECTED_PLACE_ID],
             ) = (
                 None,
                 None,
@@ -400,10 +402,10 @@ def build_study_area_definitions(
                 [
                     StudyAreaColumn.METRO_CODE,
                     StudyAreaColumn.METRO_NAME,
-                    StudyAreaColumn.COUNTY_CODES,
+                    StudyAreaColumn.COUNTY_IDS,
                 ]
             ]
-        ).rename(columns={StudyAreaColumn.COUNTY_CODES: StudyAreaColumn.METRO_COUNTY_CODES})
+        ).rename(columns={StudyAreaColumn.COUNTY_IDS: StudyAreaColumn.METRO_COUNTY_IDS})
         selected_areas_df = selected_areas_df.merge(
             metro_labels_df, on=StudyAreaColumn.METRO_CODE, validate="one_to_one"
         )
@@ -412,7 +414,7 @@ def build_study_area_definitions(
         )
 
     selected_areas_df[StudyAreaColumn.STUDY_AREA_TYPE] = study_area_type.value
-    selected_areas_df[StudyAreaColumn.DEFINITION_YEAR] = census_year
+    selected_areas_df[StudyAreaColumn.DEFINITION_YEAR] = definition_year
     output_columns = [
         StudyAreaColumn.STUDY_AREA_ID,
         StudyAreaColumn.STUDY_AREA_TYPE,
@@ -420,10 +422,10 @@ def build_study_area_definitions(
         StudyAreaColumn.NAME,
         StudyAreaColumn.METRO_CODE,
         StudyAreaColumn.METRO_NAME,
-        StudyAreaColumn.METRO_COUNTY_CODES,
-        StudyAreaColumn.COUNTY_CODES,
-        StudyAreaColumn.SELECTED_COUNTY_CODE,
-        StudyAreaColumn.SELECTED_PLACE_CODE,
+        StudyAreaColumn.METRO_COUNTY_IDS,
+        StudyAreaColumn.COUNTY_IDS,
+        StudyAreaColumn.SELECTED_COUNTY_ID,
+        StudyAreaColumn.SELECTED_PLACE_ID,
         StudyAreaColumn.DEFINITION_POPULATION,
         SelectionColumn.SELECTION_REASON,
         "geometry",
@@ -440,7 +442,7 @@ def build_study_area_definitions(
     return study_area_definitions_df, selection_candidates_df
 
 
-def select_maximum_counties(
+def select_most_populous_counties(
     counties_df: gpd.GeoDataFrame,
     metros_df: gpd.GeoDataFrame,
 ) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
@@ -458,14 +460,14 @@ def select_maximum_counties(
         tuple[gpd.GeoDataFrame, pd.DataFrame]: Selected county definitions and all county scores.
     """
     metro_counties_df = (
-        pd.DataFrame(metros_df[[StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_CODES]])
-        .explode(StudyAreaColumn.COUNTY_CODES)
-        .rename(columns={StudyAreaColumn.COUNTY_CODES: StudyAreaColumn.COUNTY_CODE})
+        pd.DataFrame(metros_df[[StudyAreaColumn.METRO_CODE, StudyAreaColumn.COUNTY_IDS]])
+        .explode(StudyAreaColumn.COUNTY_IDS)
+        .rename(columns={StudyAreaColumn.COUNTY_IDS: StudyAreaColumn.COUNTY_ID})
     )
     county_candidates_df = metro_counties_df.merge(
-        counties_df, on=StudyAreaColumn.COUNTY_CODE, validate="many_to_one"
+        counties_df, on=StudyAreaColumn.COUNTY_ID, validate="many_to_one"
     ).sort_values(
-        [StudyAreaColumn.METRO_CODE, PopulationColumn.TOTAL, StudyAreaColumn.COUNTY_CODE],
+        [StudyAreaColumn.METRO_CODE, PopulationColumn.TOTAL, StudyAreaColumn.COUNTY_ID],
         ascending=[True, False, True],
     )
     county_candidates_df[SelectionColumn.SELECTED] = ~county_candidates_df[
@@ -481,13 +483,13 @@ def select_maximum_counties(
         )
         .copy()
     )
-    selected_counties_df[StudyAreaColumn.COUNTY_CODES] = selected_counties_df[
-        StudyAreaColumn.COUNTY_CODE
-    ].map(lambda county_code: [county_code])
-    selected_counties_df[StudyAreaColumn.SELECTED_COUNTY_CODE] = selected_counties_df[
-        StudyAreaColumn.COUNTY_CODE
+    selected_counties_df[StudyAreaColumn.COUNTY_IDS] = selected_counties_df[
+        StudyAreaColumn.COUNTY_ID
+    ].map(lambda county_id: [county_id])
+    selected_counties_df[StudyAreaColumn.SELECTED_COUNTY_ID] = selected_counties_df[
+        StudyAreaColumn.COUNTY_ID
     ]
-    selected_counties_df[StudyAreaColumn.SELECTED_PLACE_CODE] = None
+    selected_counties_df[StudyAreaColumn.SELECTED_PLACE_ID] = None
     selected_counties_df[SelectionColumn.SELECTION_REASON] = (
         SelectionReason.MAXIMUM_COUNTY_POPULATION.value
     )
@@ -495,7 +497,7 @@ def select_maximum_counties(
         county_candidates_df[
             [
                 StudyAreaColumn.METRO_CODE,
-                StudyAreaColumn.COUNTY_CODE,
+                StudyAreaColumn.COUNTY_ID,
                 PopulationColumn.TOTAL,
                 SelectionColumn.SELECTED,
             ]
@@ -505,7 +507,7 @@ def select_maximum_counties(
     return gpd.GeoDataFrame(selected_counties_df, crs=counties_df.crs), county_scores_df
 
 
-def select_maximum_cities(
+def build_selected_city_definitions(
     counties_df: gpd.GeoDataFrame,
     places_df: gpd.GeoDataFrame,
     city_candidates_df: pd.DataFrame,
@@ -523,11 +525,11 @@ def select_maximum_cities(
     """
     selected_city_candidates_df = city_candidates_df.loc[
         city_candidates_df[SelectionColumn.SELECTED],
-        [StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_CODE, SelectionColumn.SELECTION_REASON],
+        [StudyAreaColumn.METRO_CODE, SelectionColumn.PLACE_ID, SelectionColumn.SELECTION_REASON],
     ]
     selected_cities_df = selected_city_candidates_df.merge(
         places_df,
-        left_on=SelectionColumn.PLACE_CODE,
+        left_on=SelectionColumn.PLACE_ID,
         right_on=GeographyColumn.GEOGRAPHIC_ID,
         validate="many_to_one",
     ).rename(
@@ -536,7 +538,7 @@ def select_maximum_cities(
             PopulationColumn.TOTAL: StudyAreaColumn.DEFINITION_POPULATION,
         }
     )
-    county_codes_by_city = []
+    selected_city_county_ids = []
 
     for city_geometry in selected_cities_df.geometry:
         candidate_county_indexes = counties_df.sindex.query(city_geometry, predicate="intersects")
@@ -544,16 +546,16 @@ def select_maximum_cities(
         has_positive_area_overlap = intersecting_counties_df.geometry.intersection(
             city_geometry
         ).area.gt(0)
-        county_codes_by_city.append(
-            intersecting_counties_df.loc[has_positive_area_overlap, StudyAreaColumn.COUNTY_CODE]
+        selected_city_county_ids.append(
+            intersecting_counties_df.loc[has_positive_area_overlap, StudyAreaColumn.COUNTY_ID]
             .sort_values()
             .tolist()
         )
 
-    selected_cities_df[StudyAreaColumn.COUNTY_CODES] = county_codes_by_city
-    selected_cities_df[StudyAreaColumn.SELECTED_COUNTY_CODE] = None
-    selected_cities_df[StudyAreaColumn.SELECTED_PLACE_CODE] = selected_cities_df[
-        SelectionColumn.PLACE_CODE
+    selected_cities_df[StudyAreaColumn.COUNTY_IDS] = selected_city_county_ids
+    selected_cities_df[StudyAreaColumn.SELECTED_COUNTY_ID] = None
+    selected_cities_df[StudyAreaColumn.SELECTED_PLACE_ID] = selected_cities_df[
+        SelectionColumn.PLACE_ID
     ]
 
     return gpd.GeoDataFrame(selected_cities_df, crs=places_df.crs)

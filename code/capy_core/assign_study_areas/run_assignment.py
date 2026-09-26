@@ -6,8 +6,9 @@ import geopandas as gpd
 import pandas as pd
 from tqdm import tqdm
 
+from capy_core.data_directories import resolve_separate_output_directory
+from capy_core.derived_file_paths import build_join_output_paths, build_membership_output_path
 from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.join_geographies.join_tables import build_join_output_paths
 from capy_core.join_geographies.select_inputs import (
     GeographyJoinInputs,
     select_geography_join_inputs,
@@ -29,10 +30,10 @@ from .build_definitions import (
     build_city_candidates,
     build_metro_boundaries,
     build_study_area_definitions,
-    rank_city_candidates,
+    rank_and_select_city_candidates,
     read_metro_counties,
 )
-from .count_city_populations import count_city_county_populations
+from .count_city_populations import count_2020_city_populations_by_county
 from .study_area_columns import MembershipColumn, SelectionColumn, StudyAreaColumn
 
 
@@ -59,17 +60,11 @@ def assign_study_areas(config: PipelineConfig, repository_root: Path) -> pd.Data
     raw_data_directory = (repository_root / config.raw_data_directory).resolve()
     population_table_directory = (repository_root / config.processed_population_directory).resolve()
     joined_geography_directory = (repository_root / config.joined_geography_directory).resolve()
-    study_area_root = (repository_root / config.study_area_directory).resolve()
-
-    for input_directory in (
-        raw_data_directory,
-        population_table_directory,
-        joined_geography_directory,
-    ):
-        if study_area_root.is_relative_to(input_directory) or input_directory.is_relative_to(
-            study_area_root
-        ):
-            raise ValueError("Study-area directory must be separate from all input directories")
+    study_area_root = resolve_separate_output_directory(
+        repository_root,
+        config.study_area_directory,
+        (raw_data_directory, population_table_directory, joined_geography_directory),
+    )
 
     study_area_output_directory = (
         study_area_root / config.study_area_type.value / str(config.study_area_vintage)
@@ -184,15 +179,15 @@ def prepare_study_area_definitions(
     counties_df = load_definition_geography(
         joined_geography_directory, geography_inputs_by_year_and_level[county_year_and_level]
     )
-    counties_df[StudyAreaColumn.COUNTY_CODE] = (
+    counties_df[StudyAreaColumn.COUNTY_ID] = (
         counties_df[GeographyColumn.STATE_CODE] + counties_df[GeographyColumn.COUNTY_CODE]
     )
     metros_df, places_df, city_candidates_df = None, None, None
     city_county_populations_df = pd.DataFrame(
         columns=pd.Index(
             [
-                SelectionColumn.PLACE_CODE,
-                StudyAreaColumn.COUNTY_CODE,
+                SelectionColumn.PLACE_ID,
+                StudyAreaColumn.COUNTY_ID,
                 SelectionColumn.BLOCK_POPULATION,
             ]
         )
@@ -232,16 +227,16 @@ def prepare_study_area_definitions(
             city_candidates_df = build_city_candidates(places_df, metros_df)
             candidate_places_df = places_df.loc[
                 places_df[GeographyColumn.GEOGRAPHIC_ID].isin(
-                    city_candidates_df[SelectionColumn.PLACE_CODE]
+                    city_candidates_df[SelectionColumn.PLACE_ID]
                 )
             ]
-            city_county_populations_df = count_city_county_populations(
+            city_county_populations_df = count_2020_city_populations_by_county(
                 candidate_places_df,
                 geography_inputs_by_year_and_level[block_year_and_level],
                 raw_data_directory,
                 population_table_directory,
             )
-            city_candidates_df = rank_city_candidates(
+            city_candidates_df = rank_and_select_city_candidates(
                 city_candidates_df, city_county_populations_df, metro_counties_df
             )
 
@@ -341,9 +336,7 @@ def assign_selected_units(
         state_membership_summary_tables.append(state_totals_df.reset_index())
         matched_geography_relative_path, _, _ = build_join_output_paths(population_relative_path)
         memberships_df[MembershipColumn.GEOGRAPHY_FILE] = str(matched_geography_relative_path)
-        membership_relative_path = population_relative_path.with_name(
-            population_relative_path.name.replace("_populations", "_memberships")
-        )
+        membership_relative_path = build_membership_output_path(population_relative_path)
         save_assignment_table(
             memberships_df, study_area_output_directory / "memberships" / membership_relative_path
         )

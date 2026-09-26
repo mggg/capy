@@ -22,7 +22,7 @@ from .save_tables import PopulationComparison
 
 
 def check_historical_published_totals(
-    states_df: pd.DataFrame, reference_directory: Path, census_year: int
+    states_df: pd.DataFrame, population_reference_directory: Path, census_year: int
 ) -> None:
     """Compare all 51 NHGIS state populations with Census Working Paper 56 workbooks.
 
@@ -33,7 +33,8 @@ def check_historical_published_totals(
     Args:
         states_df (pd.DataFrame): Derived NHGIS records for the 50 states and DC, including
             original count columns.
-        reference_directory (Path): Configured folder containing the published XLSX workbooks.
+        population_reference_directory (Path): Configured folder containing the published
+            XLSX workbooks.
         census_year (int): Census year, 1980 or 1990.
 
     Raises:
@@ -52,7 +53,7 @@ def check_historical_published_totals(
         raise ValueError("Historical state reference must cover the 50 states and DC once each")
 
     states_df = states_df.set_index(GeographyColumn.STATE_CODE)
-    workbook_path = reference_directory / HISTORICAL_STUDY_TOTALS_FILENAMES[census_year]
+    workbook_path = population_reference_directory / HISTORICAL_STUDY_TOTALS_FILENAMES[census_year]
     race_headings = {4: "White", 7: "Black"}
 
     if census_year == 1990:
@@ -76,8 +77,8 @@ def check_historical_published_totals(
 
     comparison_columns: dict[PopulationColumn | Nhgis1990Column, int] = {
         PopulationColumn.TOTAL: 1,
-        PopulationColumn.WHITE: 6,
-        PopulationColumn.BLACK: 9,
+        PopulationColumn.NON_HISPANIC_WHITE: 6,
+        PopulationColumn.NON_HISPANIC_BLACK: 9,
     }
 
     if census_year == 1990:
@@ -104,7 +105,9 @@ def check_historical_published_totals(
         )
 
     if census_year == 1980:
-        check_1980_published_race_totals(states_df, reference_directory / RACE_TOTALS_1980_FILENAME)
+        check_1980_published_race_totals(
+            states_df, population_reference_directory / RACE_TOTALS_1980_FILENAME
+        )
 
 
 def check_1980_published_race_totals(states_df: pd.DataFrame, workbook_path: Path) -> None:
@@ -277,8 +280,8 @@ def check_nhgis_state_sum(
 
     for population_column in (
         *NHGIS_COUNT_COLUMNS[census_year],
-        PopulationColumn.WHITE,
-        PopulationColumn.BLACK,
+        PopulationColumn.NON_HISPANIC_WHITE,
+        PopulationColumn.NON_HISPANIC_BLACK,
         PopulationColumn.POC,
     ):
         observed_total = int(population_df[population_column].sum())
