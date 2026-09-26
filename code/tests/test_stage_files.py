@@ -64,3 +64,15 @@ def test_file_replacement_preserves_other_hard_links(tmp_path):
     assert (tmp_path / "old_record.json").read_bytes() == b"previous record"
 
     assert not list(tmp_path.glob(".retrieval-*"))
+
+
+def test_published_file_cannot_be_published_again(tmp_path):
+    with stage_file(tmp_path) as staged:
+        staged.write_chunks((b"bytes",))
+        staged.publish(tmp_path / "first")
+
+        with pytest.raises(ValueError, match="completed staged file"):
+            staged.publish(tmp_path / "second")
+
+    assert (tmp_path / "first").read_bytes() == b"bytes"
+    assert not (tmp_path / "second").exists()

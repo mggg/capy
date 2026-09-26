@@ -74,7 +74,7 @@ def test_programming_error_is_not_reported_as_a_failed_download(tmp_path, monkey
     request = build_census_request()
     write_population(tmp_path / request.destination_relative_path)
     monkeypatch.setattr(
-        "capy_core.retrieve_data.retrieve_raw_file.check_raw_file", broken_file_check
+        "capy_core.retrieve_data.retrieve_raw_file.check_existing_raw_file", broken_file_check
     )
 
     with pytest.raises(TypeError, match="incorrect internal argument"):
@@ -121,8 +121,11 @@ def test_partial_download_is_rejected_and_discarded(tmp_path, monkeypatch):
     assert not list(tmp_path.iterdir())
 
 
-@pytest.mark.parametrize("content", ["", "[]", '[["name","population"],["example"]]'])
-def test_basic_census_checks_reject_empty_or_malformed_existing_tables(tmp_path, content):
+@pytest.mark.parametrize(
+    "content",
+    ["", "   ", "[]", '[["NAME","state"],["Autau', '[["NAME","state"],["Autauga","01"]', "<html>"],
+)
+def test_existing_census_tables_must_be_nonempty_complete_arrays(tmp_path, content):
     file_request = build_census_request()
     destination = tmp_path / file_request.destination_relative_path
     destination.parent.mkdir(parents=True)
@@ -132,6 +135,76 @@ def test_basic_census_checks_reject_empty_or_malformed_existing_tables(tmp_path,
 
     assert isinstance(result, FailedFile)
     assert destination.read_text() == content
+
+
+@pytest.mark.parametrize(
+    "content",
+    ['[["NAME","state"],["Autauga","01"]]\n', '  [["name","population"],["example"]]  '],
+)
+def test_existing_census_table_is_reused_without_parsing(tmp_path, monkeypatch, content):
+    def refuse_parse(path):
+        raise AssertionError(f"existing table was parsed: {path}")
+
+    monkeypatch.setattr("capy_core.retrieve_data.check_raw_files.load_census_table", refuse_parse)
+    file_request = build_census_request()
+    destination = tmp_path / file_request.destination_relative_path
+    destination.parent.mkdir(parents=True)
+    destination.write_text(content)
+
+    result = retrieve_raw_file(file_request, tmp_path, True, directories=RawDataSubdirectories())
+
+    assert isinstance(result, ReadyFile)
+    assert destination.read_text() == content
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b'[["NAME","state"],["Autauga","01"]]',
+        b'[["NAME","state"],\r\n ["Autauga","01"]]\r\n',
+        b'[\n  [\n    "NAME",\n    "state"\n  ],\n  [\n    "Autauga",\n    "01"\n  ]\n]\n',
+    ],
+)
+def test_published_census_table_passes_rerun_check_without_parsing(tmp_path, monkeypatch, content):
+    class CensusResponse(Response):
+        def __init__(self):
+            self.headers = {"Content-Length": str(len(content))}
+
+        def iter_content(self, size):
+            yield content
+
+    monkeypatch.setenv("CENSUS_API_KEY", "test-key")
+    monkeypatch.setattr("requests.get", lambda *args, **kwargs: CensusResponse())
+    raw = tmp_path / "raw"
+    file_request = build_census_request()
+    assert isinstance(
+        retrieve_raw_file(file_request, raw, False, directories=RawDataSubdirectories()), ReadyFile
+    )
+
+    def refuse_parse(path):
+        raise AssertionError(f"existing table was parsed: {path}")
+
+    monkeypatch.setattr("capy_core.retrieve_data.check_raw_files.load_census_table", refuse_parse)
+    repeated = retrieve_raw_file(file_request, raw, True, directories=RawDataSubdirectories())
+
+    assert isinstance(repeated, ReadyFile)
+    assert (raw / file_request.destination_relative_path).read_bytes() == content
+
+
+def test_missing_census_key_fails_without_contacting_provider(tmp_path, monkeypatch):
+    monkeypatch.delenv("CENSUS_API_KEY", raising=False)
+    get = Mock(side_effect=AssertionError("provider was contacted"))
+    monkeypatch.setattr("requests.get", get)
+    raw = tmp_path / "raw"
+    file_request = build_census_request()
+
+    result = retrieve_raw_file(file_request, raw, False, directories=RawDataSubdirectories())
+
+    assert isinstance(result, FailedFile)
+    assert "CENSUS_API_KEY" in result.error_message
+    assert not get.called
+    assert not (raw / file_request.destination_relative_path).exists()
+    assert not list(raw.rglob(".retrieval-*"))
 
 
 def test_raw_file_definitions_and_geographic_coverage():
@@ -218,6 +291,7 @@ def test_transport_errors_retry_only_transient_failures_without_exposing_credent
     tmp_path, monkeypatch, error_type, expected_attempts
 ):
     get = Mock(side_effect=error_type("https://example.org/?key=private-key"))
+    monkeypatch.setenv("CENSUS_API_KEY", "private-key")
     monkeypatch.setattr("requests.get", get)
     monkeypatch.setattr(
         "capy_core.retrieve_data.retrieve_raw_file.time.sleep", lambda seconds: None
@@ -280,6 +354,8 @@ def test_http_census_response_preserves_bytes_and_existing_files(tmp_path, monke
         b'[["population"],[Infinity]]',
         b'[["population"],[-Infinity]]',
         b'[["population"],[1e999]]',
+        b"\xef\xbb\xbf" + b'[["NAME","state"],["Autauga","01"]]',
+        b" " * 100 + b'[["NAME","state"],["Autauga","01"]]',
     ],
 )
 def test_invalid_census_download_is_rejected_before_publication(tmp_path, monkeypatch, content):
@@ -290,6 +366,7 @@ def test_invalid_census_download_is_rejected_before_publication(tmp_path, monkey
         def iter_content(self, size):
             yield content
 
+    monkeypatch.setenv("CENSUS_API_KEY", "test-key")
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: CensusResponse())
     raw = tmp_path / "raw"
     file_request = build_census_request()

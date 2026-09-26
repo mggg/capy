@@ -36,7 +36,7 @@ def stage_file(directory: Path) -> Iterator["StagedFile"]:
     try:
         yield staged
     finally:
-        staged._close()
+        staged.path.unlink(missing_ok=True)
 
 
 @dataclass
@@ -46,12 +46,15 @@ class StagedFile:
     Create this object through stage_file(), which handles cleanup. Use write_chunks() to write
     bytes. The path is available for reading and checking those bytes, not for writing them
     directly. After a failed write, start a new staging block instead of reusing this file.
+
+    The file is "empty" until written, "ready" after a complete write, and "spent" once a write
+    has failed or the file has been published. A spent file accepts no further writes or
+    publication. Do not use the object after its stage_file() block ends; the temporary name has
+    been removed by then and nothing prevents a write from recreating it.
     """
 
     path: Path
-    _state: Literal["empty", "writing", "ready", "published", "closed"] = field(
-        default="empty", init=False
-    )
+    _state: Literal["empty", "ready", "spent"] = field(default="empty", init=False)
 
     def write_chunks(self, chunks: Iterable[bytes]) -> None:
         """Fill the temporary file once, writing each supplied piece of data in order.
@@ -68,8 +71,10 @@ class StagedFile:
 
         Errors raised while producing chunks also pass back to the caller.
         """
-        self._require_empty()
-        self._state = "writing"
+        if self._state != "empty":
+            raise ValueError("A staged file can be written only once")
+
+        self._state = "spent"
         with self.path.open("wb") as stream:
             for chunk in chunks:
                 stream.write(chunk)
@@ -88,22 +93,11 @@ class StagedFile:
                 the temporary file.
 
         Raises:
-            ValueError: The staged file has not been filled successfully or is already closed or
-                published.
+            ValueError: The staged file has not been filled successfully or was already published.
             OSError: Replacing the destination fails.
         """
         if self._state != "ready":
             raise ValueError("Only a completed staged file can be published")
 
         self.path.replace(destination)
-        self._state = "published"
-
-    def _require_empty(self) -> None:
-        if self._state != "empty":
-            raise ValueError("A staged file can be written only once")
-
-    def _close(self) -> None:
-        """Remove the temporary filename, leaving any published file at its final location."""
-        self.path.unlink(missing_ok=True)
-
-        self._state = "closed"
+        self._state = "spent"

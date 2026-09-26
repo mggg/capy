@@ -134,7 +134,7 @@ nhgis_max_wait_minutes: 60
 # does not compare downloaded files against it. --output overrides this path.
 raw_checksums_file: data/raw_checksums.sha256
 
-# Set IPUMS_API_KEY in your shell or configured env_file for NHGIS.
-# Census requests use CENSUS_API_KEY when provided.
+# Set IPUMS_API_KEY for NHGIS and CENSUS_API_KEY for Census tables, in your shell or the
+# configured env_file. Each is required when its downloads are selected.
 # NHGIS extracts still pending after the wait limit can resume with the same command later.
 # Existing files are reused, and interrupted downloads do not appear as finished files.

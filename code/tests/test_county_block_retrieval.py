@@ -103,6 +103,7 @@ def test_download_uses_counties_from_the_selected_states_2010_table(
         calls.append((url, params))
         return Response(county_table if params["for"] == "county:*" else block_table)
 
+    monkeypatch.setenv("CENSUS_API_KEY", "test-key")
     monkeypatch.setattr("requests.get", get)
     patterns = [f"{census_directory}/2010/blocks/10/*"]
     if include_counties:

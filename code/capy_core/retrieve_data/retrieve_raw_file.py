@@ -12,7 +12,7 @@ from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.stage_files import stage_file
 
 from .census.retrieve_tables import download_census_table
-from .check_raw_files import check_raw_file
+from .check_raw_files import check_existing_raw_file, check_raw_file
 from .http_transport import DataProviderError, RetryableDownloadError, download_file
 from .nhgis.extract_definition import build_nhgis_definition
 from .nhgis.retrieve_extract import (
@@ -64,7 +64,8 @@ def retrieve_raw_file(
 
     An existing destination is checked first. If it is absent, contact the provider unless offline
     mode is enabled. Existing destinations are never overwritten, even when they fail a check.
-    Downloads must pass the same basic format checks before becoming ready. Saved NHGIS
+    Downloads must pass the full basic format checks before becoming ready; existing files get
+    the cheaper check_existing_raw_file(), which does not parse Census tables again. Saved NHGIS
     submissions must match the current request, including when reusing a local file. Files without
     submission records receive format checks only; their selections are not verified. Transient
     connection failures and incomplete transfers get up to five attempts, waiting 2, 4, 8, then 10
@@ -100,7 +101,7 @@ def retrieve_raw_file(
                 load_matching_nhgis_submission(submission_path, build_nhgis_definition(request))
 
         if destination.exists():
-            check_raw_file(destination, request.file_format)
+            check_existing_raw_file(destination, request.file_format)
             return ReadyFile(request.destination_relative_path)
 
         attempt = 1

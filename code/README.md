@@ -26,7 +26,7 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml
 The first command downloads 2020 Delaware tract populations and boundaries, while the second
 requests the full collection of 1,275 raw files. For NHGIS downloads, supply `IPUMS_API_KEY` in your
 shell or set `env_file: .env` in the YAML to load credentials from a file at the repository root.
-Census requests also use `CENSUS_API_KEY` when supplied, and existing environment variables take
+Census downloads require `CENSUS_API_KEY` the same way, and existing environment variables take
 precedence over values in the file. By default, `env_file: null` loads no file, and neither offline
 runs nor the checksum command reads one.
 

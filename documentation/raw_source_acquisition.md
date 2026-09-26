@@ -438,10 +438,13 @@ validation without rewriting it. As a result, differences in whitespace can chan
 even when the table values match. Validation also rejects JSON numbers such as `NaN` and infinity.
 
 Failed downloads discard their temporary files, so a partial download cannot be mistaken for a
-completed file on the next run. Existing files receive the same basic format checks and are not
-overwritten. These checks do not read every file inside an archive, verify population values, or
-establish that population records match the boundaries. Those checks belong to population processing
-and geographic joins. Retrieval does not compare checksums.
+completed file on the next run. Existing files are never overwritten and receive a cheaper check:
+archives must still list at least one file, and Census tables must be nonempty and open and close
+as a JSON array, but they are not parsed again. A table whose contents were altered after
+publication is reported when population processing parses it; tables that no later stage reads
+are not rechecked. These checks do not read every file inside an archive, verify population
+values, or establish that population records match the boundaries. Those checks belong to
+population processing and geographic joins. Retrieval does not compare checksums.
 
 ## Sources and coverage
 

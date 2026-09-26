@@ -13,7 +13,7 @@ from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.stage_files import StagedFile
 
 from ..check_raw_files import load_census_table
-from ..http_transport import download_file
+from ..http_transport import DataProviderError, download_file
 from ..raw_file_requests import CensusFileRequest, RawFileRequest
 from .build_requests import build_census_table_relative_path
 
@@ -94,8 +94,8 @@ def download_census_table(
 
     County tables must already be available for 2010 block queries.
     prepare_download_batches_with_2010_counties_first() places those downloads before the
-    dependent block downloads. CENSUS_API_KEY is read from the environment if present and is not
-    saved. The caller checks the saved table and publishes the completed file.
+    dependent block downloads. CENSUS_API_KEY is required and is read from the environment
+    without being saved. The caller checks the saved table and publishes the completed file.
 
     Args:
         request (CensusFileRequest): Census year, dataset, variables, and geographic selection.
@@ -104,13 +104,17 @@ def download_census_table(
         directories (RawDataSubdirectories): Configured folders beneath raw_data_directory.
 
     Raises:
-        DataProviderError: Transport fails or the response fails the download's byte-count check.
+        DataProviderError: CENSUS_API_KEY is unset, transport fails, or the response fails the
+            download's byte-count check.
         ValueError: A county prerequisite is invalid, or staging is not empty.
         OSError: Reading a county prerequisite or writing the staged file fails.
     """
+    api_key = os.environ.get("CENSUS_API_KEY")
+    if not api_key:
+        raise DataProviderError("Set CENSUS_API_KEY to download Census tables")
+
     parameters = resolve_census_query_parameters(request, raw_data_directory, directories)
-    if api_key := os.environ.get("CENSUS_API_KEY"):
-        parameters["key"] = api_key
+    parameters["key"] = api_key
 
     url = f"https://api.census.gov/data/{request.census_year}/dec/{request.dataset.value}"
     download_file(
