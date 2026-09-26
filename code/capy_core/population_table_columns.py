@@ -25,6 +25,7 @@ class GeographyColumn(StrEnum):
 
     GEOGRAPHIC_ID = "GEOID"
     STATE_CODE = "state"
+    COUNTY_CODE = "county"
     GEOGRAPHY_LEVEL = "GEOGRAPHY_LEVEL"
 
 
