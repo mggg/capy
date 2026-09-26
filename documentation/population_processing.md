@@ -70,19 +70,19 @@ abbreviation.
 Each output keeps the source columns and adds fields for the study populations, geographic
 identifiers, and original record locations:
 
-| Field             | Meaning                                                                            |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| `GEOID`           | Modern Census identifier, or historical NHGIS `GISJOIN` preserved verbatim.        |
-| `TOTPOP`          | Total population.                                                                  |
-| `WHITE`           | Non-Hispanic White-alone population.                                               |
-| `BLACK`           | Non-Hispanic Black-alone population.                                               |
-| `POC`             | Total population minus non-Hispanic White-alone population.                        |
-| `SOURCE_FILE`     | Input filename relative to the configured raw-data directory.                      |
-| `SOURCE_ROW`      | Source record position, counting data rows from one after any header rows.         |
-| `SOURCE_MEMBER`   | NHGIS CSV filename inside its ZIP; present only in historical outputs.              |
-| `CENSUS_YEAR`     | Year of the source population.                                                     |
-| `CENSUS_DATASET`  | Source dataset: `pl`, `sf1`, `1980_STF1`, or `1990_STF1`.                           |
-| `GEOGRAPHY_LEVEL` | Kind of geographic unit, such as `tracts` or `blocks`.                             |
+| Field             | Meaning                                                                     |
+| ----------------- | --------------------------------------------------------------------------- |
+| `GEOID`           | Modern Census identifier, or historical NHGIS `GISJOIN` preserved verbatim. |
+| `TOTPOP`          | Total population.                                                           |
+| `WHITE`           | Non-Hispanic White-alone population.                                        |
+| `BLACK`           | Non-Hispanic Black-alone population.                                        |
+| `POC`             | Total population minus non-Hispanic White-alone population.                 |
+| `SOURCE_FILE`     | Input filename relative to the configured raw-data directory.               |
+| `SOURCE_ROW`      | Source record position, counting data rows from one after any header rows.  |
+| `SOURCE_MEMBER`   | NHGIS CSV filename inside its ZIP; present only in historical outputs.      |
+| `CENSUS_YEAR`     | Year of the source population.                                              |
+| `CENSUS_DATASET`  | Source dataset: `pl`, `sf1`, `1980_STF1`, or `1990_STF1`.                   |
+| `GEOGRAPHY_LEVEL` | Kind of geographic unit, such as `tracts` or `blocks`.                      |
 
 Parquet preserves identifiers as strings and counts as integers, so reading a saved table does not
 require special options to retain leading zeros. The files use Zstandard compression, with rows
@@ -147,10 +147,10 @@ The `_codebook.txt` beside each CSV defines its count columns. Processing uses t
 listed below to derive the study populations. Because the 1980 race categories include Hispanic
 residents, their counts must be subtracted to obtain the non-Hispanic White and Black groups.
 
-| Year | `TOTPOP` | `WHITE` | `BLACK` |
-| --- | --- | --- | --- |
+| Year | `TOTPOP`        | `WHITE`                            | `BLACK`           |
+| ---- | --------------- | ---------------------------------- | ----------------- |
 | 1980 | `C7L001` (NT1A) | `C9D001 - C9G001` (NT7 minus NT9B) | `C9D002 - C9G002` |
-| 1990 | `ET1001` (NP1) | `ET2001` (NP10) | `ET2002` (NP10) |
+| 1990 | `ET1001` (NP1)  | `ET2001` (NP10)                    | `ET2002` (NP10)   |
 
 Both years use `POC = TOTPOP - WHITE`, and every selected count must be a nonnegative integer.
 Blank or nonnumeric values cause an error. For 1980, processing checks that the 15 race counts sum
@@ -248,7 +248,9 @@ historical count and geographic columns are defined in
 codebooks. NHGIS dataset and geography selections are named in
 [`nhgis/identifiers.py`](../code/capy_core/retrieve_data/nhgis/identifiers.py).
 
+Continue with [boundary–population joining](geography_population_joining.md) to attach these counts
+to polygons and inspect geographic exclusions. The join keeps these population inputs unchanged.
+
 [resident-totals]: https://www2.census.gov/programs-surveys/decennial/2020/data/apportionment/apportionment.csv
 [tiger-documentation]: https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2010/TGRSHP10.pdf
-
 [tract-history]: https://www.census.gov/about/history/historical-censuses-and-surveys/census-programs-surveys/geography/tracts-and-block-numbering-areas.html

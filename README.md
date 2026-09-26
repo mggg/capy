@@ -3,8 +3,9 @@
 A replication pipeline for Census population and geographic data, study-area assignments, dual
 graphs, and residential segregation metrics.
 
-Raw-source retrieval and population processing for 1980–2020 are implemented. Geographic joins,
-study-area assignment, and graph construction follow in the [pipeline plan](plans/pipeline.md).
+Raw-source retrieval, population processing, and boundary–population joins for 1980–2020 are
+implemented. Study-area assignment and graph construction follow in the
+[pipeline plan](plans/pipeline.md).
 
 ## Run
 

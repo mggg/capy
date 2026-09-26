@@ -27,6 +27,7 @@ BLOCK_REFERENCE_COLUMNS = (
 )
 PL_REFERENCE_FILENAMES = {"06": "pl9417ca.dbf", "09": "pl9417ct.dbf"}
 
+# This block is in Queens, NY.
 # STF1BXNY LOGRECNU 161405 reports 106 people and 52 housing units, agreeing with NHGIS.
 # STF1BZNY LOGRECNU 198334 repeats the ID with zero counts and a different centroid/land area.
 CONFLICTING_1990_ZERO_BLOCK_ID = "36081077398104"
@@ -45,7 +46,7 @@ def read_1990_zero_population_block_ids(
     These identifiers establish zero population only for exact matches. A missing identifier
     does not establish that a boundary is empty. Housing is checked as well, so an empty but
     housed block is not classified by this operation. Water-block numbering is handled separately.
-    The conflicting Queens reference is excluded: the original population table and NHGIS both
+    The conflicting Queens, NY reference is excluded: the original population table and NHGIS both
     report 106 residents for that ID, despite its appearance in the geographic-zero file.
 
     Args:

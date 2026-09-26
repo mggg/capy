@@ -1,8 +1,8 @@
 # Run and understand the replication pipeline
 
-The pipeline implements raw-data retrieval and population processing for 1980–2020. Use the links
-below to run it, understand the inputs, or follow the code, and consult the pipeline plan for the
-later processing stages.
+The pipeline implements raw-data retrieval, population processing, and boundary–population joins for
+1980–2020. Use the links below to run it, understand the inputs, or follow the code. The pipeline
+plan describes the later processing stages.
 
 | What you want to do                                             | Where to start                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -14,6 +14,7 @@ later processing stages.
 | Reuse downloaded files or resume retrieval                      | [Run instructions below](#run-retrieval) and [reusing local files](../documentation/raw_source_acquisition.md#reusing-local-files)                                        |
 | Follow execution or change which tables are requested           | [Code walkthrough](../documentation/raw_source_acquisition.md#following-the-code) and [input definitions](../documentation/raw_source_acquisition.md#editing-raw-inputs) |
 | Process downloaded population tables | [Population processing](../documentation/population_processing.md) |
+| Join boundaries and inspect unmatched records | [Geography joining](../documentation/geography_population_joining.md) |
 | Understand the planned processing, study-area, and graph stages | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
 
 ## Run retrieval
@@ -111,3 +112,16 @@ Use `code/configs/replication.yaml` for all supported years and levels, or
 population counts, and saves Parquet tables beneath `processed_population_directory`. See the
 [population-processing guide](../documentation/population_processing.md) for output fields, checks,
 file locations, and rerun behavior.
+
+## Join boundaries and populations
+
+After population processing, attach counts to the selected boundaries:
+
+```bash
+uv run --locked python code/join_geographies.py --config code/configs/small_example.yaml
+```
+
+The command saves GeoParquet files, unmatched records, and population accounting beneath
+`joined_geography_directory`. Use the same configuration for retrieval, population processing,
+and joining. The [geography-joining guide](../documentation/geography_population_joining.md)
+explains historical corrections, geometry repair, source limitations, and rerun behavior.

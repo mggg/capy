@@ -81,6 +81,9 @@ class PipelineConfig(BaseModel):
             Omitted folder settings use the defaults documented on RawDataSubdirectories.
         processed_population_directory (Path): Folder for derived population Parquet files.
             Defaults to data/processed/population. Relative paths start at the repository root.
+        joined_geography_directory (Path): Folder for population-attributed boundaries and join
+            accounting. Defaults to data/processed/geography. Relative paths start at the
+            repository root; this folder must be separate from raw and population folders.
         env_file (Path | None): Optional file of environment variables, such as API keys. Defaults
             to None. Relative paths start at the repository root. Online retrieval reads it
             without replacing existing environment variables; offline runs do not read it.
@@ -123,6 +126,7 @@ class PipelineConfig(BaseModel):
     raw_data_directory: Path = Path("data/raw")
     raw_data_subdirectories: RawDataSubdirectories = Field(default_factory=RawDataSubdirectories)
     processed_population_directory: Path = Path("data/processed/population")
+    joined_geography_directory: Path = Path("data/processed/geography")
     env_file: Path | None = None
     offline: bool = False
     raw_checksums_file: Path = Path("data/raw_checksums.sha256")

@@ -7,6 +7,10 @@ raw_data_directory: data/raw
 
 # Derived population Parquet files; relative paths start at the repository root.
 processed_population_directory: data/processed/population
+
+# Joined boundaries and unmatched records; relative paths start at the repository root.
+joined_geography_directory: data/processed/geography
+
 raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis
