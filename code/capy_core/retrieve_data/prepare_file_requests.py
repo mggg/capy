@@ -43,7 +43,7 @@ def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, 
 
     For example, 1990 tracts inside cities defined using 2020 data need three selections:
     1990 tracts, 2020 counties, and 2020 places. Population and boundary builders receive the same
-         list so they request matching data.
+    list so they request matching data.
 
     Args:
         config (PipelineConfig): Requested node levels and years, plus the type and year of the
@@ -94,7 +94,24 @@ def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, 
     )
 
 
-def select_raw_file_requests(
+def select_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
+    """Build this run's raw input requests and apply its destination filename patterns.
+
+    Args:
+        config (PipelineConfig): Geography selections, raw folders, and file-path patterns.
+
+    Returns:
+        list[RawFileRequest]: Selected downloads in destination order, without opening files.
+
+    Raises:
+        ValueError: Geography selections are unsupported or a pattern matches no request.
+    """
+    requests = build_raw_file_requests(config)
+
+    return filter_raw_file_requests(requests, config.file_path_patterns)
+
+
+def filter_raw_file_requests(
     requests: list[RawFileRequest],
     file_path_patterns: tuple[str, ...],
 ) -> list[RawFileRequest]:

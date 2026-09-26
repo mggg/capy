@@ -6,6 +6,7 @@ from capy_core.retrieve_data.raw_file_requests import (
     GeographyRequest,
     PublicFileRequest,
     RawFileFormat,
+    TigerBoundaryFileRequest,
 )
 
 from ..state_codes import STATE_FIPS_CODES
@@ -18,6 +19,9 @@ HISTORICAL_STUDY_TOTALS_FILENAMES = {
     year: f"census_working_paper_56_{year}_{source_filename}"
     for year, source_filename in HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES.items()
 }
+
+RACE_TOTALS_1980_SOURCE_FILENAME = "tableA-03.xlsx"
+RACE_TOTALS_1980_FILENAME = f"census_working_paper_56_1980_{RACE_TOTALS_1980_SOURCE_FILENAME}"
 
 # These counties contain the twelve 1980 BNAs absent from the NHGIS tract/BNA product.
 MISSING_1980_BNAS_BY_COUNTY = {
@@ -45,7 +49,9 @@ def build_census_published_file_requests(
         list[PublicFileRequest]: Boundaries and reference tables needed for population checks
             and joins.
     """
-    requests = build_tiger_file_requests(directories, geography_requests)
+    requests: list[PublicFileRequest] = list(
+        build_tiger_file_requests(directories, geography_requests)
+    )
 
     if any(
         request.census_year == 1980 and request.geography_level == GeographyLevel.TRACT
@@ -114,7 +120,7 @@ def build_1990_block_reference_requests(
 
 def build_tiger_file_requests(
     directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
-) -> list[PublicFileRequest]:
+) -> list[TigerBoundaryFileRequest]:
     """Build selected 2000/2010 boundaries from TIGER2010 and 2020 boundaries from TIGER2020.
 
     Args:
@@ -122,7 +128,7 @@ def build_tiger_file_requests(
         geography_requests (tuple[GeographyRequest, ...]): Shared node and definition selections.
 
     Returns:
-        list[PublicFileRequest]: Selected modern boundaries. Counties use national files; other
+        list[TigerBoundaryFileRequest]: Selected modern boundaries. Counties use national files; other
             levels use state files. Historical selections are handled by NHGIS.
     """
     geo_product_codes = {
@@ -157,13 +163,15 @@ def build_tiger_file_requests(
                 filename = f"tl_2020_{area_code}_{geo_product_code}.zip"
                 url = f"https://www2.census.gov/geo/tiger/TIGER2020/{geo_product_code.upper()}/{filename}"
             else:
-                # NOTE: TIGER2010 is the source release contains the shapefiles for 2010 and 2000.
-                # TIGER was not an official format until...
+                # NOTE: TIGER2010 supplies both 2000 and 2010 geography in this collection.
                 filename = f"tl_2010_{area_code}_{geo_product_code}{str(census_year)[-2:]}.zip"
                 url = f"https://www2.census.gov/geo/tiger/TIGER2010/{geo_product_code.upper()}/{census_year}/{filename}"
 
             requests.append(
-                PublicFileRequest(
+                TigerBoundaryFileRequest(
+                    census_year=census_year,
+                    geography_level=geography_level,
+                    state_code=None if area_code == "us" else area_code,
                     destination_relative_path=(
                         f"{directories.census_boundary_files}/{census_year}/"
                         f"{geography_level.value}/{filename}"
@@ -220,26 +228,32 @@ def build_reference_file_requests(
             )
         )
 
-    race_table_source_filenames = {1980: "tableA-03.xlsx", 1990: "tableA-01.xlsx"}
-
     for year in sorted(years & HISTORICAL_STUDY_TOTALS_FILENAMES.keys()):
-        race_source_filename = race_table_source_filenames[year]
+        source_filename = HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES[year]
+        local_filename = HISTORICAL_STUDY_TOTALS_FILENAMES[year]
 
-        for source_filename, local_filename in (
-            (race_source_filename, f"census_working_paper_56_{year}_{race_source_filename}"),
-            (
-                HISTORICAL_STUDY_TOTALS_SOURCE_FILENAMES[year],
-                HISTORICAL_STUDY_TOTALS_FILENAMES[year],
-            ),
-        ):
-            requests.append(
-                PublicFileRequest(
-                    destination_relative_path=(
-                        f"{directories.population_reference_tables}/{local_filename}"
-                    ),
-                    file_format=RawFileFormat.EXCEL_XLSX,
-                    url=f"https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/{source_filename}",
-                )
+        requests.append(
+            PublicFileRequest(
+                destination_relative_path=(
+                    f"{directories.population_reference_tables}/{local_filename}"
+                ),
+                file_format=RawFileFormat.EXCEL_XLSX,
+                url=f"https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/{source_filename}",
             )
+        )
+
+    if 1980 in years:
+        requests.append(
+            PublicFileRequest(
+                destination_relative_path=(
+                    f"{directories.population_reference_tables}/{RACE_TOTALS_1980_FILENAME}"
+                ),
+                file_format=RawFileFormat.EXCEL_XLSX,
+                url=(
+                    "https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/"
+                    f"{RACE_TOTALS_1980_SOURCE_FILENAME}"
+                ),
+            )
+        )
 
     return requests

@@ -85,13 +85,13 @@ def test_download_progress_counts_bytes_without_exposing_urls(
         http_transport.download_file(
             "https://example.org/file?key=private-key",
             temporary_path,
-            download_label="population_reference_tables/census_working_paper_56_1990_tableA-01.xlsx",
+            download_label="population_reference_tables/census_working_paper_56_1990_tableE-01.xlsx",
         )
         assert temporary_path.read_bytes() == b"abcdefg"
 
     assert progress.n == 7
     assert progress_factory.call_args.kwargs["total"] == expected_total
-    assert "tableA-01.xlsx" in progress_factory.call_args.kwargs["desc"]
+    assert "tableE-01.xlsx" in progress_factory.call_args.kwargs["desc"]
     assert "private-key" not in str(progress_factory.call_args)
     assert "private-key" not in display.getvalue()
 

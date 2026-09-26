@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
 import pandas as pd
@@ -15,9 +17,16 @@ from capy_core.population_table_columns import (
 )
 from capy_core.process_population.nhgis_columns import NhgisGeographyColumn
 
-from .read_1990_zero_blocks import CONFLICTING_1990_ZERO_BLOCK_ID
+from .read_1990_zero_blocks import (
+    CONFLICTING_1990_ZERO_BLOCK_ID,
+    CONFLICTING_1990_ZERO_BLOCK_POPULATION,
+    read_1990_zero_population_block_ids,
+)
 from .read_boundaries import BoundaryColumn
 from .repair_1980_sources import PARENT_GEOMETRY_MERGES_1980
+
+if TYPE_CHECKING:
+    from .select_inputs import GeographyJoinInputs
 
 PROJECTED_CRS = "ESRI:102003"
 
@@ -67,7 +76,7 @@ def repair_and_project_boundaries(
 ) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
     """Repair invalid polygons with buffer(0), check the result, and project to study coordinates.
 
-    Repair occurs in the source coordinate system and never changes IDs or population. The
+    Repair occurs in the source coordinate system and preserves IDs and existing merge accounting. The
     returned accounting measures each repaired feature's area before and after in square meters,
     using ESRI:102003. It describes geometry changes, not residents gained or lost. Empty or
     non-polygon results stop processing instead of disappearing from the join.
@@ -117,9 +126,6 @@ def repair_and_project_boundaries(
     ):
         raise ValueError("buffer(0) and projection did not produce valid nonempty polygons")
 
-    boundaries_df[JoinColumn.BOUNDARY_PART_COUNT] = 1
-    boundaries_df[JoinColumn.MERGED_BOUNDARY_SOURCES] = ""
-
     return boundaries_df, repairs_df
 
 
@@ -131,13 +137,16 @@ def merge_1980_parent_geometries(boundaries_df: gpd.GeoDataFrame) -> gpd.GeoData
     location; BOUNDARY_PART_COUNT accounts for both source features.
 
     Args:
-        boundaries_df (gpd.GeoDataFrame): Valid projected 1980 tract/BNA polygons.
+        boundaries_df (gpd.GeoDataFrame): Complete projected 1980 tract/BNA table with source
+            file/member columns. Preparation must initialize BOUNDARY_PART_COUNT to 1 and
+            MERGED_BOUNDARY_SOURCES to an empty string for each original feature.
 
     Returns:
         gpd.GeoDataFrame: Four fewer rows, with parent geometries extended and IDs unchanged.
 
     Raises:
         ValueError: A fragment or parent is missing, or merging produces an invalid polygon.
+        KeyError: Required identity, provenance, or boundary accounting columns are absent.
     """
     boundaries_df = boundaries_df.copy()
     boundaries_df.set_index(GeographyColumn.GEOGRAPHIC_ID, drop=False, inplace=True)
@@ -433,10 +442,45 @@ def add_exclusion_reasons_in_place(
     )
 
 
+def classify_1990_zero_population_blocks(
+    result: PopulationBoundaryJoin,
+    selection: "GeographyJoinInputs",
+    state_code: str,
+    block_reference_directory: Path,
+) -> PopulationBoundaryJoin:
+    """Read original empty-block evidence and classify the selected state's 1990 block join.
+
+    Other years and levels return without reading reference files or changing the result.
+
+    Args:
+        result (PopulationBoundaryJoin): Join for the supplied selection and state, left unchanged.
+        selection (GeographyJoinInputs): Year and level of the join.
+        state_code (str): Two-digit state FIPS code whose original references should be read.
+        block_reference_directory (Path): Folder containing original STF1B and PL reference files.
+
+    Returns:
+        PopulationBoundaryJoin: Annotated join, or the original result for other selections.
+            Changed tables are copied; the unchanged unmatched-population table is shared.
+
+    Raises:
+        OSError: Reading a required reference fails.
+        BadZipFile: A reference ZIP is damaged.
+        ValueError: Reference identities or population counts disagree.
+    """
+    if selection.census_year != 1990 or selection.geography_level != GeographyLevel.BLOCK:
+        return result
+
+    zero_population_block_ids = read_1990_zero_population_block_ids(
+        block_reference_directory, state_code
+    )
+
+    return apply_1990_zero_block_evidence(result, zero_population_block_ids)
+
+
 def apply_1990_zero_block_evidence(
     result: PopulationBoundaryJoin, zero_population_block_ids: set[str]
-) -> None:
-    """Classify unmatched empty blocks in place using exact IDs from original Census records.
+) -> PopulationBoundaryJoin:
+    """Return an annotated join using exact empty-block IDs from original Census records.
 
     Block 36081077398104 in Queens, NY has conflicting Census records. The original STF1B
     population table reports 106 people and 52 housing units, agreeing with NHGIS. The
@@ -446,14 +490,19 @@ def apply_1990_zero_block_evidence(
 
     Args:
         result (PopulationBoundaryJoin): Matched and unmatched 1990 blocks with normalized Census
-            block IDs. Updates their exclusion reasons, known totals, and geographic notes.
+            block IDs, left unchanged.
         zero_population_block_ids (set[str]): IDs proven to have zero people and housing units by
             the original STF1B or PL records. Missing IDs establish nothing.
+
+    Returns:
+        PopulationBoundaryJoin: Copies of the matched and unmatched-boundary tables with updated
+            notes and classifications. The unchanged unmatched-population table is shared.
+            No input table is changed, including when validation fails.
 
     Raises:
         ValueError: A matched NHGIS population contradicts the original zero-population record.
     """
-    matched_geography_df = result.matched_geography_df
+    matched_geography_df = result.matched_geography_df.copy()
     known_empty_rows = matched_geography_df[BoundaryColumn.CENSUS_ID].isin(
         list(zero_population_block_ids)
     )
@@ -467,7 +516,7 @@ def apply_1990_zero_block_evidence(
 
     if (
         not matched_geography_df.loc[conflicting_reference_rows, PopulationColumn.TOTAL]
-        .eq(106)
+        .eq(CONFLICTING_1990_ZERO_BLOCK_POPULATION)
         .all()
     ):
         raise ValueError(
@@ -479,9 +528,15 @@ def apply_1990_zero_block_evidence(
         "a conflicting geographic-zero record is not used"
     )
 
-    boundaries_df = result.unmatched_boundaries_df
+    boundaries_df = result.unmatched_boundaries_df.copy()
     known_empty_rows = boundaries_df[BoundaryColumn.CENSUS_ID].isin(list(zero_population_block_ids))
     boundaries_df.loc[known_empty_rows, JoinColumn.EXCLUSION_REASON] = (
         ExclusionReason.EMPTY_BLOCK_1990.value
     )
     boundaries_df.loc[known_empty_rows, JoinColumn.KNOWN_TOTAL_POPULATION] = 0
+
+    return PopulationBoundaryJoin(
+        matched_geography_df=matched_geography_df,
+        unmatched_population_df=result.unmatched_population_df,
+        unmatched_boundaries_df=boundaries_df,
+    )

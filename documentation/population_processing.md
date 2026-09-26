@@ -166,13 +166,23 @@ sum to their state's counts. This applies to all source count columns and derive
 NHGIS state tables before reading the smaller areas, comparing their total, non-Hispanic White,
 and non-Hispanic Black counts with
 [Census Working Paper 56](https://www.census.gov/library/working-papers/2002/demo/POP-twps0056.html),
-Table E-3 for 1980 and Table E-1 for 1990. As with the modern references, these are separate
-publications of Census counts rather than independent counts of residents.
-The state tables are then reused for these comparisons and saved as the national state outputs,
-without reading their archives again.
+Table E-3 for 1980 and Table E-1 for 1990. The state tables are then reused for these comparisons
+and saved as the national state outputs, without reading their archives again.
 
-The exception is 1980 tracts, whose source collection does not cover all residents. Census describes
-the expansion to complete national tract/BNA coverage in its [geographic history][tract-history].
+The published comparisons also check source categories that can be wrong without changing the
+study populations. For 1980, Table A-3 supplies separate totals for White, Black, American
+Indian/Eskimo/Aleut, Asian/Pacific Islander, and other-race residents, plus Hispanic origin across
+all races. The corresponding NHGIS categories are summed to match these published groups.
+E-3 combines the races other than White and Black, so it cannot provide that distinction.
+For 1990, E-1 already separates all five race groups by Hispanic origin, allowing all ten NHGIS
+race-by-origin counts to be checked without an A-series workbook. These comparisons cover every
+state and DC; a mismatch stops processing and identifies the workbook, population, and states.
+As with the modern references, the workbooks are separate publications of Census counts rather
+than independent counts of residents.
+
+Substate counts need not sum to their state totals for 1980 tracts, whose source collection does not
+cover all residents. Census describes the expansion to complete national tract/BNA coverage in its
+[geographic history][tract-history].
 Requiring the available tracts to sum to the state would therefore reject the source's actual
 coverage. Instead, processing checks that their sums do not exceed the state counts and records
 `partial_1980_tract_coverage_bounded_by_state` in the summary. This establishes an upper bound,

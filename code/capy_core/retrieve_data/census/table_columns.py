@@ -101,15 +101,22 @@ CensusPopulationColumn: TypeAlias = (
 class CensusPopulationColumns:
     """Source columns used to derive study counts and check race and Hispanic-origin totals.
 
-    Race categories include Hispanic residents. The white and black fields below select the
-    non-Hispanic counts used in the study. Their order is independent of the downloaded columns.
+    White-alone and Black-alone counts include Hispanic residents. The non_hispanic fields
+    select the study populations. Named roles do not depend on downloaded column order.
     """
 
     total: CensusPopulationColumn
-    race_categories: tuple[CensusPopulationColumn, ...]
+    white_alone: CensusPopulationColumn
+    black_alone: CensusPopulationColumn
+    other_race_categories: tuple[CensusPopulationColumn, ...]
     hispanic: CensusPopulationColumn
     non_hispanic_white: CensusPopulationColumn
     non_hispanic_black: CensusPopulationColumn
+
+    @property
+    def race_categories(self) -> tuple[CensusPopulationColumn, ...]:
+        """The seven mutually exclusive race categories, including Hispanic residents."""
+        return (self.white_alone, self.black_alone, *self.other_race_categories)
 
     @property
     def count_columns(self) -> tuple[CensusPopulationColumn, ...]:
@@ -128,9 +135,9 @@ CENSUS_POPULATION_COLUMNS: dict[
 ] = {
     (2000, CensusDataset.PL_94_171): CensusPopulationColumns(
         total=Census2000PlColumn.TOTAL,
-        race_categories=(
-            Census2000PlColumn.WHITE_ALONE,
-            Census2000PlColumn.BLACK_ALONE,
+        white_alone=Census2000PlColumn.WHITE_ALONE,
+        black_alone=Census2000PlColumn.BLACK_ALONE,
+        other_race_categories=(
             Census2000PlColumn.AMERICAN_INDIAN_ALASKA_NATIVE_ALONE,
             Census2000PlColumn.ASIAN_ALONE,
             Census2000PlColumn.NATIVE_HAWAIIAN_PACIFIC_ISLANDER_ALONE,
@@ -143,9 +150,9 @@ CENSUS_POPULATION_COLUMNS: dict[
     ),
     (2000, CensusDataset.SUMMARY_FILE_1): CensusPopulationColumns(
         total=Census2000Sf1Column.TOTAL,
-        race_categories=(
-            Census2000Sf1Column.WHITE_ALONE,
-            Census2000Sf1Column.BLACK_ALONE,
+        white_alone=Census2000Sf1Column.WHITE_ALONE,
+        black_alone=Census2000Sf1Column.BLACK_ALONE,
+        other_race_categories=(
             Census2000Sf1Column.AMERICAN_INDIAN_ALASKA_NATIVE_ALONE,
             Census2000Sf1Column.ASIAN_ALONE,
             Census2000Sf1Column.NATIVE_HAWAIIAN_PACIFIC_ISLANDER_ALONE,
@@ -158,9 +165,9 @@ CENSUS_POPULATION_COLUMNS: dict[
     ),
     (2010, CensusDataset.PL_94_171): CensusPopulationColumns(
         total=Census2010PlColumn.TOTAL,
-        race_categories=(
-            Census2010PlColumn.WHITE_ALONE,
-            Census2010PlColumn.BLACK_ALONE,
+        white_alone=Census2010PlColumn.WHITE_ALONE,
+        black_alone=Census2010PlColumn.BLACK_ALONE,
+        other_race_categories=(
             Census2010PlColumn.AMERICAN_INDIAN_ALASKA_NATIVE_ALONE,
             Census2010PlColumn.ASIAN_ALONE,
             Census2010PlColumn.NATIVE_HAWAIIAN_PACIFIC_ISLANDER_ALONE,
@@ -173,9 +180,9 @@ CENSUS_POPULATION_COLUMNS: dict[
     ),
     (2020, CensusDataset.PL_94_171): CensusPopulationColumns(
         total=Census2020PlColumn.TOTAL,
-        race_categories=(
-            Census2020PlColumn.WHITE_ALONE,
-            Census2020PlColumn.BLACK_ALONE,
+        white_alone=Census2020PlColumn.WHITE_ALONE,
+        black_alone=Census2020PlColumn.BLACK_ALONE,
+        other_race_categories=(
             Census2020PlColumn.AMERICAN_INDIAN_ALASKA_NATIVE_ALONE,
             Census2020PlColumn.ASIAN_ALONE,
             Census2020PlColumn.NATIVE_HAWAIIAN_PACIFIC_ISLANDER_ALONE,

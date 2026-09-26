@@ -87,7 +87,8 @@ def read_census_population(population_json_path: Path, request: CensusFileReques
         population_df, request
     )
 
-    convert_and_check_census_population_counts(population_df, population_columns)
+    counts_df = convert_and_check_census_population_counts(population_df, population_columns)
+    population_df[counts_df.columns] = counts_df
 
     population_df[PopulationColumn.TOTAL] = population_df[population_columns.total]
     population_df[PopulationColumn.WHITE] = population_df[population_columns.non_hispanic_white]
@@ -155,18 +156,23 @@ def build_census_geographic_ids(
 
 def convert_and_check_census_population_counts(
     population_df: pd.DataFrame, population_columns: CensusPopulationColumns
-) -> None:
-    """Convert count columns to integers and check their demographic relationships in place.
+) -> pd.DataFrame:
+    """Return integer count columns after checking their demographic relationships.
 
     Args:
-        population_df (pd.DataFrame): Source records, modified only by converting valid count
-            columns.
+        population_df (pd.DataFrame): Source records, left unchanged on success and failure.
         population_columns (CensusPopulationColumns): Total, race, and Hispanic-origin column
             definitions.
+
+    Returns:
+        pd.DataFrame: Only the eleven count columns, containing exact Python integers and
+            retaining the input row index. The caller assigns them to its working table.
 
     Raises:
         ValueError: Counts are missing, negative, noninteger, or inconsistent with each other.
     """
+    counts_df = pd.DataFrame(index=population_df.index)
+
     for population_column in population_columns.count_columns:
         count_strings = population_df[population_column].astype("string")
 
@@ -176,17 +182,17 @@ def convert_and_check_census_population_counts(
             )
 
         # Python integers keep population sums exact instead of wrapping at the int64 limit.
-        population_df[population_column] = pd.Series(
+        counts_df[population_column] = pd.Series(
             [int(count_string) for count_string in count_strings],
             index=population_df.index,
             dtype=object,
         )
 
-    total_population = population_df[population_columns.total]
-    non_hispanic_white = population_df[population_columns.non_hispanic_white]
-    non_hispanic_black = population_df[population_columns.non_hispanic_black]
-    hispanic_population = population_df[population_columns.hispanic]
-    race_category_total = population_df[list(population_columns.race_categories)].sum(axis=1)
+    total_population = counts_df[population_columns.total]
+    non_hispanic_white = counts_df[population_columns.non_hispanic_white]
+    non_hispanic_black = counts_df[population_columns.non_hispanic_black]
+    hispanic_population = counts_df[population_columns.hispanic]
+    race_category_total = counts_df[list(population_columns.race_categories)].sum(axis=1)
 
     if not race_category_total.eq(total_population).all():
         raise ValueError("Race category counts do not sum to total population")
@@ -194,11 +200,13 @@ def convert_and_check_census_population_counts(
     if (hispanic_population > total_population).any():
         raise ValueError("Hispanic population exceeds total population")
 
-    if (non_hispanic_white > population_df[population_columns.race_categories[0]]).any():
+    if (non_hispanic_white > counts_df[population_columns.white_alone]).any():
         raise ValueError("Non-Hispanic White population exceeds White-alone population")
 
-    if (non_hispanic_black > population_df[population_columns.race_categories[1]]).any():
+    if (non_hispanic_black > counts_df[population_columns.black_alone]).any():
         raise ValueError("Non-Hispanic Black population exceeds Black-alone population")
 
     if (non_hispanic_white + non_hispanic_black > total_population - hispanic_population).any():
         raise ValueError("White and Black study counts exceed non-Hispanic population")
+
+    return counts_df

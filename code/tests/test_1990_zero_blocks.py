@@ -110,14 +110,31 @@ def test_queens_conflicting_zero_reference_does_not_erase_106_residents(tmp_path
         pd.DataFrame(),
         gpd.GeoDataFrame(
             {
-                "BOUNDARY_CENSUS_ID": pd.Series(dtype=str),
-                "EXCLUSION_REASON": pd.Series(dtype=str),
-                "KNOWN_TOTAL_POPULATION": pd.Series(dtype="Int64"),
+                "BOUNDARY_CENSUS_ID": ["36081000100101"],
+                "EXCLUSION_REASON": ["unresolved_correspondence"],
+                "KNOWN_TOTAL_POPULATION": pd.Series([pd.NA], dtype="Int64"),
             }
         ),
     )
 
-    apply_1990_zero_block_evidence(result, zero_population_block_ids)
+    original_matched_df = result.matched_geography_df.copy()
+    original_unmatched_df = result.unmatched_boundaries_df.copy()
+    classified_result = apply_1990_zero_block_evidence(
+        result, zero_population_block_ids | {"36081000100101"}
+    )
+    assert classified_result.unmatched_boundaries_df.KNOWN_TOTAL_POPULATION.tolist() == [0]
 
-    assert result.matched_geography_df.TOTPOP.tolist() == [106]
-    assert "conflicting geographic-zero" in result.matched_geography_df.GEOGRAPHY_NOTE.iloc[0]
+    assert classified_result.matched_geography_df.TOTPOP.tolist() == [106]
+    assert (
+        "conflicting geographic-zero"
+        in classified_result.matched_geography_df.GEOGRAPHY_NOTE.iloc[0]
+    )
+    assert classified_result.unmatched_population_df is result.unmatched_population_df
+    pd.testing.assert_frame_equal(result.matched_geography_df, original_matched_df)
+    pd.testing.assert_frame_equal(result.unmatched_boundaries_df, original_unmatched_df)
+
+    with pytest.raises(ValueError, match="contradicts"):
+        apply_1990_zero_block_evidence(result, {"36081077398104"})
+
+    pd.testing.assert_frame_equal(result.matched_geography_df, original_matched_df)
+    pd.testing.assert_frame_equal(result.unmatched_boundaries_df, original_unmatched_df)

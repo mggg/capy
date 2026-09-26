@@ -163,6 +163,21 @@ class PublicFileRequest(RawFileDestination):
 
 
 @dataclass(frozen=True, kw_only=True)
+class TigerBoundaryFileRequest(PublicFileRequest):
+    """A TIGER boundary download with the geography identity needed for population joins.
+
+    Attributes:
+        census_year (int): Population-geography year, which can differ from the TIGER release.
+        geography_level (GeographyLevel): County, tract, block group, block, or place.
+        state_code (str | None): Two-digit state code, or None for a national county archive.
+    """
+
+    census_year: int
+    geography_level: GeographyLevel
+    state_code: str | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class NhgisTableFileRequest(RawFileDestination):
     """An NHGIS table extract, downloaded as a ZIP of CSV files with headers.
 
@@ -193,9 +208,13 @@ class NhgisBoundaryFileRequest(RawFileDestination):
     """An NHGIS boundary extract, downloaded as a shapefile ZIP.
 
     Attributes:
+        census_year (int): Historical geography year, 1980 or 1990.
+        geography_level (GeographyLevel): Resolution shared by the requested boundaries.
         shapefiles (tuple[str, ...]): One or more NHGIS shapefile identifiers, including vintage.
     """
 
+    census_year: int
+    geography_level: GeographyLevel
     shapefiles: tuple[str, ...]
     file_format: ClassVar[RawFileFormat] = RawFileFormat.SHAPEFILE_ZIP
 

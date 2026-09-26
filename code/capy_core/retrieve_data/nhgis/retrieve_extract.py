@@ -100,11 +100,8 @@ def retrieve_nhgis_extract(
     if not api_key:
         raise DataProviderError("Set IPUMS_API_KEY to download NHGIS extracts")
 
-    submission_path = submission_directory / f"{request.destination_relative_path}.json"
-
-    definition = build_nhgis_definition(request)
     client = IpumsApiClient(api_key)
-    submitted = submit_or_resume_extract(client, definition, submission_path)
+    submitted = submit_or_resume_extract(client, request, submission_directory)
 
     try:
         reported_status = client.extract_status(submitted.extract_id, "nhgis")
@@ -145,7 +142,7 @@ def retrieve_nhgis_extract(
     if response.get("warnings"):
         raise DataProviderError("NHGIS modified the requested extract; review its definition")
 
-    validate_nhgis_definition(extract_response.request_definition, definition)
+    validate_nhgis_definition(extract_response.request_definition, submitted.request)
     download_kind = "tableData" if isinstance(request, NhgisTableFileRequest) else "gisData"
 
     if download_kind not in extract_response.download_links:
@@ -184,7 +181,9 @@ class NhgisSubmissionRecord(BaseModel):
 
 
 def submit_or_resume_extract(
-    client: IpumsApiClient, request: NhgisExtractDefinition, submission_path: Path
+    client: IpumsApiClient,
+    request: NhgisTableFileRequest | NhgisBoundaryFileRequest,
+    submission_directory: Path,
 ) -> NhgisSubmissionRecord:
     """Reuse a saved request with the same selections, or submit a new one and save its number.
 
@@ -195,8 +194,9 @@ def submit_or_resume_extract(
 
     Args:
         client (IpumsApiClient): Authenticated NHGIS client used to submit the request.
-        request (NhgisExtractDefinition): Exact selections to submit or find in the saved record.
-        submission_path (Path): Record to read, or create after a successful submission.
+        request (NhgisTableFileRequest | NhgisBoundaryFileRequest): Raw-file destination and
+            selections to submit or find in the saved record.
+        submission_directory (Path): Root for records named after raw-file destinations.
 
     Returns:
         NhgisSubmissionRecord: Extract number and original selections. This function does not
@@ -211,10 +211,14 @@ def submit_or_resume_extract(
     Submission errors become DataProviderError messages without provider response text. Local file
     errors retain their filenames so the caller can report which record could not be read or saved.
     """
-    if submission_path.exists():
-        return load_matching_nhgis_submission(submission_path, request)
+    submitted = load_matching_nhgis_submission(request, submission_directory)
 
-    provider_request = request.to_provider_request()
+    if submitted is not None:
+        return submitted
+
+    definition = build_nhgis_definition(request)
+    provider_request = definition.to_provider_request()
+
     try:
         extract = client.submit_extract(provider_request)
     except Exception as error:  # noqa: BLE001 - SDK errors may contain credentials
@@ -223,29 +227,32 @@ def submit_or_resume_extract(
         ) from None
 
     try:
-        submitted = NhgisSubmissionRecord(extract_id=extract.extract_id, request=request)
+        submitted = NhgisSubmissionRecord(extract_id=extract.extract_id, request=definition)
     except ValidationError:
         raise DataProviderError("NHGIS returned an invalid extract number") from None
 
+    submission_path = submission_directory / f"{request.destination_relative_path}.json"
     save_nhgis_submission(submission_path, submitted)
 
     return submitted
 
 
 def load_matching_nhgis_submission(
-    submission_path: Path, request: NhgisExtractDefinition
-) -> NhgisSubmissionRecord:
+    request: NhgisTableFileRequest | NhgisBoundaryFileRequest, submission_directory: Path
+) -> NhgisSubmissionRecord | None:
     """Read a saved extract number and require its original request to match this run.
 
     Used before local archive reuse and when resuming a download. This checks the saved request,
     not the archive contents, and never contacts NHGIS or changes the submission record.
 
     Args:
-        submission_path (Path): Existing JSON record saved when the extract was submitted.
-        request (NhgisExtractDefinition): Definition required by the current file request.
+        request (NhgisTableFileRequest | NhgisBoundaryFileRequest): Destination and requested
+            selections, used to locate and compare the submission.
+        submission_directory (Path): Root containing the saved NHGIS submission records.
 
     Returns:
-        NhgisSubmissionRecord: Matching request and extract number.
+        NhgisSubmissionRecord | None: Matching request and extract number, or None if no record
+            exists. No credentials are needed; absence does not verify an existing archive.
 
     Raises:
         ValueError: The saved record is invalid; its path is included without its contents.
@@ -253,13 +260,20 @@ def load_matching_nhgis_submission(
             replace.
         OSError: Reading the record fails.
     """
+    submission_path = submission_directory / f"{request.destination_relative_path}.json"
+
+    if not submission_path.exists():
+        return None
+
+    definition = build_nhgis_definition(request)
     content = submission_path.read_text()
+
     try:
         submitted = NhgisSubmissionRecord.model_validate_json(content)
     except ValidationError:
         raise ValueError(f"Invalid saved NHGIS request: {submission_path}") from None
 
-    if submitted.request != request:
+    if submitted.request != definition:
         raise DataProviderError(
             f"Saved NHGIS submission has a different request: {submission_path}. "
             "For changed selections, use a new raw_data_directory or remove both the old archive "

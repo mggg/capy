@@ -12,7 +12,7 @@ from capy_core.retrieve_data.census.retrieve_tables import resolve_census_query_
 from capy_core.retrieve_data.prepare_file_requests import (
     build_geography_requests,
     build_raw_file_requests,
-    select_raw_file_requests,
+    filter_raw_file_requests,
 )
 from capy_core.retrieve_data.raw_file_requests import (
     CensusDataset,
@@ -123,7 +123,7 @@ def test_modern_selection_matches_populations_and_boundaries():
     )
     assert len(destinations) == len(set(destinations))
     with pytest.raises(ValueError, match="No defined files match"):
-        select_raw_file_requests(requests, ("tiger/2010/blocks/*",))
+        filter_raw_file_requests(requests, ("tiger/2010/blocks/*",))
 
 
 @pytest.mark.parametrize(
@@ -204,8 +204,9 @@ def test_historical_selection_downloads_only_required_levels_with_stable_paths()
     assert "tiger/2020/places/tl_2020_10_place.zip" in requests
     assert "tiger/2020/counties/tl_2020_us_county.zip" in requests
     assert "metro_membership_tables/list1_march_2020.xls" in requests
-    assert "population_reference_tables/census_working_paper_56_1990_tableA-01.xlsx" in requests
+    assert "population_reference_tables/census_working_paper_56_1990_tableE-01.xlsx" in requests
     assert requests["nhgis/1990/tracts/population.zip"].geographic_levels == ("tract",)
+    assert not any("tableA-" in path for path in requests)
     assert not any("1980" in path for path in requests)
     assert not any(path.startswith("census_1980_stf1a/") for path in requests)
 
@@ -224,6 +225,7 @@ def test_historical_definition_year_adds_its_population_and_reference_inputs():
         "nhgis/1980/counties/boundaries.zip",
         "nhgis/1980/states/population.zip",
         "population_reference_tables/census_working_paper_56_1980_tableE-03.xlsx",
+        "population_reference_tables/census_working_paper_56_1980_tableA-03.xlsx",
     } <= paths
     assert not any("/tracts/" in path and path.startswith("nhgis/") for path in paths)
     assert not any(path.startswith("census_1980_stf1a/") for path in paths)
@@ -317,16 +319,18 @@ def test_unsupported_combinations_fail_before_creating_raw_files(tmp_path, setti
     assert not config.raw_data_directory.exists()
 
 
-@pytest.mark.parametrize("filename", ["example.yaml", "replication.yaml", "small_example.yaml", "modern_population.yaml"])
+@pytest.mark.parametrize(
+    "filename", ["example.yaml", "replication.yaml", "small_example.yaml", "modern_population.yaml"]
+)
 def test_shipped_yaml_files_select_valid_inputs(filename):
     from pathlib import Path
 
     config = load_configuration(Path(__file__).parents[1] / "configs" / filename)
     requests = build_raw_file_requests(config)
-    selected = select_raw_file_requests(requests, config.file_path_patterns)
+    selected = filter_raw_file_requests(requests, config.file_path_patterns)
 
     assert selected
     if filename == "replication.yaml":
-        assert len(selected) == 1239
+        assert len(selected) == 1238
     elif filename == "small_example.yaml":
         assert len(selected) == 4

@@ -205,6 +205,9 @@ def read_nhgis_population_chunks(
             first_source_row = 1
 
             for source_chunk_df in source_chunks:
+                if not isinstance(source_chunk_df.index, pd.RangeIndex):
+                    raise ValueError("NHGIS CSV has more fields than its header")  # noqa: TRY004
+
                 population_chunk_df = normalize_nhgis_population(
                     source_chunk_df, census_year, geography_level
                 )
@@ -326,19 +329,21 @@ def normalize_nhgis_population(
     ):
         raise ValueError("Historical population records must identify one of the 50 states or DC")
 
-    if population_df[NhgisGeographyColumn.GEOGRAPHIC_ID].str.strip().eq("").any():
+    if population_df[NhgisGeographyColumn.GEOGRAPHIC_ID].fillna("").str.strip().eq("").any():
         raise ValueError("NHGIS population record has no GISJOIN")
 
     if geography_level != GeographyLevel.STATE and (
         NhgisGeographyColumn.COUNTY_CODE not in population_df
-        or not population_df[NhgisGeographyColumn.COUNTY_CODE].str.fullmatch(r"[0-9]{3}").all()
+        or not population_df[NhgisGeographyColumn.COUNTY_CODE]
+        .str.fullmatch(r"[0-9]{3}", na=False)
+        .all()
     ):
         raise ValueError("NHGIS substate records require three-digit county codes")
 
     for population_column in NHGIS_COUNT_COLUMNS[census_year]:
         count_strings = population_df[population_column]
 
-        if not count_strings.str.fullmatch(r"[0-9]+").all():
+        if not count_strings.str.fullmatch(r"[0-9]+", na=False).all():
             raise ValueError(
                 f"{population_column} must contain nonnegative integer counts in every row"
             )
@@ -350,7 +355,8 @@ def normalize_nhgis_population(
         )
 
     if census_year == 1980:
-        derive_1980_population_counts(population_df)
+        study_counts_df = derive_1980_population_counts(population_df)
+        population_df[study_counts_df.columns] = study_counts_df
     else:
         if (
             not population_df[list(NHGIS_1990_RACE_ORIGIN_COLUMNS)]
@@ -377,8 +383,8 @@ def normalize_nhgis_population(
     return population_df
 
 
-def derive_1980_population_counts(population_df: pd.DataFrame) -> None:
-    """Check STF1 race/origin identities and add the three study counts in place.
+def derive_1980_population_counts(population_df: pd.DataFrame) -> pd.DataFrame:
+    """Check STF1 race/origin identities and return the three derived study counts.
 
     The four Hispanic race cells must fit their corresponding race groups. The combined
     American Indian/Asian/Pacific Islander cell corresponds to NT7 cells 3 through 14.
@@ -386,6 +392,11 @@ def derive_1980_population_counts(population_df: pd.DataFrame) -> None:
 
     Args:
         population_df (pd.DataFrame): Exact integer count columns, already checked as nonnegative.
+            The table remains unchanged on success and failure.
+
+    Returns:
+        pd.DataFrame: TOTPOP, WHITE, and BLACK columns with the original row index. POC is
+            calculated by the normalizer for both historical years.
 
     Raises:
         ValueError: Race totals, Hispanic totals, or Hispanic subset bounds disagree.
@@ -416,10 +427,15 @@ def derive_1980_population_counts(population_df: pd.DataFrame) -> None:
         if (population_df[hispanic_column] > race_total).any():
             raise ValueError("1980 Hispanic race count exceeds its corresponding race population")
 
-    population_df[PopulationColumn.TOTAL] = population_df[Nhgis1980Column.TOTAL]
-    population_df[PopulationColumn.WHITE] = (
-        population_df[Nhgis1980Column.WHITE] - population_df[Nhgis1980Column.HISPANIC_WHITE]
-    )
-    population_df[PopulationColumn.BLACK] = (
-        population_df[Nhgis1980Column.BLACK] - population_df[Nhgis1980Column.HISPANIC_BLACK]
+    return pd.DataFrame(
+        {
+            PopulationColumn.TOTAL: population_df[Nhgis1980Column.TOTAL],
+            PopulationColumn.WHITE: (
+                population_df[Nhgis1980Column.WHITE] - population_df[Nhgis1980Column.HISPANIC_WHITE]
+            ),
+            PopulationColumn.BLACK: (
+                population_df[Nhgis1980Column.BLACK] - population_df[Nhgis1980Column.HISPANIC_BLACK]
+            ),
+        },
+        index=population_df.index,
     )

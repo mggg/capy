@@ -6,17 +6,12 @@ from pathlib import Path
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import PipelineConfig
 from capy_core.process_population.process_tables import select_population_requests
-from capy_core.process_population.read_nhgis import describe_nhgis_population_request
-from capy_core.process_population.save_tables import build_population_output_path
-from capy_core.retrieve_data.census.build_published_file_requests import build_tiger_file_requests
-from capy_core.retrieve_data.nhgis.build_requests import build_nhgis_file_requests
-from capy_core.retrieve_data.prepare_file_requests import (
-    build_geography_requests,
-    build_raw_file_requests,
-    select_raw_file_requests,
+from capy_core.process_population.save_tables import build_population_output_paths
+from capy_core.retrieve_data.prepare_file_requests import select_raw_file_requests
+from capy_core.retrieve_data.raw_file_requests import (
+    NhgisBoundaryFileRequest,
+    TigerBoundaryFileRequest,
 )
-from capy_core.retrieve_data.raw_file_requests import NhgisBoundaryFileRequest
-from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
 
 
 @dataclass(frozen=True)
@@ -52,71 +47,38 @@ def select_geography_join_inputs(config: PipelineConfig) -> list[GeographyJoinIn
         ValueError: A selection has population tables without boundaries, boundaries without
             population tables, or no substate population tables to join.
     """
-    selected_raw_file_paths = {
-        request.destination_relative_path
-        for request in select_raw_file_requests(
-            build_raw_file_requests(config), config.file_path_patterns
-        )
-    }
-    census_requests, nhgis_requests = select_population_requests(config)
-    population_paths_by_selection: dict[tuple[int, GeographyLevel], dict[str, Path]] = {}
+    selected_requests = select_raw_file_requests(config)
+    census_requests, nhgis_requests = select_population_requests(
+        selected_requests, config.raw_data_subdirectories
+    )
+    population_paths_by_selection = build_population_output_paths(census_requests, nhgis_requests)
+    boundary_paths_by_selection: dict[tuple[int, GeographyLevel], dict[str | None, str]] = {}
 
-    for request in census_requests:
-        if request.state_code is None:
+    for request in selected_requests:
+        if not isinstance(request, (TigerBoundaryFileRequest, NhgisBoundaryFileRequest)):
             continue
 
         year_and_level = (request.census_year, request.geography_level)
-        population_paths_by_selection.setdefault(year_and_level, {})[request.state_code] = (
-            build_population_output_path(
-                request.census_year, request.geography_level, request.state_code
-            )
-        )
+        state_code = request.state_code if isinstance(request, TigerBoundaryFileRequest) else None
+        state_paths = boundary_paths_by_selection.setdefault(year_and_level, {})
+        state_paths[state_code] = request.destination_relative_path
 
-    for request in nhgis_requests:
-        census_year, geography_level = describe_nhgis_population_request(request)
+    selected_pairs = set(population_paths_by_selection) | set(boundary_paths_by_selection)
+    join_inputs = []
 
+    for census_year, geography_level in sorted(selected_pairs):
         if geography_level == GeographyLevel.STATE:
             continue
 
-        population_paths_by_selection[census_year, geography_level] = {
-            state_code: build_population_output_path(census_year, geography_level, state_code)
-            for state_code in STATE_FIPS_CODES
-            if state_code != "72"  # Puerto Rico is not in NHGIS substate tables
-        }
-
-    join_inputs = []
-
-    for selection in build_geography_requests(config):
-        match selection.census_year:
-            case 1980 | 1990:
-                boundary_requests = [
-                    request
-                    for request in build_nhgis_file_requests(
-                        config.raw_data_subdirectories, (selection,)
-                    )
-                    if isinstance(request, NhgisBoundaryFileRequest)
-                ]
-            case 2000 | 2010 | 2020:
-                boundary_requests = build_tiger_file_requests(
-                    config.raw_data_subdirectories, (selection,)
-                )
-
-            case _:
-                raise ValueError(f"Unsupported Census year {selection.census_year}")
-
-        boundary_state_codes = (
-            (None,)
-            if selection.census_year < 2000 or selection.geography_level == GeographyLevel.COUNTY
-            else STATE_FIPS_CODES
+        boundary_paths_by_state = boundary_paths_by_selection.get(
+            (census_year, geography_level), {}
         )
-        boundary_paths_by_state = {
-            state_code: request.destination_relative_path
-            for state_code, request in zip(boundary_state_codes, boundary_requests, strict=True)
-            if request.destination_relative_path in selected_raw_file_paths
+        population_paths = population_paths_by_selection.get((census_year, geography_level), {})
+        population_paths_by_state = {
+            state_code: relative_path
+            for state_code, relative_path in population_paths.items()
+            if state_code is not None
         }
-        population_paths_by_state = population_paths_by_selection.get(
-            (selection.census_year, selection.geography_level), {}
-        )
 
         if (
             boundary_paths_by_state
@@ -125,20 +87,19 @@ def select_geography_join_inputs(config: PipelineConfig) -> list[GeographyJoinIn
         ):
             raise ValueError(
                 f"Select matching population and boundary states for "
-                f"{selection.census_year} {selection.geography_level}"
+                f"{census_year} {geography_level}"
             )
 
         if bool(boundary_paths_by_state) != bool(population_paths_by_state):
             raise ValueError(
-                f"Select both boundaries and population tables for "
-                f"{selection.census_year} {selection.geography_level}"
+                f"Select both boundaries and population tables for {census_year} {geography_level}"
             )
 
         if boundary_paths_by_state:
             join_inputs.append(
                 GeographyJoinInputs(
-                    census_year=selection.census_year,
-                    geography_level=selection.geography_level,
+                    census_year=census_year,
+                    geography_level=geography_level,
                     boundary_paths_by_state=boundary_paths_by_state,
                     population_paths_by_state=population_paths_by_state,
                 )

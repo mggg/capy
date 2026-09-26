@@ -1,5 +1,6 @@
 """Check historical repairs against original count cells and small directed TIGER outlines."""
 
+from dataclasses import replace
 from zipfile import ZipFile
 
 import geopandas as gpd
@@ -10,9 +11,10 @@ from capy_core.geography_types import GeographyLevel
 from capy_core.join_geographies.repair_1980_sources import (
     MISSING_1980_BNAS_BY_COUNTY,
     build_1980_bna_outline,
-    correct_richmond_population,
+    correct_richmond_population_1980,
     reconstruct_missing_1980_bnas,
 )
+from capy_core.join_geographies.select_inputs import GeographyJoinInputs
 from capy_core.process_population.nhgis_columns import Nhgis1980Column
 
 
@@ -36,7 +38,15 @@ def test_richmond_transfer_preserves_every_population_component_and_source_table
     ).assign(state="36", CENSUS_YEAR=1980, SOURCE_FILE="original.zip")
     original_population_df = population_df.copy(deep=True)
 
-    corrected_population_df = correct_richmond_population(population_df, geography_level)
+    selection = GeographyJoinInputs(1980, geography_level, {}, {})
+    later_selection = replace(selection, census_year=1990)
+    later_population_df = population_df.assign(CENSUS_YEAR=1990)
+    assert (
+        correct_richmond_population_1980(later_population_df, later_selection)
+        is later_population_df
+    )
+
+    corrected_population_df = correct_richmond_population_1980(population_df, selection)
 
     count_columns = list(richmond_counts)
     pd.testing.assert_series_equal(
@@ -54,7 +64,7 @@ def test_richmond_transfer_preserves_every_population_component_and_source_table
     assert len(corrected_population_df) == (1 if geography_level == GeographyLevel.TRACT else 2)
 
     with pytest.raises(ValueError):
-        correct_richmond_population(corrected_population_df, geography_level)
+        correct_richmond_population_1980(corrected_population_df, selection)
 
 
 def write_tiger_county(output_directory, state_county_code, bna_codes, invalid_sequence=False):

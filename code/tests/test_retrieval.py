@@ -13,7 +13,7 @@ from capy_core.retrieve_data.http_transport import (
 )
 from capy_core.retrieve_data.prepare_file_requests import (
     build_raw_file_requests,
-    select_raw_file_requests,
+    filter_raw_file_requests,
 )
 from capy_core.retrieve_data.raw_file_requests import (
     CensusDataset,
@@ -226,7 +226,7 @@ def test_raw_file_definitions_and_geographic_coverage():
         for year in (2000, 2010, 2020)
         for resolution in ("counties", "tracts", "block_groups", "blocks")
     )
-    assert len(file_requests) == 1239
+    assert len(file_requests) == 1238
     destinations = [request.destination_relative_path for request in file_requests]
     assert destinations == sorted(destinations)
 
@@ -246,11 +246,11 @@ def test_selection_preserves_order_and_rejects_duplicate_or_unmatched_destinatio
     second_request = build_census_request("census/second.json")
     requests = [first_request, second_request]
 
-    assert select_raw_file_requests(requests, ("census/*", "census/first.json")) == requests
+    assert filter_raw_file_requests(requests, ("census/*", "census/first.json")) == requests
     with pytest.raises(ValueError, match="unique destinations"):
-        select_raw_file_requests([first_request, first_request], ("*",))
+        filter_raw_file_requests([first_request, first_request], ("*",))
     with pytest.raises(ValueError, match="No defined files match"):
-        select_raw_file_requests(requests, ("missing/*",))
+        filter_raw_file_requests(requests, ("missing/*",))
 
 
 def test_invalid_download_is_not_published(tmp_path, monkeypatch):

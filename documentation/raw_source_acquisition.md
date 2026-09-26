@@ -129,8 +129,9 @@ Use the YAML configuration to select among the supported years and geography lev
 In Python, `GeographyLevel` and `StudyAreaType` are enums, or named choices with fixed values,
 defined in [`geography_types.py`](../code/capy_core/geography_types.py). For example, Python uses
 `GeographyLevel.BLOCK_GROUP`, while YAML uses its string value, `block_groups`. Retrieval then
-translates these shared choices into each API's names, such as `tabblock` for Census queries. The
-same distinction applies to study-area choices such as `max_city`. States and places supply
+translates these choices into provider names: blocks use `block` in Census population queries
+and `tabblock` or `tabblock20` in TIGER product names. The same distinction applies to study-area
+choices such as `max_city`. States and places supply
 supporting data but are not available as the units represented by graph nodes.
 
 For Census datasets, `CensusFileRequest` uses `CensusDataset.PL_94_171` or
@@ -147,10 +148,10 @@ it:
 PublicFileRequest(
     destination_relative_path=(
         f"{directories.population_reference_tables}/"
-        "census_working_paper_56_1990_tableA-01.xlsx"
+        "census_working_paper_56_1990_tableE-01.xlsx"
     ),
     file_format=RawFileFormat.EXCEL_XLSX,
-    url="https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/tableA-01.xlsx",
+    url="https://www2.census.gov/library/working-papers/2002/demo/pop-twps0056/tableE-01.xlsx",
 )
 ```
 
@@ -164,14 +165,13 @@ metro workbook uses `list1_march_2020.xls` to identify the date of its county-me
 | ------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `list1_2020.xls`    | `list1_march_2020.xls`                            | March 2020 metropolitan and micropolitan county memberships.                        |
 | `apportionment.csv` | `census_state_population_totals_2020_release.csv` | Census 2020 apportionment release, including historical resident population totals. |
-| `tableA-01.xlsx`    | `census_working_paper_56_1990_tableA-01.xlsx`     | 1990 race and Hispanic-origin totals.                                               |
-| `tableA-03.xlsx`    | `census_working_paper_56_1980_tableA-03.xlsx`     | 1980 race and Hispanic-origin totals.                                               |
+| `tableA-03.xlsx`    | `census_working_paper_56_1980_tableA-03.xlsx`     | 1980 detailed race and Hispanic-origin totals. |
 | `tableE-01.xlsx`    | `census_working_paper_56_1990_tableE-01.xlsx`     | 1990 race counts separated by Hispanic origin.                                      |
 | `tableE-03.xlsx`    | `census_working_paper_56_1980_tableE-03.xlsx`     | 1980 race counts separated by Hispanic origin.                                      |
 
-The four Excel reference tables come from Census [Population Division Working Paper
+The three Excel reference tables come from Census [Population Division Working Paper
 56][working-paper-56], published in 2002. The years in their local names identify the populations
-described, not the publication year; all four use 100-percent census counts. Their table numbers
+described, not the publication year; all three use 100-percent census counts. Their table numbers
 retain the direct connection to the source publication. The builders keep the original URLs beside
 these local names.
 

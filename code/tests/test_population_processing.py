@@ -327,9 +327,9 @@ def test_historical_references_load_once_before_out_of_order_archives(tmp_path, 
             for state_code in state_codes:
                 yield states_df.loc[states_df["state"].eq(state_code)]
 
-    def compare_published_totals(population_df, workbook_path, census_year):
+    def compare_published_totals(population_df, reference_directory, census_year):
         assert population_df is states_df
-        assert workbook_path.name == "census_working_paper_56_1980_tableE-03.xlsx"
+        assert reference_directory == tmp_path / "references"
         operations.append("compare published totals")
 
     monkeypatch.setattr(process_tables, "read_nhgis_population_by_state", read_archive)
@@ -365,3 +365,65 @@ def test_partial_parquet_write_does_not_replace_existing_output(tmp_path, monkey
 
     assert destination.read_bytes() == original_bytes
     assert not list(tmp_path.glob(".retrieval-*"))
+
+
+@pytest.mark.parametrize("invalid", [False, True])
+def test_census_count_conversion_leaves_source_unchanged(invalid):
+    from capy_core.process_population.read_census import convert_and_check_census_population_counts
+    from capy_core.retrieve_data.census.table_columns import CENSUS_POPULATION_COLUMNS
+
+    columns = CENSUS_POPULATION_COLUMNS[2020, CensusDataset.PL_94_171]
+    counts = {column: "0" for column in columns.count_columns}
+    counts.update({columns.total: "10", columns.white_alone: "10", columns.non_hispanic_white: "8"})
+    if invalid:
+        counts[columns.white_alone] = "invalid"
+
+    population_df = pd.DataFrame([counts], index=[7])
+    population_df["source_label"] = "unchanged"
+    original_df = population_df.copy()
+
+    if invalid:
+        with pytest.raises(ValueError, match="nonnegative integer"):
+            convert_and_check_census_population_counts(population_df, columns)
+    else:
+        counts_df = convert_and_check_census_population_counts(population_df, columns)
+        assert counts_df.index.tolist() == [7]
+        assert list(counts_df.columns) == list(columns.count_columns)
+        assert counts_df[columns.total].iloc[0] == 10
+        assert counts_df[columns.non_hispanic_white].iloc[0] == 8
+
+    pd.testing.assert_frame_equal(population_df, original_df)
+
+
+@pytest.mark.parametrize("invalid", [False, True])
+def test_1980_derivation_returns_counts_without_changing_source(invalid):
+    from capy_core.process_population.nhgis_columns import NHGIS_COUNT_COLUMNS, Nhgis1980Column
+    from capy_core.process_population.read_nhgis import derive_1980_population_counts
+
+    counts = dict.fromkeys(NHGIS_COUNT_COLUMNS[1980], 0)
+    counts.update(
+        {
+            Nhgis1980Column.TOTAL: 10,
+            Nhgis1980Column.WHITE: 8,
+            Nhgis1980Column.BLACK: 2,
+            Nhgis1980Column.HISPANIC_TOTAL: 2,
+            Nhgis1980Column.HISPANIC_WHITE: 2,
+        }
+    )
+    if invalid:
+        counts[Nhgis1980Column.HISPANIC_WHITE] = 3
+
+    population_df = pd.DataFrame([counts], index=[7], dtype=object)
+    original_df = population_df.copy()
+
+    if invalid:
+        with pytest.raises(ValueError, match="Hispanic race counts"):
+            derive_1980_population_counts(population_df)
+    else:
+        counts_df = derive_1980_population_counts(population_df)
+        expected_df = pd.DataFrame(
+            {"TOTPOP": [10], "WHITE": [6], "BLACK": [2]}, index=[7], dtype=object
+        )
+        pd.testing.assert_frame_equal(counts_df, expected_df)
+
+    pd.testing.assert_frame_equal(population_df, original_df)

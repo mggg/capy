@@ -2,24 +2,30 @@
 
 from contextlib import closing
 from pathlib import Path
+from typing import Literal
 from zipfile import BadZipFile
 
 import pandas as pd
 from tqdm import tqdm
 
 from capy_core.geography_types import GeographyLevel
-from capy_core.pipeline_config import PipelineConfig
+from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
 from capy_core.population_table_columns import GeographyColumn
 from capy_core.retrieve_data.census.build_published_file_requests import (
     CENSUS_RESIDENT_TOTALS_FILENAME,
-    HISTORICAL_STUDY_TOTALS_FILENAMES,
 )
+from capy_core.retrieve_data.census.build_requests import build_census_state_reference_request
+from capy_core.retrieve_data.nhgis.build_requests import build_historical_population_requests
 from capy_core.retrieve_data.nhgis.identifiers import NhgisGeographyLevel
 from capy_core.retrieve_data.prepare_file_requests import (
-    build_raw_file_requests,
     select_raw_file_requests,
 )
-from capy_core.retrieve_data.raw_file_requests import CensusFileRequest, NhgisTableFileRequest
+from capy_core.retrieve_data.raw_file_requests import (
+    CensusFileRequest,
+    GeographyRequest,
+    NhgisTableFileRequest,
+    RawFileRequest,
+)
 from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
 
 from .check_nhgis_totals import check_historical_published_totals, check_nhgis_state_sum
@@ -34,6 +40,7 @@ from .save_tables import (
     PopulationComparison,
     PopulationTableSummary,
     build_population_output_path,
+    build_population_output_paths,
     save_population_parquet,
     save_population_summary,
     summarize_population_table,
@@ -64,7 +71,10 @@ def process_population_tables(
         OSError: A required input cannot be read or an output cannot be written.
         ValueError: Inputs, selections, output locations, or population checks are invalid.
     """
-    census_requests, nhgis_requests = select_population_requests(config)
+    selected_requests = select_raw_file_requests(config)
+    census_requests, nhgis_requests = select_population_requests(
+        selected_requests, config.raw_data_subdirectories
+    )
     raw_directory = (repository_root / config.raw_data_directory).resolve()
     output_directory = (repository_root / config.processed_population_directory).resolve()
 
@@ -75,11 +85,11 @@ def process_population_tables(
 
     remove_selected_population_outputs(census_requests, nhgis_requests, output_directory)
 
-    summaries = process_census_population_tables(
-        census_requests, config, raw_directory, output_directory
-    )
-
     reference_directory = raw_directory / config.raw_data_subdirectories.population_reference_tables
+
+    summaries = process_census_population_tables(
+        census_requests, raw_directory, output_directory, reference_directory
+    )
 
     summaries.extend(
         process_historical_population_tables(
@@ -112,27 +122,12 @@ def remove_selected_population_outputs(
         OSError: A selected file cannot be removed.
     """
     summary_path = output_directory / "processing_summary.csv"
+    population_paths_by_selection = build_population_output_paths(census_requests, nhgis_requests)
     output_paths = [
-        output_directory
-        / build_population_output_path(
-            request.census_year, request.geography_level, request.state_code
-        )
-        for request in census_requests
+        output_directory / relative_path
+        for state_paths in population_paths_by_selection.values()
+        for relative_path in state_paths.values()
     ]
-
-    for request in nhgis_requests:
-        census_year, geography_level = describe_nhgis_population_request(request)
-        state_codes = (
-            (None,)
-            if geography_level == GeographyLevel.STATE
-            else tuple(state_code for state_code in STATE_FIPS_CODES if state_code != "72")
-        )
-
-        output_paths.extend(
-            output_directory
-            / build_population_output_path(census_year, geography_level, state_code)
-            for state_code in state_codes
-        )
 
     for output_path in [summary_path, *output_paths]:
         if not output_path.resolve().is_relative_to(output_directory):
@@ -146,17 +141,17 @@ def remove_selected_population_outputs(
 
 def process_census_population_tables(
     census_requests: list[CensusFileRequest],
-    config: PipelineConfig,
     raw_directory: Path,
     output_directory: Path,
+    reference_directory: Path,
 ) -> list[PopulationTableSummary]:
     """Check modern state references, then process each selected Census PL/SF1 table.
 
     Args:
         census_requests (list[CensusFileRequest]): Selected population inputs and state references.
-        config (PipelineConfig): Configured location of the published resident-population CSV.
         raw_directory (Path): Configured raw-data root.
         output_directory (Path): Separate derived-population root.
+        reference_directory (Path): Folder containing the published resident-population CSV.
 
     Returns:
         list[PopulationTableSummary]: Accounting for each saved national/state Parquet table.
@@ -168,7 +163,10 @@ def process_census_population_tables(
     state_requests = [
         request for request in census_requests if request.geography_level == GeographyLevel.STATE
     ]
-    state_tables_by_year = load_checked_state_references(raw_directory, config, state_requests)
+    published_totals_csv_path = reference_directory / CENSUS_RESIDENT_TOTALS_FILENAME
+    state_tables_by_year = load_checked_state_references(
+        raw_directory, published_totals_csv_path, state_requests
+    )
 
     summaries = []
 
@@ -176,14 +174,15 @@ def process_census_population_tables(
         try:
             if request.geography_level == GeographyLevel.STATE:
                 population_df = state_tables_by_year[request.census_year]
+                comparison = PopulationComparison.RESIDENT_TOTALS_MATCH_PUBLISHED
             else:
                 population_df = read_census_population(
                     raw_directory / request.destination_relative_path, request
                 )
 
-            check_population_state_sum(
-                population_df, request, state_tables_by_year[request.census_year]
-            )
+                comparison = check_population_state_sum(
+                    population_df, request, state_tables_by_year[request.census_year]
+                )
 
             output_path = build_population_output_path(
                 request.census_year, request.geography_level, request.state_code
@@ -192,13 +191,6 @@ def process_census_population_tables(
 
         except (OSError, ValueError, OverflowError, BadZipFile) as error:
             raise ValueError(f"{request.destination_relative_path}: {error}") from error
-
-        comparison = PopulationComparison.CENSUS_COUNTS_MATCH_STATE
-
-        if request.geography_level == GeographyLevel.PLACE:
-            comparison = PopulationComparison.PLACES_DO_NOT_PARTITION_STATE
-        elif request.geography_level == GeographyLevel.STATE:
-            comparison = PopulationComparison.RESIDENT_TOTALS_MATCH_PUBLISHED
 
         summaries.append(
             summarize_population_table(
@@ -210,12 +202,14 @@ def process_census_population_tables(
 
 
 def select_population_requests(
-    config: PipelineConfig,
+    selected_requests: list[RawFileRequest],
+    directories: RawDataSubdirectories,
 ) -> tuple[list[CensusFileRequest], list[NhgisTableFileRequest]]:
     """Select Census and NHGIS populations, adding the state references needed for checks.
 
     Args:
-        config (PipelineConfig): Shared year, level, study-area, and filename selections.
+        selected_requests (list[RawFileRequest]): Raw inputs already selected for this run.
+        directories (RawDataSubdirectories): Folders used to locate required state references.
 
     Returns:
         tuple[list[CensusFileRequest], list[NhgisTableFileRequest]]: Modern and historical inputs,
@@ -224,8 +218,6 @@ def select_population_requests(
     Raises:
         ValueError: Selections contain no population tables or use unsupported NHGIS datasets.
     """
-    available_requests = build_raw_file_requests(config)
-    selected_requests = select_raw_file_requests(available_requests, config.file_path_patterns)
     census_requests = [
         request for request in selected_requests if isinstance(request, CensusFileRequest)
     ]
@@ -240,24 +232,28 @@ def select_population_requests(
     if not census_requests and not nhgis_requests:
         raise ValueError("Select at least one Census or NHGIS population table for processing")
 
-    census_years = {request.census_year for request in census_requests}
-    nhgis_datasets = {request.dataset_name for request in nhgis_requests}
+    census_years: set[Literal[2000, 2010, 2020]] = {
+        request.census_year for request in census_requests
+    }
 
-    for request in available_requests:
-        if (
-            isinstance(request, CensusFileRequest)
-            and request.census_year in census_years
-            and request.geography_level == GeographyLevel.STATE
-            and request not in census_requests
-        ):
-            census_requests.append(request)
-        elif (
-            isinstance(request, NhgisTableFileRequest)
-            and request.dataset_name in nhgis_datasets
-            and request.geographic_levels == (NhgisGeographyLevel.STATE,)
-            and request not in nhgis_requests
-        ):
-            nhgis_requests.append(request)
+    for census_year in sorted(census_years):
+        reference_request = build_census_state_reference_request(directories, census_year)
+
+        if reference_request not in census_requests:
+            census_requests.append(reference_request)
+
+    historical_years = {describe_nhgis_population_request(request)[0] for request in nhgis_requests}
+    reference_selections = tuple(
+        GeographyRequest(census_year=year, geography_level=GeographyLevel.STATE)
+        for year in (1980, 1990)
+        if year in historical_years
+    )
+
+    for reference_request in build_historical_population_requests(
+        directories, reference_selections
+    ):
+        if reference_request not in nhgis_requests:
+            nhgis_requests.append(reference_request)
 
     census_requests.sort(key=lambda request: request.destination_relative_path)
     # Keep national state tables first in the output summary.
@@ -272,13 +268,13 @@ def select_population_requests(
 
 
 def load_checked_state_references(
-    raw_directory: Path, config: PipelineConfig, state_requests: list[CensusFileRequest]
+    raw_directory: Path, published_totals_csv_path: Path, state_requests: list[CensusFileRequest]
 ) -> dict[int, pd.DataFrame]:
     """Read the small state tables and compare them with published resident population totals.
 
     Args:
         raw_directory (Path): Resolved raw-data root.
-        config (PipelineConfig): Folder containing the published population references.
+        published_totals_csv_path (Path): Published resident totals used to check every state.
         state_requests (list[CensusFileRequest]): One national state table per needed Census year.
 
     Returns:
@@ -288,11 +284,6 @@ def load_checked_state_references(
         OSError: A reference file is missing or unreadable.
         ValueError: A reference fails its structure, count, coverage, or total checks.
     """
-    published_totals_csv_path = (
-        raw_directory
-        / config.raw_data_subdirectories.population_reference_tables
-        / CENSUS_RESIDENT_TOTALS_FILENAME
-    )
     state_tables_by_year = {}
 
     for request in state_requests:
@@ -328,8 +319,8 @@ def process_historical_population_tables(
         list[PopulationTableSummary]: Accounting for each saved national/state Parquet table.
 
     Raises:
-        ValueError: An archive cannot be read, checked, or saved; the error names its input.
-        KeyError: A selected year has no state-reference request.
+        ValueError: An archive cannot be read, checked, or saved, or its year lacks a
+            state-reference request. The error names the input archive.
     """
     state_requests = [
         request
@@ -347,6 +338,10 @@ def process_historical_population_tables(
     ):
         try:
             census_year, geography_level = describe_nhgis_population_request(request)
+
+            if census_year not in state_tables_by_year:
+                raise ValueError(f"Missing {census_year} NHGIS state-reference request")
+
             states_df = state_tables_by_year[census_year]
 
             if geography_level == GeographyLevel.STATE:
@@ -380,7 +375,7 @@ def load_historical_state_references(
     raw_directory: Path,
     reference_directory: Path,
 ) -> dict[int, pd.DataFrame]:
-    """Read NHGIS state tables and compare their study counts with published Census workbooks.
+    """Read NHGIS state tables and compare study and source counts with published workbooks.
 
     Args:
         state_requests (list[NhgisTableFileRequest]): One national state extract per required year.
@@ -407,13 +402,7 @@ def load_historical_state_references(
             ) as population_tables:
                 (states_df,) = population_tables
 
-            published_totals_workbook_path = (
-                reference_directory / HISTORICAL_STUDY_TOTALS_FILENAMES[census_year]
-            )
-
-            check_historical_published_totals(
-                states_df, published_totals_workbook_path, census_year
-            )
+            check_historical_published_totals(states_df, reference_directory, census_year)
 
             state_tables_by_year[census_year] = states_df
 

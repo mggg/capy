@@ -13,7 +13,7 @@ from tqdm import tqdm
 from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
 
 from .census.retrieve_tables import prepare_download_batches_with_2010_counties_first
-from .prepare_file_requests import build_raw_file_requests, select_raw_file_requests
+from .prepare_file_requests import select_raw_file_requests
 from .raw_file_requests import RawFileRequest
 from .retrieve_raw_file import (
     FailedFile,
@@ -59,8 +59,7 @@ def retrieve_raw_data(
         ValueError: Selections are invalid.
         OSError: Reading the configured env file or preparing directories fails.
     """
-    available_requests = build_raw_file_requests(config)
-    selected_requests = select_raw_file_requests(available_requests, config.file_path_patterns)
+    selected_requests = select_raw_file_requests(config)
 
     return retrieve_files(config, repository, selected_requests)
 

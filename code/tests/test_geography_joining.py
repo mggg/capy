@@ -10,13 +10,17 @@ from capy_core.geography_types import GeographyLevel, StudyAreaType
 from capy_core.join_geographies.join_population import (
     ExclusionReason,
     check_population_join_input,
+    classify_1990_zero_population_blocks,
     join_population_to_boundaries,
     merge_1980_parent_geometries,
     repair_and_project_boundaries,
 )
 from capy_core.join_geographies.join_tables import join_geography_tables
 from capy_core.join_geographies.repair_1980_sources import PARENT_GEOMETRY_MERGES_1980
-from capy_core.join_geographies.select_inputs import GeographyJoinInputs
+from capy_core.join_geographies.select_inputs import (
+    GeographyJoinInputs,
+    select_geography_join_inputs,
+)
 from capy_core.pipeline_config import PipelineConfig
 from shapely.geometry import Polygon, box
 
@@ -58,7 +62,7 @@ def build_boundary_table(geographic_ids, geometries=None):
     )
 
 
-def test_join_preserves_zero_records_and_never_invents_population_for_unmatched_polygons():
+def test_join_preserves_zero_records_and_never_invents_population_for_unmatched_polygons(tmp_path):
     boundaries_df, _ = repair_and_project_boundaries(
         build_boundary_table(["10001000100", "10001000200", "10001000300"])
     )
@@ -67,6 +71,11 @@ def test_join_preserves_zero_records_and_never_invents_population_for_unmatched_
     )
 
     result = join_population_to_boundaries(boundaries_df, population_df, 2020, GeographyLevel.TRACT)
+
+    selection = GeographyJoinInputs(2020, GeographyLevel.TRACT, {}, {})
+    assert (
+        classify_1990_zero_population_blocks(result, selection, "10", tmp_path / "absent") is result
+    )
 
     assert result.matched_geography_df.TOTPOP.tolist() == [25, 0]
     assert result.unmatched_population_df.TOTPOP.tolist() == [7]
@@ -93,7 +102,10 @@ def test_invalid_geometry_is_repaired_and_all_four_parent_merges_preserve_source
         identifier for pair in PARENT_GEOMETRY_MERGES_1980.items() for identifier in pair
     ]
     boundaries_df, _ = repair_and_project_boundaries(build_boundary_table(geographic_ids))
+    boundaries_df["BOUNDARY_PART_COUNT"] = 1
+    boundaries_df["MERGED_BOUNDARY_SOURCES"] = ""
     merged_boundaries_df = merge_1980_parent_geometries(boundaries_df)
+    merged_boundaries_df, _ = repair_and_project_boundaries(merged_boundaries_df)
 
     assert set(merged_boundaries_df.GEOID) == set(PARENT_GEOMETRY_MERGES_1980.values())
     assert merged_boundaries_df.BOUNDARY_PART_COUNT.tolist() == [2] * 4
@@ -170,6 +182,11 @@ def test_configured_join_roundtrip_and_failed_rerun_remove_only_selected_outputs
     )
     saved_geography_df = gpd.read_parquet(geography_output_path)
 
+    repair_report_df = pd.read_csv(config.joined_geography_directory / "geometry_repairs.csv")
+    assert "BOUNDARY_PART_COUNT" not in repair_report_df
+    assert "MERGED_BOUNDARY_SOURCES" not in repair_report_df
+    assert saved_geography_df.BOUNDARY_PART_COUNT.tolist() == [1, 1]
+    assert saved_geography_df.MERGED_BOUNDARY_SOURCES.tolist() == ["", ""]
     assert saved_geography_df.TOTPOP.tolist() == [25, 0]
     assert saved_geography_df.crs.to_authority() == ("ESRI", "102003")
     expected_summary_df = pd.DataFrame(
@@ -245,6 +262,20 @@ def test_swapped_state_archives_are_rejected_before_population_matching(tmp_path
             "tiger/2020/tracts/tl_2020_24_tract.zip",
         ),
     )
+
+    from capy_core.join_geographies import select_inputs
+    from capy_core.retrieve_data.prepare_file_requests import select_raw_file_requests
+
+    selected_requests = select_raw_file_requests(config)
+    monkeypatch.setattr(
+        select_inputs, "select_raw_file_requests", lambda config: list(reversed(selected_requests))
+    )
+    (selection,) = select_geography_join_inputs(config)
+    assert selection.boundary_paths_by_state == {
+        "10": "tiger/2020/tracts/tl_2020_10_tract.zip",
+        "24": "tiger/2020/tracts/tl_2020_24_tract.zip",
+    }
+    monkeypatch.setattr(select_inputs, "select_raw_file_requests", select_raw_file_requests)
 
     def read_swapped_archive(archive_path, *args):
         state_code = "24" if "_10_" in archive_path.name else "10"

@@ -8,6 +8,7 @@ https://assets.nhgis.org/original-data/gis/TIGER_1992_TechDoc.pdf
 
 from collections import defaultdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import geopandas as gpd
@@ -20,6 +21,9 @@ from capy_core.process_population.nhgis_columns import Nhgis1980Column
 from capy_core.retrieve_data.census.build_published_file_requests import MISSING_1980_BNAS_BY_COUNTY
 
 from .read_boundaries import BoundaryColumn
+
+if TYPE_CHECKING:
+    from .select_inputs import GeographyJoinInputs
 
 # These polygons belong to existing population records; merging them adds no population.
 PARENT_GEOMETRY_MERGES_1980 = {
@@ -57,8 +61,8 @@ RICHMOND_0164_SOURCE_COUNTS = {
 }
 
 
-def correct_richmond_population(
-    population_df: pd.DataFrame, geography_level: GeographyLevel
+def correct_richmond_population_1980(
+    population_df: pd.DataFrame, selection: "GeographyJoinInputs"
 ) -> pd.DataFrame:
     """Transfer Richmond tract 0164's population to Kings in a copy of the 1980 table.
 
@@ -71,24 +75,32 @@ def correct_richmond_population(
     not be interpreted as verbatim values from that original row. Input tables remain unchanged.
 
     Args:
-        population_df (pd.DataFrame): Uncorrected processed 1980 population records.
-        geography_level (GeographyLevel): Geography represented by these records.
+        population_df (pd.DataFrame): Processed records whose metadata matches the selection.
+            The joining stage checks that contract before applying corrections.
+        selection (GeographyJoinInputs): Year and level of the table. Only 1980 counties and
+            tracts containing New York records receive this correction.
 
     Returns:
-        pd.DataFrame: Corrected copy, with a correction note on each changed record.
+        pd.DataFrame: Corrected copy with a note on each changed record, or the unchanged input
+            when the year, level, or state is outside this correction.
 
     Raises:
         ValueError: An affected record is missing, repeated, already corrected, or inconsistent
             with the source correction, or a county subtraction would produce a negative count.
         KeyError: A required geographic or count column is missing.
     """
+    geography_level = selection.geography_level
+
+    if selection.census_year != 1980 or geography_level not in (
+        GeographyLevel.COUNTY,
+        GeographyLevel.TRACT,
+    ):
+        return population_df
+
+    if not bool(population_df[GeographyColumn.STATE_CODE].eq("36").any()):
+        return population_df
+
     corrected_population_df = population_df.copy()
-
-    if geography_level not in (GeographyLevel.COUNTY, GeographyLevel.TRACT):
-        return corrected_population_df
-
-    if not bool(corrected_population_df[GeographyColumn.STATE_CODE].eq("36").any()):
-        return corrected_population_df
 
     richmond_geographic_id, kings_geographic_id = "G3600850", "G3600470"
 
@@ -133,6 +145,14 @@ def correct_richmond_population(
 
         corrected_population_df.loc[kings_rows, population_column] += transfer_count
         corrected_population_df.loc[richmond_rows, population_column] -= transfer_count
+
+    remaining_white_black_counts = (
+        corrected_population_df[PopulationColumn.WHITE]
+        + corrected_population_df[PopulationColumn.BLACK]
+    )
+
+    if remaining_white_black_counts.gt(corrected_population_df[PopulationColumn.TOTAL]).any():
+        raise ValueError("Richmond transfer leaves inconsistent White and Black population counts")
 
     corrected_population_df.loc[richmond_rows | kings_rows, "POPULATION_CORRECTION"] = (
         "1980 Census correction: transfer all counts from G36008500164 to G36004700164"

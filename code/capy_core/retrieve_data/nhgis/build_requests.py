@@ -12,8 +12,6 @@ from ..state_codes import STATE_FIPS_CODES
 from .identifiers import (
     NHGIS_DATASETS_BY_YEAR,
     NHGIS_LEVELS_BY_GEOGRAPHY,
-    NhgisDataset,
-    NhgisGeographyLevel,
 )
 
 # NOTE: NT7 supplies race counts and NT9B supplies Spanish-origin race counts, allowing
@@ -73,6 +71,8 @@ def build_nhgis_file_requests(
 
         requests.append(
             NhgisBoundaryFileRequest(
+                census_year=year,
+                geography_level=level,
                 destination_relative_path=(
                     f"{directories.nhgis_population_and_boundaries}/{year}/{level.value}/boundaries.zip"
                 ),
@@ -115,10 +115,14 @@ def build_historical_population_requests(
 
         levels.add(GeographyLevel.STATE)
         for level in sorted(levels):
+            archive_name = f"{year}/{level.value}/population.zip"
+
             requests.append(
-                build_table_request(
-                    directories,
-                    f"{year}/{level.value}/population.zip",
+                NhgisTableFileRequest(
+                    destination_relative_path=(
+                        f"{directories.nhgis_population_and_boundaries}/{archive_name}"
+                    ),
+                    description=f"Capy replication: {archive_name.removesuffix('.zip')}",
                     dataset_name=NHGIS_DATASETS_BY_YEAR[year],
                     tables=POPULATION_TABLES_1980 if year == 1980 else ("NP1", "NP10"),
                     geographic_levels=(NHGIS_LEVELS_BY_GEOGRAPHY[level],),
@@ -127,36 +131,3 @@ def build_historical_population_requests(
             )
 
     return requests
-
-
-def build_table_request(
-    directories: RawDataSubdirectories,
-    archive_name: str,
-    *,
-    dataset_name: NhgisDataset,
-    tables: tuple[str, ...],
-    geographic_levels: tuple[NhgisGeographyLevel, ...],
-    breakdowns: tuple[str, ...] = (),
-) -> NhgisTableFileRequest:
-    """Build an NHGIS table download using CSV headers and a single-file layout.
-
-    Args:
-        directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        archive_name (str): ZIP path within the NHGIS folder, grouped by year and level.
-        dataset_name (NhgisDataset): Fixed-year dataset identifier, such as 1980_STF1.
-        tables (tuple[str, ...]): NHGIS table identifiers within the dataset.
-        geographic_levels (tuple[NhgisGeographyLevel, ...]): Geographic level codes to include.
-        breakdowns (tuple[str, ...]): Codes selecting the whole area or parts such as urban areas.
-            Empty uses the dataset's default selection.
-
-    Returns:
-        NhgisTableFileRequest: Population table selections.
-    """
-    return NhgisTableFileRequest(
-        destination_relative_path=f"{directories.nhgis_population_and_boundaries}/{archive_name}",
-        dataset_name=dataset_name,
-        tables=tables,
-        geographic_levels=geographic_levels,
-        breakdowns=breakdowns,
-        description=f"Capy replication: {archive_name.removesuffix('.zip')}",
-    )

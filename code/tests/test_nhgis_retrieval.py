@@ -3,11 +3,13 @@
 import io
 import json
 import zipfile
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 import requests
+from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import RawDataSubdirectories
 from capy_core.retrieve_data.http_transport import DataProviderError
 from capy_core.retrieve_data.nhgis.extract_definition import (
@@ -195,26 +197,29 @@ def test_nhgis_submission_roundtrip_and_corrupt_resume(tmp_path):
             requests.append(request)
             return SimpleNamespace(extract_id=12)
 
-    request = NhgisExtractDefinition(datasets={"1980_STF1": NhgisDatasetSelection(tables=("NT7",))})
-    path = tmp_path / "request.json"
-    submitted = submit_or_resume_extract(Client(), request, path)
+    request = NhgisTableFileRequest(
+        destination_relative_path="nhgis/1980/tracts.zip",
+        dataset_name="1980_STF1",
+        tables=("NT7",),
+        geographic_levels=("tract",),
+    )
+    path = tmp_path / "nhgis/1980/tracts.zip.json"
+    submitted = submit_or_resume_extract(Client(), request, tmp_path)
     assert requests[0]["collection"] == "nhgis"
     assert NhgisSubmissionRecord.model_validate_json(path.read_text()) == submitted
-    assert submit_or_resume_extract(Client(), request, path) == submitted
+    assert submit_or_resume_extract(Client(), request, tmp_path) == submitted
     assert len(requests) == 1
 
-    changed_request = NhgisExtractDefinition(
-        datasets={"1980_STF1": NhgisDatasetSelection(tables=("NT1A",))}
-    )
+    changed_request = replace(request, tables=("NT1A",))
     with pytest.raises(DataProviderError, match="different request"):
-        submit_or_resume_extract(Client(), changed_request, path)
+        submit_or_resume_extract(Client(), changed_request, tmp_path)
 
     saved = json.loads(path.read_text())
-    assert saved["request"] == request.to_provider_request()
+    assert saved["request"] == build_nhgis_definition(request).to_provider_request()
     saved["extract_id"] = "private-api-key"
     path.write_text(json.dumps(saved))
     with pytest.raises(ValueError, match="Invalid saved NHGIS request") as failure:
-        submit_or_resume_extract(Client(), request, path)
+        submit_or_resume_extract(Client(), request, tmp_path)
     assert str(path) in str(failure.value)
     assert "private-api-key" not in str(failure.value)
     assert len(requests) == 1
@@ -244,6 +249,8 @@ def test_nhgis_provider_failures_identify_operation_without_exposing_credentials
     monkeypatch.setenv("IPUMS_API_KEY", "private-api-key")
     monkeypatch.setattr("capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client)
     request = NhgisBoundaryFileRequest(
+        census_year=1980,
+        geography_level=GeographyLevel.COUNTY,
         destination_relative_path="nhgis/counties.zip",
         shapefiles=("us_county_1980_tl2008",),
     )
@@ -289,6 +296,8 @@ def test_nhgis_boundary_download_retry_reuses_submission(tmp_path, monkeypatch):
         "capy_core.retrieve_data.retrieve_raw_file.time.sleep", lambda seconds: None
     )
     request = NhgisBoundaryFileRequest(
+        census_year=1980,
+        geography_level=GeographyLevel.COUNTY,
         destination_relative_path="nhgis/counties.zip",
         shapefiles=("us_county_1980_tl2008",),
     )
@@ -432,10 +441,16 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
         ),
         (
             NhgisBoundaryFileRequest(
-                destination_relative_path="boundaries.zip", shapefiles=("us_tract_1980_tl2000",)
+                census_year=1980,
+                geography_level=GeographyLevel.COUNTY,
+                destination_relative_path="boundaries.zip",
+                shapefiles=("us_tract_1980_tl2000",),
             ),
             NhgisBoundaryFileRequest(
-                destination_relative_path="boundaries.zip", shapefiles=("us_county_1980_tl2008",)
+                census_year=1980,
+                geography_level=GeographyLevel.COUNTY,
+                destination_relative_path="boundaries.zip",
+                shapefiles=("us_county_1980_tl2008",),
             ),
         ),
     ],

@@ -14,7 +14,6 @@ from capy_core.stage_files import stage_file
 from .census.retrieve_tables import download_census_table
 from .check_raw_files import check_existing_raw_file, check_raw_file
 from .http_transport import DataProviderError, RetryableDownloadError, download_file
-from .nhgis.extract_definition import build_nhgis_definition
 from .nhgis.retrieve_extract import (
     PendingNhgisExtract,
     load_matching_nhgis_submission,
@@ -93,13 +92,9 @@ def retrieve_raw_file(
 
         if destination.exists():
             if isinstance(request, (NhgisTableFileRequest, NhgisBoundaryFileRequest)):
-                submission_path = (
-                    raw_data_directory
-                    / directories.saved_nhgis_requests
-                    / f"{request.destination_relative_path}.json"
+                load_matching_nhgis_submission(
+                    request, raw_data_directory / directories.saved_nhgis_requests
                 )
-                if submission_path.exists():
-                    load_matching_nhgis_submission(submission_path, build_nhgis_definition(request))
 
             check_existing_raw_file(destination, request.file_format)
             return ReadyFile(request.destination_relative_path)

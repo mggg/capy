@@ -138,7 +138,7 @@ raw_data_subdirectories:
         "historical/blocks_1990/disc1.zip",
         "references/populations/2020_states.json",
         "references/populations/census_state_population_totals_2020_release.csv",
-        "references/populations/census_working_paper_56_1990_tableA-01.xlsx",
+        "references/populations/census_working_paper_56_1990_tableE-01.xlsx",
         "references/metros/list1_march_2020.xls",
     } <= destinations
     assert all(

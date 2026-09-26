@@ -14,16 +14,17 @@ from capy_core.population_table_columns import GeographyColumn, PopulationColumn
 from capy_core.stage_files import stage_file
 
 from .join_population import (
+    JoinColumn,
     PopulationBoundaryJoin,
-    apply_1990_zero_block_evidence,
     check_population_join_input,
+    check_unique_identifiers,
+    classify_1990_zero_population_blocks,
     join_population_to_boundaries,
     merge_1980_parent_geometries,
     repair_and_project_boundaries,
 )
-from .read_1990_zero_blocks import read_1990_zero_population_block_ids
 from .read_boundaries import BoundaryColumn, read_boundary_archive
-from .repair_1980_sources import correct_richmond_population, reconstruct_missing_1980_bnas
+from .repair_1980_sources import correct_richmond_population_1980, reconstruct_missing_1980_bnas
 from .select_inputs import GeographyJoinInputs, select_geography_join_inputs
 
 
@@ -133,7 +134,11 @@ def join_selected_geography(
             disable=None,
         ) as state_progress,
         closing(
-            read_prepared_boundary_tables(selection, config, raw_data_directory)
+            read_prepared_boundary_tables(
+                selection,
+                raw_data_directory,
+                raw_data_directory / config.raw_data_subdirectories.original_1980_boundary_files,
+            )
         ) as prepared_tables,
     ):
         for boundaries_df, repairs_df in prepared_tables:
@@ -173,7 +178,7 @@ def join_selected_geography(
 
 
 def read_prepared_boundary_tables(
-    selection: GeographyJoinInputs, config: PipelineConfig, raw_data_directory: Path
+    selection: GeographyJoinInputs, raw_data_directory: Path, tiger_1992_directory: Path
 ) -> Generator[tuple[gpd.GeoDataFrame, pd.DataFrame], None, None]:
     """Read and prepare one boundary table at a time, closing each archive before the next.
 
@@ -184,8 +189,8 @@ def read_prepared_boundary_tables(
 
     Args:
         selection (GeographyJoinInputs): Boundary archives, expected states, year, and level.
-        config (PipelineConfig): Folder settings for original 1980 boundary supplements.
         raw_data_directory (Path): Root of downloaded source files.
+        tiger_1992_directory (Path): Configured folder for original 1980 boundary supplements.
 
     Yields:
         tuple[gpd.GeoDataFrame, pd.DataFrame]: Prepared boundaries and their geometry repairs.
@@ -208,8 +213,8 @@ def read_prepared_boundary_tables(
                 yield prepare_selected_boundaries(
                     boundaries_df,
                     selection,
-                    config,
                     raw_data_directory,
+                    tiger_1992_directory,
                     expected_state_code=expected_state_code,
                 )
 
@@ -217,8 +222,8 @@ def read_prepared_boundary_tables(
 def prepare_selected_boundaries(
     boundaries_df: gpd.GeoDataFrame,
     selection: GeographyJoinInputs,
-    config: PipelineConfig,
     raw_data_directory: Path,
+    tiger_1992_directory: Path,
     *,
     expected_state_code: str | None,
 ) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
@@ -230,8 +235,8 @@ def prepare_selected_boundaries(
     Args:
         boundaries_df (gpd.GeoDataFrame): A complete boundary table from the source reader.
         selection (GeographyJoinInputs): Census year and geography level being joined.
-        config (PipelineConfig): Original-boundary folder settings.
         raw_data_directory (Path): Base for raw source paths.
+        tiger_1992_directory (Path): Configured folder for original 1980 boundary supplements.
         expected_state_code (str | None): State required by the archive filename, or None for
             a national archive. This check runs before restricting the table to selected states.
 
@@ -253,41 +258,81 @@ def prepare_selected_boundaries(
     ].copy()
 
     boundaries_df, repairs_df = repair_and_project_boundaries(boundaries_df)
+    boundaries_df[JoinColumn.BOUNDARY_PART_COUNT] = 1
+    boundaries_df[JoinColumn.MERGED_BOUNDARY_SOURCES] = ""
+
     repairs_df["census_year"] = selection.census_year
     repairs_df["geography_level"] = selection.geography_level.value
 
-    if selection.census_year == 1980 and selection.geography_level == GeographyLevel.TRACT:
-        supplement_df = reconstruct_missing_1980_bnas(
-            raw_data_directory / config.raw_data_subdirectories.original_1980_boundary_files
-        )
-        supplement_df[BoundaryColumn.SOURCE_FILE] = supplement_df[BoundaryColumn.SOURCE_FILE].map(
-            lambda source_path: Path(source_path).relative_to(raw_data_directory).as_posix()
-        )
-        supplement_df, supplement_repairs_df = repair_and_project_boundaries(supplement_df)
-
-        if not supplement_repairs_df.empty:
-            raise ValueError("Reconstructed BNA supplements must already be valid")
-
-        for _, supplement_record in supplement_df.iterrows():
-            intersecting_boundaries_df = boundaries_df.iloc[
-                boundaries_df.sindex.query(supplement_record.geometry, predicate="intersects")
-            ]
-
-            if (
-                intersecting_boundaries_df.geometry.intersection(supplement_record.geometry)
-                .area.gt(0)
-                .any()
-            ):
-                raise ValueError(
-                    f"1980 supplement overlaps supplied boundaries: {supplement_record.GEOID}"
-                )
-
-        boundaries_df = gpd.GeoDataFrame(
-            pd.concat([boundaries_df, supplement_df], ignore_index=True), crs=boundaries_df.crs
-        )
-        boundaries_df = merge_1980_parent_geometries(boundaries_df)
+    boundaries_df = prepare_1980_tract_boundaries(
+        boundaries_df, selection, raw_data_directory, tiger_1992_directory
+    )
 
     return boundaries_df, repairs_df
+
+
+def prepare_1980_tract_boundaries(
+    boundaries_df: gpd.GeoDataFrame,
+    selection: GeographyJoinInputs,
+    raw_data_directory: Path,
+    tiger_1992_directory: Path,
+) -> gpd.GeoDataFrame:
+    """Add the missing 1980 BNAs and merge documented fragments into their population parents.
+
+    Other selections return unchanged without reading supplements. The 1980 tract selection uses
+    the complete national archive: each supplement must have a new ID and no positive-area overlap
+    with supplied boundaries. The four parent merges retain the original fragment provenance.
+
+    Args:
+        boundaries_df (gpd.GeoDataFrame): Repaired study-coordinate boundaries with initial
+            boundary-part counts and merge-source columns.
+        selection (GeographyJoinInputs): Year and level being prepared.
+        raw_data_directory (Path): Base for the supplements' saved source paths.
+        tiger_1992_directory (Path): Folder containing the five original county archives.
+
+    Returns:
+        gpd.GeoDataFrame: Prepared 1980 tract/BNA boundaries, or the unchanged out-of-scope table.
+
+    Raises:
+        OSError: Reading an original county archive fails.
+        BadZipFile: A supplement archive is damaged.
+        ValueError: Reconstruction, geometry, overlap, identifiers, or parent merging fails.
+    """
+    if selection.census_year != 1980 or selection.geography_level != GeographyLevel.TRACT:
+        return boundaries_df
+
+    supplement_df = reconstruct_missing_1980_bnas(tiger_1992_directory)
+    supplement_df[BoundaryColumn.SOURCE_FILE] = supplement_df[BoundaryColumn.SOURCE_FILE].map(
+        lambda source_path: Path(source_path).relative_to(raw_data_directory).as_posix()
+    )
+    supplement_df, supplement_repairs_df = repair_and_project_boundaries(supplement_df)
+    supplement_df[JoinColumn.BOUNDARY_PART_COUNT] = 1
+    supplement_df[JoinColumn.MERGED_BOUNDARY_SOURCES] = ""
+
+    if not supplement_repairs_df.empty:
+        raise ValueError("Reconstructed BNA supplements must already be valid")
+
+    for _, supplement_record in supplement_df.iterrows():
+        intersecting_boundaries_df = boundaries_df.iloc[
+            boundaries_df.sindex.query(supplement_record.geometry, predicate="intersects")
+        ]
+
+        if (
+            intersecting_boundaries_df.geometry.intersection(supplement_record.geometry)
+            .area.gt(0)
+            .any()
+        ):
+            raise ValueError(
+                f"1980 supplement overlaps supplied boundaries: {supplement_record.GEOID}"
+            )
+
+    boundaries_df = gpd.GeoDataFrame(
+        pd.concat([boundaries_df, supplement_df], ignore_index=True), crs=boundaries_df.crs
+    )
+    check_unique_identifiers(boundaries_df, "Supplemented 1980 boundary")
+    boundaries_df = merge_1980_parent_geometries(boundaries_df)
+
+    return boundaries_df
 
 
 def join_and_save_boundary_states(
@@ -380,11 +425,7 @@ def join_and_save_state(
         column: int(population_df[column].sum()) for column in PopulationColumn
     }
 
-    if selection.census_year == 1980 and state_code == "36":
-        population_df = correct_richmond_population(population_df, selection.geography_level)
-        check_population_join_input(
-            population_df, selection.census_year, selection.geography_level, state_code
-        )
+    population_df = correct_richmond_population_1980(population_df, selection)
 
     for column, original_population_total in original_population_totals.items():
         if int(population_df[column].sum()) != original_population_total:
@@ -394,23 +435,20 @@ def join_and_save_state(
         boundaries_df, population_df, selection.census_year, selection.geography_level
     )
 
-    if selection.census_year == 1990 and selection.geography_level == GeographyLevel.BLOCK:
-        zero_population_block_ids = read_1990_zero_population_block_ids(
-            block_reference_directory, state_code
-        )
-        apply_1990_zero_block_evidence(result, zero_population_block_ids)
+    result = classify_1990_zero_population_blocks(
+        result, selection, state_code, block_reference_directory
+    )
 
-    output_paths = build_join_output_paths(population_relative_path)
+    matched_path, unmatched_population_path, unmatched_boundaries_path = build_join_output_paths(
+        population_relative_path
+    )
+    output_tables = (
+        (result.matched_geography_df, matched_path),
+        (result.unmatched_population_df, unmatched_population_path),
+        (result.unmatched_boundaries_df, unmatched_boundaries_path),
+    )
 
-    for output_df, output_path in zip(
-        (
-            result.matched_geography_df,
-            result.unmatched_population_df,
-            result.unmatched_boundaries_df,
-        ),
-        output_paths,
-        strict=True,
-    ):
+    for output_df, output_path in output_tables:
         save_join_table(
             output_df.sort_values(GeographyColumn.GEOGRAPHIC_ID),
             joined_geography_directory / output_path,

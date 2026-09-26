@@ -85,17 +85,30 @@ def build_census_population_requests(
         )
         # NOTE: State totals provide a separate aggregation for population checks, not another
         # graph resolution or an independent enumeration. Places do not partition a state.
-        file_requests.append(
-            CensusFileRequest(
-                destination_relative_path=f"{directories.population_reference_tables}/{year}_states.json",
-                census_year=year,
-                dataset=CensusDataset.PL_94_171,
-                variables=variables,
-                geography_level=GeographyLevel.STATE,
-            )
-        )
+        file_requests.append(build_census_state_reference_request(directories, year))
 
     return file_requests
+
+
+def build_census_state_reference_request(
+    directories: RawDataSubdirectories, census_year: Literal[2000, 2010, 2020]
+) -> CensusFileRequest:
+    """Describe the national PL table used to check a year's statewide population sums.
+
+    Args:
+        directories (RawDataSubdirectories): Raw-data subfolders for the run.
+        census_year (Literal[2000, 2010, 2020]): Year of the populations being checked.
+
+    Returns:
+        CensusFileRequest: State totals with the same eleven population definitions as processing.
+    """
+    return CensusFileRequest(
+        destination_relative_path=f"{directories.population_reference_tables}/{census_year}_states.json",
+        census_year=census_year,
+        dataset=CensusDataset.PL_94_171,
+        variables=POPULATION_VARIABLES_BY_YEAR[census_year],
+        geography_level=GeographyLevel.STATE,
+    )
 
 
 def build_statewide_population_requests(

@@ -9,7 +9,11 @@ import us
 
 from capy_core.geography_types import GeographyLevel
 from capy_core.population_table_columns import PopulationColumn
+from capy_core.retrieve_data.raw_file_requests import CensusFileRequest, NhgisTableFileRequest
+from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
 from capy_core.stage_files import stage_file
+
+from .read_nhgis import describe_nhgis_population_request
 
 
 class PopulationComparison(StrEnum):
@@ -76,6 +80,51 @@ def build_population_output_path(
     filename = f"{area_name}_{census_year}_populations.parquet"
 
     return Path(str(census_year)) / geography_level.value / filename
+
+
+def build_population_output_paths(
+    census_requests: list[CensusFileRequest], nhgis_requests: list[NhgisTableFileRequest]
+) -> dict[tuple[int, GeographyLevel], dict[str | None, Path]]:
+    """Describe the population outputs for selected inputs, grouped by year, level, and state.
+
+    Modern inputs each produce one table. A historical substate archive produces one table for
+    each of the 50 states and DC. National state-reference tables use the None state key.
+    Cleanup and downstream joins use these same descriptions; no source files are read here.
+
+    Args:
+        census_requests (list[CensusFileRequest]): Modern population inputs and state references.
+        nhgis_requests (list[NhgisTableFileRequest]): Historical population archives and references.
+
+    Returns:
+        dict[tuple[int, GeographyLevel], dict[str | None, Path]]: Paths beneath the configured
+            population output folder, indexed by year/level and then state.
+
+    Raises:
+        ValueError: An NHGIS request is unsupported or a state has no postal abbreviation.
+    """
+    output_paths_by_selection: dict[tuple[int, GeographyLevel], dict[str | None, Path]] = {}
+
+    for request in census_requests:
+        year_and_level = (request.census_year, request.geography_level)
+        state_paths = output_paths_by_selection.setdefault(year_and_level, {})
+        output_path = build_population_output_path(
+            request.census_year, request.geography_level, request.state_code
+        )
+        state_paths[request.state_code] = output_path
+
+    for request in nhgis_requests:
+        census_year, geography_level = describe_nhgis_population_request(request)
+        state_codes = (
+            (None,)
+            if geography_level == GeographyLevel.STATE
+            else tuple(state_code for state_code in STATE_FIPS_CODES if state_code != "72")
+        )
+        output_paths_by_selection[census_year, geography_level] = {
+            state_code: build_population_output_path(census_year, geography_level, state_code)
+            for state_code in state_codes
+        }
+
+    return output_paths_by_selection
 
 
 def save_population_parquet(population_df: pd.DataFrame, population_output_path: Path) -> None:
