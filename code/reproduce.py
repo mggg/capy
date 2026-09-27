@@ -5,6 +5,7 @@ from pathlib import Path
 
 from capy_core.assign_study_areas.run_assignment import assign_study_areas
 from capy_core.assign_study_areas.study_area_columns import MembershipColumn
+from capy_core.build_graphs.run_build import build_graph_archives
 from capy_core.join_geographies.join_tables import join_geography_tables
 from capy_core.pipeline_config import load_configuration
 from capy_core.process_population.process_tables import process_population_tables
@@ -15,6 +16,7 @@ PIPELINE_STAGES = (
     "process-population",
     "join-geographies",
     "assign-study-areas",
+    "build-graphs",
 )
 
 
@@ -28,9 +30,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
             "  retrieve             Download or reuse the selected raw inputs.\n"
             "  process-population   Check population counts and save population tables.\n"
             "  join-geographies     Join boundaries to processed population tables.\n"
-            "  assign-study-areas   Define study areas and select their Census units.\n\n"
+            "  assign-study-areas   Define study areas and select their Census units.\n"
+            "  build-graphs         Build connected graphs and save ZIP archives.\n\n"
             "Selected stages run once in pipeline order. Unselected prerequisites are not run.\n"
-            "Omit stages to run all four. A failed or incomplete stage stops the pipeline."
+            "Omit stages to run all five. A failed or incomplete stage stops the pipeline."
         ),
     )
     parser.add_argument("--config", type=Path, required=True, help="YAML run configuration")
@@ -99,6 +102,11 @@ def main() -> int:
             operation = "Study-area assignment"
             summary_df = assign_study_areas(config, repository)
             print(f"Study-area assignment complete: {len(summary_df)} area/year/level outcomes.")
+            print(summary_df[MembershipColumn.STATUS].value_counts().to_string())
+        if "build-graphs" in selected_stages:
+            operation = "Graph construction"
+            summary_df = build_graph_archives(config, repository)
+            print(f"Graph construction complete: {len(summary_df)} area/year/level outcomes.")
             print(summary_df[MembershipColumn.STATUS].value_counts().to_string())
     except (ValueError, OSError) as error:
         parser.exit(1, f"{operation} could not complete: {error}\n")

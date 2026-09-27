@@ -17,6 +17,11 @@ joined_geography_directory: data/processed/geography
 # Relative paths start at the repository root. Keep this separate from all input folders.
 study_area_directory: data/processed/study_areas
 
+# Connected graphs in ZIP archives; relative paths start at the repository root.
+# Keep this separate from raw, population, joined-geography, and study-area folders.
+# One archive per node year/level, with area type and definition vintage in its name.
+graph_archive_directory: data/graphs
+
 raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis

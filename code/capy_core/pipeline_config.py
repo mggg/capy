@@ -87,6 +87,9 @@ class PipelineConfig(BaseModel):
         study_area_directory (Path): Definitions, candidate scores, and Census-unit memberships.
             Defaults to data/processed/study_areas. Relative paths start at the repository root;
             this folder must be separate from raw, population, and joined-geography folders.
+        graph_archive_directory (Path): Connected graph ZIPs and completion accounting. Defaults
+            to data/graphs. Relative paths start at the repository root; keep it separate from
+            all input folders. Archives are grouped by area type/vintage, node year, and level.
         env_file (Path | None): Optional file of environment variables, such as API keys. Defaults
             to None. Relative paths start at the repository root. Online retrieval reads it
             without replacing existing environment variables; offline runs do not read it.
@@ -131,6 +134,7 @@ class PipelineConfig(BaseModel):
     processed_population_directory: Path = Path("data/processed/population")
     joined_geography_directory: Path = Path("data/processed/geography")
     study_area_directory: Path = Path("data/processed/study_areas")
+    graph_archive_directory: Path = Path("data/graphs")
     env_file: Path | None = None
     offline: bool = False
     raw_checksums_file: Path = Path("data/raw_checksums.sha256")

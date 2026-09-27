@@ -3,9 +3,10 @@
 A replication pipeline for Census population and geographic data, study-area assignments, dual
 graphs, and residential segregation metrics.
 
-Raw-source retrieval, population processing, boundary–population joins, and study-area assignment
-for 1980–2020 are implemented. See the [assignment guide](documentation/study_area_assignment.md)
-for study-area selection and the [pipeline plan](plans/pipeline.md) for graph and metric stages.
+Raw-source retrieval, population processing, boundary–population joins, study-area assignment, and
+graph construction for 1980–2020 are implemented. See the [assignment
+guide](documentation/study_area_assignment.md) for study-area selection and the [pipeline
+plan](plans/pipeline.md) for the remaining metric stage.
 
 ## Run
 
@@ -16,11 +17,12 @@ uv sync --locked
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
 ```
 
-The small example retrieves 2020 Delaware inputs, processes their population tables, joins counts
-to boundaries, and assigns tracts to county study areas. To select individual stages or configure
-the full run, credentials, offline retrieval, and reuse of existing files, see the
-[run guide](code/README.md). [Source documentation](documentation/raw_source_acquisition.md)
-describes coverage, provenance, and validation limits.
+The small example retrieves 2020 Delaware inputs, processes their population tables, joins counts to
+boundaries, assigns tracts to county study areas, and writes their connected graphs in a ZIP. To
+select individual stages or configure the full run, credentials, offline retrieval, and reuse of
+existing files, see the [run guide](code/README.md). [Source
+documentation](documentation/raw_source_acquisition.md) describes coverage, provenance, and
+validation limits.
 
 ## Organization
 

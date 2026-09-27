@@ -18,7 +18,7 @@ on race, connect graph components, or calculate metrics.
 
 ## Run the stage
 
-Run all four implemented stages with one configuration:
+Run all five implemented stages with one configuration:
 
 ```bash
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
@@ -127,11 +127,12 @@ at `joined_geography_directory`, allowing graph construction to retrieve the ful
 attributes by GEOID. Candidate city scores include both full-city and inside-metro population,
 area inside the metro, full mapped city area in square kilometres, and the selected flag.
 
-A summary status of `ready` means at least one unit was selected; `empty` means the available inputs
-were read successfully but selected no units. `unavailable` identifies Puerto Rico areas for
-1980/1990, which are outside the supported historical inputs. Unavailable counts are null, not
-population estimates of zero. Other missing required states are errors. Empty membership files
-are written explicitly so an empty result cannot expose rows left by an earlier run.
+A summary status of `ready` means at least one unit was selected. When the inputs were read
+successfully but no unit's representative point falls inside the area, the status is
+`no_units_selected`. Puerto Rico areas for 1980/1990 receive `historical_coverage_unavailable`
+because they are outside the supported historical inputs. Their counts are null, not population
+estimates of zero. Other missing required states are errors. Empty membership files are written
+explicitly so an empty result cannot expose rows left by an earlier run.
 
 ## Incomplete inputs and reruns
 

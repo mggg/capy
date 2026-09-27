@@ -19,6 +19,8 @@ def pipeline_calls(tmp_path, monkeypatch):
     calls.retrieve_raw_data.return_value = SimpleNamespace(complete=True, file_results=[])
     calls.process_population_tables.return_value = []
     calls.assign_study_areas.return_value = pd.DataFrame({MembershipColumn.STATUS: ["assigned"]})
+    calls.build_graph_archives.return_value = pd.DataFrame({MembershipColumn.STATUS: ["ready"]})
+    monkeypatch.setattr(reproduce, "build_graph_archives", calls.build_graph_archives)
     monkeypatch.setattr(reproduce, "retrieve_raw_data", calls.retrieve_raw_data)
     monkeypatch.setattr(reproduce, "process_population_tables", calls.process_population_tables)
     monkeypatch.setattr(reproduce, "join_geography_tables", calls.join_geography_tables)
@@ -36,8 +38,10 @@ def pipeline_calls(tmp_path, monkeypatch):
                 "process_population_tables",
                 "join_geography_tables",
                 "assign_study_areas",
+                "build_graph_archives",
             ],
         ),
+        (["build-graphs"], ["build_graph_archives"]),
         (["retrieve"], ["retrieve_raw_data"]),
         (["process-population"], ["process_population_tables"]),
         (["join-geographies"], ["join_geography_tables"]),

@@ -1,8 +1,8 @@
 # Run and understand the replication pipeline
 
-The pipeline implements raw-data retrieval, population processing, boundary–population joins, and
-study-area assignment for 1980–2020. Use the links below to run it, understand the inputs, or
-follow the code. The pipeline plan describes the later processing stages.
+The pipeline implements raw-data retrieval, population processing, boundary–population joins,
+study-area assignment, and graph construction for 1980–2020. Use the links below to run it,
+understand the inputs, or follow the code. The pipeline plan describes the later processing stages.
 
 | What you want to do                                             | Where to start                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -16,11 +16,12 @@ follow the code. The pipeline plan describes the later processing stages.
 | Process downloaded population tables                            | [Population processing](../documentation/population_processing.md)                                                                                                       |
 | Join boundaries and inspect unmatched records                   | [Geography joining](../documentation/geography_population_joining.md)                                                                                                    |
 | Define study areas and select their Census units                | [Study-area assignment](../documentation/study_area_assignment.md)                                                                                                       |
-| Understand the planned graph and metric stages                  | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
+| Build and read connected graph archives                      | [Graph construction](../documentation/graph_construction.md)                                                                                                        |
+| Understand the remaining metric stage                         | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
 
 ## Run the pipeline
 
-`reproduce.py` runs all four implemented stages when no stage names are supplied:
+`reproduce.py` runs all five implemented stages when no stage names are supplied:
 
 ```bash
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
@@ -34,10 +35,11 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 ```
 
 Stages always run once in this order: `retrieve`, `process-population`, `join-geographies`,
-`assign-study-areas`. Unselected prerequisites are not run, so their outputs must already exist. A
-failed stage or incomplete retrieval stops the pipeline before subsequent stages. Use `--help` to
-see the stage descriptions. `--offline` overrides retrieval's download setting; the other stages
-always read existing inputs. Checksum publication remains a separate diagnostic command.
+`assign-study-areas`, `build-graphs`. Unselected prerequisites are not run, so their outputs must
+already exist. A failed stage or incomplete retrieval stops the pipeline before subsequent stages.
+Use `--help` to see the stage descriptions. `--offline` overrides retrieval's download setting; the
+other stages always read existing inputs. Checksum publication remains a separate diagnostic
+command.
 
 ## Run retrieval
 
@@ -116,8 +118,7 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml 
 See [raw-data retrieval](../documentation/raw_source_acquisition.md) for file locations, input
 coverage, editing the Python input definitions, parallel Census/NHGIS workflows, and the separate
 command used to publish diagnostic checksums. The sections below cover population processing,
-geographic joins, and study-area assignment; graph construction follows in the
-[pipeline plan](../plans/pipeline.md).
+geographic joins, study-area assignment, and graph construction.
 
 Run checks with `uv run --locked python -m pytest`. Use one retrieval run per raw-data directory;
 `max_parallel_downloads` controls parallel workers within that run.
@@ -163,3 +164,16 @@ county roster; `max_city` ranks places by 2020 block population inside each metr
 boundaries, candidate scores, unit memberships, and explicit empty or unavailable outcomes under
 `study_area_directory`. See the [study-area guide](../documentation/study_area_assignment.md) for
 selection rules, required inputs, and output interpretation. This command does not build graphs.
+
+## Build graph archives
+
+After assignment, build connected graphs and their population accounting:
+
+```bash
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml build-graphs
+```
+
+Each ZIP contains the selected year's graphs at one geography level, with removed-unit records
+and summary accounting. Read graphs directly from these archives using
+`read_graph_from_archive()`; no extraction step is needed. See the [graph
+guide](../documentation/graph_construction.md) for filtering, connections, and examples.

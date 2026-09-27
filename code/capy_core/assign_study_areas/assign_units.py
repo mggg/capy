@@ -20,11 +20,11 @@ from .study_area_columns import MembershipColumn, StudyAreaColumn
 
 
 class MembershipStatus(StrEnum):
-    """Whether an area has selected units, is empty, or is outside supported source coverage."""
+    """Whether units were selected or the area is outside supported historical coverage."""
 
     READY = "ready"
-    EMPTY = "empty"
-    UNAVAILABLE = "unavailable"
+    NO_UNITS_SELECTED = "no_units_selected"
+    HISTORICAL_COVERAGE_UNAVAILABLE = "historical_coverage_unavailable"
 
 
 def read_joined_state(
@@ -270,12 +270,12 @@ def summarize_memberships(
     summary_df[MembershipColumn.GEOGRAPHY_LEVEL] = geography_inputs.geography_level.value
     summary_df[MembershipColumn.STATUS] = MembershipStatus.READY.value
     summary_df.loc[summary_df[MembershipColumn.UNIT_COUNT].eq(0), MembershipColumn.STATUS] = (
-        MembershipStatus.EMPTY.value
+        MembershipStatus.NO_UNITS_SELECTED.value
     )
     summary_df.loc[
         summary_df[StudyAreaColumn.STUDY_AREA_ID].isin(list(unavailable_area_ids)),
         MembershipColumn.STATUS,
-    ] = MembershipStatus.UNAVAILABLE.value
+    ] = MembershipStatus.HISTORICAL_COVERAGE_UNAVAILABLE.value
 
     summary_df.loc[
         summary_df[StudyAreaColumn.STUDY_AREA_ID].isin(list(unavailable_area_ids)),

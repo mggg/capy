@@ -184,12 +184,15 @@ def test_county_workflow_records_empty_rerun_and_invalidates_failed_outputs(tmp_
     units_df = counties_df.iloc[:1].assign(GEOID="10001000100", geometry=[box(1, 1, 4, 4)])
     write_join_outputs(tmp_path, GeographyLevel.TRACT, units_df)
     summary_df = assign_study_areas(config, tmp_path).set_index("study_area_id")
-    assert summary_df.status.to_dict() == {"county_10001": "ready", "county_10003": "empty"}
+    assert summary_df.status.to_dict() == {
+        "county_10001": "ready",
+        "county_10003": "no_units_selected",
+    }
     assert summary_df.loc["county_10001", "TOTPOP"] == 100
 
     units_df.geometry = [box(40, 40, 41, 41)]
     write_join_outputs(tmp_path, GeographyLevel.TRACT, units_df)
-    assert assign_study_areas(config, tmp_path).status.eq("empty").all()
+    assert assign_study_areas(config, tmp_path).status.eq("no_units_selected").all()
     membership_path = (
         tmp_path / "areas/county/2020/memberships/2020/tracts/DE_2020_memberships.parquet"
     )
@@ -290,7 +293,7 @@ def test_missing_supported_states_fail_but_historical_puerto_rico_is_unavailable
         definitions_df, [state_summary_df], selection, unavailable
     ).set_index("study_area_id")
 
-    assert summary_df.loc["county_72001", "status"] == "unavailable"
+    assert summary_df.loc["county_72001", "status"] == "historical_coverage_unavailable"
     assert pd.isna(summary_df.loc["county_72001", "TOTPOP"])
 
     selection = GeographyJoinInputs(
