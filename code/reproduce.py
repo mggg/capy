@@ -6,6 +6,8 @@ from pathlib import Path
 from capy_core.assign_study_areas.run_assignment import assign_study_areas
 from capy_core.assign_study_areas.study_area_columns import MembershipColumn
 from capy_core.build_graphs.run_build import build_graph_archives
+from capy_core.compute_metrics.metric_types import MetricColumn
+from capy_core.compute_metrics.run_metrics import compute_metrics
 from capy_core.join_geographies.join_tables import join_geography_tables
 from capy_core.pipeline_config import load_configuration
 from capy_core.process_population.process_tables import process_population_tables
@@ -17,11 +19,12 @@ PIPELINE_STAGES = (
     "join-geographies",
     "assign-study-areas",
     "build-graphs",
+    "compute-metrics",
 )
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
-    """Describe configuration, positional stage selection, and the retrieval-only offline override."""
+    """Describe config, positional stage selection, and the retrieval-only offline override."""
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -31,9 +34,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
             "  process-population   Check population counts and save population tables.\n"
             "  join-geographies     Join boundaries to processed population tables.\n"
             "  assign-study-areas   Define study areas and select their Census units.\n"
-            "  build-graphs         Build connected graphs and save ZIP archives.\n\n"
+            "  build-graphs         Build connected graphs and save ZIP archives.\n"
+            "  compute-metrics      Calculate scores from graphs and save means.\n\n"
             "Selected stages run once in pipeline order. Unselected prerequisites are not run.\n"
-            "Omit stages to run all five. A failed or incomplete stage stops the pipeline."
+            "Omit stages to run all six. A failed or incomplete stage stops the pipeline."
         ),
     )
     parser.add_argument("--config", type=Path, required=True, help="YAML run configuration")
@@ -103,11 +107,27 @@ def main() -> int:
             summary_df = assign_study_areas(config, repository)
             print(f"Study-area assignment complete: {len(summary_df)} area/year/level outcomes.")
             print(summary_df[MembershipColumn.STATUS].value_counts().to_string())
+
         if "build-graphs" in selected_stages:
             operation = "Graph construction"
             summary_df = build_graph_archives(config, repository)
             print(f"Graph construction complete: {len(summary_df)} area/year/level outcomes.")
             print(summary_df[MembershipColumn.STATUS].value_counts().to_string())
+
+        if "compute-metrics" in selected_stages:
+            operation = "Metric computation"
+            metric_values_df = compute_metrics(config, repository)
+            defined_count = metric_values_df[MetricColumn.VALUE].notna().sum()
+            print(
+                f"Metric computation complete: {defined_count} defined values of "
+                f"{len(metric_values_df)} outcomes."
+            )
+            undefined_counts = (
+                metric_values_df[MetricColumn.UNDEFINED_REASON].dropna().value_counts()
+            )
+
+            if not undefined_counts.empty:
+                print(undefined_counts.to_string())
     except (ValueError, OSError) as error:
         parser.exit(1, f"{operation} could not complete: {error}\n")
 

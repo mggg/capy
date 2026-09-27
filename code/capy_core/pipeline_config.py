@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from capy_core.compute_metrics.metric_types import MetricName, PopulationComparison
 from capy_core.geography_types import GeographyLevel, StudyAreaType
 
 from .retrieve_data.raw_file_requests import (
@@ -90,6 +91,14 @@ class PipelineConfig(BaseModel):
         graph_archive_directory (Path): Connected graph ZIPs and completion accounting. Defaults
             to data/graphs. Relative paths start at the repository root; keep it separate from
             all input folders. Archives are grouped by area type/vintage, node year, and level.
+        metric_results_directory (Path): Per-area scores, graph accounting, and complete-history
+            averages. Defaults to results/metrics. Relative paths start at the repository root;
+            keep it separate from all data inputs. Outputs are grouped by study-area type/vintage.
+        population_comparisons (tuple[PopulationComparison, ...]): white_black and/or white_poc,
+            defaulting to both. Each uses the same saved graph and the sum of its two groups.
+        metric_names (tuple[MetricName, ...]): Scores to compute, defaulting to all supported scores.
+            The example YAML lists their names. Distance scores include every pair of nodes and
+            can be slow for large block graphs; omitting them leaves other formulas unchanged.
         env_file (Path | None): Optional file of environment variables, such as API keys. Defaults
             to None. Relative paths start at the repository root. Online retrieval reads it
             without replacing existing environment variables; offline runs do not read it.
@@ -135,6 +144,11 @@ class PipelineConfig(BaseModel):
     joined_geography_directory: Path = Path("data/processed/geography")
     study_area_directory: Path = Path("data/processed/study_areas")
     graph_archive_directory: Path = Path("data/graphs")
+    metric_results_directory: Path = Path("results/metrics")
+    population_comparisons: tuple[PopulationComparison, ...] = Field(
+        default=tuple(PopulationComparison), min_length=1
+    )
+    metric_names: tuple[MetricName, ...] = Field(default=tuple(MetricName), min_length=1)
     env_file: Path | None = None
     offline: bool = False
     raw_checksums_file: Path = Path("data/raw_checksums.sha256")

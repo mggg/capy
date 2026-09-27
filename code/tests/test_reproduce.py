@@ -16,6 +16,8 @@ def pipeline_calls(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.argv", ["reproduce.py", "--config", str(config_path)])
 
     calls = Mock()
+    calls.compute_metrics.return_value = pd.DataFrame({"value": [0.5], "undefined_reason": [None]})
+    monkeypatch.setattr(reproduce, "compute_metrics", calls.compute_metrics)
     calls.retrieve_raw_data.return_value = SimpleNamespace(complete=True, file_results=[])
     calls.process_population_tables.return_value = []
     calls.assign_study_areas.return_value = pd.DataFrame({MembershipColumn.STATUS: ["assigned"]})
@@ -39,8 +41,10 @@ def pipeline_calls(tmp_path, monkeypatch):
                 "join_geography_tables",
                 "assign_study_areas",
                 "build_graph_archives",
+                "compute_metrics",
             ],
         ),
+        (["compute-metrics"], ["compute_metrics"]),
         (["build-graphs"], ["build_graph_archives"]),
         (["retrieve"], ["retrieve_raw_data"]),
         (["process-population"], ["process_population_tables"]),

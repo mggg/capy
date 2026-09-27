@@ -1,11 +1,11 @@
 # Copy this file and edit it for your run. Run it from the repository root with:
 #   uv run --locked python code/reproduce.py --config code/configs/example.yaml
 #
-# This example runs all five implemented stages for tracts from 1990 through 2020,
+# This example runs all six implemented stages for tracts from 1990 through 2020,
 # with cities selected inside metropolitan areas using 2020 county and place data.
 # To run a subset, append positional stage names: retrieve, process-population,
-# join-geographies, assign-study-areas, or build-graphs. Selected stages run in pipeline order;
-# unselected prerequisites must already exist. Metrics are a later stage.
+# join-geographies, assign-study-areas, build-graphs, or compute-metrics. Selected stages run
+# in pipeline order; unselected prerequisites must already exist.
 #
 # Run settings belong here. Source URLs, Census population column names, and NHGIS
 # table names live in the Python request definitions under code/capy_core/retrieve_data/.
@@ -84,6 +84,38 @@ study_area_directory: data/processed/study_areas
 # Keep this separate from raw, population, joined-geography, and study-area folders.
 # One archive per node year/level, with area type and definition vintage in its name.
 graph_archive_directory: data/graphs
+
+# Metric Parquet tables; default results/metrics, relative to the repository root.
+# Keep this separate from all data input folders. Outputs add study-area type/vintage.
+# Reruns replace that folder's tables; use a different root to keep separate metric runs.
+metric_results_directory: results/metrics
+
+# Compare non-Hispanic White residents with Black residents and/or all POC residents.
+# Accepted values: white_black, white_poc. Omitted setting: both; empty lists are invalid.
+# Both use the same White–Black-filtered graph, with the sum of the two groups as denominator.
+population_comparisons: [white_black, white_poc]
+
+# Omitted setting: all metrics below. Delete entries to select a subset; an empty list is invalid.
+# Names distinguish formulas and spatial weights. See documentation/metric_computation.md.
+# Distance variants use all node pairs and can be slow for large block graphs.
+metric_names:
+  - dissimilarity
+  - theil_information
+  - relative_diversity
+  - aspatial_capy
+  - spatial_dissimilarity
+  - spatial_theil_information
+  - spatial_relative_diversity
+  - capy_exact
+  - moran_adjacency
+  - moran_negative_laplacian
+  - moran_metropolis
+  - moran_with_self
+  - moran_row_standardized
+  - moran_inverse_distance
+  - moran_inverse_squared_distance
+  - edge_assortativity
+  - half_edge_assortativity
 
 # Folder names beneath raw_data_directory. These are relative paths; subfolders
 # such as tables/census are allowed. Absolute paths and '..' are not allowed here.

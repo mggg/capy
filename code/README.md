@@ -1,8 +1,8 @@
 # Run and understand the replication pipeline
 
 The pipeline implements raw-data retrieval, population processing, boundary–population joins,
-study-area assignment, and graph construction for 1980–2020. Use the links below to run it,
-understand the inputs, or follow the code. The pipeline plan describes the later processing stages.
+study-area assignment, graph construction, and metric computation for 1980–2020. Use the links
+below to run it, understand the inputs, or follow the code.
 
 | What you want to do                                             | Where to start                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -16,12 +16,12 @@ understand the inputs, or follow the code. The pipeline plan describes the later
 | Process downloaded population tables                            | [Population processing](../documentation/population_processing.md)                                                                                                       |
 | Join boundaries and inspect unmatched records                   | [Geography joining](../documentation/geography_population_joining.md)                                                                                                    |
 | Define study areas and select their Census units                | [Study-area assignment](../documentation/study_area_assignment.md)                                                                                                       |
-| Build and read connected graph archives                      | [Graph construction](../documentation/graph_construction.md)                                                                                                        |
-| Understand the remaining metric stage                         | [Pipeline plan](../plans/pipeline.md)                                                                                                                                    |
+| Build and read connected graph archives                         | [Graph construction](../documentation/graph_construction.md)                                                                                                             |
+| Calculate segregation scores and fixed-sample yearly means      | [Metric computation](../documentation/metric_computation.md)                                                                                                             |
 
 ## Run the pipeline
 
-`reproduce.py` runs all five implemented stages when no stage names are supplied:
+`reproduce.py` runs all six implemented stages when no stage names are supplied:
 
 ```bash
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
@@ -35,11 +35,11 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 ```
 
 Stages always run once in this order: `retrieve`, `process-population`, `join-geographies`,
-`assign-study-areas`, `build-graphs`. Unselected prerequisites are not run, so their outputs must
-already exist. A failed stage or incomplete retrieval stops the pipeline before subsequent stages.
-Use `--help` to see the stage descriptions. `--offline` overrides retrieval's download setting; the
-other stages always read existing inputs. Checksum publication remains a separate diagnostic
-command.
+`assign-study-areas`, `build-graphs`, `compute-metrics`. Unselected prerequisites are not run, so
+their outputs must already exist. A failed stage or incomplete retrieval stops the pipeline before
+subsequent stages. Use `--help` to see the stage descriptions. `--offline` overrides retrieval's
+download setting; the other stages always read existing inputs. Checksum publication remains a
+separate diagnostic command.
 
 ## Run retrieval
 
@@ -173,7 +173,24 @@ After assignment, build connected graphs and their population accounting:
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml build-graphs
 ```
 
-Each ZIP contains the selected year's graphs at one geography level, with removed-unit records
-and summary accounting. Read graphs directly from these archives using
-`read_graph_from_archive()`; no extraction step is needed. See the [graph
-guide](../documentation/graph_construction.md) for filtering, connections, and examples.
+Each ZIP contains the selected year's graphs at one geography level, with removed-unit records and
+summary accounting. Read graphs directly from these archives using `read_graph_from_archive()`; no
+extraction step is needed. See the [graph guide](../documentation/graph_construction.md) for
+filtering, connections, and examples.
+
+## Compute metrics
+
+Read the saved graph ZIPs and write per-area scores plus yearly averages:
+
+```bash
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml compute-metrics
+```
+
+No extraction or intermediate data files are required. The default output is
+`results/metrics/county/2020/` for this example, with both White–Black and White–POC comparisons.
+For individual scores on your own graphs or arrays, use the
+[public metric functions](../documentation/metric_computation.md#use-individual-metric-functions).
+Use `metric_names` to select formulas and `metric_results_directory` to change the output root.
+The [metric guide](../documentation/metric_computation.md) explains the supported scores,
+undefined values, population denominators, and the fixed sample used for each metric's yearly
+means.
