@@ -1,7 +1,7 @@
 """Run selections drive both population and boundary inputs, including study-area data."""
 
 import pytest
-from capy_core.geography_types import GeographyLevel
+from capy_core.geography_types import GeographyLevel, StudyAreaType
 from capy_core.pipeline_config import (
     PipelineConfig,
     RawDataSubdirectories,
@@ -320,7 +320,14 @@ def test_unsupported_combinations_fail_before_creating_raw_files(tmp_path, setti
 
 
 @pytest.mark.parametrize(
-    "filename", ["example.yaml", "replication.yaml", "small_example.yaml", "modern_population.yaml"]
+    "filename",
+    [
+        "example.yaml",
+        "replication.yaml",
+        "max_city.yaml",
+        "small_example.yaml",
+        "modern_population.yaml",
+    ],
 )
 def test_shipped_yaml_files_select_valid_inputs(filename):
     from pathlib import Path
@@ -331,6 +338,10 @@ def test_shipped_yaml_files_select_valid_inputs(filename):
 
     assert selected
     if filename == "replication.yaml":
+        assert config.study_area_type == StudyAreaType.CBSA
+        assert len(selected) == 1134
+    elif filename == "max_city.yaml":
+        assert config.study_area_type == StudyAreaType.MAX_CITY
         assert len(selected) == 1238
     elif filename == "small_example.yaml":
         assert len(selected) == 6

@@ -57,8 +57,9 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml 
 ```
 
 The first command downloads 2020 Delaware tract and county inputs, with population references; the
-second requests the full raw-data collection. For NHGIS downloads, supply `IPUMS_API_KEY` in your
-shell or set `env_file: .env` in the YAML to load credentials from a file at the repository root.
+second requests the raw inputs for the paper's national CBSA analyses. For NHGIS downloads, supply
+`IPUMS_API_KEY` in your shell or set `env_file: .env` in the YAML to load credentials from a file at
+the repository root.
 Census downloads require `CENSUS_API_KEY`. Existing environment variables take precedence over
 values in the file. By default, `env_file: null` loads no file, and neither offline runs nor the
 checksum command reads one.
@@ -66,7 +67,9 @@ checksum command reads one.
 Start with the commented [`configs/example.yaml`](configs/example.yaml) to make a custom run.
 Choose geography levels and census years for both population and boundary data, plus the
 study-area type and boundary year. The code adds the county and city inputs needed to define those
-areas. [`configs/replication.yaml`](configs/replication.yaml) requests the full collection;
+areas. [`configs/replication.yaml`](configs/replication.yaml) covers entire metropolitan areas
+for the paper's national analyses. [`configs/max_city.yaml`](configs/max_city.yaml) uses the same
+years and levels but selects one city per metro, adding the place inputs needed for city selection.
 [`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts, their county
 study-area definitions, and population references. The settings also control folders, download
 workers, offline mode, and checksum output. Input definitions live alongside their retrieval code

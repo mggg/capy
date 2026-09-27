@@ -35,8 +35,10 @@ boundaries.
 
 To process all supported modern tables, substitute `code/configs/modern_population.yaml` in both
 commands. That configuration includes counties, tracts, block groups, and blocks for 2000, 2010,
-and 2020, plus the 2020 places used for city selection. The full `code/configs/replication.yaml`
-configuration also includes counties and tracts in 1980 and all four levels in 1990.
+and 2020, plus the 2020 places used for city selection. `code/configs/replication.yaml` covers
+the paper's CBSA analyses, including counties and tracts in 1980 and all four levels in 1990–2020.
+Use `code/configs/max_city.yaml` for the same years and levels with the additional place inputs
+needed to select cities.
 
 Both commands use the configured years, geography levels, and study-area selections. You can
 narrow processing with `file_path_patterns`, but each selected year still needs its state

@@ -20,9 +20,9 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 ```
 
 The small example produces scores for Delaware's three county study areas using 2020 tract graphs.
-Use `code/configs/replication.yaml` for the national selections. This stage reads only graph
-archives; raw downloads and intermediate population, geography, and membership tables are not
-needed.
+Use `code/configs/replication.yaml` for the paper's national CBSA results, or
+`code/configs/max_city.yaml` for the selected-city results. This stage reads only graph archives;
+raw downloads and intermediate population, geography, and membership tables are not needed.
 
 By default, every supported metric is calculated for both `white_black` and `white_poc`. Set
 `metric_names` or `population_comparisons` in the YAML to restrict those choices, using the names

@@ -18,14 +18,15 @@ on race, connect graph components, or calculate metrics.
 
 ## Run the stage
 
-Run all five implemented stages with one configuration:
+Run the pipeline with one configuration:
 
 ```bash
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
 ```
 
 The small example selects 2020 Delaware tracts and the county definitions needed to assign them.
-For national work, use `code/configs/replication.yaml` or adapt the
+Use `code/configs/replication.yaml` for the paper's entire-CBSA study areas or
+`code/configs/max_city.yaml` for the selected cities. For other selections, adapt the
 [commented example](../code/configs/example.yaml). If the preceding stages have completed, run
 assignment alone:
 

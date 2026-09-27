@@ -1,8 +1,7 @@
-# National analyses in the paper: entire metropolitan areas, using March 2020
-# county membership across Census years.
+# Selected cities: the city with the most population inside each March 2020 metro.
 census_geography_levels: [counties, tracts, block_groups, blocks]
 census_geography_years: [1980, 1990, 2000, 2010, 2020]
-study_area_type: cbsa
+study_area_type: max_city
 study_area_vintage: 2020
 
 raw_data_directory: data/raw
