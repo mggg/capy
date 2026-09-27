@@ -11,9 +11,9 @@ from .errors import UndefinedMetricError, UndefinedMetricReason
 from .inputs import (
     WeightMatrix,
     build_csr_adjacency_matrix,
+    node_attribute_to_numpy_arr,
     population_shares,
     prepare_weight_matrix,
-    node_attribute_to_numpy_arr,
 )
 
 

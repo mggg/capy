@@ -6,7 +6,6 @@ from enum import StrEnum
 class UndefinedMetricReason(StrEnum):
     """Reasons a requested score has no numeric value."""
 
-    NO_GRAPH = "no_graph"  # Callers can record an absent graph without invoking a metric.
     ABSENT_POPULATION_GROUP = "absent_population_group"
     NO_PAIR_INTERACTIONS = "no_pair_interactions"
     ZERO_SHARE_VARIANCE = "zero_share_variance"

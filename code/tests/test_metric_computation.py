@@ -16,8 +16,8 @@ from capy_core.compute_metrics.metric_types import (
 from capy_core.compute_metrics.run_metrics import compute_metrics
 from capy_core.compute_metrics.summarize_years import average_when_all_years_present
 from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.metrics import distance_morans_I
 from capy_core.pipeline_config import PipelineConfig
+from capy_metrics import distance_morans_I
 from gerrychain import Graph
 from scipy.spatial.distance import cdist
 

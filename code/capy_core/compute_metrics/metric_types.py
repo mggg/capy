@@ -1,8 +1,9 @@
-"""Names for population comparisons, reported scores, and mathematically undefined results."""
+"""Names for population comparisons, reported scores, and missing or undefined results."""
 
 from enum import StrEnum
 
-from capy_core.metrics.errors import UndefinedMetricReason
+from capy_metrics import UndefinedMetricReason
+
 from capy_core.population_table_columns import PopulationColumn
 
 
@@ -43,6 +44,12 @@ class MetricName(StrEnum):
     HALF_EDGE_ASSORTATIVITY = "half_edge_assortativity"
 
 
+class MetricSkipReason(StrEnum):
+    """Reasons the pipeline cannot run a metric, separate from undefined mathematics."""
+
+    NO_GRAPH = "no_graph"
+
+
 class MetricColumn(StrEnum):
     """Fields shared by per-area metric tables and their complete-history averages."""
 
@@ -58,4 +65,4 @@ class MetricColumn(StrEnum):
 
 
 # A result is either a finite number or an explanation, never a fabricated zero for missing data.
-MetricValue = float | UndefinedMetricReason
+MetricValue = float | UndefinedMetricReason | MetricSkipReason

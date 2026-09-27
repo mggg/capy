@@ -38,7 +38,7 @@ metric computation.
 
 ## Use individual metric functions
 
-The functions in `capy_core.metrics` work independently of the replication pipeline. Each score
+The functions in `capy_metrics` work independently of the replication pipeline. Each score
 has an array or matrix interface and a graph interface ending in `_from_graph`. Both are public
 and return one floating-point score. Graph functions accept ordinary NetworkX graphs, including
 GerryChain graphs, and take population attribute names rather than assuming the study's column
@@ -48,7 +48,7 @@ For example, this computes Moran's I from custom attributes on a small graph:
 
 ```python
 import networkx as nx
-from capy_core.metrics import MoranWeightType, morans_I_from_graph
+from capy_metrics import MoranWeightType, morans_I_from_graph
 
 graph = nx.path_graph(["a", "b", "c"])
 nx.set_node_attributes(graph, {"a": 2, "b": 7, "c": 4}, "group1")
@@ -65,9 +65,9 @@ computations, call the numerical functions directly:
 
 ```python
 import numpy as np
-from capy_core.metrics import build_adjacency_matrix, build_moran_weights, morans_I
+from capy_metrics import build_csr_adjacency_matrix, build_moran_weights, morans_I
 
-adjacency = build_adjacency_matrix(graph)
+adjacency = build_csr_adjacency_matrix(graph)
 weights = build_moran_weights(adjacency, MoranWeightType.ROW_STANDARDIZED)
 group_population = np.array([2, 7, 4])
 total_population = np.array([10, 12, 20])
@@ -107,7 +107,7 @@ Lambda is a finite, nonnegative **neighbor weight** in $W=I+\lambda A$; within-u
 one. For example:
 
 ```python
-from capy_core.metrics import aspatial_capy, capy, capy_exact
+from capy_metrics import aspatial_capy, capy, capy_exact
 
 second_population = total_population - group_population
 aspatial = aspatial_capy(group_population, second_population)
@@ -125,7 +125,7 @@ identifies the limitation. The pipeline catches that exception per score and sav
 a null value, preserving other valid results. Direct callers can catch it in the same way:
 
 ```python
-from capy_core.metrics import UndefinedMetricError
+from capy_metrics import UndefinedMetricError
 
 try:
     score = morans_I(weights, group_population / total_population)
@@ -402,7 +402,7 @@ input.
 
 ## Following the code
 
-[`capy_core/metrics/`](../code/capy_core/metrics/) contains reusable functions organized by metric
+[`capy_metrics/`](../code/capy_metrics/) contains reusable functions organized by metric
 family. Graph functions live beside their numerical counterparts, and neither depends on study
 configuration or output tables. Shared input checks cover array shapes, numeric counts, and matrix
 alignment; the formulas retain their own mathematical conditions.

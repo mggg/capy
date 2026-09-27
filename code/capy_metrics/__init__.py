@@ -29,7 +29,7 @@ from .evenness import (
     theil_information,
     theil_information_from_graph,
 )
-from .inputs import build_csr_adjacency_matrix
+from .inputs import build_csr_adjacency_matrix, node_attribute_to_numpy_arr, population_shares
 from .moran import (
     MoranWeightType,
     build_moran_weights,
@@ -59,6 +59,8 @@ __all__ = [
     "half_edge_assortativity_from_graph",
     "morans_I",
     "morans_I_from_graph",
+    "node_attribute_to_numpy_arr",
+    "population_shares",
     "relative_diversity",
     "relative_diversity_from_graph",
     "theil_information",

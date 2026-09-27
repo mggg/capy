@@ -4,6 +4,12 @@ The pipeline implements raw-data retrieval, population processing, boundary–po
 study-area assignment, graph construction, and metric computation for 1980–2020. Use the links
 below to run it, understand the inputs, or follow the code.
 
+Reusable score functions live in [`capy_metrics/`](capy_metrics/). Use their array or graph
+interfaces to calculate individual metrics without running the pipeline; the
+[metric guide](../documentation/metric_computation.md#use-individual-metric-functions) shows both.
+[`capy_core/`](capy_core/) owns the pipeline stages, including archive loading, study-specific
+metric choices, and result tables in `compute_metrics/`.
+
 | What you want to do                                             | Where to start                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Install the environment and run a small example                 | [Repository README](../README.md#run)                                                                                                                                    |

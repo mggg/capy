@@ -2,10 +2,10 @@
 
 from copy import deepcopy
 
+import capy_metrics as metrics
 import networkx as nx
 import numpy as np
 import pytest
-from capy_core import metrics
 from capy_core.compute_metrics import calculate_scores
 from capy_core.compute_metrics.metric_types import MetricName, PopulationComparison
 from scipy import sparse

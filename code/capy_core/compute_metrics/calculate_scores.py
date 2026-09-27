@@ -2,11 +2,7 @@
 
 import networkx as nx
 import numpy as np
-from gerrychain import Graph
-from scipy import sparse
-
-from capy_core.build_graphs.construct_graph import GraphNodeAttribute
-from capy_core.metrics import (
+from capy_metrics import (
     MoranWeightType,
     UndefinedMetricError,
     aspatial_capy,
@@ -18,10 +14,15 @@ from capy_core.metrics import (
     edge_assortativity,
     half_edge_assortativity,
     morans_I,
+    node_attribute_to_numpy_arr,
+    population_shares,
     relative_diversity,
     theil_information,
 )
-from capy_core.metrics.inputs import population_shares, node_attribute_to_numpy_arr
+from gerrychain import Graph
+from scipy import sparse
+
+from capy_core.build_graphs.construct_graph import GraphNodeAttribute
 from capy_core.population_table_columns import PopulationColumn
 
 from .metric_types import MetricName, MetricValue, PopulationComparison

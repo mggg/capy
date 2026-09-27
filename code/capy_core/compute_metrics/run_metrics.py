@@ -17,7 +17,7 @@ from capy_core.retrieve_data.prepare_file_requests import build_geography_reques
 from capy_core.stage_files import stage_file
 
 from .calculate_scores import calculate_graph_metrics
-from .metric_types import MetricColumn, UndefinedMetricReason
+from .metric_types import MetricColumn, MetricSkipReason, UndefinedMetricReason
 from .read_graph_inputs import check_graph_population_accounting, read_graph_archive_summary
 from .summarize_years import average_when_all_years_present
 
@@ -140,7 +140,7 @@ def compute_archive_metrics(
     ):
         graph_status = GraphStatus(graph_summary[MembershipColumn.STATUS])
         comparison_scores = {
-            comparison: dict.fromkeys(config.metric_names, UndefinedMetricReason.NO_GRAPH)
+            comparison: dict.fromkeys(config.metric_names, MetricSkipReason.NO_GRAPH)
             for comparison in dict.fromkeys(config.population_comparisons)
         }
 
@@ -153,7 +153,7 @@ def compute_archive_metrics(
 
         for comparison, metric_values in comparison_scores.items():
             for metric_name, result in metric_values.items():
-                undefined = isinstance(result, UndefinedMetricReason)
+                undefined = isinstance(result, (UndefinedMetricReason, MetricSkipReason))
                 metric_rows.append(
                     {
                         StudyAreaColumn.STUDY_AREA_ID: graph_summary[StudyAreaColumn.STUDY_AREA_ID],
