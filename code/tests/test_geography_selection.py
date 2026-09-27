@@ -325,6 +325,8 @@ def test_unsupported_combinations_fail_before_creating_raw_files(tmp_path, setti
         "example.yaml",
         "replication.yaml",
         "max_city.yaml",
+        "county.yaml",
+        "max_county.yaml",
         "small_example.yaml",
         "modern_population.yaml",
     ],

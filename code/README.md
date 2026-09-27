@@ -70,6 +70,9 @@ study-area type and boundary year. The code adds the county and city inputs need
 areas. [`configs/replication.yaml`](configs/replication.yaml) covers entire metropolitan areas
 for the paper's national analyses. [`configs/max_city.yaml`](configs/max_city.yaml) uses the same
 years and levels but selects one city per metro, adding the place inputs needed for city selection.
+[`configs/county.yaml`](configs/county.yaml) covers individual counties, while
+[`configs/max_county.yaml`](configs/max_county.yaml) selects the most populous county in each metro.
+Both use the same years and levels as the paper configuration, with 2020 study-area definitions.
 [`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts, their county
 study-area definitions, and population references. The settings also control folders, download
 workers, offline mode, and checksum output. Input definitions live alongside their retrieval code

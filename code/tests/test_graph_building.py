@@ -239,13 +239,15 @@ def test_fully_filtered_area_keeps_population_accounting_without_a_graph(graph_r
         assert "removed_units/county_10001.csv" in archive.namelist()
 
 
-@pytest.mark.parametrize("overlap_width,expect_warning", [(1e-6, False), (0.1, True)])
-def test_known_overlap_is_silent_only_while_microscopic(overlap_width, expect_warning):
+@pytest.mark.parametrize(
+    "overlap_width,expect_warning", [(1e-6, False), (0.0001, False), (0.000101, True)]
+)
+def test_overlap_warning_depends_on_area_not_geographic_ids(overlap_width, expect_warning):
     import warnings
 
     units_df = sample_units().iloc[[0, 2]].copy()
-    units_df.GEOID = ["G3600050", "G3600610"]
-    units_df.geometry = [box(0, 0, 1, 1), box(1 - overlap_width, 0, 2, 1)]
+    units_df.GEOID = ["first_unit", "second_unit"]
+    units_df.geometry = [box(0, 0, 1, 1), box(-1, 0, overlap_width, 1)]
 
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always")
@@ -253,21 +255,21 @@ def test_known_overlap_is_silent_only_while_microscopic(overlap_width, expect_wa
 
     overlap_warnings = [warning for warning in recorded if "Found overlaps" in str(warning.message)]
     assert bool(overlap_warnings) == expect_warning
-    assert graph.edges["G3600050", "G3600610"]["artificial"] is False
+    assert graph.edges["first_unit", "second_unit"]["artificial"] is False
     assert sum(attributes["TOTPOP"] for _, attributes in graph.nodes(data=True)) == 30
 
 
-def test_mixed_overlap_warning_keeps_unknown_pairs_visible():
+def test_mixed_overlap_warning_keeps_only_larger_pairs_visible():
     units_df = sample_units().iloc[[0, 2, 3]].copy()
-    units_df.GEOID = ["G3600050", "G3600610", "unrecognized_unit"]
-    units_df.geometry = [box(0, 0, 1, 1), box(1 - 1e-6, 0, 2, 1), box(-1, 0, 1e-6, 1)]
+    units_df.GEOID = ["first_unit", "tiny_overlap_unit", "larger_overlap_unit"]
+    units_df.geometry = [box(0, 0, 1, 1), box(1 - 1e-6, 0, 2, 1), box(-1, 0, 0.1, 1)]
 
     with pytest.warns(UserWarning, match="Found overlaps") as recorded:
         build_connected_graph(units_df)
 
     assert len(recorded) == 1
-    assert "unrecognized_unit" in str(recorded[0].message)
-    assert "G3600610" not in str(recorded[0].message)
+    assert "larger_overlap_unit" in str(recorded[0].message)
+    assert "tiny_overlap_unit" not in str(recorded[0].message)
 
 
 def test_unexpected_overlap_respects_gerrychain_module_error_filter():
@@ -290,6 +292,7 @@ def test_unexpected_overlap_respects_gerrychain_module_error_filter():
     [
         "An unrelated graph warning",
         "Found overlaps among the given polygons. Indices of overlaps: changed upstream format",
+        "Found overlaps among the given polygons. Indices of overlaps: {'unexpected_entry'}",
     ],
 )
 def test_other_warning_text_is_passed_through(message):

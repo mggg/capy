@@ -1,0 +1,47 @@
+# The most populous 2020 county in each March 2020 metropolitan area.
+# Selected counties stay fixed across Census years.
+census_geography_levels: [counties, tracts, block_groups, blocks]
+census_geography_years: [1980, 1990, 2000, 2010, 2020]
+study_area_type: max_county
+study_area_vintage: 2020
+
+raw_data_directory: data/raw
+
+# Derived population Parquet files; relative paths start at the repository root.
+processed_population_directory: data/processed/population
+
+# Joined boundaries and unmatched records; relative paths start at the repository root.
+joined_geography_directory: data/processed/geography
+
+# Study-area definitions, candidate scores, and Census-unit memberships.
+# Relative paths start at the repository root. Keep this separate from all input folders.
+study_area_directory: data/processed/study_areas
+
+# Connected graphs in ZIP archives; relative paths start at the repository root.
+# Keep this separate from raw, population, joined-geography, and study-area folders.
+# One archive per node year/level, with area type and definition vintage in its name.
+graph_archive_directory: data/graphs
+
+# Scores and complete-history averages; defaults to all metrics and both population comparisons.
+# See example.yaml for metric selection; distance variants can be slow for large block graphs.
+metric_results_directory: results/metrics
+
+raw_data_subdirectories:
+  census_population_tables: census
+  nhgis_population_and_boundaries: nhgis
+  census_boundary_files: tiger
+  original_1980_boundary_files: tiger_1992
+  original_1990_block_references: census_1990_blocks
+  population_reference_tables: population_reference_tables
+  metro_membership_tables: metro_membership_tables
+  saved_nhgis_requests: saved_nhgis_requests
+# Optional .env path, relative to the repository root; existing environment variables win.
+env_file: null
+offline: false
+raw_checksums_file: data/raw_checksums.sha256
+file_path_patterns: ["*"]
+max_parallel_downloads: 4
+
+# Recheck pending NHGIS extracts after the initial downloads; 0 minutes disables retries.
+nhgis_retry_interval_seconds: 60
+nhgis_max_wait_minutes: 60

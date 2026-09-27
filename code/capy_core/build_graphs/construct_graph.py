@@ -14,18 +14,10 @@ from capy_core.population_table_columns import GeographyColumn, PopulationColumn
 
 from .connect_components import GraphEdgeAttribute, connect_graph_components
 
-# These NHGIS source slivers were measured in projected meters; see the graph guide's
-# "Known boundary overlaps" section. Unknown pairs remain visible even when equally small.
-EXPECTED_ROUNDOFF_OVERLAP_PAIRS = {
-    ("G3600050", "G3600610"),
-    ("G3600470", "G3600610"),
-    ("G48014100011053", "G480141000141"),
-    ("G480141000129", "G480141000141"),
-    ("G480141000141", "G480141000149"),
-    ("G480141000141", "G480141000184"),
-    ("G1100010001701112", "G24003107018313"),
-}
-MAX_EXPECTED_OVERLAP_AREA_M2 = 0.0001  # 100 mm²; the largest measured sliver is about 32 mm².
+# NOTE: Historical NHGIS outlines contain microscopic source slivers; all measured 1990
+# CBSA block-group overlaps were below 100 mm². At this scale we suppress warning noise,
+# not geometry or connections. Larger overlaps remain visible; see the graph guide.
+MAX_SILENT_OVERLAP_AREA_M2 = 0.0001  # 100 mm², measured in the graph's metre CRS.
 OVERLAP_WARNING_PREFIX = "Found overlaps among the given polygons. Indices of overlaps: "
 
 
@@ -142,10 +134,10 @@ def build_connected_graph(units_df: gpd.GeoDataFrame) -> tuple[Graph, pd.DataFra
 def report_unexpected_graph_warning(
     graph_warning: warnings.WarningMessage, units_df: gpd.GeoDataFrame
 ) -> None:
-    """Keep warnings visible except for individually identified, microscopic source overlaps.
+    """Keep warnings visible except for polygon overlaps at or below 100 square millimetres.
 
     GerryChain reports overlapping IDs as a Python set in its warning text. Read that set with
-    literal_eval, without executing code, and remeasure only the known pairs. An unknown warning
+    literal_eval, without executing code, and measure each reported pair. An unknown warning
     format is passed through unchanged. This changes reporting, not polygons or graph edges.
 
     Args:
@@ -165,10 +157,15 @@ def report_unexpected_graph_warning(
         except (ValueError, SyntaxError):
             overlap_pairs = None
 
-        if isinstance(overlap_pairs, set):
+        if isinstance(overlap_pairs, set) and all(
+            isinstance(pair, tuple)
+            and len(pair) == 2
+            and all(isinstance(geographic_id, str) for geographic_id in pair)
+            for pair in overlap_pairs
+        ):
             unexpected_pairs = overlap_pairs.copy()
 
-            for first_id, second_id in EXPECTED_ROUNDOFF_OVERLAP_PAIRS.intersection(overlap_pairs):
+            for first_id, second_id in overlap_pairs:
                 if first_id not in units_df.index or second_id not in units_df.index:
                     continue
 
@@ -178,7 +175,7 @@ def report_unexpected_graph_warning(
                     .area
                 )
 
-                if 0 < overlap_area <= MAX_EXPECTED_OVERLAP_AREA_M2:
+                if 0 < overlap_area <= MAX_SILENT_OVERLAP_AREA_M2:
                     unexpected_pairs.remove((first_id, second_id))
 
             if not unexpected_pairs:

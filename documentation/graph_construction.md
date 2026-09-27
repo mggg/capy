@@ -10,6 +10,7 @@ population accounting that explains which units the graphs retain.
 - [Population filtering and adjacency](#population-filtering-and-adjacency)
 - [Centroid coordinates for distance-based metrics](#centroid-coordinates-for-distance-based-metrics)
 - [Known boundary overlaps](#known-boundary-overlaps)
+- [Metric sensitivity in Washington and Albany](#metric-sensitivity-in-washington-and-albany)
 - [Connecting separate components](#connecting-separate-components)
 - [Read an archived graph](#read-an-archived-graph)
 - [Accounting and unavailable areas](#accounting-and-unavailable-areas)
@@ -75,28 +76,67 @@ centroids does not itself check for coincident locations.
 
 ## Known boundary overlaps
 
-GerryChain warns whenever polygons overlap by any positive area. Several historical NHGIS
-boundaries have microscopic slivers along neighboring outlines, even though each polygon is
-individually valid. The builder suppresses warnings only for the following identified pairs,
-and only while the measured overlap remains at most **0.0001 m² (100 mm²)**. Unknown pairs and
-larger overlaps still produce warnings. This affects reporting only: polygons, adjacency,
-shared-perimeter attributes, and population counts are unchanged.
+GerryChain warns whenever polygons overlap by any positive area. Historical NHGIS outlines can
+contain microscopic slivers even when each polygon is individually valid. The builder suppresses
+warnings for intersections at or below **0.0001 m² (100 mm²)**, measured in `ESRI:102003`. This is
+a reporting tolerance: polygons, adjacency, shared-perimeter attributes, and population counts
+remain unchanged. Larger intersections still produce warnings, including when the same warning
+also contains smaller ones.
 
-| Census units | Geographic ID pair | Measured overlap (mm²) |
-| --- | --- | ---: |
-| 1980/1990 Bronx–New York counties | `G3600050`, `G3600610` | 0.682 |
-| 1980/1990 Kings–New York counties | `G3600470`, `G3600610` | 1.040 |
-| 1990 El Paso block groups, tracts 11.05/14 | `G48014100011053`, `G480141000141` | 0.451 |
-| 1990 El Paso block groups, tracts 12/14 | `G480141000129`, `G480141000141` | 0.025 |
-| 1990 El Paso block groups within tract 14 | `G480141000141`, `G480141000149` | 31.751 |
-| 1990 El Paso block groups, tracts 14/18 | `G480141000141`, `G480141000184` | 0.156 |
-| 1990 DC–Montgomery County blocks | `G1100010001701112`, `G24003107018313` | 0.017 |
+Across the CBSA-selected 1990 block groups, all 1,369 overlapping pairs measured below this
+threshold; the largest intersection was 55.85 mm². Every overlap was also present in the original
+NHGIS shapefile, with the same measured area. The earlier county, El Paso block-group, and
+DC–Maryland block examples were also below this threshold. Suppressing these warnings does not
+establish that every graph connection is historically correct; it separates negligible overlap
+areas from boundary discrepancies that warrant investigation.
 
-Measurements use the joined polygons in `ESRI:102003`. The El Paso and DC–Maryland slivers were
-also checked directly in the original NHGIS shapefiles, where the same overlaps are present.
-The explicit pairs and area limit live beside graph construction in
-[`construct_graph.py`](../code/capy_core/build_graphs/construct_graph.py). If a warning includes
-both known and unknown pairs, only the unexplained pairs remain in the reported warning.
+The 1980 tract and BNA layers have larger mismatches where their county outlines meet. The CBSA
+selection contains 219 overlapping pairs across 33 metros, reaching 1.09 km². These source
+mismatches remain visible. Repairing individually invalid polygons with `buffer(0)` does not
+resolve disagreement between separate polygons' boundaries.
+
+### Metric sensitivity in Washington and Albany
+
+We retain the source polygons and Census counts for these mismatches. In the Washington and
+Albany metros, removing the overlapping area from either source layer preserved every graph
+connection and produced only very small changes in centroid-distance scores. This supports
+retaining the existing inputs for these cases without claiming that their historical borders
+are geometrically correct.
+
+The comparison used the saved 1980 tract graphs for Washington (`cbsa_47900`) and Albany
+(`cbsa_10580`), with 12 and seven overlapping pairs respectively. Each metro was tested by
+subtracting the overlap from either the BNA polygons or the tract polygons, first for its largest
+pair and then for all its overlapping pairs. Neither layer was assumed to be authoritative.
+Population counts stayed attached to their original Census records, and repeating the
+representative-point assignment confirmed that study-area membership remained unchanged.
+
+All 17 metrics were recalculated for both White–Black and White–POC comparisons. The trimmed
+polygons still shared boundaries, so every adjacency-based and aspatial score was unchanged.
+Centroids moved by at most 60.62 metres in Washington and 29.82 metres in Albany. Across the
+four trimming alternatives and both population comparisons, the largest absolute score changes
+were:
+
+| Metro | Largest overlap | Largest absolute metric change after trimming |
+| --- | ---: | ---: |
+| Washington | 1.090 km² | 0.0000005514 |
+| Albany | 0.439 km² | 0.0000010096 |
+
+Both maximum changes occurred in inverse-squared-distance Moran's I for White–POC. These
+experiments changed temporary copies only; the pipeline does not apply the tested trims.
+
+A separate stress test removed the graph connections between overlapping polygons while keeping
+their shapes, centroids, and populations unchanged. Removing all such connections split each
+metro graph into two components, after which the usual component connector restored one removed
+edge. With net removals of 11 edges in Washington and six in Albany, White–Black adjacency
+Moran's I increased by 0.0031348 and 0.0051020 respectively. Removing a connection therefore has
+a larger effect than trimming an overlap while retaining the shared boundary. It represents a
+different assumption about which units are neighbors.
+
+These results describe sensitivity to the specified alternatives, not bounds on every possible
+boundary correction. They do not establish the correct historical borders, validate the
+population-to-boundary correspondence, or measure effects on national rankings and published
+conclusions. The other 31 metros with 1980 tract/BNA overlaps were not included in these metric
+comparisons, and their larger-overlap warnings remain visible.
 
 ## Connecting separate components
 
