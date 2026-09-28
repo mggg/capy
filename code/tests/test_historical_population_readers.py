@@ -6,9 +6,9 @@ from io import StringIO
 from zipfile import ZipFile
 
 import pytest
-from capy_core.process_population.read_nhgis import read_nhgis_population_by_state
-from capy_core.retrieve_data.nhgis.identifiers import NhgisDataset, NhgisGeographyLevel
-from capy_core.retrieve_data.raw_file_requests import NhgisTableFileRequest
+from national_pipeline.process_population.read_nhgis import read_nhgis_population_by_state
+from national_pipeline.retrieve_data.nhgis.identifiers import NhgisDataset, NhgisGeographyLevel
+from national_pipeline.retrieve_data.raw_file_requests import NhgisTableFileRequest
 
 
 def write_historical_archive(tmp_path, census_year, *, replacements=None, extra_cell=False):
@@ -165,7 +165,9 @@ def test_historical_reader_rejects_extra_csv_cell_instead_of_inferred_index(tmp_
 
 
 def test_missing_historical_state_reference_names_year_and_archive(tmp_path):
-    from capy_core.process_population.process_tables import process_historical_population_tables
+    from national_pipeline.process_population.process_tables import (
+        process_historical_population_tables,
+    )
 
     _, request, _ = write_historical_archive(tmp_path, 1980)
 

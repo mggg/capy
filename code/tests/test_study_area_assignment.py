@@ -6,21 +6,24 @@ from zipfile import ZipFile
 import geopandas as gpd
 import pandas as pd
 import pytest
-from capy_core.assign_study_areas.assign_units import assign_units_by_representative_point
-from capy_core.assign_study_areas.build_definitions import (
+from national_pipeline.assign_study_areas.assign_units import assign_units_by_representative_point
+from national_pipeline.assign_study_areas.build_definitions import (
     build_city_candidates,
     build_metro_boundaries,
     build_study_area_definitions,
     rank_and_select_city_candidates,
 )
-from capy_core.assign_study_areas.count_city_populations import (
+from national_pipeline.assign_study_areas.count_city_populations import (
     assign_block_populations_to_places,
     read_2020_block_internal_points,
 )
-from capy_core.assign_study_areas.run_assignment import assign_study_areas
-from capy_core.derived_file_paths import build_join_output_paths, build_population_output_path
-from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.pipeline_config import PipelineConfig
+from national_pipeline.assign_study_areas.run_assignment import assign_study_areas
+from national_pipeline.derived_file_paths import (
+    build_join_output_paths,
+    build_population_output_path,
+)
+from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.pipeline_config import PipelineConfig
 from shapely.geometry import Point, box
 
 
@@ -261,11 +264,11 @@ def test_tied_city_scores_are_stable_under_input_order():
 
 
 def test_missing_supported_states_fail_but_historical_puerto_rico_is_unavailable():
-    from capy_core.assign_study_areas.assign_units import (
+    from national_pipeline.assign_study_areas.assign_units import (
         check_node_state_coverage,
         summarize_memberships,
     )
-    from capy_core.join_geographies.select_inputs import GeographyJoinInputs
+    from national_pipeline.join_geographies.select_inputs import GeographyJoinInputs
 
     definitions_df = gpd.GeoDataFrame(
         {
@@ -310,8 +313,8 @@ def test_missing_supported_states_fail_but_historical_puerto_rico_is_unavailable
 def test_geography_join_skips_ranking_only_block_polygons(
     tmp_path, monkeypatch, node_levels, expected_levels
 ):
-    from capy_core.join_geographies import join_tables
-    from capy_core.join_geographies.select_inputs import GeographyJoinInputs
+    from national_pipeline.join_geographies import join_tables
+    from national_pipeline.join_geographies.select_inputs import GeographyJoinInputs
 
     selections = [
         GeographyJoinInputs(2020, level, {}, {})

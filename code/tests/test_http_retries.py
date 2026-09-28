@@ -7,10 +7,14 @@ from unittest.mock import Mock
 
 import pytest
 import requests
-from capy_core.pipeline_config import RawDataSubdirectories
-from capy_core.retrieve_data import http_transport
-from capy_core.retrieve_data.raw_file_requests import PublicFileRequest, RawFileFormat
-from capy_core.retrieve_data.retrieve_raw_file import FailedFile, ReadyFile, retrieve_raw_file
+from national_pipeline.pipeline_config import RawDataSubdirectories
+from national_pipeline.retrieve_data import http_transport
+from national_pipeline.retrieve_data.raw_file_requests import PublicFileRequest, RawFileFormat
+from national_pipeline.retrieve_data.retrieve_raw_file import (
+    FailedFile,
+    ReadyFile,
+    retrieve_raw_file,
+)
 
 
 class Response:

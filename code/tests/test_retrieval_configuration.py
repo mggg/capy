@@ -5,14 +5,14 @@ import os
 from pathlib import Path
 
 import pytest
-from capy_core.pipeline_config import (
+from national_pipeline.pipeline_config import (
     PipelineConfig,
     RawDataSubdirectories,
     load_configuration,
 )
-from capy_core.retrieve_data.prepare_file_requests import build_raw_file_requests
-from capy_core.retrieve_data.retrieve_files import retrieve_files
-from capy_core.retrieve_data.retrieve_raw_file import ReadyFile
+from national_pipeline.retrieve_data.prepare_file_requests import build_raw_file_requests
+from national_pipeline.retrieve_data.retrieve_files import retrieve_files
+from national_pipeline.retrieve_data.retrieve_raw_file import ReadyFile
 
 
 @pytest.mark.parametrize("absolute_path", [False, True])
@@ -43,7 +43,9 @@ def test_env_file_reaches_workers_without_replacing_shell_variables(
         observed_credentials.append((os.environ["IPUMS_API_KEY"], os.environ["CENSUS_API_KEY"]))
         return ReadyFile(request.destination_relative_path)
 
-    monkeypatch.setattr("capy_core.retrieve_data.retrieve_files.retrieve_raw_file", retrieve_file)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.retrieve_files.retrieve_raw_file", retrieve_file
+    )
     monkeypatch.setattr(reproduce, "__file__", str(tmp_path / "code/reproduce.py"))
     monkeypatch.setattr("sys.argv", ["reproduce.py", "--config", str(config_path), "retrieve"])
     elsewhere = tmp_path / "elsewhere"

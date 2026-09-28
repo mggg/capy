@@ -7,15 +7,15 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import shapely
-from capy_core.geography_types import GeographyLevel
-from capy_core.join_geographies.repair_1980_sources import (
+from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.join_geographies.repair_1980_sources import (
     MISSING_1980_BNAS_BY_COUNTY,
     build_1980_bna_outline,
     correct_richmond_population_1980,
     reconstruct_missing_1980_bnas,
 )
-from capy_core.join_geographies.select_inputs import GeographyJoinInputs
-from capy_core.retrieve_data.nhgis.table_columns import Nhgis1980Column
+from national_pipeline.join_geographies.select_inputs import GeographyJoinInputs
+from national_pipeline.retrieve_data.nhgis.table_columns import Nhgis1980Column
 
 
 @pytest.mark.parametrize("geography_level", [GeographyLevel.TRACT, GeographyLevel.COUNTY])

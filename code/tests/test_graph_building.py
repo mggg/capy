@@ -9,17 +9,20 @@ import geopandas as gpd
 import networkx as nx
 import pandas as pd
 import pytest
-from capy_core.assign_study_areas.run_assignment import assign_study_areas
-from capy_core.build_graphs.construct_graph import (
+from gerrychain import Graph
+from national_pipeline.assign_study_areas.run_assignment import assign_study_areas
+from national_pipeline.build_graphs.construct_graph import (
     build_connected_graph,
     report_unexpected_graph_warning,
 )
-from capy_core.build_graphs.graph_archives import read_graph_from_archive
-from capy_core.build_graphs.run_build import build_graph_archives
-from capy_core.derived_file_paths import build_join_output_paths, build_population_output_path
-from capy_core.geography_types import GeographyLevel
-from capy_core.pipeline_config import load_configuration
-from gerrychain import Graph
+from national_pipeline.build_graphs.graph_archives import read_graph_from_archive
+from national_pipeline.build_graphs.run_build import build_graph_archives
+from national_pipeline.derived_file_paths import (
+    build_join_output_paths,
+    build_population_output_path,
+)
+from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.pipeline_config import load_configuration
 from shapely.geometry import box
 
 
@@ -168,7 +171,7 @@ def test_archive_roundtrip_reuses_completed_graphs_and_failed_rerun_keeps_archiv
 
     with monkeypatch.context() as reuse_check:
         reuse_check.setattr(
-            "capy_core.build_graphs.run_build.build_area_graph_files", reject_rebuilding
+            "national_pipeline.build_graphs.run_build.build_area_graph_files", reject_rebuilding
         )
         build_graph_archives(graph_run, tmp_path)
 
@@ -245,7 +248,7 @@ def test_parallel_graph_archive_matches_serial_bytes_and_accounting(
 def test_graph_worker_failure_cleans_temporary_files_and_does_not_publish(
     graph_run, tmp_path, monkeypatch
 ):
-    from capy_core.build_graphs import run_build
+    from national_pipeline.build_graphs import run_build
 
     read_memberships = run_build.read_selection_memberships
 
@@ -417,9 +420,9 @@ def test_other_warning_text_is_passed_through(message):
 def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_run, tmp_path):
     import shutil
 
-    from capy_core.build_graphs.archive_inventory import read_graph_selection_summary
-    from capy_core.build_graphs.archive_parts import publish_graph_archive_parts
-    from capy_core.compute_metrics.run_metrics import compute_metrics
+    from national_pipeline.build_graphs.archive_inventory import read_graph_selection_summary
+    from national_pipeline.build_graphs.archive_parts import publish_graph_archive_parts
+    from national_pipeline.compute_metrics.run_metrics import compute_metrics
 
     build_graph_archives(graph_run, tmp_path)
     graph_run.metric_results_directory = tmp_path / "metrics"
@@ -464,7 +467,7 @@ def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_
 def test_failed_repackaging_preserves_source_and_previous_parts(graph_run, tmp_path, monkeypatch):
     import shutil
 
-    from capy_core.build_graphs import archive_parts
+    from national_pipeline.build_graphs import archive_parts
 
     build_graph_archives(graph_run, tmp_path)
     base_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
@@ -486,8 +489,8 @@ def test_failed_repackaging_preserves_source_and_previous_parts(graph_run, tmp_p
 
 
 def test_part_numbers_above_99_are_read_in_numeric_order(tmp_path):
-    from capy_core.build_graphs.archive_inventory import read_graph_selection_summary
-    from capy_core.build_graphs.build_area_graph import GraphStatus
+    from national_pipeline.build_graphs.archive_inventory import read_graph_selection_summary
+    from national_pipeline.build_graphs.build_area_graph import GraphStatus
 
     base_path = tmp_path / "county_2020_2020_tracts.zip"
 

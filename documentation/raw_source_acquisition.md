@@ -2,7 +2,7 @@
 
 This guide explains how to choose the pipeline's inputs, where they come from, and how retrieval
 checks them before saving. Each input's origin and local filename are recorded in the Python
-definitions under [`code/capy_core/retrieve_data/`](../code/capy_core/retrieve_data/), while the
+definitions under [`code/national_pipeline/retrieve_data/`](../code/national_pipeline/retrieve_data/), while the
 raw files themselves are ignored by Git. For commands to run retrieval, see the
 [run guide](../code/README.md).
 
@@ -115,7 +115,7 @@ configured Census folder. Filename selection patterns must follow this layout, t
 settings does not move existing raw files or saved NHGIS submission records.
 
 Settings omitted from the YAML use the defaults in
-[`pipeline_config.py`](../code/capy_core/pipeline_config.py). You can enable offline mode with
+[`pipeline_config.py`](../code/national_pipeline/pipeline_config.py). You can enable offline mode with
 `--offline` even when the YAML setting is false. For the checksum command, `--output` overrides
 `raw_checksums_file`, with a relative path starting at the directory where you run the command.
 
@@ -129,7 +129,7 @@ Change the Python request definitions when you need different tables, variables,
 products. Use the YAML configuration to select among the supported years and geography levels.
 
 In Python, `GeographyLevel` and `StudyAreaType` are enums, or named choices with fixed values,
-defined in [`geography_types.py`](../code/capy_core/geography_types.py). For example, Python uses
+defined in [`geography_types.py`](../code/national_pipeline/geography_types.py). For example, Python uses
 `GeographyLevel.BLOCK_GROUP`, while YAML uses its string value, `block_groups`. Retrieval then
 translates these choices into provider names: blocks use `block` in Census population queries and
 `tabblock` or `tabblock20` in TIGER product names. The same distinction applies to study-area
@@ -186,21 +186,21 @@ move the file for you.
 
 Edit the appropriate retrieval definition module:
 
-- [`census/build_requests.py`](../code/capy_core/retrieve_data/census/build_requests.py): the
+- [`census/build_requests.py`](../code/national_pipeline/retrieve_data/census/build_requests.py): the
   complete Census input selection, PL/SF1 variables, and table filename rules. The 2010 block
   queries use county codes read from the retrieved 2010 county tables.
 - [`census/build_published_file_requests.py`][published-requests]: Census TIGER files, original
   1990 block references, population reference tables, and metro membership.
-- [`nhgis/build_requests.py`](../code/capy_core/retrieve_data/nhgis/build_requests.py): named
+- [`nhgis/build_requests.py`](../code/national_pipeline/retrieve_data/nhgis/build_requests.py): named
   population and boundary extracts.
 
-[`prepare_file_requests.py`](../code/capy_core/retrieve_data/prepare_file_requests.py) contains
+[`prepare_file_requests.py`](../code/national_pipeline/retrieve_data/prepare_file_requests.py) contains
 `build_raw_file_requests(config)` and `select_raw_file_requests()`. The first builds the run's
 input list in destination-path order; the second applies the configured filename patterns. Neither
 reads files nor contacts APIs. Shared state FIPS codes are defined in
-[`state_codes.py`](../code/capy_core/retrieve_data/state_codes.py), with their coverage documented
+[`state_codes.py`](../code/national_pipeline/retrieve_data/state_codes.py), with their coverage documented
 beside the list. Records in
-[`raw_file_requests.py`](../code/capy_core/retrieve_data/raw_file_requests.py) describe Census
+[`raw_file_requests.py`](../code/national_pipeline/retrieve_data/raw_file_requests.py) describe Census
 years, datasets, variables, and geographies; NHGIS table or boundary selections; or public URLs.
 Census and NHGIS retrieval translate these records into each API's field names.
 
@@ -208,8 +208,8 @@ Census and NHGIS retrieval translate these records into each API's field names.
 
 | Service                  | Official documentation                                                                                                                                                               | Where this repository makes requests                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Census population tables | [API user guide](https://www.census.gov/data/developers/guidance/api-user-guide.html) and [2010 PL geographic query examples](https://api.census.gov/data/2010/dec/pl/examples.html) | [`census/retrieve_tables.py`](../code/capy_core/retrieve_data/census/retrieve_tables.py)                  |
-| NHGIS extracts           | [NHGIS API guide](https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/)                                                                                                        | [`nhgis/retrieve_extract.py`](../code/capy_core/retrieve_data/nhgis/retrieve_extract.py), using `ipumspy` |
+| Census population tables | [API user guide](https://www.census.gov/data/developers/guidance/api-user-guide.html) and [2010 PL geographic query examples](https://api.census.gov/data/2010/dec/pl/examples.html) | [`census/retrieve_tables.py`](../code/national_pipeline/retrieve_data/census/retrieve_tables.py)                  |
+| NHGIS extracts           | [NHGIS API guide](https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/)                                                                                                        | [`nhgis/retrieve_extract.py`](../code/national_pipeline/retrieve_data/nhgis/retrieve_extract.py), using `ipumspy` |
 
 The Census table address is constructed once, in `download_census_table()`:
 `https://api.census.gov/data/{census_year}/dec/{dataset}`. The dataset is `pl` or `sf1`.
@@ -230,7 +230,7 @@ and destination can be read together.
 ## Census population variable guide
 
 Edit Census column definitions in
-[`census/table_columns.py`](../code/capy_core/retrieve_data/census/table_columns.py). It names the
+[`census/table_columns.py`](../code/national_pipeline/retrieve_data/census/table_columns.py). It names the
 population columns for each year and dataset, along with the geographic fields. Retrieval and
 processing share these definitions so a requested count keeps the same meaning when processed.
 
@@ -371,7 +371,7 @@ value is missing, it cannot be assumed to represent zero population.
 
 The `retrieve` stage in [`reproduce.py`](../code/reproduce.py) starts retrieval by calling
 `retrieve_raw_data(config, repository)` in
-[`retrieve_files.py`](../code/capy_core/retrieve_data/retrieve_files.py), which builds the input
+[`retrieve_files.py`](../code/national_pipeline/retrieve_data/retrieve_files.py), which builds the input
 list and applies the configured filename filters. From there, `retrieve_raw_file()` handles each
 file, checking an existing copy or downloading a missing one. A new file receives its final name
 only after passing the format checks, a local step the code calls _publication_ without uploading
@@ -398,19 +398,19 @@ from the retrieved 2010 county table and saves each state's block response as
 2020 also retrieve a state at a time, using county wildcards.
 
 The reusable retrieval operations live under
-[`capy_core/retrieve_data/`](../code/capy_core/retrieve_data/):
+[`national_pipeline/retrieve_data/`](../code/national_pipeline/retrieve_data/):
 
 | Module                                                                                   | Responsibility                                                                                               |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [`retrieve_files.py`](../code/capy_core/retrieve_data/retrieve_files.py)                 | Select inputs, retrieve files in parallel, and recheck pending extracts.                                     |
-| [`retrieve_raw_file.py`](../code/capy_core/retrieve_data/retrieve_raw_file.py)           | Reuse or download one file; retry broken transfers and check the file before saving it under its final name. |
-| [`census/retrieve_tables.py`](../code/capy_core/retrieve_data/census/retrieve_tables.py) | Prepare county prerequisites, construct Census queries, and download PL/SF1 JSON responses.                  |
-| [`nhgis/retrieve_extract.py`](../code/capy_core/retrieve_data/nhgis/retrieve_extract.py) | Submit or resume NHGIS extracts, compare saved requests, and download available archives.                    |
-| [`http_transport.py`](../code/capy_core/retrieve_data/http_transport.py)                 | Read HTTP responses in chunks, handle rate limits, and check downloaded byte counts.                         |
+| [`retrieve_files.py`](../code/national_pipeline/retrieve_data/retrieve_files.py)                 | Select inputs, retrieve files in parallel, and recheck pending extracts.                                     |
+| [`retrieve_raw_file.py`](../code/national_pipeline/retrieve_data/retrieve_raw_file.py)           | Reuse or download one file; retry broken transfers and check the file before saving it under its final name. |
+| [`census/retrieve_tables.py`](../code/national_pipeline/retrieve_data/census/retrieve_tables.py) | Prepare county prerequisites, construct Census queries, and download PL/SF1 JSON responses.                  |
+| [`nhgis/retrieve_extract.py`](../code/national_pipeline/retrieve_data/nhgis/retrieve_extract.py) | Submit or resume NHGIS extracts, compare saved requests, and download available archives.                    |
+| [`http_transport.py`](../code/national_pipeline/retrieve_data/http_transport.py)                 | Read HTTP responses in chunks, handle rate limits, and check downloaded byte counts.                         |
 
-[`nhgis/extract_definition.py`](../code/capy_core/retrieve_data/nhgis/extract_definition.py)
+[`nhgis/extract_definition.py`](../code/national_pipeline/retrieve_data/nhgis/extract_definition.py)
 translates NHGIS requests and compares them with the prepared extract. All downloads use
-[`stage_files.py`](../code/capy_core/stage_files.py) to manage temporary files and move completed
+[`stage_files.py`](../code/national_pipeline/stage_files.py) to manage temporary files and move completed
 files to their final names.
 
 When NHGIS returns a pending extract, the run saves its extract number and rechecks it after the
@@ -537,7 +537,7 @@ NHGIS can change archive names or packaging between extracts and accounts. A dif
 checksum establishes different bytes, not necessarily different population values. If replication
 results differ, investigate the relevant data contents as well as the archive packaging.
 
-[published-requests]: ../code/capy_core/retrieve_data/census/build_published_file_requests.py
+[published-requests]: ../code/national_pipeline/retrieve_data/census/build_published_file_requests.py
 [nhgis-extract-fields]: https://developer.ipums.org/docs/v2/workflows/create_extracts/nhgis_data/#data-extract-request-fields
 [1980-metadata]: https://api.ipums.org/metadata/nhgis/datasets/1980_STF1?version=2
 [working-paper-56]: https://www.census.gov/library/working-papers/2002/demo/POP-twps0056.html

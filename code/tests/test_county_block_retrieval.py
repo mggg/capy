@@ -3,13 +3,13 @@
 import json
 
 import pytest
-from capy_core.pipeline_config import (
+from national_pipeline.pipeline_config import (
     PipelineConfig,
     load_configuration,
 )
-from capy_core.retrieve_data.census.retrieve_tables import load_county_codes
-from capy_core.retrieve_data.retrieve_files import retrieve_raw_data
-from capy_core.retrieve_data.retrieve_raw_file import FailedFile, ReadyFile
+from national_pipeline.retrieve_data.census.retrieve_tables import load_county_codes
+from national_pipeline.retrieve_data.retrieve_files import retrieve_raw_data
+from national_pipeline.retrieve_data.retrieve_raw_file import FailedFile, ReadyFile
 
 
 @pytest.mark.parametrize("select_counties", [False, True])

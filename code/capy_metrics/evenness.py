@@ -1,4 +1,4 @@
-"""Dissimilarity, Theil information, and relative diversity from arrays or graph attributes."""
+"""Dissimilarity, entropy index, and relative diversity from arrays or graph attributes."""
 
 import networkx as nx
 import numpy as np
@@ -100,16 +100,16 @@ def dissimilarity(
     )
 
 
-def theil_information_from_graph(
+def entropy_index_from_graph(
     graph: nx.Graph,
     group1_attr: str,
     total_attr: str,
     *,
     spatial_weights: WeightMatrix | None = None,
 ) -> float:
-    """Compute Theil's information index from group and total-population attributes.
+    """Compute the entropy index (Theil's H) from group and total-population attributes.
 
-    See theil_information() for the formula, spatial interpretation, and source.
+    See entropy_index() for the formula, spatial interpretation, and source.
 
     Args:
         graph (nx.Graph): Graph with numeric counts. Edges are not read automatically.
@@ -119,7 +119,7 @@ def theil_information_from_graph(
             graph node order. Default: None, using each unit's own share.
 
     Returns:
-        float: Theil information index; negative spatial values are retained. Inputs are
+        float: Entropy index; negative spatial values are retained. Inputs are
             unchanged.
 
     Raises:
@@ -127,21 +127,21 @@ def theil_information_from_graph(
         ValueError: Counts or spatial weights are invalid.
         UndefinedMetricError: The group or its complement is absent.
     """
-    return theil_information(
+    return entropy_index(
         node_attribute_to_numpy_arr(graph, group1_attr),
         node_attribute_to_numpy_arr(graph, total_attr),
         spatial_weights=spatial_weights,
     )
 
 
-def theil_information(
+def entropy_index(
     group_population: np.ndarray,
     total_population: np.ndarray,
     *,
     spatial_weights: WeightMatrix | None = None,
 ) -> float:
     r"""
-    Calculate Theil information by comparing local entropy with overall population entropy.
+    Calculate the entropy index (Theil's information index, H).
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
     $\rho=\sum_i x_i/T$ the overall group share. The local share is $q_i=x_i/t_i$ by default. With
@@ -174,7 +174,7 @@ def theil_information(
             smoothing.
 
     Returns:
-        float: Theil information index without clipping negative spatial values. Inputs are
+        float: Entropy index without clipping negative spatial values. Inputs are
             unchanged.
 
     Raises:

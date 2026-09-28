@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 import reproduce
-from capy_core.assign_study_areas.study_area_columns import MembershipColumn
+from national_pipeline.assign_study_areas.study_area_columns import MembershipColumn
 
 
 @pytest.fixture

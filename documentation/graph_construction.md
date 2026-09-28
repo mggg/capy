@@ -249,7 +249,7 @@ From Python with `code/` on the import path, load a member without extracting th
 
 ```python
 from pathlib import Path
-from capy_core.build_graphs.graph_archives import read_graph_from_archive
+from national_pipeline.build_graphs.graph_archives import read_graph_from_archive
 
 graph = read_graph_from_archive(
     Path("data/graphs/county_2020_2020_tracts_part01.zip"),
@@ -336,19 +336,19 @@ acceptance.
 
 ## Follow the code
 
-[`run_build.py`](../code/capy_core/build_graphs/run_build.py) coordinates selected inputs, archive
+[`run_build.py`](../code/national_pipeline/build_graphs/run_build.py) coordinates selected inputs, archive
 publication, and accounting.
-[`build_area_graph.py`](../code/capy_core/build_graphs/build_area_graph.py) builds and saves each
-worker's area files. [`read_inputs.py`](../code/capy_core/build_graphs/read_inputs.py) reconciles
+[`build_area_graph.py`](../code/national_pipeline/build_graphs/build_area_graph.py) builds and saves each
+worker's area files. [`read_inputs.py`](../code/national_pipeline/build_graphs/read_inputs.py) reconciles
 saved memberships with joined polygons.
-[`construct_graph.py`](../code/capy_core/build_graphs/construct_graph.py) owns population
+[`construct_graph.py`](../code/national_pipeline/build_graphs/construct_graph.py) owns population
 filtering and geographic adjacency, while
-[`connect_components.py`](../code/capy_core/build_graphs/connect_components.py) chooses the
+[`connect_components.py`](../code/national_pipeline/build_graphs/connect_components.py) chooses the
 additional polygon connections.
-[`graph_archives.py`](../code/capy_core/build_graphs/graph_archives.py) owns GerryChain
+[`graph_archives.py`](../code/national_pipeline/build_graphs/graph_archives.py) owns GerryChain
 serialization and direct archive reading.
 
-[`archive_parts.py`](../code/capy_core/build_graphs/archive_parts.py) packages whole areas and
+[`archive_parts.py`](../code/national_pipeline/build_graphs/archive_parts.py) packages whole areas and
 checks unchanged contents.
-[`archive_inventory.py`](../code/capy_core/build_graphs/archive_inventory.py) checks part
+[`archive_inventory.py`](../code/national_pipeline/build_graphs/archive_inventory.py) checks part
 completeness for both graph resumption and metric reading.

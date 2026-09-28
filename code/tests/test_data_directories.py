@@ -3,10 +3,10 @@
 from pathlib import Path
 
 import pytest
-from capy_core.assign_study_areas.run_assignment import assign_study_areas
-from capy_core.join_geographies.join_tables import join_geography_tables
-from capy_core.pipeline_config import PipelineConfig
-from capy_core.process_population.process_tables import process_population_tables
+from national_pipeline.assign_study_areas.run_assignment import assign_study_areas
+from national_pipeline.join_geographies.join_tables import join_geography_tables
+from national_pipeline.pipeline_config import PipelineConfig
+from national_pipeline.process_population.process_tables import process_population_tables
 
 
 @pytest.mark.parametrize(

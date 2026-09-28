@@ -6,8 +6,8 @@ from zipfile import ZipFile
 import geopandas as gpd
 import pandas as pd
 import pytest
-from capy_core.geography_types import GeographyLevel
-from capy_core.join_geographies.read_boundaries import (
+from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.join_geographies.read_boundaries import (
     BoundaryColumn,
     normalize_nhgis_boundaries,
     read_boundary_archive,

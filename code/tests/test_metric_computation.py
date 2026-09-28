@@ -7,18 +7,18 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
-from capy_core.compute_metrics.calculate_scores import calculate_graph_metrics
-from capy_core.compute_metrics.metric_types import (
+from capy_metrics import distance_morans_I
+from gerrychain import Graph
+from national_pipeline.compute_metrics.calculate_scores import calculate_graph_metrics
+from national_pipeline.compute_metrics.metric_types import (
     MetricName,
     PopulationComparison,
     UndefinedMetricReason,
 )
-from capy_core.compute_metrics.run_metrics import compute_metrics
-from capy_core.compute_metrics.summarize_years import average_when_all_years_present
-from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.pipeline_config import PipelineConfig
-from capy_metrics import distance_morans_I
-from gerrychain import Graph
+from national_pipeline.compute_metrics.run_metrics import compute_metrics
+from national_pipeline.compute_metrics.summarize_years import average_when_all_years_present
+from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.pipeline_config import PipelineConfig
 from scipy.spatial.distance import cdist
 
 
@@ -50,11 +50,11 @@ def test_population_scores_match_independent_reference_and_leave_graph_unchanged
     # These fixed values also match moon-capy's build_nine_scores.py on the same counts and path.
     expected = {
         MetricName.DISSIMILARITY: 0.3619909502262442,
-        MetricName.THEIL_INFORMATION: 0.13076314998687977,
+        MetricName.ENTROPY_INDEX: 0.13076314998687977,
         MetricName.RELATIVE_DIVERSITY: 0.171945701357466,
         MetricName.ASPATIAL_CAPY: 0.5859728506787331,
         MetricName.SPATIAL_DISSIMILARITY: 0.0904977375565611,
-        MetricName.SPATIAL_THEIL_INFORMATION: -0.003806749683755717,
+        MetricName.SPATIAL_ENTROPY_INDEX: -0.003806749683755717,
         MetricName.SPATIAL_RELATIVE_DIVERSITY: -0.005279034690799378,
         MetricName.CAPY_EXACT: 0.4701119739769975,
         MetricName.MORAN_WITH_SELF: -0.052631578947368314,

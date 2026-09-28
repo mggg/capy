@@ -3,7 +3,7 @@
 import hashlib
 
 import pytest
-from capy_core.retrieve_data.raw_file_requests import PublicFileRequest, RawFileFormat
+from national_pipeline.retrieve_data.raw_file_requests import PublicFileRequest, RawFileFormat
 from record_raw_checksums import record_raw_checksums
 
 

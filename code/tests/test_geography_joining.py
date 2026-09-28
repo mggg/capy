@@ -6,8 +6,8 @@ from zipfile import ZipFile
 import geopandas as gpd
 import pandas as pd
 import pytest
-from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.join_geographies.join_population import (
+from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.join_geographies.join_population import (
     ExclusionReason,
     check_population_join_input,
     classify_1990_zero_population_blocks,
@@ -15,13 +15,13 @@ from capy_core.join_geographies.join_population import (
     merge_1980_parent_geometries,
     repair_and_project_boundaries,
 )
-from capy_core.join_geographies.join_tables import join_geography_tables
-from capy_core.join_geographies.repair_1980_sources import PARENT_GEOMETRY_MERGES_1980
-from capy_core.join_geographies.select_inputs import (
+from national_pipeline.join_geographies.join_tables import join_geography_tables
+from national_pipeline.join_geographies.repair_1980_sources import PARENT_GEOMETRY_MERGES_1980
+from national_pipeline.join_geographies.select_inputs import (
     GeographyJoinInputs,
     select_geography_join_inputs,
 )
-from capy_core.pipeline_config import PipelineConfig
+from national_pipeline.pipeline_config import PipelineConfig
 from shapely.geometry import Polygon, box
 
 
@@ -263,8 +263,8 @@ def test_swapped_state_archives_are_rejected_before_population_matching(tmp_path
         ),
     )
 
-    from capy_core.join_geographies import select_inputs
-    from capy_core.retrieve_data.prepare_file_requests import select_raw_file_requests
+    from national_pipeline.join_geographies import select_inputs
+    from national_pipeline.retrieve_data.prepare_file_requests import select_raw_file_requests
 
     selected_requests = select_raw_file_requests(config)
     monkeypatch.setattr(
@@ -284,7 +284,7 @@ def test_swapped_state_archives_are_rejected_before_population_matching(tmp_path
         yield boundaries_df
 
     monkeypatch.setattr(
-        "capy_core.join_geographies.join_tables.read_boundary_archive", read_swapped_archive
+        "national_pipeline.join_geographies.join_tables.read_boundary_archive", read_swapped_archive
     )
 
     with pytest.raises(ValueError, match="Boundary contents disagree with state 10"):
@@ -306,7 +306,7 @@ def test_swapped_state_archives_are_rejected_before_population_matching(tmp_path
 def test_state_coverage_checks_close_the_stream_without_rejoining_a_state(
     tmp_path, monkeypatch, source_state_codes, failure_message
 ):
-    from capy_core.join_geographies import join_tables
+    from national_pipeline.join_geographies import join_tables
 
     config = PipelineConfig(
         raw_data_directory=tmp_path / "raw",

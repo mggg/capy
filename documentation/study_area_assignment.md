@@ -152,11 +152,11 @@ with the final configuration; the presence of a summary alone does not establish
 ## Follow the code
 
 The command calls `assign_study_areas()` in
-[`run_assignment.py`](../code/capy_core/assign_study_areas/run_assignment.py), which selects
+[`run_assignment.py`](../code/national_pipeline/assign_study_areas/run_assignment.py), which selects
 inputs, loads definitions, runs the chosen rule, and writes outputs.
-[`build_definitions.py`](../code/capy_core/assign_study_areas/build_definitions.py) owns
+[`build_definitions.py`](../code/national_pipeline/assign_study_areas/build_definitions.py) owns
 county/metro construction and candidate ranking.
-[`count_city_populations.py`](../code/capy_core/assign_study_areas/count_city_populations.py)
+[`count_city_populations.py`](../code/national_pipeline/assign_study_areas/count_city_populations.py)
 reads Census internal points and reconciles block-based city totals.
-[`assign_units.py`](../code/capy_core/assign_study_areas/assign_units.py) validates joined inputs,
+[`assign_units.py`](../code/national_pipeline/assign_study_areas/assign_units.py) validates joined inputs,
 selects representative points, and builds membership accounting.

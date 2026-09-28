@@ -92,7 +92,7 @@ require the pipeline's specific CRS.
 | -------------------------------------------------- | ----------------------------------------------------------------- |
 | `morans_I(weights, shares)`                        | Group population divided by the chosen total                      |
 | `dissimilarity(group, total)`                      | Group counts and totals including that group                      |
-| `theil_information(group, total)`                  | Group counts and totals including that group                      |
+| `entropy_index(group, total)`                      | Group counts and totals including that group                      |
 | `relative_diversity(group, total)`                 | Group counts and totals including that group                      |
 | `aspatial_capy(first, second)`                     | Two disjoint groups' counts                                       |
 | `capy(adjacency, first, second, lam=1)`            | Two disjoint groups' counts, including quadratic self-pairs       |
@@ -191,18 +191,19 @@ Write $h(s)=-s\log s-(1-s)\log(1-s)$ and $j(s)=2s(1-s)$, with $0\log0=0$.
 | Saved metric name            | Definition                                             |
 | ---------------------------- | ------------------------------------------------------ |
 | `dissimilarity`              | $D=\sum_i(t_i/T)\lvert p_i-\rho\rvert/[2\rho(1-\rho)]$ |
-| `theil_information`          | $H=1-\sum_i(t_i/T)h(p_i)/h(\rho)$                      |
+| `entropy_index`              | $H=1-\sum_i(t_i/T)h(p_i)/h(\rho)$                      |
 | `relative_diversity`         | $R=1-\sum_i(t_i/T)j(p_i)/j(\rho)$                      |
 | `spatial_dissimilarity`      | $D$ with $p_i$ replaced by $\widetilde p_i$            |
-| `spatial_theil_information`  | $H$ with $p_i$ replaced by $\widetilde p_i$            |
+| `spatial_entropy_index`      | $H$ with $p_i$ replaced by $\widetilde p_i$            |
 | `spatial_relative_diversity` | $R$ with $p_i$ replaced by $\widetilde p_i$            |
 
 Dissimilarity measures the difference between the groups' distributions across units. Without
-smoothing, it also equals $\tfrac12\sum_i|x_i/X-y_i/Y|$, where $X$ and $Y$ are group totals. Theil
-information compares average local entropy with the entropy of the whole population. Relative
-diversity makes the analogous comparison using the probability that two independent population
-draws belong to different groups. For each aspatial score, zero means identical local and overall
-compositions, while one means each populated unit contains only one group.
+smoothing, it also equals $\tfrac12\sum_i|x_i/X-y_i/Y|$, where $X$ and $Y$ are group totals. The
+entropy index (Theil's information index, $H$) compares average local entropy with the entropy of
+the whole population. Relative diversity makes the analogous comparison using the probability
+that two independent population draws belong to different groups. For each aspatial score, zero
+means identical local and overall compositions, while one means each populated unit contains
+only one group.
 
 The spatial scores answer those questions about local environments instead of individual units.
 The spatial versions keep the original weights $t_i/T$ and overall share $\rho$. Neighborhoods can
@@ -410,11 +411,11 @@ Graph functions live beside their numerical counterparts, and neither depends on
 configuration or output tables. Shared input checks cover array shapes, numeric counts, and matrix
 alignment; the formulas retain their own mathematical conditions.
 
-[`calculate_scores.py`](../code/capy_core/compute_metrics/calculate_scores.py) is the pipeline
+[`calculate_scores.py`](../code/national_pipeline/compute_metrics/calculate_scores.py) is the pipeline
 adapter. It chooses the study's comparisons, prepares requested adjacency weights once per graph,
 and calls only selected numerical functions. Distance scores evaluate their batches independently.
-[`run_metrics.py`](../code/capy_core/compute_metrics/run_metrics.py) selects archives, checks
+[`run_metrics.py`](../code/national_pipeline/compute_metrics/run_metrics.py) selects archives, checks
 graph accounting, and writes results. Finally,
-[`summarize_years.py`](../code/capy_core/compute_metrics/summarize_years.py) builds the
+[`summarize_years.py`](../code/national_pipeline/compute_metrics/summarize_years.py) builds the
 fixed-sample means. The stage checks archive inventories and population accounting without
 repeating upstream boundary, membership, or adjacency construction checks.

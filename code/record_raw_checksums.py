@@ -4,12 +4,12 @@ import argparse
 import hashlib
 from pathlib import Path
 
-from capy_core.pipeline_config import load_configuration
-from capy_core.retrieve_data.prepare_file_requests import (
+from national_pipeline.pipeline_config import load_configuration
+from national_pipeline.retrieve_data.prepare_file_requests import (
     select_raw_file_requests,
 )
-from capy_core.retrieve_data.raw_file_requests import RawFileRequest
-from capy_core.stage_files import stage_file
+from national_pipeline.retrieve_data.raw_file_requests import RawFileRequest
+from national_pipeline.stage_files import stage_file
 
 
 def record_raw_checksums(

@@ -3,15 +3,15 @@
 import argparse
 from pathlib import Path
 
-from capy_core.assign_study_areas.run_assignment import assign_study_areas
-from capy_core.assign_study_areas.study_area_columns import MembershipColumn
-from capy_core.build_graphs.run_build import build_graph_archives
-from capy_core.compute_metrics.metric_types import MetricColumn
-from capy_core.compute_metrics.run_metrics import compute_metrics
-from capy_core.join_geographies.join_tables import join_geography_tables
-from capy_core.pipeline_config import load_configuration
-from capy_core.process_population.process_tables import process_population_tables
-from capy_core.retrieve_data.retrieve_files import retrieve_raw_data
+from national_pipeline.assign_study_areas.run_assignment import assign_study_areas
+from national_pipeline.assign_study_areas.study_area_columns import MembershipColumn
+from national_pipeline.build_graphs.run_build import build_graph_archives
+from national_pipeline.compute_metrics.metric_types import MetricColumn
+from national_pipeline.compute_metrics.run_metrics import compute_metrics
+from national_pipeline.join_geographies.join_tables import join_geography_tables
+from national_pipeline.pipeline_config import load_configuration
+from national_pipeline.process_population.process_tables import process_population_tables
+from national_pipeline.retrieve_data.retrieve_files import retrieve_raw_data
 
 PIPELINE_STAGES = (
     "retrieve",

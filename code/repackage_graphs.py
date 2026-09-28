@@ -3,8 +3,8 @@
 import argparse
 from pathlib import Path
 
-from capy_core.build_graphs.repackage_archives import repackage_graph_archives
-from capy_core.pipeline_config import load_configuration
+from national_pipeline.build_graphs.repackage_archives import repackage_graph_archives
+from national_pipeline.pipeline_config import load_configuration
 
 
 def main() -> None:

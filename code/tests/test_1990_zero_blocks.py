@@ -4,7 +4,7 @@ from zipfile import ZipFile
 
 import pandas as pd
 import pytest
-from capy_core.join_geographies import read_1990_zero_blocks
+from national_pipeline.join_geographies import read_1990_zero_blocks
 
 
 def prepare_california_references(tmp_path, monkeypatch):
@@ -73,7 +73,7 @@ def test_zero_reference_rejects_nonzero_stf1b_geographic_zero_record(tmp_path, m
 
 def test_queens_conflicting_zero_reference_does_not_erase_106_residents(tmp_path, monkeypatch):
     import geopandas as gpd
-    from capy_core.join_geographies.join_population import (
+    from national_pipeline.join_geographies.join_population import (
         PopulationBoundaryJoin,
         apply_1990_zero_block_evidence,
     )

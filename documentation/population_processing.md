@@ -237,39 +237,39 @@ configuration.
 ## Following the code
 
 The `process-population` stage in [`reproduce.py`](../code/reproduce.py) reads the shared
-[`PipelineConfig`](../code/capy_core/pipeline_config.py) and starts processing through
+[`PipelineConfig`](../code/national_pipeline/pipeline_config.py) and starts processing through
 `process_population_tables()` in
-[`process_tables.py`](../code/capy_core/process_population/process_tables.py). That function
+[`process_tables.py`](../code/national_pipeline/process_population/process_tables.py). That function
 selects the population inputs, removes the selected old outputs, and runs the Census and NHGIS
 workflows before saving the summary. Input names come from the retrieval request definitions, so
 both stages use the same configured paths.
 
-Within each workflow, [`read_census.py`](../code/capy_core/process_population/read_census.py) or
-[`read_nhgis.py`](../code/capy_core/process_population/read_nhgis.py) reads source records, checks
+Within each workflow, [`read_census.py`](../code/national_pipeline/process_population/read_census.py) or
+[`read_nhgis.py`](../code/national_pipeline/process_population/read_nhgis.py) reads source records, checks
 their counts and identifiers, and derives the study populations. The corresponding
-[`check_totals.py`](../code/capy_core/process_population/check_totals.py) and
-[`check_nhgis_totals.py`](../code/capy_core/process_population/check_nhgis_totals.py) compare
+[`check_totals.py`](../code/national_pipeline/process_population/check_totals.py) and
+[`check_nhgis_totals.py`](../code/national_pipeline/process_population/check_nhgis_totals.py) compare
 those counts with state and published references. Once the comparisons pass,
-[`save_tables.py`](../code/capy_core/process_population/save_tables.py) writes the Parquet table,
+[`save_tables.py`](../code/national_pipeline/process_population/save_tables.py) writes the Parquet table,
 using the same temporary-file writer as retrieval. Population, joined-geography, and membership
 filenames are defined together in
-[`derived_file_paths.py`](../code/capy_core/derived_file_paths.py), so writers and later stages
+[`derived_file_paths.py`](../code/national_pipeline/derived_file_paths.py), so writers and later stages
 agree on where to find each table. Each processing stage checks its output folder against its
-inputs through [`data_directories.py`](../code/capy_core/data_directories.py) before removing
+inputs through [`data_directories.py`](../code/national_pipeline/data_directories.py) before removing
 previous outputs.
 
 For the meanings of column names used in calculations, start with
-[`population_table_columns.py`](../code/capy_core/population_table_columns.py). It separates study
+[`population_table_columns.py`](../code/national_pipeline/population_table_columns.py). It separates study
 counts (`PopulationColumn`), geographic identifiers and level (`GeographyColumn`), and Census
 year, dataset, and record location (`PopulationSourceColumn`). These string enums give Python code
 readable names while keeping the saved column labels unchanged.
 
 Source-specific names stay with their definitions. Census retrieval and processing share
-[`census/table_columns.py`](../code/capy_core/retrieve_data/census/table_columns.py), while the
+[`census/table_columns.py`](../code/national_pipeline/retrieve_data/census/table_columns.py), while the
 historical count and geographic columns are defined in
-[`nhgis/table_columns.py`](../code/capy_core/retrieve_data/nhgis/table_columns.py) using the
+[`nhgis/table_columns.py`](../code/national_pipeline/retrieve_data/nhgis/table_columns.py) using the
 downloaded codebooks. NHGIS dataset and geography selections are named in
-[`nhgis/identifiers.py`](../code/capy_core/retrieve_data/nhgis/identifiers.py).
+[`nhgis/identifiers.py`](../code/national_pipeline/retrieve_data/nhgis/identifiers.py).
 
 Continue with [boundary–population joining](geography_population_joining.md) to attach these
 counts to polygons and inspect geographic exclusions. The join keeps these population inputs

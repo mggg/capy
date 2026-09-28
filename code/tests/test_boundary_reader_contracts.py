@@ -4,14 +4,14 @@ from contextlib import closing
 
 import geopandas as gpd
 import pytest
-from capy_core.geography_types import GeographyLevel
-from capy_core.join_geographies.read_boundaries import (
+from geopandas.testing import assert_geodataframe_equal
+from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.join_geographies.read_boundaries import (
     BoundaryColumn,
     build_boundary_output,
     normalize_nhgis_boundaries,
     read_boundary_archive,
 )
-from geopandas.testing import assert_geodataframe_equal
 from shapely.geometry import box
 
 

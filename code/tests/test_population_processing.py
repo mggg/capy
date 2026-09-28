@@ -6,25 +6,25 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from capy_core.derived_file_paths import (
+from national_pipeline.derived_file_paths import (
     build_join_output_paths,
     build_membership_output_path,
     build_population_output_path,
 )
-from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
-from capy_core.process_population.process_tables import process_population_tables
-from capy_core.process_population.read_census import read_census_population
-from capy_core.process_population.save_tables import (
+from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.pipeline_config import PipelineConfig, RawDataSubdirectories
+from national_pipeline.process_population.process_tables import process_population_tables
+from national_pipeline.process_population.read_census import read_census_population
+from national_pipeline.process_population.save_tables import (
     PopulationComparison,
     save_population_parquet,
 )
-from capy_core.retrieve_data.census.build_requests import (
+from national_pipeline.retrieve_data.census.build_requests import (
     BLOCK_GROUP_VARIABLES_2000,
     POPULATION_VARIABLES_BY_YEAR,
 )
-from capy_core.retrieve_data.raw_file_requests import CensusDataset, CensusFileRequest
-from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
+from national_pipeline.retrieve_data.raw_file_requests import CensusDataset, CensusFileRequest
+from national_pipeline.retrieve_data.state_codes import STATE_FIPS_CODES
 
 
 def write_source_table(path, year, geography, geography_rows, *, sf1=False):
@@ -313,11 +313,13 @@ def test_processed_folder_cannot_replace_raw_inputs(tmp_path):
 
 
 def test_historical_references_load_once_before_out_of_order_archives(tmp_path, monkeypatch):
-    from capy_core.process_population import process_tables
-    from capy_core.retrieve_data.nhgis.build_requests import build_historical_population_requests
-    from capy_core.retrieve_data.nhgis.identifiers import NhgisGeographyLevel
-    from capy_core.retrieve_data.nhgis.table_columns import NHGIS_COUNT_COLUMNS
-    from capy_core.retrieve_data.raw_file_requests import GeographyRequest
+    from national_pipeline.process_population import process_tables
+    from national_pipeline.retrieve_data.nhgis.build_requests import (
+        build_historical_population_requests,
+    )
+    from national_pipeline.retrieve_data.nhgis.identifiers import NhgisGeographyLevel
+    from national_pipeline.retrieve_data.nhgis.table_columns import NHGIS_COUNT_COLUMNS
+    from national_pipeline.retrieve_data.raw_file_requests import GeographyRequest
 
     requests = build_historical_population_requests(
         RawDataSubdirectories(),
@@ -384,8 +386,10 @@ def test_partial_parquet_write_does_not_replace_existing_output(tmp_path, monkey
 
 @pytest.mark.parametrize("invalid", [False, True])
 def test_census_count_conversion_leaves_source_unchanged(invalid):
-    from capy_core.process_population.read_census import convert_and_check_census_population_counts
-    from capy_core.retrieve_data.census.table_columns import CENSUS_POPULATION_COLUMNS
+    from national_pipeline.process_population.read_census import (
+        convert_and_check_census_population_counts,
+    )
+    from national_pipeline.retrieve_data.census.table_columns import CENSUS_POPULATION_COLUMNS
 
     columns = CENSUS_POPULATION_COLUMNS[2020, CensusDataset.PL_94_171]
     counts = {column: "0" for column in columns.count_columns}
@@ -412,8 +416,11 @@ def test_census_count_conversion_leaves_source_unchanged(invalid):
 
 @pytest.mark.parametrize("invalid", [False, True])
 def test_1980_derivation_returns_counts_without_changing_source(invalid):
-    from capy_core.process_population.read_nhgis import derive_1980_population_counts
-    from capy_core.retrieve_data.nhgis.table_columns import NHGIS_COUNT_COLUMNS, Nhgis1980Column
+    from national_pipeline.process_population.read_nhgis import derive_1980_population_counts
+    from national_pipeline.retrieve_data.nhgis.table_columns import (
+        NHGIS_COUNT_COLUMNS,
+        Nhgis1980Column,
+    )
 
     counts = dict.fromkeys(NHGIS_COUNT_COLUMNS[1980], 0)
     counts.update(

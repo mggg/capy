@@ -9,25 +9,25 @@ from unittest.mock import Mock
 
 import pytest
 import requests
-from capy_core.geography_types import GeographyLevel
-from capy_core.pipeline_config import RawDataSubdirectories
-from capy_core.retrieve_data.http_transport import DataProviderError
-from capy_core.retrieve_data.nhgis.extract_definition import (
+from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.pipeline_config import RawDataSubdirectories
+from national_pipeline.retrieve_data.http_transport import DataProviderError
+from national_pipeline.retrieve_data.nhgis.extract_definition import (
     NhgisDatasetSelection,
     NhgisExtractDefinition,
     build_nhgis_definition,
     validate_nhgis_definition,
 )
-from capy_core.retrieve_data.nhgis.retrieve_extract import (
+from national_pipeline.retrieve_data.nhgis.retrieve_extract import (
     NhgisExtractStatus,
     NhgisSubmissionRecord,
     submit_or_resume_extract,
 )
-from capy_core.retrieve_data.raw_file_requests import (
+from national_pipeline.retrieve_data.raw_file_requests import (
     NhgisBoundaryFileRequest,
     NhgisTableFileRequest,
 )
-from capy_core.retrieve_data.retrieve_raw_file import (
+from national_pipeline.retrieve_data.retrieve_raw_file import (
     FailedFile,
     PendingFile,
     ReadyFile,
@@ -93,7 +93,9 @@ def test_completed_nhgis_extract_checks_provider_warnings(tmp_path, monkeypatch,
             return SimpleNamespace(json=lambda: response)
 
     monkeypatch.setenv("IPUMS_API_KEY", "private-nhgis-key")
-    monkeypatch.setattr("capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client
+    )
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: ArchiveResponse(content))
     file_request = NhgisTableFileRequest(
         destination_relative_path="nhgis/population.zip",
@@ -247,7 +249,9 @@ def test_nhgis_provider_failures_identify_operation_without_exposing_credentials
             raise RuntimeError("https://example.org/?token=private-api-key")
 
     monkeypatch.setenv("IPUMS_API_KEY", "private-api-key")
-    monkeypatch.setattr("capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client
+    )
     request = NhgisBoundaryFileRequest(
         census_year=1980,
         geography_level=GeographyLevel.COUNTY,
@@ -289,11 +293,13 @@ def test_nhgis_boundary_download_retry_reuses_submission(tmp_path, monkeypatch):
             }
 
     monkeypatch.setenv("IPUMS_API_KEY", "secret")
-    monkeypatch.setattr("capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client
+    )
     get = Mock(side_effect=[requests.ConnectionError("private-key"), ArchiveResponse(content)])
     monkeypatch.setattr("requests.get", get)
     monkeypatch.setattr(
-        "capy_core.retrieve_data.retrieve_raw_file.time.sleep", lambda seconds: None
+        "national_pipeline.retrieve_data.retrieve_raw_file.time.sleep", lambda seconds: None
     )
     request = NhgisBoundaryFileRequest(
         census_year=1980,
@@ -333,9 +339,9 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
     expected_waits,
     expected_type,
 ):
-    from capy_core.pipeline_config import PipelineConfig
-    from capy_core.retrieve_data import retrieve_files as retrieval
-    from capy_core.retrieve_data.prepare_file_requests import build_raw_file_requests
+    from national_pipeline.pipeline_config import PipelineConfig
+    from national_pipeline.retrieve_data import retrieve_files as retrieval
+    from national_pipeline.retrieve_data.prepare_file_requests import build_raw_file_requests
 
     config = PipelineConfig(
         census_geography_levels=("tracts", "blocks"),
@@ -383,7 +389,9 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
             }
 
     monkeypatch.setenv("IPUMS_API_KEY", "test-key")
-    monkeypatch.setattr("capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", Client
+    )
     monkeypatch.setattr("requests.get", lambda *args, **kwargs: ArchiveResponse(content))
     monkeypatch.setattr(retrieval.time, "monotonic", lambda: elapsed_seconds)
     monkeypatch.setattr(retrieval.time, "sleep", wait)
@@ -458,7 +466,7 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
 def test_changed_nhgis_request_rejects_saved_archive_or_submission(
     tmp_path, monkeypatch, original, changed, file_exists
 ):
-    from capy_core.retrieve_data.nhgis.retrieve_extract import save_nhgis_submission
+    from national_pipeline.retrieve_data.nhgis.retrieve_extract import save_nhgis_submission
 
     directories = RawDataSubdirectories(saved_nhgis_requests="status/extracts")
     submission_path = (
@@ -478,7 +486,7 @@ def test_changed_nhgis_request_rejects_saved_archive_or_submission(
     client = Mock()
     monkeypatch.setenv("IPUMS_API_KEY", "secret")
     monkeypatch.setattr(
-        "capy_core.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", lambda key: client
+        "national_pipeline.retrieve_data.nhgis.retrieve_extract.IpumsApiClient", lambda key: client
     )
     if not file_exists:
         offline_result = retrieve_raw_file(changed, tmp_path, True, directories)

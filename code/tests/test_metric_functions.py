@@ -6,8 +6,8 @@ import capy_metrics as metrics
 import networkx as nx
 import numpy as np
 import pytest
-from capy_core.compute_metrics import calculate_scores
-from capy_core.compute_metrics.metric_types import MetricName, PopulationComparison
+from national_pipeline.compute_metrics import calculate_scores
+from national_pipeline.compute_metrics.metric_types import MetricName, PopulationComparison
 from scipy import sparse
 
 
@@ -59,7 +59,7 @@ def test_public_graph_functions_match_numerical_functions_without_mutating_input
 
     for from_graph, from_arrays in (
         (metrics.dissimilarity_from_graph, metrics.dissimilarity),
-        (metrics.theil_information_from_graph, metrics.theil_information),
+        (metrics.entropy_index_from_graph, metrics.entropy_index),
         (metrics.relative_diversity_from_graph, metrics.relative_diversity),
     ):
         for weights in (None, adjacency + sparse.eye_array(3)):

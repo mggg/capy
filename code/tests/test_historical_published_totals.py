@@ -3,8 +3,10 @@
 import pandas as pd
 import pytest
 import us
-from capy_core.process_population.check_nhgis_totals import check_historical_published_totals
-from capy_core.retrieve_data.state_codes import STATE_FIPS_CODES
+from national_pipeline.process_population.check_nhgis_totals import (
+    check_historical_published_totals,
+)
+from national_pipeline.retrieve_data.state_codes import STATE_FIPS_CODES
 
 
 def write_state_references(tmp_path, census_year):

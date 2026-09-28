@@ -1,26 +1,28 @@
 """Run selections drive both population and boundary inputs, including study-area data."""
 
 import pytest
-from capy_core.geography_types import GeographyLevel, StudyAreaType
-from capy_core.pipeline_config import (
+from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.pipeline_config import (
     PipelineConfig,
     RawDataSubdirectories,
     load_configuration,
 )
-from capy_core.retrieve_data.census.build_published_file_requests import build_tiger_file_requests
-from capy_core.retrieve_data.census.retrieve_tables import resolve_census_query_parameters
-from capy_core.retrieve_data.prepare_file_requests import (
+from national_pipeline.retrieve_data.census.build_published_file_requests import (
+    build_tiger_file_requests,
+)
+from national_pipeline.retrieve_data.census.retrieve_tables import resolve_census_query_parameters
+from national_pipeline.retrieve_data.prepare_file_requests import (
     build_geography_requests,
     build_raw_file_requests,
     filter_raw_file_requests,
 )
-from capy_core.retrieve_data.raw_file_requests import (
+from national_pipeline.retrieve_data.raw_file_requests import (
     CensusDataset,
     CensusFileRequest,
     GeographyRequest,
     NhgisTableFileRequest,
 )
-from capy_core.retrieve_data.retrieve_files import retrieve_raw_data
+from national_pipeline.retrieve_data.retrieve_files import retrieve_raw_data
 
 
 def test_invalid_geography_assignment_preserves_yaml_selection(tmp_path):

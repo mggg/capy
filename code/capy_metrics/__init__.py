@@ -24,10 +24,10 @@ from .errors import UndefinedMetricError, UndefinedMetricReason
 from .evenness import (
     dissimilarity,
     dissimilarity_from_graph,
+    entropy_index,
+    entropy_index_from_graph,
     relative_diversity,
     relative_diversity_from_graph,
-    theil_information,
-    theil_information_from_graph,
 )
 from .inputs import build_csr_adjacency_matrix, node_attribute_to_numpy_arr, population_shares
 from .moran import (
@@ -55,6 +55,8 @@ __all__ = [
     "distance_morans_I",
     "edge_assortativity",
     "edge_assortativity_from_graph",
+    "entropy_index",
+    "entropy_index_from_graph",
     "half_edge_assortativity",
     "half_edge_assortativity_from_graph",
     "morans_I",
@@ -63,6 +65,4 @@ __all__ = [
     "population_shares",
     "relative_diversity",
     "relative_diversity_from_graph",
-    "theil_information",
-    "theil_information_from_graph",
 ]

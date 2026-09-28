@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from capy_core.stage_files import stage_file
+from national_pipeline.stage_files import stage_file
 
 
 @pytest.mark.parametrize("failure", [OSError("write failed"), KeyboardInterrupt()])

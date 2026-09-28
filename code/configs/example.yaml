@@ -8,7 +8,7 @@
 # in pipeline order; unselected prerequisites must already exist.
 #
 # Run settings belong here. Source URLs, Census population column names, and NHGIS
-# table names live in the Python request definitions under code/capy_core/retrieve_data/.
+# table names live in the Python request definitions under code/national_pipeline/retrieve_data/.
 
 # Which Census units will become graph nodes? Choose one or more of:
 #   counties      Each county or county-equivalent is one unit.
@@ -115,12 +115,13 @@ population_comparisons: [white_black, white_poc]
 # Distance variants use all node pairs and can be slow for large block graphs.
 metric_names:
   - dissimilarity
-  - theil_information
+  - entropy_index
   - relative_diversity
   - aspatial_capy
   - spatial_dissimilarity
-  - spatial_theil_information
+  - spatial_entropy_index
   - spatial_relative_diversity
+  - capy
   - capy_exact
   - moran_adjacency
   - moran_negative_laplacian

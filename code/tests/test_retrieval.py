@@ -5,29 +5,29 @@ from unittest.mock import Mock
 
 import pytest
 import requests
-from capy_core.geography_types import GeographyLevel
-from capy_core.pipeline_config import PipelineConfig, RawDataSubdirectories
-from capy_core.retrieve_data.http_transport import (
+from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.pipeline_config import PipelineConfig, RawDataSubdirectories
+from national_pipeline.retrieve_data.http_transport import (
     DataProviderError,
     download_file,
 )
-from capy_core.retrieve_data.prepare_file_requests import (
+from national_pipeline.retrieve_data.prepare_file_requests import (
     build_raw_file_requests,
     filter_raw_file_requests,
 )
-from capy_core.retrieve_data.raw_file_requests import (
+from national_pipeline.retrieve_data.raw_file_requests import (
     CensusDataset,
     CensusFileRequest,
     PublicFileRequest,
     RawFileFormat,
 )
-from capy_core.retrieve_data.retrieve_files import retrieve_files
-from capy_core.retrieve_data.retrieve_raw_file import (
+from national_pipeline.retrieve_data.retrieve_files import retrieve_files
+from national_pipeline.retrieve_data.retrieve_raw_file import (
     FailedFile,
     ReadyFile,
     retrieve_raw_file,
 )
-from capy_core.stage_files import stage_file
+from national_pipeline.stage_files import stage_file
 
 
 def build_census_request(path="census/state.json"):
@@ -74,7 +74,8 @@ def test_programming_error_is_not_reported_as_a_failed_download(tmp_path, monkey
     request = build_census_request()
     write_population(tmp_path / request.destination_relative_path)
     monkeypatch.setattr(
-        "capy_core.retrieve_data.retrieve_raw_file.check_existing_raw_file", broken_file_check
+        "national_pipeline.retrieve_data.retrieve_raw_file.check_existing_raw_file",
+        broken_file_check,
     )
 
     with pytest.raises(TypeError, match="incorrect internal argument"):
@@ -145,7 +146,9 @@ def test_existing_census_table_is_reused_without_parsing(tmp_path, monkeypatch, 
     def refuse_parse(path):
         raise AssertionError(f"existing table was parsed: {path}")
 
-    monkeypatch.setattr("capy_core.retrieve_data.check_raw_files.load_census_table", refuse_parse)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.check_raw_files.load_census_table", refuse_parse
+    )
     file_request = build_census_request()
     destination = tmp_path / file_request.destination_relative_path
     destination.parent.mkdir(parents=True)
@@ -184,7 +187,9 @@ def test_published_census_table_passes_rerun_check_without_parsing(tmp_path, mon
     def refuse_parse(path):
         raise AssertionError(f"existing table was parsed: {path}")
 
-    monkeypatch.setattr("capy_core.retrieve_data.check_raw_files.load_census_table", refuse_parse)
+    monkeypatch.setattr(
+        "national_pipeline.retrieve_data.check_raw_files.load_census_table", refuse_parse
+    )
     repeated = retrieve_raw_file(file_request, raw, True, directories=RawDataSubdirectories())
 
     assert isinstance(repeated, ReadyFile)
@@ -287,7 +292,7 @@ def test_transport_errors_retry_only_transient_failures_without_exposing_credent
     monkeypatch.setenv("CENSUS_API_KEY", "private-key")
     monkeypatch.setattr("requests.get", get)
     monkeypatch.setattr(
-        "capy_core.retrieve_data.retrieve_raw_file.time.sleep", lambda seconds: None
+        "national_pipeline.retrieve_data.retrieve_raw_file.time.sleep", lambda seconds: None
     )
     raw = tmp_path / "raw"
     result = retrieve_raw_file(
