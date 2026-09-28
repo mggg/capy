@@ -5,7 +5,7 @@ from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from multiprocessing import get_context
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 
 import geopandas as gpd
 import pandas as pd
@@ -23,19 +23,25 @@ from capy_core.population_table_columns import PopulationColumn
 from capy_core.retrieve_data.prepare_file_requests import build_geography_requests
 from capy_core.stage_files import stage_file
 
-from .build_area_graph import AreaGraphFiles, AreaGraphInputs, build_and_save_area_graph
+from .archive_inventory import read_graph_selection_summary
+from .archive_parts import publish_graph_archive_parts
+from .build_area_graph import (
+    AreaGraphFiles,
+    AreaGraphInputs,
+    GraphStatus,
+    build_and_save_area_graph,
+)
 from .graph_archives import build_zip_member, write_file_to_archive
 from .read_inputs import read_selection_memberships, read_study_area_definitions
 
 
 def build_graph_archives(config: PipelineConfig, repository_root: Path) -> pd.DataFrame:
-    """Build one ZIP per selected Census year and level, containing connected graphs and accounting.
+    """Resume selected graph builds and publish complete, size-limited year/level ZIP parts.
 
-    Reruns remove the named archives and completion summary for this area type/vintage before
-    reading inputs. Each archive is published only after all its areas succeed. The run summary
-    is written last; an interrupted run can leave completed archives but no completion summary.
-    Graph workers read polygons and save area files independently. One process assembles each ZIP
-    in stable area order. Download worker settings do not control this stage.
+    Complete selections are reused after membership and archive checks. Set rebuild_graphs to
+    replace them when inputs or graph methods change. The completion summary is removed at startup
+    and written last; other selections' archives are left untouched. Each worker reads polygons
+    and saves one area's files. One process packages whole areas in stable order.
 
     Args:
         config (PipelineConfig): Node selections, study-area settings, and input/output folders.
@@ -68,9 +74,6 @@ def build_graph_archives(config: PipelineConfig, repository_root: Path) -> pd.Da
     archive_prefix = f"{config.study_area_type}_{config.study_area_vintage}"
     summary_path = graph_archive_directory / f"{archive_prefix}_summary.parquet"
     summary_path.unlink(missing_ok=True)
-
-    for previous_archive in graph_archive_directory.glob(f"{archive_prefix}_*.zip"):
-        previous_archive.unlink()
 
     definitions_df = read_study_area_definitions(study_area_directory, config).to_crs("ESRI:102003")
     selected_geography_inputs = select_geography_join_inputs(config)
@@ -107,6 +110,7 @@ def build_graph_archives(config: PipelineConfig, repository_root: Path) -> pd.Da
                 joined_geography_directory,
                 config.max_parallel_graphs,
                 warn_on_polygon_overlaps=config.warn_on_polygon_overlaps,
+                rebuild_graphs=config.rebuild_graphs,
             )
         )
 
@@ -128,11 +132,12 @@ def build_selection_archive(
     max_parallel_graphs: int,
     *,
     warn_on_polygon_overlaps: bool = True,
+    rebuild_graphs: bool = False,
 ) -> pd.DataFrame:
-    """Publish one complete year/level archive with graph JSONs, removed units, and accounting.
+    """Reuse a complete selection or build its graphs and publish numbered ZIP parts.
 
     Args:
-        archive_path (Path): Final ZIP filename, replaced only after successful writing.
+        archive_path (Path): Legacy ZIP name and base name for numbered parts.
         definitions_df (gpd.GeoDataFrame): All configured study-area definitions.
         geography_inputs (GeographyJoinInputs): Node year/level and expected source paths.
         study_area_directory (Path): Definitions and membership output directory.
@@ -140,6 +145,7 @@ def build_selection_archive(
         max_parallel_graphs (int): Maximum concurrent area builds; 1 runs in the main process.
         warn_on_polygon_overlaps (bool): Report overlaps above 100 mm²; defaults to True.
             False suppresses overlap warnings only, in both serial and parallel construction.
+        rebuild_graphs (bool): Replace completed graphs rather than reuse them. Defaults to False.
 
     Returns:
         pd.DataFrame: Archive inventory and population accounting, also saved as summary.csv.
@@ -151,6 +157,15 @@ def build_selection_archive(
     memberships_df, assignment_summary_df = read_selection_memberships(
         study_area_directory, definitions_df, geography_inputs, joined_geography_directory
     )
+
+    if not rebuild_graphs:
+        saved_summary_df = reuse_graph_selection(
+            archive_path, geography_inputs, assignment_summary_df
+        )
+
+        if saved_summary_df is not None:
+            return saved_summary_df
+
     area_inputs = iter_area_graph_inputs(definitions_df, assignment_summary_df, memberships_df)
     archive_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -171,18 +186,95 @@ def build_selection_archive(
         return publish_selection_archive(archive_path, area_files, temporary_directory)
 
 
+def reuse_graph_selection(
+    archive_path: Path,
+    geography_inputs: GeographyJoinInputs,
+    assignment_summary_df: pd.DataFrame,
+) -> pd.DataFrame | None:
+    """Check a completed selection against current assignments, converting a legacy ZIP if needed.
+
+    Args:
+        archive_path (Path): Legacy name and base name for numbered ZIP parts.
+        geography_inputs (GeographyJoinInputs): Expected year and resolution.
+        assignment_summary_df (pd.DataFrame): Current assignment counts indexed by area ID.
+
+    Returns:
+        pd.DataFrame | None: Saved outcomes, or None if absent or interrupted part publication
+            needs rebuilding. This checks ZIP readability and assignment accounting, not whether
+            an unchanged set of members has new shapes or graph methods.
+
+    Raises:
+        ValueError: Complete saved accounting differs from current assignments.
+        OSError: Reading or repackaging fails. Corrupt legacy ZIP errors propagate.
+    """
+    try:
+        summary_df = read_graph_selection_summary(
+            archive_path, geography_inputs.census_year, geography_inputs.geography_level
+        )
+    except FileNotFoundError:
+        return None
+    except (ValueError, BadZipFile, KeyError):
+        if archive_path.exists():
+            raise
+
+        tqdm.write(f"Rebuilding incomplete graph parts: {archive_path.stem}")
+        return None
+
+    saved_df = summary_df.set_index(StudyAreaColumn.STUDY_AREA_ID)
+
+    if set(saved_df.index) != set(assignment_summary_df.index):
+        raise ValueError(f"Saved graph areas changed; set rebuild_graphs: true: {archive_path}")
+
+    for area_id, assignment in assignment_summary_df.iterrows():
+        saved = saved_df.loc[area_id]
+        expected_status = MembershipStatus(assignment[MembershipColumn.STATUS])
+        allowed_statuses = (
+            (GraphStatus.READY, GraphStatus.NO_UNITS_AFTER_POPULATION_FILTER)
+            if expected_status == MembershipStatus.READY
+            else (expected_status,)
+        )
+
+        if saved.status not in allowed_statuses:
+            raise ValueError(f"Saved graph status changed; set rebuild_graphs: true: {area_id}")
+
+        for column in (MembershipColumn.UNIT_COUNT, *PopulationColumn):
+            observed = saved[f"input_{column}"]
+            expected = assignment[column]
+
+            if pd.isna(observed) and pd.isna(expected):
+                continue
+
+            if pd.isna(observed) or pd.isna(expected) or observed != expected:
+                raise ValueError(f"Saved graph counts changed; set rebuild_graphs: true: {area_id}")
+
+    if archive_path.exists():
+        summary_df = publish_graph_archive_parts(archive_path, archive_path)
+        archive_path.unlink()
+    else:
+        for filename in summary_df.archive.unique():
+            with ZipFile(archive_path.parent / filename) as archive:
+                damaged_member = archive.testzip()
+
+            if damaged_member is not None:
+                raise ValueError(f"Damaged graph member {damaged_member}: {filename}")
+
+    tqdm.write(f"Reusing {archive_path.stem}: {len(summary_df)} area outcomes")
+
+    return summary_df
+
+
 def publish_selection_archive(
     archive_path: Path, area_files: list[AreaGraphFiles], temporary_directory: Path
 ) -> pd.DataFrame:
-    """Assemble completed area files in stable order and publish their ZIP and internal summary.
+    """Compress completed area files, then publish size-limited ZIP parts with local summaries.
 
     Args:
-        archive_path (Path): Final filename, replaced only after the ZIP closes successfully.
+        archive_path (Path): Unnumbered base name for the final ZIP parts.
         area_files (list[AreaGraphFiles]): Complete worker results in study-area ID order.
         temporary_directory (Path): Selection-owned folder containing the saved member files.
 
     Returns:
-        pd.DataFrame: Archive inventory and population accounting, also stored as summary.csv.
+        pd.DataFrame: Combined inventory; each part contains its own rows in summary.csv.
 
     Raises:
         OSError: Reading files or writing/publishing the ZIP fails.
@@ -215,7 +307,9 @@ def publish_selection_archive(
             summary_df[count_columns] = summary_df[count_columns].astype("Int64")
             archive.writestr(build_zip_member("summary.csv"), summary_df.to_csv(index=False))
 
-        temporary_path.replace(archive_path)
+        summary_df = publish_graph_archive_parts(temporary_path, archive_path)
+
+    archive_path.unlink(missing_ok=True)
 
     return summary_df
 

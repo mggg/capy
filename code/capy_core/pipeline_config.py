@@ -96,6 +96,8 @@ class PipelineConfig(BaseModel):
             area's polygons and graph. ZIP assembly and membership checks remain sequential.
         warn_on_polygon_overlaps (bool): Report graph polygon overlaps above 100 mm². Defaults
             to True. False suppresses overlap warnings only; adjacency and counts are unchanged.
+        rebuild_graphs (bool): Replace completed graph selections instead of reusing them.
+            Defaults to False. Set True after changing input shapes or graph construction methods.
         metric_results_directory (Path): Per-area scores, graph accounting, and complete-history
             averages. Defaults to results/metrics. Relative paths start at the repository root;
             keep it separate from all data inputs. Outputs are grouped by study-area type/vintage.
@@ -151,6 +153,7 @@ class PipelineConfig(BaseModel):
     graph_archive_directory: Path = Path("data/graphs")
     max_parallel_graphs: int = Field(default=4, ge=1)
     warn_on_polygon_overlaps: bool = True
+    rebuild_graphs: bool = False
     metric_results_directory: Path = Path("results/metrics")
     population_comparisons: tuple[PopulationComparison, ...] = Field(
         default=tuple(PopulationComparison), min_length=1

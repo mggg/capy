@@ -24,6 +24,11 @@ Use `code/configs/replication.yaml` for the paper's national CBSA results, or
 `code/configs/max_city.yaml` for the selected-city results. This stage reads only graph archives;
 raw downloads and intermediate population, geography, and membership tables are not needed.
 
+Graph inputs may be an original single ZIP or a complete set of numbered parts. The stage discovers
+parts automatically, checks their combined area inventory, and reads each graph from its recorded
+archive. It still writes one metric table per year and level. See
+[archive parts](graph_construction.md#archive-parts-and-repackaging) for naming and conversion.
+
 By default, every supported metric is calculated for both `white_black` and `white_poc`. Set
 `metric_names` or `population_comparisons` in the YAML to restrict those choices, using the names
 below. The [commented configuration](../code/configs/example.yaml) lists all options. Years,

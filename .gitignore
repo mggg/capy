@@ -189,3 +189,5 @@ cython_debug/
 /data/graphs/*_summary.parquet
 
 /data/graphs/.graph-build*
+
+/data/graphs/.graph-package-*

@@ -82,7 +82,7 @@ study_area_directory: data/processed/study_areas
 
 # Connected graphs in ZIP archives; relative paths start at the repository root.
 # Keep this separate from raw, population, joined-geography, and study-area folders.
-# One archive per node year/level, with area type and definition vintage in its name.
+# Numbered ZIP parts per node year/level, with area type and definition vintage in each name.
 graph_archive_directory: data/graphs
 
 # Maximum simultaneous graph builds and JSON writes; independent of download workers.
@@ -95,6 +95,10 @@ max_parallel_graphs: 4
 # Set false to suppress only overlap warnings, in serial and parallel runs. Overlaps still
 # count as adjacency; geometry, populations, validation, and other warnings are unchanged.
 warn_on_polygon_overlaps: true
+
+# Force replacement of completed graph selections. Default: false.
+# Set true after changing input shapes or graph methods; this rebuilds selected graphs.
+rebuild_graphs: false
 
 # Metric Parquet tables; default results/metrics, relative to the repository root.
 # Keep this separate from all data input folders. Outputs add study-area type/vintage.

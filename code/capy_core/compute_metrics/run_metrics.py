@@ -8,6 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from capy_core.assign_study_areas.study_area_columns import MembershipColumn, StudyAreaColumn
+from capy_core.build_graphs.archive_inventory import read_graph_selection_summary
 from capy_core.build_graphs.build_area_graph import GraphStatus
 from capy_core.build_graphs.graph_archives import read_graph_from_archive
 from capy_core.data_directories import resolve_separate_output_directory
@@ -18,7 +19,7 @@ from capy_core.stage_files import stage_file
 
 from .calculate_scores import calculate_graph_metrics
 from .metric_types import MetricColumn, MetricSkipReason, UndefinedMetricReason
-from .read_graph_inputs import check_graph_population_accounting, read_graph_archive_summary
+from .read_graph_inputs import check_graph_population_accounting
 from .summarize_years import average_when_all_years_present
 
 
@@ -78,7 +79,7 @@ def compute_metrics(config: PipelineConfig, repository_root: Path) -> pd.DataFra
             / f"{config.study_area_type}_{config.study_area_vintage}_{request.census_year}_{request.geography_level}.zip"
         )
         try:
-            summary_df = read_graph_archive_summary(
+            summary_df = read_graph_selection_summary(
                 archive_path, request.census_year, request.geography_level
             )
             area_ids = set(summary_df[StudyAreaColumn.STUDY_AREA_ID])
@@ -94,7 +95,7 @@ def compute_metrics(config: PipelineConfig, repository_root: Path) -> pd.DataFra
         output_path = output_directory / f"{request.census_year}_{request.geography_level}.parquet"
         save_metric_table(metrics_df, output_path)
         metric_tables.append(metrics_df)
-        archive_summaries.append(summary_df.assign(archive=archive_path.name))
+        archive_summaries.append(summary_df)
         expected_years_by_level[request.geography_level] = (
             *expected_years_by_level.get(request.geography_level, ()),
             request.census_year,
@@ -116,8 +117,8 @@ def compute_archive_metrics(
     """Calculate each area's selected metrics and retain outcomes for areas without graphs.
 
     Args:
-        archive_path (Path): ZIP whose inventory has passed read_graph_archive_summary().
-        graph_summary_df (pd.DataFrame): One archive-summary row per area.
+        archive_path (Path): Selection's unnumbered base path; parts live in the same directory.
+        graph_summary_df (pd.DataFrame): Validated selection inventory with each area's archive name.
         config (PipelineConfig): Selected comparison groups and metric names.
 
     Returns:
@@ -145,7 +146,8 @@ def compute_archive_metrics(
         }
 
         if graph_status == GraphStatus.READY:
-            graph = read_graph_from_archive(archive_path, str(graph_summary["graph_member"]))
+            part_path = archive_path.parent / str(graph_summary["archive"])
+            graph = read_graph_from_archive(part_path, str(graph_summary["graph_member"]))
             check_graph_population_accounting(graph, graph_summary, config)
             comparison_scores = calculate_graph_metrics(
                 graph, config.population_comparisons, config.metric_names

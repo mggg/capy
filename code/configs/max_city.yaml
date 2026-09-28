@@ -18,7 +18,7 @@ study_area_directory: data/processed/study_areas
 
 # Connected graphs in ZIP archives; relative paths start at the repository root.
 # Keep this separate from raw, population, joined-geography, and study-area folders.
-# One archive per node year/level, with area type and definition vintage in its name.
+# Numbered ZIP parts per node year/level, with area type and definition vintage in each name.
 graph_archive_directory: data/graphs
 
 # Maximum simultaneous graph builds and JSON writes; independent of download workers.

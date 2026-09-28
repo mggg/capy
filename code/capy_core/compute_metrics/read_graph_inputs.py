@@ -1,69 +1,11 @@
 """Read graph archive inventories and check saved graph identities and population accounting."""
 
-from pathlib import Path
-from zipfile import ZipFile
-
 import pandas as pd
 from gerrychain import Graph
 
 from capy_core.assign_study_areas.study_area_columns import MembershipColumn, StudyAreaColumn
-from capy_core.build_graphs.build_area_graph import GraphStatus
-from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import PipelineConfig
 from capy_core.population_table_columns import PopulationColumn
-
-
-def read_graph_archive_summary(
-    archive_path: Path, census_year: int, geography_level: GeographyLevel
-) -> pd.DataFrame:
-    """Read an archive's area inventory and require its ready entries to match its graph members.
-
-    Args:
-        archive_path (Path): Selected graph ZIP, read without extracting any members.
-        census_year (int): Expected year of graph-node population and boundaries.
-        geography_level (GeographyLevel): Expected graph-node resolution.
-
-    Returns:
-        pd.DataFrame: One outcome per area, including areas without graphs. This checks the
-            inventory; graph contents and population accounting are checked when each graph loads.
-
-    Raises:
-        OSError: The archive cannot be read.
-        ValueError: Summary identities, statuses, selections, or graph-member inventory disagree.
-            ZIP, CSV, and missing-member errors propagate to the stage runner.
-    """
-    with ZipFile(archive_path) as archive:
-        member_names = archive.namelist()
-
-        with archive.open("summary.csv") as summary_file:
-            summary_df = pd.read_csv(summary_file, dtype={StudyAreaColumn.STUDY_AREA_ID: str})
-
-    area_ids = summary_df[StudyAreaColumn.STUDY_AREA_ID]
-
-    if summary_df.empty or bool(area_ids.isna().any()) or bool(area_ids.duplicated().any()):
-        raise ValueError(f"Graph summary needs one identified outcome per area: {archive_path}")
-
-    if not bool(summary_df[MembershipColumn.CENSUS_YEAR].eq(census_year).all()) or not bool(
-        summary_df[MembershipColumn.GEOGRAPHY_LEVEL].eq(geography_level).all()
-    ):
-        raise ValueError(f"Graph summary disagrees with requested year or level: {archive_path}")
-
-    if not bool(summary_df[MembershipColumn.STATUS].isin(list(GraphStatus)).all()):
-        raise ValueError(f"Graph summary contains an unsupported status: {archive_path}")
-
-    ready_mask = summary_df[MembershipColumn.STATUS].eq(GraphStatus.READY)
-    expected_graph_members = "graphs/" + area_ids[ready_mask] + ".json"
-
-    if (
-        len(member_names) != len(set(member_names))
-        or not summary_df.loc[ready_mask, "graph_member"].eq(expected_graph_members).all()
-        or summary_df.loc[~ready_mask, "graph_member"].notna().any()
-        or {name for name in member_names if name.startswith("graphs/")}
-        != set(expected_graph_members)
-    ):
-        raise ValueError(f"Graph members disagree with archive accounting: {archive_path}")
-
-    return summary_df
 
 
 def check_graph_population_accounting(

@@ -8,6 +8,7 @@ population accounting that explains which units the graphs retain.
 
 - [Run the stage](#run-the-stage)
 - [Parallel graph construction](#parallel-graph-construction)
+- [Archive parts and repackaging](#archive-parts-and-repackaging)
 - [Population filtering and adjacency](#population-filtering-and-adjacency)
 - [Centroid coordinates for distance-based metrics](#centroid-coordinates-for-distance-based-metrics)
 - [Known boundary overlaps](#known-boundary-overlaps)
@@ -28,10 +29,10 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 ```
 
 The small example builds graphs of 2020 tracts inside Delaware's three counties. Its archive is
-`data/graphs/county_2020_2020_tracts.zip`: the first year identifies the study-area definition, and
-the second identifies the Census units. The archive contains one graph per county. The full
-configuration produces one archive per supported node year and resolution, keeping retries and
-individual reads manageable. Graph construction and archive writing are a single stage.
+`data/graphs/county_2020_2020_tracts_part01.zip`: the first year identifies the study-area
+definition, and the second identifies the Census units. The archive contains one graph per county.
+The full configuration produces one or more numbered ZIP parts per supported node year and
+resolution. Graph construction and archive writing are a single stage.
 
 Set `graph_archive_directory` to change the output folder. Relative paths start at the repository
 root, and the folder must be separate from the raw, population, joined-geography, and study-area
@@ -41,8 +42,9 @@ reads the polygons for one study area. Download worker settings do not control t
 ## Parallel graph construction
 
 Set `max_parallel_graphs` to choose how many study areas can be built at once. The default is 4;
-use 1 for sequential construction without subprocesses. The national configurations set 28 for
-a machine with ample memory, while `small_example.yaml` uses 1 to avoid worker startup overhead.
+use 1 for sequential construction without subprocesses. The national configurations also use 4;
+a machine with ample memory can use 28, as below. The small example uses 1 to avoid worker startup
+overhead.
 
 ```yaml
 max_parallel_graphs: 28
@@ -54,10 +56,10 @@ remaining after the other workers finish. The graph progress bar counts complete
 including their temporary file writes. More workers increase memory use and compete for disk
 reads, so increasing this setting does not guarantee a proportional speedup.
 
-Membership checks and final ZIP assembly remain sequential. After the workers finish, a separate
-saving bar tracks assembly in stable study-area order. Worker count and completion order do not
-change graph calculations, archive member names, or summary order. Each year/level finishes before
-the next begins; no worker writes to a shared ZIP.
+Membership checks and final ZIP assembly remain sequential. After the workers finish, saving and
+packaging bars track compression and ZIP parts in stable study-area order. Worker count and
+completion order do not change graph calculations, archive member names, or summary order. Each
+year/level finishes before the next begins; no worker writes to a shared ZIP.
 
 Temporary JSON and CSV files are kept beneath the graph output directory until the archive is
 complete, then removed. On failure or interruption, queued work is cancelled and the stage waits
@@ -65,6 +67,44 @@ for running workers before cleaning up. A running area can therefore delay inter
 fully written ZIP is published. Use an ordinary script or the CLI for parallel runs; direct Python
 scripts must put their entry point inside `if __name__ == "__main__":` so spawned workers do not
 restart the workflow.
+
+## Archive parts and repackaging
+
+Archives have names such as `cbsa_2020_1990_blocks_part01.zip`. Each part is an ordinary ZIP
+containing whole study areas: a graph and its removed-population CSV always stay together. Its
+`summary.csv` contains only those areas and records the total number of parts. The reader requires
+every consecutively numbered part and rejects repeated area IDs. Max-city, CBSA, and county runs
+use the same layout; smaller selections need only `part01`.
+
+The writer groups areas in sorted ID order using their compressed sizes, aiming for 80 MiB per
+part with room for headers and summaries. It then verifies that every final ZIP is below 100 MiB.
+A single area larger than the target gets its own part; if that part reaches 100 MiB, packaging
+stops rather than splitting a graph into an unreadable fragment. This is an archive publication
+limit, not a quota on scratch storage.
+
+Graph construction first writes a temporary complete ZIP so packaging can use actual compressed
+member sizes. Python's ZIP writer then recompresses the files into parts. Each saved graph and
+population CSV is read back and compared with its source before publication; these checks are
+local to packaging and do not create checksum manifests. Temporary ZIPs are removed on completion.
+
+To repackage existing archives without rebuilding any graphs or recalculating metrics, run:
+
+```bash
+uv run --locked python code/repackage_graphs.py --config code/configs/replication.yaml
+uv run --locked python code/repackage_graphs.py --config code/configs/max_city.yaml
+```
+
+Only available selections are repackaged. Their original ZIPs stay in place until all replacement
+parts pass the content checks and are published. They are then removed. If publication is
+interrupted while the original remains, readers prefer that original and the command can be
+repeated. An interrupted publication without an original leaves an incomplete part set, which
+`build-graphs` rebuilds for that selection. The command writes the combined run summary only when
+all configured selections are present. Existing metric values are unchanged; a later metric run
+records the new part filenames in its graph-outcome table.
+
+The metric stage discovers parts automatically and continues to produce one result table per
+year and level. Old unnumbered ZIPs remain readable, and a resumed graph build repackages them
+before reuse. No graph extraction or manual part concatenation is needed.
 
 ## Population filtering and adjacency
 
@@ -211,7 +251,7 @@ from pathlib import Path
 from capy_core.build_graphs.graph_archives import read_graph_from_archive
 
 graph = read_graph_from_archive(
-    Path("data/graphs/county_2020_2020_tracts.zip"),
+    Path("data/graphs/county_2020_2020_tracts_part01.zip"),
     "graphs/county_10001.json",
 )
 print(graph.number_of_nodes(), graph.number_of_edges())
@@ -235,7 +275,7 @@ Each archive contains:
 | --- | --- |
 | `graphs/{study_area_id}.json` | Connected graph for an area with retained units. |
 | `removed_units/{study_area_id}.csv` | IDs and all four counts for units removed by the population filter. |
-| `summary.csv` | One outcome per study area, graph filename, node/edge counts, and input/retained/removed populations. |
+| `summary.csv` | Outcomes for this part, total part count, graph filenames, node/edge counts, and input/retained/removed populations. |
 
 Summary statuses distinguish four outcomes:
 
@@ -269,18 +309,28 @@ metadata again before filtering. It checks population conservation, connectivity
 added edges. These checks do not resolve upstream historical exclusions or independently rerun city
 selection.
 
-Reruns remove the named archives and completion summary for this study-area type and vintage,
-including years or levels omitted by a narrower configuration. Other types and vintages remain. Each
-new ZIP is written under a temporary name and published only after all its areas succeed. The stage
-writes `{type}_{vintage}_summary.parquet` last, after every requested archive completes. A failed
-run can leave completed new archives but cannot leave a completed run summary.
+Reruns reuse completed year/level selections after checking their inventories, ZIP readability,
+area coverage, and input population counts against the current assignments. A failed run therefore
+keeps earlier completed work. Missing or incomplete selections are rebuilt, while selections
+outside the current configuration are left untouched. The stage removes the run-completion
+summary at startup and writes it again only after all requested selections finish.
+
+Reusing an archive does not reconstruct its edges or compare its saved centroids against current
+polygons. If input shapes or graph-construction methods change, set `rebuild_graphs: true` in the
+YAML to replace the selected graphs. The default is `false`. Membership/accounting differences
+stop reuse with an instruction to rebuild; passing those checks alone does not detect every
+upstream change. Change the setting back to `false` after an intentional rebuild to resume normally.
+
+Keep source files stable during a run. New worker pools import Python modules from disk, so a
+checkout, rebase, or file reorganization while the process is active can interrupt later selections
+even when the parent process already loaded its code.
 
 ZIP members use stable ordering and timestamps. Rebuilding unchanged inputs with the same
 configuration and software produces the same contents. Run settings remain in the repository's YAML
 configurations, and `uv.lock` records the dependency versions. Final publication checks must
 still reconcile the chosen configuration and all its upstream outputs, including documented
 geographic limitations. The presence of a ZIP or summary alone does not establish publication
-acceptance. Full-run archive sizes should be measured before choosing the publication grouping.
+acceptance.
 
 ## Follow the code
 
@@ -295,3 +345,8 @@ and geographic adjacency, while
 additional polygon connections.
 [`graph_archives.py`](../code/capy_core/build_graphs/graph_archives.py) owns GerryChain
 serialization and direct archive reading.
+
+[`archive_parts.py`](../code/capy_core/build_graphs/archive_parts.py) packages whole areas and
+checks unchanged contents.
+[`archive_inventory.py`](../code/capy_core/build_graphs/archive_inventory.py) checks part
+completeness for both graph resumption and metric reading.

@@ -185,11 +185,15 @@ After assignment, build connected graphs and their population accounting:
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml build-graphs
 ```
 
-Each ZIP contains the selected year's graphs at one geography level, with removed-unit records and
-summary accounting. Read graphs directly from these archives using `read_graph_from_archive()`; no
-extraction step is needed. See the [graph guide](../documentation/graph_construction.md) for
-filtering, connections, and examples. Set `max_parallel_graphs` in the YAML to control concurrent
-graph builds and JSON writes; the national configurations use 28 workers.
+Numbered ZIP parts contain whole study-area graphs for one Census year and geography level, with
+removed-unit records and summary accounting. Completed selections are reused on reruns; set
+`rebuild_graphs: true` after changing input shapes or graph methods. Read graphs directly from these
+archives using `read_graph_from_archive()`; no extraction step is needed. See the [graph
+guide](../documentation/graph_construction.md) for filtering, connections, and examples. Set
+`max_parallel_graphs` in the YAML to control concurrent graph builds and JSON writes; the national
+configurations default to 4 workers. Existing ZIPs can be repackaged without rebuilding graphs using
+`code/repackage_graphs.py --config CONFIG`; see [archive parts and
+repackaging](../documentation/graph_construction.md#archive-parts-and-repackaging).
 
 ## Compute metrics
 

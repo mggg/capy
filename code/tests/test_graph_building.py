@@ -138,13 +138,15 @@ def graph_run(tmp_path):
     return config
 
 
-def test_archive_roundtrip_accounting_and_failed_rerun_removes_stale_outputs(graph_run, tmp_path):
+def test_archive_roundtrip_reuses_completed_graphs_and_failed_rerun_keeps_archives(
+    graph_run, tmp_path, monkeypatch
+):
     summary_df = build_graph_archives(graph_run, tmp_path).set_index("study_area_id")
     assert summary_df.status.to_dict() == {
         "county_10001": "ready",
         "county_10003": "no_units_selected",
     }
-    archive_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
+    archive_path = graph_run.graph_archive_directory / "county_2020_2020_tracts_part01.zip"
     saved_bytes = archive_path.read_bytes()
     graph = read_graph_from_archive(archive_path, "graphs/county_10001.json")
     assert nx.is_connected(graph)
@@ -161,7 +163,15 @@ def test_archive_roundtrip_accounting_and_failed_rerun_removes_stale_outputs(gra
         assert removed_df.TOTPOP.sum() == 7
         assert "graphs/county_10003.json" not in archive.namelist()
 
-    build_graph_archives(graph_run, tmp_path)
+    def reject_rebuilding(*args, **kwargs):
+        pytest.fail("Completed graphs should have been reused")
+
+    with monkeypatch.context() as reuse_check:
+        reuse_check.setattr(
+            "capy_core.build_graphs.run_build.build_area_graph_files", reject_rebuilding
+        )
+        build_graph_archives(graph_run, tmp_path)
+
     assert archive_path.read_bytes() == saved_bytes
     membership_path = (
         graph_run.study_area_directory
@@ -174,7 +184,7 @@ def test_archive_roundtrip_accounting_and_failed_rerun_removes_stale_outputs(gra
     with pytest.raises(ValueError, match="membership identities and populations"):
         build_graph_archives(graph_run, tmp_path)
 
-    assert not archive_path.exists()
+    assert archive_path.read_bytes() == saved_bytes
     assert not (graph_run.graph_archive_directory / "county_2020_summary.parquet").exists()
 
 
@@ -218,11 +228,12 @@ def test_parallel_graph_archive_matches_serial_bytes_and_accounting(
         warn_on_polygon_overlaps
     )
     assert serial_summary_df.status.tolist() == ["ready", "ready"]
-    archive_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
+    archive_path = graph_run.graph_archive_directory / "county_2020_2020_tracts_part01.zip"
     serial_bytes = archive_path.read_bytes()
     capfd.readouterr()
 
     graph_run.max_parallel_graphs = 2
+    graph_run.rebuild_graphs = True
     parallel_summary_df = build_graph_archives(graph_run, tmp_path)
     assert ("Found overlaps" in capfd.readouterr().err) == warn_on_polygon_overlaps
 
@@ -302,7 +313,9 @@ def test_fully_filtered_area_keeps_population_accounting_without_a_graph(graph_r
     assert summary_df.loc["county_10001", "status"] == "no_units_after_population_filter"
     assert summary_df.loc["county_10001", "removed_TOTPOP"] == 41
     assert summary_df.loc["county_10001", "retained_TOTPOP"] == 0
-    with ZipFile(graph_run.graph_archive_directory / "county_2020_2020_tracts.zip") as archive:
+    with ZipFile(
+        graph_run.graph_archive_directory / "county_2020_2020_tracts_part01.zip"
+    ) as archive:
         assert not any(name.startswith("graphs/") for name in archive.namelist())
         assert "removed_units/county_10001.csv" in archive.namelist()
 
@@ -399,3 +412,101 @@ def test_other_warning_text_is_passed_through(message):
 
     assert len(recorded) == 1
     assert str(recorded[0].message) == message
+
+
+def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_run, tmp_path):
+    import shutil
+
+    from capy_core.build_graphs.archive_inventory import read_graph_selection_summary
+    from capy_core.build_graphs.archive_parts import publish_graph_archive_parts
+    from capy_core.compute_metrics.run_metrics import compute_metrics
+
+    build_graph_archives(graph_run, tmp_path)
+    graph_run.metric_results_directory = tmp_path / "metrics"
+    expected_scores_df = compute_metrics(graph_run, tmp_path)
+    base_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
+    first_part_path = base_path.with_stem(f"{base_path.stem}_part01")
+    shutil.copyfile(first_part_path, base_path)
+    source_bytes = base_path.read_bytes()
+
+    with ZipFile(base_path) as source:
+        expected_members = {
+            name: source.read(name) for name in source.namelist() if name != "summary.csv"
+        }
+
+    part_summary_df = publish_graph_archive_parts(base_path, base_path, target_size_bytes=1)
+    assert base_path.read_bytes() == source_bytes
+    assert part_summary_df.archive.nunique() == 2
+    observed_members = {}
+
+    for filename in part_summary_df.archive.unique():
+        with ZipFile(base_path.parent / filename) as part:
+            for name in part.namelist():
+                if name != "summary.csv":
+                    assert name not in observed_members
+                    observed_members[name] = part.read(name)
+
+    assert observed_members == expected_members
+    base_path.unlink()
+    pd.testing.assert_frame_equal(compute_metrics(graph_run, tmp_path), expected_scores_df)
+    last_part_path = base_path.parent / part_summary_df.archive.iloc[-1]
+    last_part_path.unlink()
+
+    with pytest.raises(ValueError, match="Incomplete"):
+        read_graph_selection_summary(base_path, 2020, GeographyLevel.TRACT)
+
+    rebuilt_df = build_graph_archives(graph_run, tmp_path)
+    assert len(rebuilt_df) == 2
+    assert rebuilt_df.archive.nunique() == 1
+    pd.testing.assert_frame_equal(compute_metrics(graph_run, tmp_path), expected_scores_df)
+
+
+def test_failed_repackaging_preserves_source_and_previous_parts(graph_run, tmp_path, monkeypatch):
+    import shutil
+
+    from capy_core.build_graphs import archive_parts
+
+    build_graph_archives(graph_run, tmp_path)
+    base_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
+    part_path = base_path.with_stem(f"{base_path.stem}_part01")
+    shutil.copyfile(part_path, base_path)
+    original_bytes = base_path.read_bytes()
+
+    def reject_changed_member(*args):
+        raise ValueError("Repackaging changed a member")
+
+    monkeypatch.setattr(archive_parts, "check_repackaged_members", reject_changed_member)
+
+    with pytest.raises(ValueError, match="Repackaging changed"):
+        archive_parts.publish_graph_archive_parts(base_path, base_path)
+
+    assert base_path.read_bytes() == original_bytes
+    assert part_path.read_bytes() == original_bytes
+    assert not list(base_path.parent.glob(".graph-package-*"))
+
+
+def test_part_numbers_above_99_are_read_in_numeric_order(tmp_path):
+    from capy_core.build_graphs.archive_inventory import read_graph_selection_summary
+    from capy_core.build_graphs.build_area_graph import GraphStatus
+
+    base_path = tmp_path / "county_2020_2020_tracts.zip"
+
+    for number in range(1, 101):
+        summary_df = pd.DataFrame(
+            [
+                {
+                    "study_area_id": f"county_{number:05d}",
+                    "census_year": 2020,
+                    "geography_level": GeographyLevel.TRACT,
+                    "status": GraphStatus.NO_UNITS_SELECTED,
+                    "graph_member": None,
+                    "archive_part_count": 100,
+                }
+            ]
+        )
+
+        with ZipFile(base_path.with_stem(f"{base_path.stem}_part{number:02d}"), "w") as archive:
+            archive.writestr("summary.csv", summary_df.to_csv(index=False))
+
+    summary_df = read_graph_selection_summary(base_path, 2020, GeographyLevel.TRACT)
+    assert summary_df.study_area_id.tolist() == [f"county_{number:05d}" for number in range(1, 101)]
