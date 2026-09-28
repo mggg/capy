@@ -4,6 +4,7 @@ from capy_core.metrics import (
     property_sum,
     moran,
     edge,
+    entropy,
     half_edge,
 )
 import random
@@ -114,6 +115,24 @@ def test_uniform_graph_edge_and_half_edge(graph):
 
     assert edge(graph, "x_col", "y_col") == (1 - rho + rho**2) / (2 + rho - rho**2)
     assert half_edge(graph, "x_col", "y_col") == 0.5
+
+
+def test_entropy_is_zero_for_uniform_composition():
+    graph = generate_grid(2, 2)
+    for node in graph.nodes():
+        graph.nodes[node]["x_col"] = 40
+        graph.nodes[node]["tot_col"] = 100
+
+    assert math.isclose(entropy(graph, "x_col", "tot_col"), 0, abs_tol=1e-12)
+
+
+def test_entropy_is_one_for_complete_segregation():
+    graph = generate_grid(2, 2)
+    for i, node in enumerate(graph.nodes()):
+        graph.nodes[node]["tot_col"] = 100
+        graph.nodes[node]["x_col"] = 100 if i < 2 else 0
+
+    assert math.isclose(entropy(graph, "x_col", "tot_col"), 1)
 
 
 @pytest.mark.parametrize("grid", map(give_checkerboard_pattern, create_odd_grids()))

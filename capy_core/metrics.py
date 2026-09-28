@@ -79,7 +79,7 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     Columns cover: identifiers (filename, x_col, y_col, tot_col), angle
     metrics, skew/edge/half-edge variants for λ ∈ {0, 0.5, 1, 2, 10, ∞},
     dissimilarity (L1/L2/L10), Frey, Gini, four Moran's I variants,
-    population totals, group shares, and graph size.
+    population totals, group shares, graph size, and aspatial entropy.
     """
     keys = ["filename", "x_col", "y_col", "tot_col", "angle_1", "angle_2", "e_assort", "he_assort"]
     for lam in [0, 0.5, 1, 2, 10, None]:
@@ -93,9 +93,10 @@ def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
     for p in [1, 2, 10]:
         keys.append(f"dissimilarity_{p}")
     keys += [
-        "frey", "gini",
+        # "frey", "gini",
         "moran_A", "moran_P", "moran_L", "moran_M",
-        "moran_D_1", "moran_D_2",
+        # "moran_D_1", "moran_D_2",
+        "entropy",
         "total_population", "total_white", "total_poc", "total_black",
         "share_x", "share_y",
         "total_nodes", "total_edges",
@@ -160,7 +161,7 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
 
     capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
     capy_metrics["angle_2"] = angle_2(graph, x_col, y_col) 
-    
+
     e_assort, he_assort = assortativity(graph, x_col, y_col)
     capy_metrics["e_assort"] = e_assort
     capy_metrics["he_assort"] = he_assort
@@ -194,8 +195,8 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
         capy_metrics[f"dissimilarity_{string}"] = dissimilarity(graph, x_col, y_col, p)
 
 
-    capy_metrics["frey"] = frey(graph, x_col, y_col)
-    capy_metrics["gini"] = gini(graph, x_col, y_col)
+    # capy_metrics["frey"] = frey(graph, x_col, y_col)
+    # capy_metrics["gini"] = gini(graph, x_col, y_col)
 
     moran_cont = moran(graph, x_col, "white_plus_black")
 
@@ -204,9 +205,11 @@ def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
     capy_metrics["moran_L"] = moran_cont["moran_L"]
     capy_metrics["moran_M"] = moran_cont["moran_M"]
 
-    morans_dist = moran_dist(graph, x_col, "white_plus_black", [inv_dist, inv_dist_square])
-    capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
-    capy_metrics["moran_D_2"] = morans_dist["moran_inv_dist_square"]
+    # morans_dist = moran_dist(graph, x_col, "white_plus_black", [inv_dist, inv_dist_square])
+    # capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
+    # capy_metrics["moran_D_2"] = morans_dist["moran_inv_dist_square"]
+
+    capy_metrics["entropy"] = entropy(graph, x_col, "white_plus_black")
 
     capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
     capy_metrics["total_white"] = property_sum(graph, "WHITE")
@@ -356,16 +359,14 @@ def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
     try:
         e_assort = 0.5 * (
             skew_exact(graph, "x_maj", "y_maj", 0) + #zero lambdas strictly speaking superfluous
-            skew_exact(graph, "y_maj", "x_maj", 0)
-        )
+            skew_exact(graph, "y_maj", "x_maj", 0))
     except ZeroDivisionError: #if there are no x majority units, then <<x,x>> = ,x,y. = <<x,x>> + <x,y> = 0
         e_assort = np.nan
 
     try:
         he_assort = 0.5 * (
             skew_prime_exact(graph, "x_maj", "y_maj", 0) +
-            skew_prime_exact(graph, "y_maj", "x_maj", 0)
-        )
+            skew_prime_exact(graph, "y_maj", "x_maj", 0))
     except ZeroDivisionError:
         he_assort = np.nan
     return e_assort, he_assort
@@ -395,6 +396,41 @@ def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: float) -> 
         ) ** (p)
 
     return (1 / ((2 ** (1 / p)) * (x_bar * (p_bar - x_bar)))) * (summation ** (1 / p))
+
+
+def entropy(graph: gerrychain.Graph, x_col: str, tot_col: str) -> float:
+    """Compute the aspatial normalized entropy index for two groups.
+
+    Returns a population-weighted difference between regional binary
+    entropy and unit-level binary entropy, normalized by regional entropy.
+    The index is undefined when the study area has no population or contains
+    only one of the two groups.
+    """
+    x = np.array([graph.nodes[node][x_col] for node in graph.nodes()], dtype=float)
+    total = np.array([graph.nodes[node][tot_col] for node in graph.nodes()], dtype=float)
+    total_population = total.sum()
+    if total_population == 0:
+        return np.nan
+
+    regional_share = x.sum() / total_population
+    if regional_share == 0 or regional_share == 1:
+        return np.nan
+
+    regional_entropy = (
+        -regional_share * np.log(regional_share)
+        - (1 - regional_share) * np.log(1 - regional_share))
+
+    unit_share = np.divide(x, total, out=np.zeros_like(x), where=total != 0) # avoid division by zero for empty units. it's fine to have them as 0, because later on they are weighted by total / total_population, which will be 0 for empty units.
+
+    # to avoid log(0), use a mask to select units with mixed composition and compute entropy only for those units. Pure units (share=1 or share=0) will have entropy=0, which is correct.
+    unit_entropy = np.zeros_like(unit_share)
+    mixed_units = (unit_share > 0) & (unit_share < 1)
+    unit_entropy[mixed_units] = (
+        -unit_share[mixed_units] * np.log(unit_share[mixed_units])
+        - (1 - unit_share[mixed_units]) * np.log(1 - unit_share[mixed_units]))
+
+    expected_entropy = np.sum((total / total_population) * unit_entropy)
+    return 1 - expected_entropy / regional_entropy
 
 
 def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
@@ -582,4 +618,3 @@ def moran_dist(graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: li
         
 if __name__ == "__main__":
     typer.run(main)
-
