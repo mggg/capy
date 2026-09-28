@@ -232,7 +232,8 @@ existing derived files. Raw and processed-population inputs are never modified.
 
 ## Following the code
 
-The `join-geographies` stage in [`reproduce.py`](../code/reproduce.py) calls `join_geography_tables()` in
+The `join-geographies` stage in [`reproduce.py`](../code/reproduce.py) calls
+`join_geography_tables()` in
 [`join_tables.py`](../code/capy_core/join_geographies/join_tables.py). Read that workflow first:
 select inputs, read and prepare one boundary table at a time, join and save its states, then write
 the summaries. The outer workflow checks that each selected state is processed exactly once.

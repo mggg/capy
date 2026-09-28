@@ -24,9 +24,9 @@ Use `code/configs/replication.yaml` for the paper's national CBSA results, or
 `code/configs/max_city.yaml` for the selected-city results. This stage reads only graph archives;
 raw downloads and intermediate population, geography, and membership tables are not needed.
 
-Graph inputs may be an original single ZIP or a complete set of numbered parts. The stage discovers
-parts automatically, checks their combined area inventory, and reads each graph from its recorded
-archive. It still writes one metric table per year and level. See
+Graph inputs may be an original single ZIP or a complete set of numbered parts. The stage
+discovers parts automatically, checks their combined area inventory, and reads each graph from its
+recorded archive. It still writes one metric table per year and level. See
 [archive parts](graph_construction.md#archive-parts-and-repackaging) for naming and conversion.
 
 By default, every supported metric is calculated for both `white_black` and `white_poc`. Set
@@ -43,9 +43,9 @@ metric computation.
 
 ## Use individual metric functions
 
-The functions in `capy_metrics` work independently of the replication pipeline. Each score
-has an array or matrix interface and a graph interface ending in `_from_graph`. Both are public
-and return one floating-point score. Graph functions accept ordinary NetworkX graphs, including
+The functions in `capy_metrics` work independently of the replication pipeline. Each score has an
+array or matrix interface and a graph interface ending in `_from_graph`. Both are public and
+return one floating-point score. Graph functions accept ordinary NetworkX graphs, including
 GerryChain graphs, and take population attribute names rather than assuming the study's column
 names.
 
@@ -165,9 +165,7 @@ receive weight zero; coincident centroids of distinct units make both distance s
 
 ## Metric names and formulas
 
-The population-score notation follows Sections 2.1–2.3 of Aksakal, Duchin, Milosh, and Stephenson,
-_Clustering Propensity: Measuring Segregation in Networks_, September 21, 2026 draft. In
-particular, we use ordinary and weighted inner-product notation throughout:
+We use ordinary and weighted inner-product notation throughout:
 
 $$
 \langle u,v\rangle=\sum_i u_i v_i, \qquad
@@ -225,8 +223,8 @@ $$C=\frac12\left(\frac{a}{a+b}+\frac{c}{c+b}\right).$$
 | `aspatial_capy`   | $a=\langle x,x\rangle$, $b=\langle x,y\rangle$, $c=\langle y,y\rangle$                                         |
 | `capy_exact`      | $a=\langle x,x\rangle_{I+A}-\sum_i x_i$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}-\sum_i y_i$ |
 
-The first score is the paper's aspatial $C_0$: it includes quadratic self-pairs and equals
-one-half when every unit has the same composition. The second counts distinct people, with equal
+Aspatial Capy, $C_0$, includes quadratic self-pairs and equals one-half when every unit has the
+same composition. The second score counts distinct people, with equal
 weight on within-unit and neighboring-unit interactions. Its same-group totals count ordered
 pairs, or twice the number of same-group edges in the exploded graph. Subtracting the population
 removes self-pairs; there is no corresponding subtraction from the between-group inner product.
@@ -407,8 +405,8 @@ input.
 
 ## Following the code
 
-[`capy_metrics/`](../code/capy_metrics/) contains reusable functions organized by metric
-family. Graph functions live beside their numerical counterparts, and neither depends on study
+[`capy_metrics/`](../code/capy_metrics/) contains reusable functions organized by metric family.
+Graph functions live beside their numerical counterparts, and neither depends on study
 configuration or output tables. Shared input checks cover array shapes, numeric counts, and matrix
 alignment; the formulas retain their own mathematical conditions.
 

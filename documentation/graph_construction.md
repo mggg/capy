@@ -42,8 +42,8 @@ reads the polygons for one study area. Download worker settings do not control t
 ## Parallel graph construction
 
 Set `max_parallel_graphs` to choose how many study areas can be built at once. The default is 4;
-use 1 for sequential construction without subprocesses. The national configurations also use 4;
-a machine with ample memory can use 28, as below. The small example uses 1 to avoid worker startup
+use 1 for sequential construction without subprocesses. The national configurations also use 4; a
+machine with ample memory can use 28, as below. The small example uses 1 to avoid worker startup
 overhead.
 
 ```yaml
@@ -52,9 +52,9 @@ max_parallel_graphs: 28
 
 Each worker reads an area's polygons, builds its connected graph, and saves its JSON and
 removed-population CSV. Larger areas start first to reduce the chance of a large block graph
-remaining after the other workers finish. The graph progress bar counts completed areas,
-including their temporary file writes. More workers increase memory use and compete for disk
-reads, so increasing this setting does not guarantee a proportional speedup.
+remaining after the other workers finish. The graph progress bar counts completed areas, including
+their temporary file writes. More workers increase memory use and compete for disk reads, so
+increasing this setting does not guarantee a proportional speedup.
 
 Membership checks and final ZIP assembly remain sequential. After the workers finish, saving and
 packaging bars track compression and ZIP parts in stable study-area order. Worker count and
@@ -102,21 +102,21 @@ repeated. An interrupted publication without an original leaves an incomplete pa
 all configured selections are present. Existing metric values are unchanged; a later metric run
 records the new part filenames in its graph-outcome table.
 
-The metric stage discovers parts automatically and continues to produce one result table per
-year and level. Old unnumbered ZIPs remain readable, and a resumed graph build repackages them
-before reuse. No graph extraction or manual part concatenation is needed.
+The metric stage discovers parts automatically and continues to produce one result table per year
+and level. Old unnumbered ZIPs remain readable, and a resumed graph build repackages them before
+reuse. No graph extraction or manual part concatenation is needed.
 
 ## Population filtering and adjacency
 
 Each node retains its source geographic ID and the four study counts: `TOTPOP`, `WHITE`, `BLACK`,
 and `POC`. `WHITE` and `BLACK` count non-Hispanic residents in the respective race groups; `POC`
-counts everyone except non-Hispanic White residents. See the [population
-definitions](population_processing.md) for the source-specific derivations.
+counts everyone except non-Hispanic White residents. See the
+[population definitions](population_processing.md) for the source-specific derivations.
 
-The graph retains a unit only when `WHITE + BLACK > 0`. Both White–Black and White–POC analysis use
-that same graph. Removed units therefore have zero combined White and Black population, but can
-contain other residents. Their IDs and counts remain in the archive's `removed_units/` files, and
-the summary reports the resulting total/POC population losses. These losses are separate from
+The graph retains a unit only when `WHITE + BLACK > 0`. Both White–Black and White–POC analysis
+use that same graph. Removed units therefore have zero combined White and Black population, but
+can contain other residents. Their IDs and counts remain in the archive's `removed_units/` files,
+and the summary reports the resulting total/POC population losses. These losses are separate from
 unmatched geographic records documented during joining.
 
 GerryChain constructs rook adjacency: two retained polygons are neighbors when their intersection
@@ -139,14 +139,14 @@ method; we do not substitute an interior point for those units. Its frequency an
 data have not been measured. Study-area membership uses interior representative points, and
 component connections use full polygon distances, so neither depends on these saved centroids.
 
-Distinct units can also have coincident centroids, making inverse-distance weights undefined.
-The metrics stage must handle that case explicitly rather than allowing division by zero. Saving
+Distinct units can also have coincident centroids, making inverse-distance weights undefined. The
+metrics stage must handle that case explicitly rather than allowing division by zero. Saving
 centroids does not itself check for coincident locations.
 
 ## Known boundary overlaps
 
-We treat overlapping polygons as neighbors and retain their source outlines and Census counts.
-An overlap is therefore accepted adjacency, not a reason to clip a polygon or remove a connection.
+We treat overlapping polygons as neighbors and retain their source outlines and Census counts. An
+overlap is therefore accepted adjacency, not a reason to clip a polygon or remove a connection.
 This choice does not establish that the historical outlines agree on the exact location of a
 border. Individually invalid polygons still receive the repairs described in the
 [geography joining guide](geography_population_joining.md#geometry-repair).
@@ -158,45 +158,45 @@ warn_on_polygon_overlaps: false
 ```
 
 The default is `true`; `replication.yaml` sets it to `false`. The setting applies inside each
-graph build, including parallel workers, and suppresses only GerryChain's polygon-overlap warnings.
-Other warnings and input validation remain active. Changing this setting does not change geometry,
-adjacency, population counts, saved graph contents, or metrics.
+graph build, including parallel workers, and suppresses only GerryChain's polygon-overlap
+warnings. Other warnings and input validation remain active. Changing this setting does not change
+geometry, adjacency, population counts, saved graph contents, or metrics.
 
-When warnings are enabled, intersections at or below **0.0001 m² (100 mm²)** remain silent.
-Larger intersections are reported, including when a warning also contains smaller pairs. This
-tolerance controls reporting only. Overlap area is not used to estimate population or decide
-whether an edge belongs in the graph.
+When warnings are enabled, intersections at or below **0.0001 m² (100 mm²)** remain silent. Larger
+intersections are reported, including when a warning also contains smaller pairs. This tolerance
+controls reporting only. Overlap area is not used to estimate population or decide whether an edge
+belongs in the graph.
 
 ### Population accounting and overlap evidence
 
 Population belongs to a Census record identified by its geographic ID, not to an area calculated
 from its polygon. When two outlines overlap, the pipeline keeps each record once within its
 study-area graph; it does not copy either population into the other record or add residents for
-the overlapping patch. Graph inputs require unique IDs, membership rows are reconciled with
-joined population tables, and retained plus removed counts must equal the graph's input counts.
-These checks establish record-level accounting. They do not independently verify the Census's
-original enumeration or prove that each outline precisely locates its record's residents.
+the overlapping patch. Graph inputs require unique IDs, membership rows are reconciled with joined
+population tables, and retained plus removed counts must equal the graph's input counts. These
+checks establish record-level accounting. They do not independently verify the Census's original
+enumeration or prove that each outline precisely locates its record's residents.
 
 The complete CBSA overlap inventory covers all 18 supported year/level combinations and 7,056
 area/year/level outcomes. Of those outcomes, 48 lack historical coverage and five have no selected
 units; absent inputs do not establish absence of overlaps. Among retained units, the inventory
 contains 3,393 positive-area pairs, with 235 exceeding the reporting tolerance:
 
-| Inputs | Positive overlap pairs | Above 100 mm² |
-| --- | ---: | ---: |
-| 1980 counties | 58 | 7 |
-| 1980 tracts and BNAs | 219 | 219 |
-| 1990 counties | 61 | 7 |
-| 1990 block groups | 1,369 | 0 |
-| 1990 blocks | 1,686 | 2 |
-| 1990 tracts and every 2000–2020 level | 0 | 0 |
+| Inputs                                | Positive overlap pairs | Above 100 mm² |
+| ------------------------------------- | ---------------------: | ------------: |
+| 1980 counties                         |                     58 |             7 |
+| 1980 tracts and BNAs                  |                    219 |           219 |
+| 1990 counties                         |                     61 |             7 |
+| 1990 block groups                     |                  1,369 |             0 |
+| 1990 blocks                           |                  1,686 |             2 |
+| 1990 tracts and every 2000–2020 level |                      0 |             0 |
 
 Every observed historical pair also overlaps in the original NHGIS files. The source polygons,
 with the existing `buffer(0)` repair applied where invalid, reproduce the joined outlines.
 Parallel construction does not introduce these overlaps. All 219 tract-level pairs cross county
-boundaries between the separate tract and block-numbering-area (BNA) layers. The largest is
-1.09 km² between Fauquier and Stafford counties in the Washington metro; a larger area alone
-does not establish that population records are duplicated.
+boundaries between the separate tract and block-numbering-area (BNA) layers. The largest is 1.09
+km² between Fauquier and Stafford counties in the Washington metro; a larger area alone does not
+establish that population records are duplicated.
 
 These observations concern retained units within the configured CBSAs. They do not cover
 unselected units, units removed by the population filter, boundary gaps, or pairs in different
@@ -211,12 +211,13 @@ County centroid changes affect distance-weighted Moran scores by at most 0.00010
 Duluth's corresponding differences are at most 5.5 × 10⁻¹⁴; Chicago's two distance variants were
 not recomputed.
 
-For 1980 tracts, trimming across all 33 affected metros preserves counts and recomputed memberships
-of retained units, but changes final connections in nine metros. The largest `capy_exact` change
-is 0.001174. A larger Moran change in Florence, approximately −0.018489, arises from a microscopic
-gap introduced by subtraction; applying a common micrometre or millimetre precision grid restores
-the original connection and all non-distance scores. All connection losses in these tract tests
-involve overlaps smaller than 50 m², so area alone does not establish metric insensitivity.
+For 1980 tracts, trimming across all 33 affected metros preserves counts and recomputed
+memberships of retained units, but changes final connections in nine metros. The largest
+`capy_exact` change is 0.001174. A larger Moran change in Florence, approximately −0.018489,
+arises from a microscopic gap introduced by subtraction; applying a common micrometre or
+millimetre precision grid restores the original connection and all non-distance scores. All
+connection losses in these tract tests involve overlaps smaller than 50 m², so area alone does not
+establish metric insensitivity.
 
 These experiments show that clipping can change adjacency without correcting population counts.
 They provide no authoritative replacement border or bound on possible metric error, and national
@@ -225,11 +226,11 @@ overlap connections under the stated adjacency convention rather than applying t
 
 ## Connecting separate components
 
-Filtering can separate previously adjacent units, and islands can already be separate in the source
-geography. The code connects the remaining components with a minimum-distance spanning tree. For
-every candidate component pair, distance means the shortest separation between any of their full
-polygons, not their centroids. Equal distances are resolved by the two geographic IDs in ascending
-order. A graph with `k` initial components receives exactly `k - 1` added edges.
+Filtering can separate previously adjacent units, and islands can already be separate in the
+source geography. The code connects the remaining components with a minimum-distance spanning
+tree. For every candidate component pair, distance means the shortest separation between any of
+their full polygons, not their centroids. Equal distances are resolved by the two geographic IDs
+in ascending order. A graph with `k` initial components receives exactly `k - 1` added edges.
 
 Every edge records `artificial`. It is `false` for geographic adjacency and `true` for an added
 connection. Added edges also record `connection_distance_m` and use `shared_perim: 0.0`, because
@@ -259,23 +260,23 @@ print(graph.number_of_nodes(), graph.number_of_edges())
 
 The returned object is a GerryChain `Graph`. JSON members are written by `Graph.to_json()` and can
 also be extracted and read with `Graph.from_json()`. Because those GerryChain methods accept
-filenames, each worker saves a temporary JSON file for ZIP assembly. Direct archive reading uses the
-same NetworkX adjacency decoder and GerryChain's `Graph.from_networkx()` conversion. Geometries
-remain in the joined GeoParquet inputs rather than being repeated in each graph.
+filenames, each worker saves a temporary JSON file for ZIP assembly. Direct archive reading uses
+the same NetworkX adjacency decoder and GerryChain's `Graph.from_networkx()` conversion.
+Geometries remain in the joined GeoParquet inputs rather than being repeated in each graph.
 
 The graph's metadata identifies its study area, definition vintage, Census year and resolution,
-selected county or place, county membership, and population accounting. County and place IDs retain
-their separate meanings. Missing optional values are saved as JSON `null`.
+selected county or place, county membership, and population accounting. County and place IDs
+retain their separate meanings. Missing optional values are saved as JSON `null`.
 
 ## Accounting and unavailable areas
 
 Each archive contains:
 
-| Member | Contents |
-| --- | --- |
-| `graphs/{study_area_id}.json` | Connected graph for an area with retained units. |
-| `removed_units/{study_area_id}.csv` | IDs and all four counts for units removed by the population filter. |
-| `summary.csv` | Outcomes for this part, total part count, graph filenames, node/edge counts, and input/retained/removed populations. |
+| Member                              | Contents                                                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `graphs/{study_area_id}.json`       | Connected graph for an area with retained units.                                                                     |
+| `removed_units/{study_area_id}.csv` | IDs and all four counts for units removed by the population filter.                                                  |
+| `summary.csv`                       | Outcomes for this part, total part count, graph filenames, node/edge counts, and input/retained/removed populations. |
 
 Summary statuses distinguish four outcomes:
 
@@ -287,14 +288,14 @@ Summary statuses distinguish four outcomes:
 - `historical_coverage_unavailable`: the area is outside supported historical coverage. Counts
   remain blank rather than becoming estimates of zero, and there is no graph member.
 
-An empty outcome does not mean the city has no residents. At county resolution, for example,
-a city can contain no county representative point and therefore receive no county node. This
-happens before the White–Black filter. An area emptied by that filter has
+An empty outcome does not mean the city has no residents. At county resolution, for example, a
+city can contain no county representative point and therefore receive no county node. This happens
+before the White–Black filter. An area emptied by that filter has
 `no_units_after_population_filter` status.
 
-A graph's input counts equal retained plus removed counts for every population column. Counts across
-different study areas or resolutions can describe overlapping residents and must not be summed as
-though they formed one national population.
+A graph's input counts equal retained plus removed counts for every population column. Counts
+across different study areas or resolutions can describe overlapping residents and must not be
+summed as though they formed one national population.
 
 ## Checks and reruns
 
@@ -305,29 +306,30 @@ the saved memberships. This catches newly included or omitted polygons, even for
 marked empty. It then reconciles those memberships with the assignment summary.
 
 Construction reads each area's polygons by geographic ID, checking their populations and selection
-metadata again before filtering. It checks population conservation, connectivity, and the number of
-added edges. These checks do not resolve upstream historical exclusions or independently rerun city
-selection.
+metadata again before filtering. It checks population conservation, connectivity, and the number
+of added edges. These checks do not resolve upstream historical exclusions or independently rerun
+city selection.
 
 Reruns reuse completed year/level selections after checking their inventories, ZIP readability,
 area coverage, and input population counts against the current assignments. A failed run therefore
 keeps earlier completed work. Missing or incomplete selections are rebuilt, while selections
-outside the current configuration are left untouched. The stage removes the run-completion
-summary at startup and writes it again only after all requested selections finish.
+outside the current configuration are left untouched. The stage removes the run-completion summary
+at startup and writes it again only after all requested selections finish.
 
 Reusing an archive does not reconstruct its edges or compare its saved centroids against current
 polygons. If input shapes or graph-construction methods change, set `rebuild_graphs: true` in the
 YAML to replace the selected graphs. The default is `false`. Membership/accounting differences
 stop reuse with an instruction to rebuild; passing those checks alone does not detect every
-upstream change. Change the setting back to `false` after an intentional rebuild to resume normally.
+upstream change. Change the setting back to `false` after an intentional rebuild to resume
+normally.
 
 Keep source files stable during a run. New worker pools import Python modules from disk, so a
-checkout, rebase, or file reorganization while the process is active can interrupt later selections
-even when the parent process already loaded its code.
+checkout, rebase, or file reorganization while the process is active can interrupt later
+selections even when the parent process already loaded its code.
 
 ZIP members use stable ordering and timestamps. Rebuilding unchanged inputs with the same
-configuration and software produces the same contents. Run settings remain in the repository's YAML
-configurations, and `uv.lock` records the dependency versions. Final publication checks must
+configuration and software produces the same contents. Run settings remain in the repository's
+YAML configurations, and `uv.lock` records the dependency versions. Final publication checks must
 still reconcile the chosen configuration and all its upstream outputs, including documented
 geographic limitations. The presence of a ZIP or summary alone does not establish publication
 acceptance.
@@ -337,10 +339,10 @@ acceptance.
 [`run_build.py`](../code/capy_core/build_graphs/run_build.py) coordinates selected inputs, archive
 publication, and accounting.
 [`build_area_graph.py`](../code/capy_core/build_graphs/build_area_graph.py) builds and saves each
-worker's area files. [`read_inputs.py`](../code/capy_core/build_graphs/read_inputs.py)
-reconciles saved memberships with joined polygons.
-[`construct_graph.py`](../code/capy_core/build_graphs/construct_graph.py) owns population filtering
-and geographic adjacency, while
+worker's area files. [`read_inputs.py`](../code/capy_core/build_graphs/read_inputs.py) reconciles
+saved memberships with joined polygons.
+[`construct_graph.py`](../code/capy_core/build_graphs/construct_graph.py) owns population
+filtering and geographic adjacency, while
 [`connect_components.py`](../code/capy_core/build_graphs/connect_components.py) chooses the
 additional polygon connections.
 [`graph_archives.py`](../code/capy_core/build_graphs/graph_archives.py) owns GerryChain

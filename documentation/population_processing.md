@@ -35,10 +35,10 @@ boundaries.
 
 To process all supported modern tables, substitute `code/configs/modern_population.yaml` in both
 commands. That configuration includes counties, tracts, block groups, and blocks for 2000, 2010,
-and 2020, plus the 2020 places used for city selection. `code/configs/replication.yaml` covers
-the paper's CBSA analyses, including counties and tracts in 1980 and all four levels in 1990–2020.
-Use `code/configs/max_city.yaml` for the same years and levels with the additional place inputs
-needed to select cities.
+and 2020, plus the 2020 places used for city selection. `code/configs/replication.yaml` covers the
+paper's CBSA analyses, including counties and tracts in 1980 and all four levels in 1990–2020. Use
+`code/configs/max_city.yaml` for the same years and levels with the additional place inputs needed
+to select cities.
 
 Both commands use the configured years, geography levels, and study-area selections. You can
 narrow processing with `file_path_patterns`, but each selected year still needs its state
@@ -267,8 +267,8 @@ readable names while keeping the saved column labels unchanged.
 Source-specific names stay with their definitions. Census retrieval and processing share
 [`census/table_columns.py`](../code/capy_core/retrieve_data/census/table_columns.py), while the
 historical count and geographic columns are defined in
-[`nhgis/table_columns.py`](../code/capy_core/retrieve_data/nhgis/table_columns.py) using the downloaded
-codebooks. NHGIS dataset and geography selections are named in
+[`nhgis/table_columns.py`](../code/capy_core/retrieve_data/nhgis/table_columns.py) using the
+downloaded codebooks. NHGIS dataset and geography selections are named in
 [`nhgis/identifiers.py`](../code/capy_core/retrieve_data/nhgis/identifiers.py).
 
 Continue with [boundary–population joining](geography_population_joining.md) to attach these
