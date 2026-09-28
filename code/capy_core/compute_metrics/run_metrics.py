@@ -8,8 +8,8 @@ import pandas as pd
 from tqdm import tqdm
 
 from capy_core.assign_study_areas.study_area_columns import MembershipColumn, StudyAreaColumn
+from capy_core.build_graphs.build_area_graph import GraphStatus
 from capy_core.build_graphs.graph_archives import read_graph_from_archive
-from capy_core.build_graphs.run_build import GraphStatus
 from capy_core.data_directories import resolve_separate_output_directory
 from capy_core.geography_types import GeographyLevel
 from capy_core.pipeline_config import PipelineConfig

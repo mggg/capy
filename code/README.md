@@ -188,7 +188,8 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 Each ZIP contains the selected year's graphs at one geography level, with removed-unit records and
 summary accounting. Read graphs directly from these archives using `read_graph_from_archive()`; no
 extraction step is needed. See the [graph guide](../documentation/graph_construction.md) for
-filtering, connections, and examples.
+filtering, connections, and examples. Set `max_parallel_graphs` in the YAML to control concurrent
+graph builds and JSON writes; the national configurations use 28 workers.
 
 ## Compute metrics
 

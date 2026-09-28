@@ -191,6 +191,74 @@ def test_archive_rejects_changed_joined_populations(graph_run, tmp_path):
     assert not list(graph_run.graph_archive_directory.glob("*.zip"))
 
 
+@pytest.mark.parametrize("warn_on_polygon_overlaps", [True, False])
+def test_parallel_graph_archive_matches_serial_bytes_and_accounting(
+    graph_run, tmp_path, capfd, warn_on_polygon_overlaps
+):
+    import warnings
+
+    county_path = graph_run.joined_geography_directory / "2020/counties/DE_2020_geography.parquet"
+    counties_df = gpd.read_parquet(county_path)
+    counties_df.loc[1, "geometry"] = counties_df.loc[0, "geometry"]
+    counties_df.to_parquet(county_path)
+
+    tract_path = graph_run.joined_geography_directory / "2020/tracts/DE_2020_geography.parquet"
+    units_df = gpd.read_parquet(tract_path)
+    units_df.loc[2, "geometry"] = box(0.5, 0, 3, 1)
+    units_df.to_parquet(tract_path)
+    assign_study_areas(graph_run, tmp_path)
+    graph_run.warn_on_polygon_overlaps = warn_on_polygon_overlaps
+    graph_run.max_parallel_graphs = 1
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        serial_summary_df = build_graph_archives(graph_run, tmp_path)
+
+    assert any("Found overlaps" in str(warning.message) for warning in recorded) == (
+        warn_on_polygon_overlaps
+    )
+    assert serial_summary_df.status.tolist() == ["ready", "ready"]
+    archive_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
+    serial_bytes = archive_path.read_bytes()
+    capfd.readouterr()
+
+    graph_run.max_parallel_graphs = 2
+    parallel_summary_df = build_graph_archives(graph_run, tmp_path)
+    assert ("Found overlaps" in capfd.readouterr().err) == warn_on_polygon_overlaps
+
+    pd.testing.assert_frame_equal(serial_summary_df, parallel_summary_df)
+    assert archive_path.read_bytes() == serial_bytes
+    assert not list(graph_run.graph_archive_directory.glob(".graph-build-*"))
+
+
+def test_graph_worker_failure_cleans_temporary_files_and_does_not_publish(
+    graph_run, tmp_path, monkeypatch
+):
+    from capy_core.build_graphs import run_build
+
+    read_memberships = run_build.read_selection_memberships
+
+    def change_population_after_membership_validation(*args):
+        validated_tables = read_memberships(*args)
+        joined_path = graph_run.joined_geography_directory / "2020/tracts/DE_2020_geography.parquet"
+        units_df = gpd.read_parquet(joined_path)
+        units_df.loc[0, "TOTPOP"] += 1
+        units_df.loc[0, "POC"] += 1
+        units_df.to_parquet(joined_path)
+
+        return validated_tables
+
+    monkeypatch.setattr(
+        run_build, "read_selection_memberships", change_population_after_membership_validation
+    )
+    graph_run.max_parallel_graphs = 2
+
+    with pytest.raises(ValueError, match="Joined polygons do not reproduce"):
+        build_graph_archives(graph_run, tmp_path)
+
+    assert not list(graph_run.graph_archive_directory.iterdir())
+
+
 @pytest.mark.parametrize("previously_empty", [False, True])
 def test_newly_selected_polygon_cannot_be_hidden_by_saved_memberships(
     graph_run, tmp_path, previously_empty
@@ -270,6 +338,32 @@ def test_mixed_overlap_warning_keeps_only_larger_pairs_visible():
     assert len(recorded) == 1
     assert "larger_overlap_unit" in str(recorded[0].message)
     assert "tiny_overlap_unit" not in str(recorded[0].message)
+
+
+def test_disabling_overlap_warnings_preserves_graph_and_unrelated_warnings(monkeypatch):
+    import warnings
+
+    units_df = sample_units().iloc[[0, 2]].copy()
+    units_df.geometry = [box(0, 0, 1, 1), box(0.5, 0, 2, 1)]
+
+    with pytest.warns(UserWarning, match="Found overlaps"):
+        expected_graph, expected_removed_df = build_connected_graph(units_df)
+
+    from_geodataframe = Graph.from_geodataframe
+
+    def build_with_unrelated_warning(*args, **kwargs):
+        warnings.warn("Unrelated graph warning", UserWarning)
+        return from_geodataframe(*args, **kwargs)
+
+    monkeypatch.setattr(Graph, "from_geodataframe", build_with_unrelated_warning)
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        graph, removed_df = build_connected_graph(units_df, warn_on_polygon_overlaps=False)
+
+    assert [str(warning.message) for warning in recorded] == ["Unrelated graph warning"]
+    assert nx.utils.graphs_equal(graph, expected_graph)
+    pd.testing.assert_frame_equal(removed_df, expected_removed_df)
 
 
 def test_unexpected_overlap_respects_gerrychain_module_error_filter():

@@ -183,3 +183,9 @@ cython_debug/
 
 # Final graph release archives are intentionally versioned.
 !/data/graphs/*.zip
+
+# Graph construction scratch files and run-completion accounting.
+/data/graphs/.retrieval-*
+/data/graphs/*_summary.parquet
+
+/data/graphs/.graph-build*

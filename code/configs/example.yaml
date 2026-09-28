@@ -85,6 +85,17 @@ study_area_directory: data/processed/study_areas
 # One archive per node year/level, with area type and definition vintage in its name.
 graph_archive_directory: data/graphs
 
+# Maximum simultaneous graph builds and JSON writes; independent of download workers.
+# Use 1 for sequential work. More workers hold more polygon/graph data in memory.
+# Default: 4. Positive integer; 28 is suitable to try on a 28-core, 170 GB machine.
+# Membership checks and final ZIP assembly use one process.
+max_parallel_graphs: 4
+
+# Report polygon overlaps above 100 mm² during graph construction. Default: true.
+# Set false to suppress only overlap warnings, in serial and parallel runs. Overlaps still
+# count as adjacency; geometry, populations, validation, and other warnings are unchanged.
+warn_on_polygon_overlaps: true
+
 # Metric Parquet tables; default results/metrics, relative to the repository root.
 # Keep this separate from all data input folders. Outputs add study-area type/vintage.
 # Reruns replace that folder's tables; use a different root to keep separate metric runs.

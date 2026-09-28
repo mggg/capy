@@ -91,6 +91,11 @@ class PipelineConfig(BaseModel):
         graph_archive_directory (Path): Connected graph ZIPs and completion accounting. Defaults
             to data/graphs. Relative paths start at the repository root; keep it separate from
             all input folders. Archives are grouped by area type/vintage, node year, and level.
+        max_parallel_graphs (int): Maximum simultaneous graph builds and JSON writes. Defaults
+            to 4; must be at least 1. Use 1 to run without subprocesses. Each worker holds one
+            area's polygons and graph. ZIP assembly and membership checks remain sequential.
+        warn_on_polygon_overlaps (bool): Report graph polygon overlaps above 100 mm². Defaults
+            to True. False suppresses overlap warnings only; adjacency and counts are unchanged.
         metric_results_directory (Path): Per-area scores, graph accounting, and complete-history
             averages. Defaults to results/metrics. Relative paths start at the repository root;
             keep it separate from all data inputs. Outputs are grouped by study-area type/vintage.
@@ -144,6 +149,8 @@ class PipelineConfig(BaseModel):
     joined_geography_directory: Path = Path("data/processed/geography")
     study_area_directory: Path = Path("data/processed/study_areas")
     graph_archive_directory: Path = Path("data/graphs")
+    max_parallel_graphs: int = Field(default=4, ge=1)
+    warn_on_polygon_overlaps: bool = True
     metric_results_directory: Path = Path("results/metrics")
     population_comparisons: tuple[PopulationComparison, ...] = Field(
         default=tuple(PopulationComparison), min_length=1

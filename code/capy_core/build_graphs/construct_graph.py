@@ -16,7 +16,7 @@ from .connect_components import GraphEdgeAttribute, connect_graph_components
 
 # NOTE: Historical NHGIS outlines contain microscopic source slivers; all measured 1990
 # CBSA block-group overlaps were below 100 mm². At this scale we suppress warning noise,
-# not geometry or connections. Larger overlaps remain visible; see the graph guide.
+# not geometry or connections. Larger overlaps are reported when warnings are enabled.
 MAX_SILENT_OVERLAP_AREA_M2 = 0.0001  # 100 mm², measured in the graph's metre CRS.
 OVERLAP_WARNING_PREFIX = "Found overlaps among the given polygons. Indices of overlaps: "
 
@@ -28,17 +28,22 @@ class GraphNodeAttribute(StrEnum):
     CENTROID_Y = "centroid_y"
 
 
-def build_connected_graph(units_df: gpd.GeoDataFrame) -> tuple[Graph, pd.DataFrame]:
+def build_connected_graph(
+    units_df: gpd.GeoDataFrame, *, warn_on_polygon_overlaps: bool = True
+) -> tuple[Graph, pd.DataFrame]:
     """Build a rook-adjacency graph, retaining units with positive White-plus-Black population.
 
     Both White–Black and White–POC analysis use this graph. Units removed by the filter can have
     other residents; their identities and all four population counts are returned separately.
-    Geographic edges require positive shared perimeter. Added component connections are marked
-    so removing those edges recovers the retained units' geographic adjacency.
+    Geographic edges require a positive-length intersection, including polygon overlaps. Counts
+    remain attached to unique Census records; overlapping shapes do not duplicate their counts.
+    Added component connections are marked so removing them recovers geographic adjacency.
 
     Args:
         units_df (gpd.GeoDataFrame): Whole selected polygons with unique string GEOIDs and the four
             study population columns. A defined CRS and valid polygon geometries are required.
+        warn_on_polygon_overlaps (bool): Report overlaps above 100 mm²; defaults to True. False
+            suppresses GerryChain overlap warnings without changing the graph or other warnings.
 
     Returns:
         tuple[Graph, pd.DataFrame]: Connected graph and removed-unit counts. The graph records
@@ -72,7 +77,12 @@ def build_connected_graph(units_df: gpd.GeoDataFrame) -> tuple[Graph, pd.DataFra
         with warnings.catch_warnings(record=True) as graph_warnings:
             # Islands are expected before the explicit component-connection step.
             warnings.filterwarnings("ignore", message="Found islands.*", category=UserWarning)
-            warnings.filterwarnings("always", message="Found overlaps.*", category=UserWarning)
+            warnings.filterwarnings(
+                "always" if warn_on_polygon_overlaps else "ignore",
+                message=r"Found overlaps among the given polygons\. Indices of overlaps: ",
+                category=UserWarning,
+                module=r"gerrychain\.graph\.adjacency$",
+            )
             graph = Graph.from_geodataframe(
                 retained_units_df,
                 adjacency="rook",

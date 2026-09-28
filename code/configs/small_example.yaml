@@ -20,6 +20,10 @@ study_area_directory: data/processed/study_areas
 # One archive per node year/level, with area type and definition vintage in its name.
 graph_archive_directory: data/graphs
 
+# Maximum simultaneous graph builds and JSON writes; independent of download workers.
+# Use 1 for sequential work. More workers hold more polygon/graph data in memory.
+max_parallel_graphs: 1
+
 # Scores and complete-history averages; defaults to all metrics and both population comparisons.
 # See example.yaml for metric selection; distance variants can be slow for large block graphs.
 metric_results_directory: results/metrics

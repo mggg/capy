@@ -8,22 +8,16 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 from gerrychain import Graph
 from networkx.readwrite import json_graph
 
-from capy_core.stage_files import stage_file
 
-
-def write_graph_to_archive(
-    archive: ZipFile, member_name: str, graph: Graph, temporary_directory: Path
-) -> None:
-    """Write a graph with GerryChain's serializer, using one disposable JSON file.
+def write_graph_json(graph: Graph, output_path: Path) -> None:
+    """Save a graph with stable node/edge ordering using GerryChain's JSON serializer.
 
     Args:
-        archive (ZipFile): Open output archive owned by the caller.
-        member_name (str): JSON member name within the archive.
         graph (Graph): Graph with JSON-compatible attributes. Polygons are omitted.
-        temporary_directory (Path): Folder for the temporary JSON required by GerryChain's API.
+        output_path (Path): Temporary JSON path owned by the selection archive builder.
 
     Raises:
-        OSError: Temporary-file or archive writing fails.
+        OSError: Writing fails; the caller owns cleanup of incomplete files.
         TypeError: An attribute is not supported by GerryChain's JSON serializer.
     """
     ordered_graph = Graph()
@@ -35,14 +29,27 @@ def write_graph_to_archive(
         for first_id, second_id in sorted_edges
     )
 
-    with stage_file(temporary_directory) as temporary_path:
-        ordered_graph.to_json(str(temporary_path))
+    ordered_graph.to_json(str(output_path))
 
-        with (
-            temporary_path.open("rb") as json_file,
-            archive.open(build_zip_member(member_name), "w", force_zip64=True) as archive_member,
-        ):
-            shutil.copyfileobj(json_file, archive_member)
+
+def write_file_to_archive(archive: ZipFile, member_path: Path, temporary_directory: Path) -> None:
+    """Stream a completed temporary file into a compressed ZIP member with a fixed timestamp.
+
+    Args:
+        archive (ZipFile): Open ZIP, owned by the caller and written by one process only.
+        member_path (Path): Path relative to temporary_directory, also used as the ZIP member name.
+        temporary_directory (Path): Selection-owned folder containing the completed file.
+
+    Raises:
+        OSError: Reading the temporary file or writing the ZIP fails.
+    """
+    with (
+        (temporary_directory / member_path).open("rb") as source,
+        archive.open(
+            build_zip_member(member_path.as_posix()), "w", force_zip64=True
+        ) as destination,
+    ):
+        shutil.copyfileobj(source, destination)
 
 
 def build_zip_member(member_name: str) -> ZipInfo:
