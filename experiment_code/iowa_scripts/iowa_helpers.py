@@ -173,13 +173,13 @@ def plot_metric_scatterplots(real_rhos, capys, morans):
     xmin = math.floor(min(real_rhos) / rho_step) * rho_step
     xmax = math.ceil(max(real_rhos) / rho_step) * rho_step
 
-    moran_step = 0.2
-    moran_ymin = math.floor(min(morans) / moran_step) * moran_step
-    moran_ymax = math.ceil(max(morans) / moran_step) * moran_step
+    moran_step = 0.4
+    moran_ymin = -1
+    moran_ymax = 1
 
-    capy_step = 0.1
-    capy_ymin = math.floor(min(capys) / capy_step) * capy_step
-    capy_ymax = math.ceil(max(capys) / capy_step) * capy_step
+    capy_step = 0.2
+    capy_ymin = 0
+    capy_ymax = 1
 
     #scatterplotting
     fig_moran, ax_moran = plt.subplots(figsize=(10, 10))
@@ -187,7 +187,7 @@ def plot_metric_scatterplots(real_rhos, capys, morans):
     ax_moran.set_xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
     ax_moran.set_xlim(xmin, xmax)
     ax_moran.set_yticks(np.arange(moran_ymin, moran_ymax + moran_step/2, moran_step))
-    ax_moran.set_ylim(moran_ymin - 0.02, moran_ymax)
+    ax_moran.set_ylim(-1.05, 1)
     fig_moran.tight_layout()
 
     fig_capy, ax_capy = plt.subplots(figsize=(10, 10))
@@ -195,7 +195,7 @@ def plot_metric_scatterplots(real_rhos, capys, morans):
     ax_capy.set_xticks(np.arange(xmin, xmax + rho_step/2, rho_step))
     ax_capy.set_xlim(xmin, xmax)
     ax_capy.set_yticks(np.arange(capy_ymin, capy_ymax + capy_step/2, capy_step))
-    ax_capy.set_ylim(capy_ymin - 0.02, capy_ymax)
+    ax_capy.set_ylim(-0.05, 1)
     fig_capy.tight_layout()
 
     return fig_moran, ax_moran, fig_capy, ax_capy
