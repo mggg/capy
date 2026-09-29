@@ -2,9 +2,10 @@
 
 This guide explains how to choose the pipeline's inputs, where they come from, and how retrieval
 checks them before saving. Each input's origin and local filename are recorded in the Python
-definitions under [`code/national_pipeline/retrieve_data/`](../code/national_pipeline/retrieve_data/), while the
-raw files themselves are ignored by Git. For commands to run retrieval, see the
-[run guide](../code/README.md).
+definitions under
+[`code/national_pipeline/retrieve_data/`](../../code/national_pipeline/retrieve_data/), while the
+raw files themselves are ignored by Git. For commands to run retrieval, see the [run
+guide](../../code/README.md).
 
 ## Contents
 
@@ -17,7 +18,7 @@ raw files themselves are ignored by Git. For commands to run retrieval, see the
 - [NHGIS request comparisons](#nhgis-request-comparisons)
 - [NHGIS table layout](#nhgis-table-layout)
 - [NHGIS 1980 geographic subareas](#nhgis-1980-geographic-subareas)
-- [Following the code](#following-the-code)
+- [Stage workflow and function responsibilities](#stage-workflow-and-function-responsibilities)
 - [Basic checks](#basic-checks)
 - [Sources and coverage](#sources-and-coverage)
 - [Reusing local files](#reusing-local-files)
@@ -26,16 +27,16 @@ raw files themselves are ignored by Git. For commands to run retrieval, see the
 ## Choosing the data
 
 Choose the Census years and geographic units for a run with `census_geography_years` and
-`census_geography_levels`, using the commented [`example.yaml`](../code/configs/example.yaml) for
+`census_geography_levels`, using the commented [`example.yaml`](../../code/configs/example.yaml) for
 settings and examples. These selections apply to both population tables and boundaries, whether
 supplied by Census or NHGIS. To define the study areas, `study_area_type` and `study_area_vintage`
-add the necessary population and boundary inputs: counties for every mode, and 2020 places for
-`max_city`. Here, _vintage_ means the year of the geography used to define those areas, which can
-differ from the population year.
+add the necessary population and boundary inputs: counties for every mode, plus 2020 places and
+blocks for `max_city`, which ranks cities by block population. Here, _vintage_ means the year of
+the geography used to define those areas, which can differ from the population year.
 
-For example, 1990 tracts with `max_city` and vintage 2020 require 1990 tract data plus 2020 county
-and place data. Unsupported 1980 block and block-group combinations are left out. If no supported
-year and geography combination remains, the run stops before downloading any files.
+For example, 1990 tracts with `max_city` and vintage 2020 require 1990 tract data plus 2020 county,
+place, and block data. Unsupported 1980 block and block-group combinations are left out. If no
+supported year and geography combination remains, the run stops before downloading any files.
 
 Metro study areas always use the March 2020 county-membership workbook, even when the boundary
 vintage changes. The retrieval configuration therefore offers no setting to substitute a different
@@ -115,9 +116,10 @@ configured Census folder. Filename selection patterns must follow this layout, t
 settings does not move existing raw files or saved NHGIS submission records.
 
 Settings omitted from the YAML use the defaults in
-[`pipeline_config.py`](../code/national_pipeline/pipeline_config.py). You can enable offline mode with
-`--offline` even when the YAML setting is false. For the checksum command, `--output` overrides
-`raw_checksums_file`, with a relative path starting at the directory where you run the command.
+[`pipeline_config.py`](../../code/national_pipeline/pipeline_config.py). You can enable offline mode
+with `--offline` even when the YAML setting is false. For the checksum command, `--output`
+overrides `raw_checksums_file`, with a relative path starting at the directory where you run the
+command.
 
 Use each raw-data directory for one retrieval run at a time, with parallel workers writing to
 separate file destinations within that run. Independent runs sharing a directory are not
@@ -129,12 +131,12 @@ Change the Python request definitions when you need different tables, variables,
 products. Use the YAML configuration to select among the supported years and geography levels.
 
 In Python, `GeographyLevel` and `StudyAreaType` are enums, or named choices with fixed values,
-defined in [`geography_types.py`](../code/national_pipeline/geography_types.py). For example, Python uses
-`GeographyLevel.BLOCK_GROUP`, while YAML uses its string value, `block_groups`. Retrieval then
-translates these choices into provider names: blocks use `block` in Census population queries and
-`tabblock` or `tabblock20` in TIGER product names. The same distinction applies to study-area
-choices such as `max_city`. States and places supply supporting data but are not available as the
-units represented by graph nodes.
+defined in [`geography_types.py`](../../code/national_pipeline/geography_types.py). For example,
+Python uses `GeographyLevel.BLOCK_GROUP`, while YAML uses its string value, `block_groups`.
+Retrieval then translates these choices into provider names: blocks use `block` in Census
+population queries and `tabblock` or `tabblock20` in TIGER product names. The same distinction
+applies to study-area choices such as `max_city`. States and places supply supporting data but are
+not available as the units represented by graph nodes.
 
 For Census datasets, `CensusFileRequest` uses `CensusDataset.PL_94_171` or
 `CensusDataset.SUMMARY_FILE_1`, defined beside the request record with the API values `pl` and
@@ -186,30 +188,30 @@ move the file for you.
 
 Edit the appropriate retrieval definition module:
 
-- [`census/build_requests.py`](../code/national_pipeline/retrieve_data/census/build_requests.py): the
-  complete Census input selection, PL/SF1 variables, and table filename rules. The 2010 block
-  queries use county codes read from the retrieved 2010 county tables.
+- [`census/build_requests.py`](../../code/national_pipeline/retrieve_data/census/build_requests.py):
+  the complete Census input selection, the PL/SF1 variable lists assembled from the column
+  definitions in `census/table_columns.py`, and table filename rules.
 - [`census/build_published_file_requests.py`][published-requests]: Census TIGER files, original
   1990 block references, population reference tables, and metro membership.
-- [`nhgis/build_requests.py`](../code/national_pipeline/retrieve_data/nhgis/build_requests.py): named
-  population and boundary extracts.
+- [`nhgis/build_requests.py`](../../code/national_pipeline/retrieve_data/nhgis/build_requests.py):
+  named population and boundary extracts.
 
-[`prepare_file_requests.py`](../code/national_pipeline/retrieve_data/prepare_file_requests.py) contains
-`build_raw_file_requests(config)` and `select_raw_file_requests()`. The first builds the run's
-input list in destination-path order; the second applies the configured filename patterns. Neither
-reads files nor contacts APIs. Shared state FIPS codes are defined in
-[`state_codes.py`](../code/national_pipeline/retrieve_data/state_codes.py), with their coverage documented
-beside the list. Records in
-[`raw_file_requests.py`](../code/national_pipeline/retrieve_data/raw_file_requests.py) describe Census
-years, datasets, variables, and geographies; NHGIS table or boundary selections; or public URLs.
-Census and NHGIS retrieval translate these records into each API's field names.
+[`prepare_file_requests.py`](../../code/national_pipeline/retrieve_data/prepare_file_requests.py)
+contains `build_raw_file_requests(config)` and `select_raw_file_requests()`. The first builds the
+run's input list in destination-path order; the second applies the configured filename patterns.
+Neither reads files nor contacts APIs. Shared state FIPS codes are defined in
+[`state_codes.py`](../../code/national_pipeline/retrieve_data/state_codes.py), with their coverage
+documented beside the list. Records in
+[`raw_file_requests.py`](../../code/national_pipeline/retrieve_data/raw_file_requests.py) describe
+Census years, datasets, variables, and geographies; NHGIS table or boundary selections; or public
+URLs. Census and NHGIS retrieval translate these records into each API's field names.
 
 ## API documentation and request addresses
 
-| Service                  | Official documentation                                                                                                                                                               | Where this repository makes requests                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Census population tables | [API user guide](https://www.census.gov/data/developers/guidance/api-user-guide.html) and [2010 PL geographic query examples](https://api.census.gov/data/2010/dec/pl/examples.html) | [`census/retrieve_tables.py`](../code/national_pipeline/retrieve_data/census/retrieve_tables.py)                  |
-| NHGIS extracts           | [NHGIS API guide](https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/)                                                                                                        | [`nhgis/retrieve_extract.py`](../code/national_pipeline/retrieve_data/nhgis/retrieve_extract.py), using `ipumspy` |
+| Service                  | Official documentation                                                                                                                                                               | Where this repository makes requests                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Census population tables | [API user guide](https://www.census.gov/data/developers/guidance/api-user-guide.html) and [2010 PL geographic query examples](https://api.census.gov/data/2010/dec/pl/examples.html) | [`census/retrieve_tables.py`](../../code/national_pipeline/retrieve_data/census/retrieve_tables.py)                  |
+| NHGIS extracts           | [NHGIS API guide](https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/)                                                                                                        | [`nhgis/retrieve_extract.py`](../../code/national_pipeline/retrieve_data/nhgis/retrieve_extract.py), using `ipumspy` |
 
 The Census table address is constructed once, in `download_census_table()`:
 `https://api.census.gov/data/{census_year}/dec/{dataset}`. The dataset is `pl` or `sf1`.
@@ -230,16 +232,18 @@ and destination can be read together.
 ## Census population variable guide
 
 Edit Census column definitions in
-[`census/table_columns.py`](../code/national_pipeline/retrieve_data/census/table_columns.py). It names the
-population columns for each year and dataset, along with the geographic fields. Retrieval and
-processing share these definitions so a requested count keeps the same meaning when processed.
+[`census/table_columns.py`](../../code/national_pipeline/retrieve_data/census/table_columns.py). It
+names the population columns for each year and dataset, along with the geographic fields.
+Retrieval and processing share these definitions so a requested count keeps the same meaning when
+processed.
 
-The strings in `POPULATION_VARIABLES_BY_YEAR` and `BLOCK_GROUP_VARIABLES_2000` are Census API
-column identifiers. They select the columns to download, not filters on which residents to
-include. For example, `get=NAME,P1_001N,P2_005N,P2_006N` requests an area's name, total
+[`census/build_requests.py`](../../code/national_pipeline/retrieve_data/census/build_requests.py)
+joins these definitions into `POPULATION_VARIABLES_BY_YEAR` and `BLOCK_GROUP_VARIABLES_2000`, whose
+strings are Census API column identifiers. They select the columns to download, not filters on which
+residents to include. For example, `get=NAME,P1_001N,P2_005N,P2_006N` requests an area's name, total
 population, non-Hispanic White population, and non-Hispanic Black population from the 2020 PL
-dataset. The `for` and `in` query parameters select geographic units, such as tracts within a
-state. The response also includes the geographic code columns needed to identify each row.
+dataset. The `for` and `in` query parameters select geographic units, such as tracts within a state.
+The response also includes the geographic code columns needed to identify each row.
 
 PL 94-171 is the Census redistricting data product; SF1 is Summary File 1. This pipeline selects
 SF1 for 2000 block groups and PL for its other modern population inputs. Codes must be interpreted
@@ -281,7 +285,7 @@ population.
 The six single-race counts plus the two-or-more-races count partition the total population. Those
 columns support checks of population totals; the Hispanic and non-Hispanic columns describe
 overlapping subsets and must not be added to that race sum. Retrieval saves these columns
-unchanged. The [population-processing stage](population_processing.md) derives the study fields
+unchanged. The [population-processing stage](02_population_processing.md) derives the study fields
 and performs these checks for modern Census tables.
 
 ## NHGIS request comparisons
@@ -367,15 +371,15 @@ count would count residents twice. Urban and rural do not overlap each other, bu
 component records, check that they refer to the same geographic area and population category. If a
 value is missing, it cannot be assumed to represent zero population.
 
-## Following the code
+## Stage workflow and function responsibilities
 
-The `retrieve` stage in [`reproduce.py`](../code/reproduce.py) starts retrieval by calling
+The `retrieve` stage in [`reproduce.py`](../../code/reproduce.py) starts retrieval by calling
 `retrieve_raw_data(config, repository)` in
-[`retrieve_files.py`](../code/national_pipeline/retrieve_data/retrieve_files.py), which builds the input
-list and applies the configured filename filters. From there, `retrieve_raw_file()` handles each
-file, checking an existing copy or downloading a missing one. A new file receives its final name
-only after passing the format checks, a local step the code calls _publication_ without uploading
-or releasing the file.
+[`retrieve_files.py`](../../code/national_pipeline/retrieve_data/retrieve_files.py), which builds
+the input list and applies the configured filename filters. From there, `retrieve_raw_file()`
+handles each file, checking an existing copy or downloading a missing one. A new file receives its
+final name only after passing the format checks, a local step the code calls _publication_ without
+uploading or releasing the file.
 
 For 2010 block queries, `prepare_download_batches_with_2010_counties_first()` puts the required
 county tables in a first batch, which the runner downloads before starting the dependent block
@@ -392,31 +396,31 @@ HTTP 204 with an empty body. Supplying state, county, and tract as separate `in`
 the same result. Replacing the county wildcard with `county:001,003,005` returned HTTP 200 and
 24,115 block rows totaling 897,934 residents.
 
-For that reason, 2010 block requests list counties explicitly. The code reads the county codes
-from the retrieved 2010 county table and saves each state's block response as
-`2010/blocks/<state>/state.json` beneath the configured Census folder. Block requests for 2000 and
-2020 also retrieve a state at a time, using county wildcards.
+For that reason, 2010 block requests list counties explicitly. At download time,
+`census/retrieve_tables.py` reads the county codes from the retrieved 2010 county table and saves
+each state's block response as `2010/blocks/<state>/state.json` beneath the configured Census
+folder. Block requests for 2000 and 2020 also retrieve a state at a time, using county wildcards.
 
 The reusable retrieval operations live under
-[`national_pipeline/retrieve_data/`](../code/national_pipeline/retrieve_data/):
+[`national_pipeline/retrieve_data/`](../../code/national_pipeline/retrieve_data/):
 
-| Module                                                                                   | Responsibility                                                                                               |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [`retrieve_files.py`](../code/national_pipeline/retrieve_data/retrieve_files.py)                 | Select inputs, retrieve files in parallel, and recheck pending extracts.                                     |
-| [`retrieve_raw_file.py`](../code/national_pipeline/retrieve_data/retrieve_raw_file.py)           | Reuse or download one file; retry broken transfers and check the file before saving it under its final name. |
-| [`census/retrieve_tables.py`](../code/national_pipeline/retrieve_data/census/retrieve_tables.py) | Prepare county prerequisites, construct Census queries, and download PL/SF1 JSON responses.                  |
-| [`nhgis/retrieve_extract.py`](../code/national_pipeline/retrieve_data/nhgis/retrieve_extract.py) | Submit or resume NHGIS extracts, compare saved requests, and download available archives.                    |
-| [`http_transport.py`](../code/national_pipeline/retrieve_data/http_transport.py)                 | Read HTTP responses in chunks, handle rate limits, and check downloaded byte counts.                         |
+| Module                                                                                           | Responsibility                                                                                               |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| [`retrieve_files.py`](../../code/national_pipeline/retrieve_data/retrieve_files.py)                 | Select inputs, retrieve files in parallel, and recheck pending extracts.                                     |
+| [`retrieve_raw_file.py`](../../code/national_pipeline/retrieve_data/retrieve_raw_file.py)           | Reuse or download one file; retry broken transfers and check the file before saving it under its final name. |
+| [`census/retrieve_tables.py`](../../code/national_pipeline/retrieve_data/census/retrieve_tables.py) | Prepare county prerequisites, construct Census queries, and download PL/SF1 JSON responses.                  |
+| [`nhgis/retrieve_extract.py`](../../code/national_pipeline/retrieve_data/nhgis/retrieve_extract.py) | Submit or resume NHGIS extracts, compare saved requests, and download available archives.                    |
+| [`http_transport.py`](../../code/national_pipeline/retrieve_data/http_transport.py)                 | Read HTTP responses in chunks, handle rate limits, and check downloaded byte counts.                         |
 
-[`nhgis/extract_definition.py`](../code/national_pipeline/retrieve_data/nhgis/extract_definition.py)
+[`nhgis/extract_definition.py`](../../code/national_pipeline/retrieve_data/nhgis/extract_definition.py)
 translates NHGIS requests and compares them with the prepared extract. All downloads use
-[`stage_files.py`](../code/national_pipeline/stage_files.py) to manage temporary files and move completed
-files to their final names.
+[`stage_files.py`](../../code/national_pipeline/stage_files.py) to manage temporary files and move
+completed files to their final names.
 
-When NHGIS returns a pending extract, the run saves its extract number and rechecks it after the
-initial downloads, as described in the [run guide](../code/README.md#run-retrieval). Those records
-also let a later run resume without submitting the extracts again if the wait limit expires or the
-run is interrupted.
+Each NHGIS submission saves its extract number immediately. When the extract is still pending, the
+run rechecks it after the initial downloads, as described in the [run
+guide](../../code/README.md#run-retrieval). Those records also let a later run resume without
+submitting the extracts again if the wait limit expires or the run is interrupted.
 
 Before reusing an NHGIS archive, retrieval compares any saved submission with the current request.
 A mismatch leaves both files unchanged and reports their paths, so intentionally changed
@@ -466,13 +470,14 @@ processing and geographic joins. Retrieval does not compare checksums.
 | Original TIGER 1992 county archives   |     5 | Reconstruction of omitted 1980 BNA outlines                         |
 | Original 1990 block references        |    12 | STF1B and PL evidence for unmatched empty land blocks               |
 | NHGIS extract archives                |    14 | 1980/1990 populations and boundaries                                |
-| Published population reference tables |     8 | Published totals for checking population counts and definitions     |
+| Published population reference tables |     7 | Published totals for checking population counts and definitions     |
 | March 2020 metro delineation workbook |     1 | Metro membership definitions for geographic assignment              |
 
-The full configuration requests 1,239 files across the source families above. Its 676 modern
-population tables cover the 50 states, DC, and Puerto Rico, with one response per state for each
-required year and geography level, including 2020 places. The 2000 block-group tables use SF1,
-while the other modern population inputs use PL 94-171.
+These counts describe `code/configs/max_city.yaml`, the most complete configuration, which requests
+1,238 files. `replication.yaml` selects the same years and levels without the 2020 places used to
+choose cities, for 1,134 files. The 676 modern population tables cover the 50 states, DC, and Puerto
+Rico, with one response per state for each required year and geography level, including 2020 places.
+The 2000 block-group tables use SF1, while the other modern population inputs use PL 94-171.
 
 For boundaries, the 2000 and 2010 census years use the recorded TIGER2010 products, and 2020 uses
 TIGER2020. Historical county boundaries come from NHGIS TL2008 products, while the supported
@@ -512,32 +517,31 @@ want to reuse them under a different layout.
 ## Published raw checksums
 
 The raw-data collection is too large to publish on GitHub. Instead, maintainers publish SHA-256
-checksums in [`data/raw_checksums.sha256`](../data/raw_checksums.sha256) as a reference for
+checksums in [`data/raw_checksums.sha256`](../../data/raw_checksums.sha256) as a reference for
 investigating differences in replication results. Each checksum identifies a file's exact bytes,
-allowing comparison with a local copy. The pipeline neither generates this list nor compares
-downloaded files with it automatically, and checksum comparison is not required to run the
-pipeline.
+allowing comparison with a local copy. Pipeline runs neither update this list nor compare
+downloaded files with it, and checksum comparison is not required to run the pipeline.
 
 Maintainers can record the completed raw inputs explicitly:
 
 ```bash
 uv run --locked python code/record_raw_checksums.py \
-    --config code/configs/replication.yaml
+    --config code/configs/max_city.yaml
 ```
 
 The command writes SHA-256 digests to `raw_checksums_file`, or the path supplied by `--output`,
 alongside filenames relative to the configured `raw_data_directory` (`data/raw/` by default).
 Entries follow destination-path order and describe the files actually present, with an error if
 any selected input cannot be read. The command selects filenames from the request definitions
-without downloading files or requiring the saved county tables used by 2010 block retrieval. Use
-the full configuration for the published reference, since a subset configuration records only that
-subset.
+without downloading files or requiring the saved county tables used by 2010 block retrieval. The
+published reference uses `max_city.yaml` because it includes every input the other national
+configurations request; a narrower configuration records only its own subset.
 
 NHGIS can change archive names or packaging between extracts and accounts. A different archive
 checksum establishes different bytes, not necessarily different population values. If replication
 results differ, investigate the relevant data contents as well as the archive packaging.
 
-[published-requests]: ../code/national_pipeline/retrieve_data/census/build_published_file_requests.py
+[published-requests]: ../../code/national_pipeline/retrieve_data/census/build_published_file_requests.py
 [nhgis-extract-fields]: https://developer.ipums.org/docs/v2/workflows/create_extracts/nhgis_data/#data-extract-request-fields
 [1980-metadata]: https://api.ipums.org/metadata/nhgis/datasets/1980_STF1?version=2
 [working-paper-56]: https://www.census.gov/library/working-papers/2002/demo/POP-twps0056.html

@@ -14,7 +14,7 @@ on race, connect graph components, or calculate metrics.
 - [Assign Census units](#assign-census-units)
 - [Read the outputs](#read-the-outputs)
 - [Incomplete inputs and reruns](#incomplete-inputs-and-reruns)
-- [Follow the code](#follow-the-code)
+- [Stage workflow and function responsibilities](#stage-workflow-and-function-responsibilities)
 
 ## Run the stage
 
@@ -27,7 +27,7 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 The small example selects 2020 Delaware tracts and the county definitions needed to assign them.
 Use `code/configs/replication.yaml` for the paper's entire-CBSA study areas or
 `code/configs/max_city.yaml` for the selected cities. For other selections, adapt the
-[commented example](../code/configs/example.yaml). If the preceding stages have completed, run
+[commented example](../../code/configs/example.yaml). If the preceding stages have completed, run
 assignment alone:
 
 ```bash
@@ -66,11 +66,13 @@ need processed populations and raw internal points; their polygons are joined on
 also selected as graph nodes. Filename filters can still remove them, in which case later stages
 fail rather than treat missing inputs as empty areas.
 
-Definitions distinguish the selecting metro from the selected county or place. Metro-based area
-IDs use the metro code, so two metros choosing the same city would remain separate assignments.
-`metro_county_codes` records the full metro roster; `county_codes` records the counties actually
-intersecting the selected area with positive area. A selected city's counties can extend beyond
-its selecting metro. A place identifier never substitutes for a county identifier.
+Definitions distinguish the selecting metro from the selected county or place. Metro-based area IDs
+use the metro code, so two metros choosing the same city would remain separate assignments.
+`metro_county_codes` records the full metro roster, and `county_codes` records the counties that
+make up the selected area. For county, `max_county`, and CBSA areas, those are the selected county
+or the metro roster itself. For a selected city, they are the counties its polygon intersects with
+positive area, which can extend beyond its selecting metro. A place identifier never substitutes for
+a county identifier.
 
 ## Select cities by population
 
@@ -106,7 +108,7 @@ Zero-population units remain in these outputs, and White–Black graph filtering
 stage.
 
 Membership uses the matched outputs of geographic joining. It does not resolve or assign
-population records that lack boundaries. The [joining guide](geography_population_joining.md)
+population records that lack boundaries. The [joining guide](03_geography_population_joining.md)
 explains those source limitations and the separate unmatched-record files. A completed membership
 table is not proof that historical sources cover every resident. All three join outputs must be
 available; county and place definitions additionally require that their unmatched tables are
@@ -127,7 +129,7 @@ Within each type/year folder, the stage writes:
 The membership filename uses the state's postal abbreviation. Its `geography_file` column starts
 at `joined_geography_directory`, allowing graph construction to retrieve the full polygons and
 attributes by GEOID. Candidate city scores include both full-city and inside-metro population,
-area inside the metro, full mapped city area in square kilometres, and the selected flag.
+area inside the metro, full mapped city area in square kilometers, and the selected flag.
 
 A summary status of `ready` means at least one unit was selected. When the inputs were read
 successfully but no unit's representative point falls inside the area, the status is
@@ -146,17 +148,17 @@ same type/vintage folder if the new configuration is narrower.
 Each completed file is written through a temporary file, and `summary.parquet` is written last. An
 interrupted or failed run can leave some new files, but no completed summary. Downstream work must
 require a successful assignment run and use its enumerated memberships rather than searching for
-arbitrary old artifacts. Publication verification will additionally reconcile the saved outputs
-with the final configuration; the presence of a summary alone does not establish that.
+arbitrary old artifacts. The presence of a summary alone does not establish that the saved outputs
+match the final configuration.
 
-## Follow the code
+## Stage workflow and function responsibilities
 
 The command calls `assign_study_areas()` in
-[`run_assignment.py`](../code/national_pipeline/assign_study_areas/run_assignment.py), which selects
-inputs, loads definitions, runs the chosen rule, and writes outputs.
-[`build_definitions.py`](../code/national_pipeline/assign_study_areas/build_definitions.py) owns
+[`run_assignment.py`](../../code/national_pipeline/assign_study_areas/run_assignment.py), which
+selects inputs, loads definitions, runs the chosen rule, and writes outputs.
+[`build_definitions.py`](../../code/national_pipeline/assign_study_areas/build_definitions.py) owns
 county/metro construction and candidate ranking.
-[`count_city_populations.py`](../code/national_pipeline/assign_study_areas/count_city_populations.py)
+[`count_city_populations.py`](../../code/national_pipeline/assign_study_areas/count_city_populations.py)
 reads Census internal points and reconciles block-based city totals.
-[`assign_units.py`](../code/national_pipeline/assign_study_areas/assign_units.py) validates joined inputs,
-selects representative points, and builds membership accounting.
+[`assign_units.py`](../../code/national_pipeline/assign_study_areas/assign_units.py) validates
+joined inputs, selects representative points, and builds membership accounting.

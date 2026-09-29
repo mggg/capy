@@ -8,15 +8,15 @@ repairing geometries follow in a separate stage.
 
 ## Contents
 
-- [Run processing](#run-processing)
+- [Run the stage](#run-the-stage)
 - [Read the outputs](#read-the-outputs)
 - [Population definitions and checks](#population-definitions-and-checks)
 - [Historical NHGIS tables](#historical-nhgis-tables)
 - [Geographic identifiers](#geographic-identifiers)
 - [Reruns and incomplete runs](#reruns-and-incomplete-runs)
-- [Following the code](#following-the-code)
+- [Stage workflow and function responsibilities](#stage-workflow-and-function-responsibilities)
 
-## Run processing
+## Run the stage
 
 After choosing the inputs in a YAML configuration, use that same configuration to retrieve and
 process them. For example, run the Delaware tract example from the repository root:
@@ -27,8 +27,9 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
     process-population
 ```
 
-The first command retrieves Delaware's 2020 tract population and boundaries, together with the
-state tables and published totals needed to check the population counts. The second reads the
+The first command retrieves Delaware's 2020 tract and county population and boundaries, together
+with the state tables and published totals needed to check the population counts. Counties are
+included because they define the example's study areas. The second reads the
 population inputs and saves the processed tables. If the raw inputs are already in their
 configured folders, run the second command directly; processing neither downloads files nor reads
 boundaries.
@@ -40,11 +41,12 @@ paper's CBSA analyses, including counties and tracts in 1980 and all four levels
 `code/configs/max_city.yaml` for the same years and levels with the additional place inputs needed
 to select cities.
 
-Both commands use the configured years, geography levels, and study-area selections. You can
-narrow processing with `file_path_patterns`, but each selected year still needs its state
-population table and published reference totals, even when the filter omits them. Modern years use
-the resident-population CSV, while 1980 and 1990 use their Census Working Paper 56 E workbooks. If
-a required reference is missing, processing stops and identifies the missing file.
+Both commands use the configured years, geography levels, and study-area selections. You can narrow
+processing with `file_path_patterns`, but each selected year still needs its state population table
+and published reference totals, even when the filter omits them. Modern years use the
+resident-population CSV, while 1980 and 1990 use their Census Working Paper 56 workbooks (Tables E-3
+and A-3 for 1980, Table E-1 for 1990). If a required reference is missing, processing stops and
+identifies the missing file.
 
 Population processing runs one state at a time, so the download worker and NHGIS wait settings
 have no effect here. The national NHGIS tables are read in smaller batches of rows to avoid
@@ -60,6 +62,7 @@ folders separate, with neither inside the other, so processing cannot replace it
 The small example produces these files beneath `processed_population_directory`:
 
 ```text
+2020/counties/DE_2020_populations.parquet
 2020/tracts/DE_2020_populations.parquet
 2020/states/national_2020_populations.parquet
 processing_summary.csv
@@ -87,6 +90,7 @@ identifiers, and original record locations:
 | `CENSUS_YEAR`     | Year of the source population.                                              |
 | `CENSUS_DATASET`  | Source dataset: `pl`, `sf1`, `1980_STF1`, or `1990_STF1`.                   |
 | `GEOGRAPHY_LEVEL` | Kind of geographic unit, such as `tracts` or `blocks`.                      |
+| `state`           | Two-digit state FIPS code; copied from NHGIS `STATEA` in historical tables. |
 
 Parquet preserves identifiers as strings and counts as integers, so reading a saved table does not
 require special options to retain leading zeros. The files use Zstandard compression, with rows
@@ -110,15 +114,14 @@ repeatedly.
 ## Population definitions and checks
 
 The study uses non-Hispanic White-alone and Black-alone counts for `WHITE` and `BLACK`, with `POC`
-covering everyone outside the non-Hispanic White-alone category. The
-[Census variable guide](raw_source_acquisition.md#census-population-variable-guide) identifies the
-source columns for these counts and the additional populations used to check them. Their
-definitions come from the Census dictionaries for
-[2000 PL](https://api.census.gov/data/2000/dec/pl/variables.html),
-[2000 SF1](https://api.census.gov/data/2000/dec/sf1/variables.html),
-[2010 PL](https://api.census.gov/data/2010/dec/pl/variables.html), and
-[2020 PL](https://api.census.gov/data/2020/dec/pl/variables.html). The selected 2000 block-group
-tables use SF1, whose variable names differ from PL but describe the same population categories.
+covering everyone outside the non-Hispanic White-alone category. The [Census variable
+guide](01_raw_source_acquisition.md#census-population-variable-guide) identifies the source columns
+for these counts and the additional populations used to check them. Their definitions come from the
+Census dictionaries for [2000 PL](https://api.census.gov/data/2000/dec/pl/variables.html), [2000
+SF1](https://api.census.gov/data/2000/dec/sf1/variables.html), [2010
+PL](https://api.census.gov/data/2010/dec/pl/variables.html), and [2020
+PL](https://api.census.gov/data/2020/dec/pl/variables.html). The selected 2000 block-group tables
+use SF1, whose variable names differ from PL but describe the same population categories.
 
 Before deriving the study fields, processing checks the eleven modern source count columns. Each
 value must be a nonnegative integer, and the seven race categories must sum to the total
@@ -168,14 +171,14 @@ categories in 1990 must likewise sum to the separately reported total. Where the
 suppression flags, the output retains them for inspection without interpreting them or replacing
 the supplied counts.
 
-State comparisons follow the same principle as the modern tables: counts for smaller units must
-sum to their state's counts. This applies to all source count columns and derived study counts for
-1980 counties and every supported level below the state in 1990. Processing loads the national
-NHGIS state tables before reading the smaller areas, comparing their total, non-Hispanic White,
-and non-Hispanic Black counts with
-[Census Working Paper 56](https://www.census.gov/library/working-papers/2002/demo/POP-twps0056.html),
-Table E-3 for 1980 and Table E-1 for 1990. The state tables are then reused for these comparisons
-and saved as the national state outputs, without reading their archives again.
+State comparisons follow the same principle as the modern tables: counts for smaller units must sum
+to their state's counts. This applies to all source count columns and derived study counts for 1980
+counties and every supported level below the state in 1990. Processing loads the national NHGIS
+state tables before reading the smaller areas, comparing their total, non-Hispanic White, and
+non-Hispanic Black counts with [Census Working Paper
+56](https://www.census.gov/library/working-papers/2002/demo/POP-twps0056.html), Table E-3 for 1980
+and Table E-1 for 1990. The state tables are then reused for these comparisons and saved as the
+national state outputs, without reading their archives again.
 
 The published comparisons also check source categories that can be wrong without changing the
 study populations. For 1980, Table A-3 supplies separate totals for White, Black, American
@@ -199,7 +202,7 @@ present. Residents outside the source coverage are not assigned to nearby tracts
 The supported population tables supply whole-area counts, so urban and rural components are not
 needed to reconstruct their totals. Archives with extra breakdown columns are rejected to avoid
 combining overlapping counts. See the
-[retrieval guide](raw_source_acquisition.md#nhgis-1980-geographic-subareas) for those layouts.
+[retrieval guide](01_raw_source_acquisition.md#nhgis-1980-geographic-subareas) for those layouts.
 
 ## Geographic identifiers
 
@@ -234,44 +237,45 @@ only after every selected table succeeds. Use the configuration to determine whi
 the run. The summary describes completed outputs; later stages select their inputs from the
 configuration.
 
-## Following the code
+## Stage workflow and function responsibilities
 
-The `process-population` stage in [`reproduce.py`](../code/reproduce.py) reads the shared
-[`PipelineConfig`](../code/national_pipeline/pipeline_config.py) and starts processing through
+The `process-population` stage in [`reproduce.py`](../../code/reproduce.py) reads the shared
+[`PipelineConfig`](../../code/national_pipeline/pipeline_config.py) and starts processing through
 `process_population_tables()` in
-[`process_tables.py`](../code/national_pipeline/process_population/process_tables.py). That function
-selects the population inputs, removes the selected old outputs, and runs the Census and NHGIS
-workflows before saving the summary. Input names come from the retrieval request definitions, so
-both stages use the same configured paths.
+[`process_tables.py`](../../code/national_pipeline/process_population/process_tables.py). That
+function selects the population inputs, removes the selected old outputs, and runs the Census and
+NHGIS workflows before saving the summary. Input names come from the retrieval request definitions,
+so both stages use the same configured paths.
 
-Within each workflow, [`read_census.py`](../code/national_pipeline/process_population/read_census.py) or
-[`read_nhgis.py`](../code/national_pipeline/process_population/read_nhgis.py) reads source records, checks
-their counts and identifiers, and derives the study populations. The corresponding
-[`check_totals.py`](../code/national_pipeline/process_population/check_totals.py) and
-[`check_nhgis_totals.py`](../code/national_pipeline/process_population/check_nhgis_totals.py) compare
-those counts with state and published references. Once the comparisons pass,
-[`save_tables.py`](../code/national_pipeline/process_population/save_tables.py) writes the Parquet table,
-using the same temporary-file writer as retrieval. Population, joined-geography, and membership
-filenames are defined together in
-[`derived_file_paths.py`](../code/national_pipeline/derived_file_paths.py), so writers and later stages
-agree on where to find each table. Each processing stage checks its output folder against its
-inputs through [`data_directories.py`](../code/national_pipeline/data_directories.py) before removing
-previous outputs.
+Within each workflow,
+[`read_census.py`](../../code/national_pipeline/process_population/read_census.py) or
+[`read_nhgis.py`](../../code/national_pipeline/process_population/read_nhgis.py) reads source
+records, checks their counts and identifiers, and derives the study populations. The corresponding
+[`check_totals.py`](../../code/national_pipeline/process_population/check_totals.py) and
+[`check_nhgis_totals.py`](../../code/national_pipeline/process_population/check_nhgis_totals.py)
+compare those counts with state and published references. Once the comparisons pass,
+[`save_tables.py`](../../code/national_pipeline/process_population/save_tables.py) writes the
+Parquet table, using the same temporary-file writer as retrieval. Population, joined-geography, and
+membership filenames are defined together in
+[`derived_file_paths.py`](../../code/national_pipeline/derived_file_paths.py), so writers and later
+stages agree on where to find each table. Each processing stage checks its output folder against its
+inputs through [`data_directories.py`](../../code/national_pipeline/data_directories.py) before
+removing previous outputs.
 
 For the meanings of column names used in calculations, start with
-[`population_table_columns.py`](../code/national_pipeline/population_table_columns.py). It separates study
-counts (`PopulationColumn`), geographic identifiers and level (`GeographyColumn`), and Census
-year, dataset, and record location (`PopulationSourceColumn`). These string enums give Python code
-readable names while keeping the saved column labels unchanged.
+[`population_table_columns.py`](../../code/national_pipeline/population_table_columns.py). It
+separates study counts (`PopulationColumn`), geographic identifiers and level (`GeographyColumn`),
+and Census year, dataset, and record location (`PopulationSourceColumn`). These string enums give
+Python code readable names while keeping the saved column labels unchanged.
 
 Source-specific names stay with their definitions. Census retrieval and processing share
-[`census/table_columns.py`](../code/national_pipeline/retrieve_data/census/table_columns.py), while the
-historical count and geographic columns are defined in
-[`nhgis/table_columns.py`](../code/national_pipeline/retrieve_data/nhgis/table_columns.py) using the
-downloaded codebooks. NHGIS dataset and geography selections are named in
-[`nhgis/identifiers.py`](../code/national_pipeline/retrieve_data/nhgis/identifiers.py).
+[`census/table_columns.py`](../../code/national_pipeline/retrieve_data/census/table_columns.py),
+while the historical count and geographic columns are defined in
+[`nhgis/table_columns.py`](../../code/national_pipeline/retrieve_data/nhgis/table_columns.py) using
+the downloaded codebooks. NHGIS dataset and geography selections are named in
+[`nhgis/identifiers.py`](../../code/national_pipeline/retrieve_data/nhgis/identifiers.py).
 
-Continue with [boundary–population joining](geography_population_joining.md) to attach these
+Continue with [boundary–population joining](03_geography_population_joining.md) to attach these
 counts to polygons and inspect geographic exclusions. The join keeps these population inputs
 unchanged.
 

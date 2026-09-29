@@ -10,15 +10,14 @@ population accounting that explains which units the graphs retain.
 - [Parallel graph construction](#parallel-graph-construction)
 - [Archive parts and repackaging](#archive-parts-and-repackaging)
 - [Population filtering and adjacency](#population-filtering-and-adjacency)
-- [Centroid coordinates for distance-based metrics](#centroid-coordinates-for-distance-based-metrics)
+- [Centroid coordinates for distance-based
+  metrics](#centroid-coordinates-for-distance-based-metrics)
 - [Known boundary overlaps](#known-boundary-overlaps)
-- [Population accounting and overlap evidence](#population-accounting-and-overlap-evidence)
-- [Sensitivity to changing the outlines](#sensitivity-to-changing-the-outlines)
 - [Connecting separate components](#connecting-separate-components)
 - [Read an archived graph](#read-an-archived-graph)
 - [Accounting and unavailable areas](#accounting-and-unavailable-areas)
 - [Checks and reruns](#checks-and-reruns)
-- [Follow the code](#follow-the-code)
+- [Stage workflow and function responsibilities](#stage-workflow-and-function-responsibilities)
 
 ## Run the stage
 
@@ -62,7 +61,7 @@ completion order do not change graph calculations, archive member names, or summ
 year/level finishes before the next begins; no worker writes to a shared ZIP.
 
 Temporary JSON and CSV files are kept beneath the graph output directory until the archive is
-complete, then removed. On failure or interruption, queued work is cancelled and the stage waits
+complete, then removed. On failure or interruption, queued work is canceled and the stage waits
 for running workers before cleaning up. A running area can therefore delay interruption. Only a
 fully written ZIP is published. Use an ordinary script or the CLI for parallel runs; direct Python
 scripts must put their entry point inside `if __name__ == "__main__":` so spawned workers do not
@@ -97,8 +96,10 @@ uv run --locked python code/repackage_graphs.py --config code/configs/max_city.y
 Only available selections are repackaged. Their original ZIPs stay in place until all replacement
 parts pass the content checks and are published. They are then removed. If publication is
 interrupted while the original remains, readers prefer that original and the command can be
-repeated. An interrupted publication without an original leaves an incomplete part set, which
-`build-graphs` rebuilds for that selection. The command writes the combined run summary only when
+repeated. An interrupted publication without an original leaves an incomplete part set. Rerunning
+the repackaging command then stops with an error at that selection, before reaching later ones;
+run `build-graphs` instead, which rebuilds the incomplete selection. The repackaging command removes
+any existing combined run summary at startup and writes the combined run summary only when
 all configured selections are present. Existing metric values are unchanged; a later metric run
 records the new part filenames in its graph-outcome table.
 
@@ -111,7 +112,7 @@ reuse. No graph extraction or manual part concatenation is needed.
 Each node retains its source geographic ID and the four study counts: `TOTPOP`, `WHITE`, `BLACK`,
 and `POC`. `WHITE` and `BLACK` count non-Hispanic residents in the respective race groups; `POC`
 counts everyone except non-Hispanic White residents. See the
-[population definitions](population_processing.md) for the source-specific derivations.
+[population definitions](02_population_processing.md) for the source-specific derivations.
 
 The graph retains a unit only when `WHITE + BLACK > 0`. Both White–Black and White–POC analysis
 use that same graph. Removed units therefore have zero combined White and Black population, but
@@ -122,7 +123,7 @@ unmatched geographic records documented during joining.
 GerryChain constructs rook adjacency: two retained polygons are neighbors when their intersection
 has positive length. A corner contact alone does not qualify. Full polygons and population counts
 are retained; the code does not clip units to the study-area outline or divide their populations.
-Areas, centroid coordinates, and lengths use the pipeline's projected metre coordinate system,
+Areas, centroid coordinates, and lengths use the pipeline's projected meter coordinate system,
 `ESRI:102003`.
 
 ## Centroid coordinates for distance-based metrics
@@ -145,11 +146,13 @@ centroids does not itself check for coincident locations.
 
 ## Known boundary overlaps
 
-We treat overlapping polygons as neighbors and retain their source outlines and Census counts. An
-overlap is therefore accepted adjacency, not a reason to clip a polygon or remove a connection.
-This choice does not establish that the historical outlines agree on the exact location of a
-border. Individually invalid polygons still receive the repairs described in the
-[geography joining guide](geography_population_joining.md#geometry-repair).
+Some historical NHGIS outlines overlap their neighbors. The pipeline treats an overlap as ordinary
+adjacency and keeps both outlines and their Census counts, without clipping either polygon or
+removing the connection. The
+[data-decisions guide](data_processing_decisions_and_anomalies.md#boundary-overlaps) records where
+these overlaps occur, how population accounting handles them, and how sensitive the metrics are to
+trimming them. Individually invalid polygons still receive the repairs described in the
+[geography joining guide](03_geography_population_joining.md#geometry-repair).
 
 To hide overlap warnings during graph construction, set:
 
@@ -166,63 +169,6 @@ When warnings are enabled, intersections at or below **0.0001 m² (100 mm²)** r
 intersections are reported, including when a warning also contains smaller pairs. This tolerance
 controls reporting only. Overlap area is not used to estimate population or decide whether an edge
 belongs in the graph.
-
-### Population accounting and overlap evidence
-
-Population belongs to a Census record identified by its geographic ID, not to an area calculated
-from its polygon. When two outlines overlap, the pipeline keeps each record once within its
-study-area graph; it does not copy either population into the other record or add residents for
-the overlapping patch. Graph inputs require unique IDs, membership rows are reconciled with joined
-population tables, and retained plus removed counts must equal the graph's input counts. These
-checks establish record-level accounting. They do not independently verify the Census's original
-enumeration or prove that each outline precisely locates its record's residents.
-
-The complete CBSA overlap inventory covers all 18 supported year/level combinations and 7,056
-area/year/level outcomes. Of those outcomes, 48 lack historical coverage and five have no selected
-units; absent inputs do not establish absence of overlaps. Among retained units, the inventory
-contains 3,393 positive-area pairs, with 235 exceeding the reporting tolerance:
-
-| Inputs                                | Positive overlap pairs | Above 100 mm² |
-| ------------------------------------- | ---------------------: | ------------: |
-| 1980 counties                         |                     58 |             7 |
-| 1980 tracts and BNAs                  |                    219 |           219 |
-| 1990 counties                         |                     61 |             7 |
-| 1990 block groups                     |                  1,369 |             0 |
-| 1990 blocks                           |                  1,686 |             2 |
-| 1990 tracts and every 2000–2020 level |                      0 |             0 |
-
-Every observed historical pair also overlaps in the original NHGIS files. The source polygons,
-with the existing `buffer(0)` repair applied where invalid, reproduce the joined outlines.
-Parallel construction does not introduce these overlaps. All 219 tract-level pairs cross county
-boundaries between the separate tract and block-numbering-area (BNA) layers. The largest is 1.09
-km² between Fauquier and Stafford counties in the Washington metro; a larger area alone does not
-establish that population records are duplicated.
-
-These observations concern retained units within the configured CBSAs. They do not cover
-unselected units, units removed by the population filter, boundary gaps, or pairs in different
-CBSAs. Counts across separate study areas, years, or resolutions are not additive national totals.
-
-### Sensitivity to changing the outlines
-
-Trimming either side of the larger overlaps preserves final connections and all 15 non-distance
-metrics in the tested county and 1990 block graphs. In one Duluth block experiment, a geographic
-connection disappears and the component connector restores the same pair as an artificial edge.
-County centroid changes affect distance-weighted Moran scores by at most 0.000107 in these tests.
-Duluth's corresponding differences are at most 5.5 × 10⁻¹⁴; Chicago's two distance variants were
-not recomputed.
-
-For 1980 tracts, trimming across all 33 affected metros preserves counts and recomputed
-memberships of retained units, but changes final connections in nine metros. The largest
-`capy_exact` change is 0.001174. A larger Moran change in Florence, approximately −0.018489,
-arises from a microscopic gap introduced by subtraction; applying a common micrometre or
-millimetre precision grid restores the original connection and all non-distance scores. All
-connection losses in these tract tests involve overlaps smaller than 50 m², so area alone does not
-establish metric insensitivity.
-
-These experiments show that clipping can change adjacency without correcting population counts.
-They provide no authoritative replacement border or bound on possible metric error, and national
-rankings and longitudinal conclusions have not been reassessed. The pipeline retains the original
-overlap connections under the stated adjacency convention rather than applying those trims.
 
 ## Connecting separate components
 
@@ -329,26 +275,28 @@ selections even when the parent process already loaded its code.
 
 ZIP members use stable ordering and timestamps. Rebuilding unchanged inputs with the same
 configuration and software produces the same contents. Run settings remain in the repository's
-YAML configurations, and `uv.lock` records the dependency versions. Final publication checks must
-still reconcile the chosen configuration and all its upstream outputs, including documented
-geographic limitations. The presence of a ZIP or summary alone does not establish publication
-acceptance.
+YAML configurations, and `uv.lock` records the dependency versions. The presence of a ZIP or
+summary alone does not establish that the archives match the chosen configuration and all its
+upstream outputs, including documented geographic limitations.
 
-## Follow the code
+## Stage workflow and function responsibilities
 
-[`run_build.py`](../code/national_pipeline/build_graphs/run_build.py) coordinates selected inputs, archive
-publication, and accounting.
-[`build_area_graph.py`](../code/national_pipeline/build_graphs/build_area_graph.py) builds and saves each
-worker's area files. [`read_inputs.py`](../code/national_pipeline/build_graphs/read_inputs.py) reconciles
-saved memberships with joined polygons.
-[`construct_graph.py`](../code/national_pipeline/build_graphs/construct_graph.py) owns population
+[`run_build.py`](../../code/national_pipeline/build_graphs/run_build.py) coordinates selected
+inputs, archive publication, and accounting.
+[`build_area_graph.py`](../../code/national_pipeline/build_graphs/build_area_graph.py) builds and
+saves each worker's area files.
+[`read_inputs.py`](../../code/national_pipeline/build_graphs/read_inputs.py) reconciles saved
+memberships with joined polygons.
+[`construct_graph.py`](../../code/national_pipeline/build_graphs/construct_graph.py) owns population
 filtering and geographic adjacency, while
-[`connect_components.py`](../code/national_pipeline/build_graphs/connect_components.py) chooses the
-additional polygon connections.
-[`graph_archives.py`](../code/national_pipeline/build_graphs/graph_archives.py) owns GerryChain
+[`connect_components.py`](../../code/national_pipeline/build_graphs/connect_components.py) chooses
+the additional polygon connections.
+[`graph_archives.py`](../../code/national_pipeline/build_graphs/graph_archives.py) owns GerryChain
 serialization and direct archive reading.
 
-[`archive_parts.py`](../code/national_pipeline/build_graphs/archive_parts.py) packages whole areas and
-checks unchanged contents.
-[`archive_inventory.py`](../code/national_pipeline/build_graphs/archive_inventory.py) checks part
+[`archive_parts.py`](../../code/national_pipeline/build_graphs/archive_parts.py) packages whole
+areas and checks unchanged contents.
+[`archive_inventory.py`](../../code/national_pipeline/build_graphs/archive_inventory.py) checks part
 completeness for both graph resumption and metric reading.
+[`repackage_archives.py`](../../code/national_pipeline/build_graphs/repackage_archives.py) converts
+existing single ZIPs into numbered parts for `code/repackage_graphs.py`.
