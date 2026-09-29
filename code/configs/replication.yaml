@@ -27,7 +27,7 @@ graph_archive_directory: data/graphs
 max_parallel_graphs: 4
 
 # Retain source overlaps as adjacency without warning for each pair; counts are unchanged.
-# See documentation/graph_construction.md for the evidence and limitations.
+# See documentation/national_pipeline/05_graph_construction.md for the evidence and limitations.
 warn_on_polygon_overlaps: false
 
 # Force replacement of completed graph selections. Default: false.

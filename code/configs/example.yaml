@@ -111,7 +111,8 @@ metric_results_directory: results/metrics
 population_comparisons: [white_black, white_poc]
 
 # Omitted setting: all metrics below. Delete entries to select a subset; an empty list is invalid.
-# Names distinguish formulas and spatial weights. See documentation/metric_computation.md.
+# Names distinguish formulas and spatial weights.
+# See documentation/national_pipeline/06_metric_computation.md.
 # Distance variants use all node pairs and can be slow for large block graphs.
 metric_names:
   - dissimilarity

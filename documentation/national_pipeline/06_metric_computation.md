@@ -1,5 +1,11 @@
 # Compute segregation metrics
 
+Run this stage after graph construction to score each study area's graphs. It reads the archived
+graphs directly, calculates the selected segregation metrics for the White–Black and White–POC
+comparisons, and saves one table per year and level along with fixed-sample yearly means. The
+metric functions are also available on their own, so the same formulas can be applied to graphs or
+arrays outside the pipeline.
+
 ## Contents
 
 - [Run the stage](#run-the-stage)
@@ -9,7 +15,7 @@
 - [Sources and formula correspondence](#sources-and-formula-correspondence)
 - [Undefined values](#undefined-values)
 - [Saved tables and yearly averages](#saved-tables-and-yearly-averages)
-- [Following the code](#following-the-code)
+- [Stage workflow and function responsibilities](#stage-workflow-and-function-responsibilities)
 
 ## Run the stage
 
@@ -27,11 +33,11 @@ raw downloads and intermediate population, geography, and membership tables are 
 Graph inputs may be an original single ZIP or a complete set of numbered parts. The stage
 discovers parts automatically, checks their combined area inventory, and reads each graph from its
 recorded archive. It still writes one metric table per year and level. See
-[archive parts](graph_construction.md#archive-parts-and-repackaging) for naming and conversion.
+[archive parts](05_graph_construction.md#archive-parts-and-repackaging) for naming and conversion.
 
 By default, every supported metric is calculated for both `white_black` and `white_poc`. Set
 `metric_names` or `population_comparisons` in the YAML to restrict those choices, using the names
-below. The [commented configuration](../code/configs/example.yaml) lists all options. Years,
+below. The [commented configuration](../../code/configs/example.yaml) lists all options. Years,
 levels, study-area type, and definition vintage select archives under `graph_archive_directory`.
 Raw-file selection patterns do not filter the contents of an existing graph archive.
 
@@ -70,7 +76,14 @@ computations, call the numerical functions directly:
 
 ```python
 import numpy as np
-from capy_metrics import build_csr_adjacency_matrix, build_moran_weights, morans_I
+from capy_metrics import (
+    MoranWeightType,
+    build_csr_adjacency_matrix,
+    build_moran_weights,
+    morans_I,
+)
+
+# `graph` is the path graph from the previous example.
 
 adjacency = build_csr_adjacency_matrix(graph)
 weights = build_moran_weights(adjacency, MoranWeightType.ROW_STANDARDIZED)
@@ -144,7 +157,7 @@ For each comparison, let $x_i$ be the non-Hispanic White population and $y_i$ th
 population of unit $i$. The population universe is $t_i=x_i+y_i$, with $T=\sum_i t_i$, unit share
 $p_i=x_i/t_i$, and overall share $\rho=\sum_i x_i/T$. White–Black calculations therefore use the
 combined White and Black population, while White–POC calculations use total population. See the
-[population guide](population_processing.md#population-definitions-and-checks) for the source
+[population guide](02_population_processing.md#population-definitions-and-checks) for the source
 definitions.
 
 Both comparisons use the same connected graph, whose units satisfy `WHITE + BLACK > 0`. Any POC
@@ -160,7 +173,7 @@ $$\widetilde p_i=\frac{((I+A)x)_i}{((I+A)t)_i}.$$
 
 Distance weights instead use all pairs of distinct nodes and their saved geometric centroids in
 ESRI:102003. These centroids can lie outside the polygons, as explained in the [graph
-guide](graph_construction.md#centroid-coordinates-for-distance-based-metrics). Self-distances
+guide](05_graph_construction.md#centroid-coordinates-for-distance-based-metrics). Self-distances
 receive weight zero; coincident centroids of distinct units make both distance scores undefined.
 
 ## Metric names and formulas
@@ -222,18 +235,20 @@ $$C=\frac12\left(\frac{a}{a+b}+\frac{c}{c+b}\right).$$
 | Saved metric name | Pair totals                                                                                                    |
 | ----------------- | -------------------------------------------------------------------------------------------------------------- |
 | `aspatial_capy`   | $a=\langle x,x\rangle$, $b=\langle x,y\rangle$, $c=\langle y,y\rangle$                                         |
+| `capy`            | $a=\langle x,x\rangle_{I+A}$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}$                       |
 | `capy_exact`      | $a=\langle x,x\rangle_{I+A}-\sum_i x_i$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}-\sum_i y_i$ |
 
 Aspatial Capy, $C_0$, includes quadratic self-pairs and equals one-half when every unit has the
-same composition. The second score counts distinct people, with equal
-weight on within-unit and neighboring-unit interactions. Its same-group totals count ordered
+same composition. Spatial `capy` adds neighboring-unit interactions to those quadratic
+within-unit terms. `capy_exact` instead counts distinct people, with equal weight on within-unit
+and neighboring-unit interactions. Its same-group totals count ordered
 pairs, or twice the number of same-group edges in the exploded graph. Subtracting the population
 removes self-pairs; there is no corresponding subtraction from the between-group inner product.
 
 These conventions differ even on a single unit. With one White and one Black resident, quadratic
 within-unit Capy is one-half, while exact distinct-person Capy is zero because the only available
-neighbor has the other type. The pipeline uses these two fixed choices. Public Capy functions
-additionally accept finite nonnegative neighbor weights through `lam`.
+neighbor has the other type. The pipeline saves all three Capy scores with neighbor weight
+`lam=1`. Public Capy functions additionally accept other finite nonnegative neighbor weights.
 
 ### Moran scores
 
@@ -242,10 +257,10 @@ pairs count and by how much. They center shares across units, so a small unit an
 have equal influence on the centering step. This differs from the population-weighted regional
 share used by the evenness scores.
 
-For all variants, $z_i=p_i-\operatorname{mean}(p)$ uses the **unweighted mean of unit shares**.
-The reported expression is based on the weighted definition in
-[Anselin's GeoDa workbook](https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i),
-with the signed-weight qualification below:
+For all variants, $z_i=p_i-\operatorname{mean}(p)$ uses the **unweighted mean of unit shares**. The
+reported expression is based on the weighted definition in [Anselin's GeoDa
+workbook](https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i), with the
+signed-weight qualification below:
 
 $$I_W=\frac{n}{\sum_{ij}|W_{ij}|}\frac{\langle z,z\rangle_W}{\langle z,z\rangle}.$$
 
@@ -257,11 +272,11 @@ weight versions, it cannot give positive spatial association. These weight matri
 produce different statistics and should not be interpreted as interchangeable estimates.
 
 | Saved metric name                | Weight matrix                                                                               |
-| -------------------------------- | ------------------------------------------------------------------------------------------- | ------- | --- |
+| -------------------------------- | ------------------------------------------------------------------------------------------- |
 | `moran_adjacency`                | $W=A$                                                                                       |
 | `moran_with_self`                | $W=I+A$                                                                                     |
 | `moran_row_standardized`         | $W_{ij}=A_{ij}/d_i$, where $d_i$ is node degree                                             |
-| `moran_negative_laplacian`       | $W=A-\operatorname{diag}(d)$, normalized by $\sum                                           | W\_{ij} | $   |
+| `moran_negative_laplacian`       | $W=A-\operatorname{diag}(d)$, normalized by $\sum\lvert W_{ij}\rvert$                       |
 | `moran_metropolis`               | Adjacent off-diagonal weights $1/\max(d_i,d_j)$; each diagonal completes its row sum to one |
 | `moran_inverse_distance`         | Off-diagonal $1/\operatorname{distance}(i,j)$, then divide each row by its sum              |
 | `moran_inverse_squared_distance` | Off-diagonal $1/\operatorname{distance}(i,j)^2$, then divide each row by its sum            |
@@ -310,13 +325,13 @@ The citations identify the expressions being implemented, not a claim that every
 transformation originated in the cited work.
 
 | Scores                                            | Source and exact correspondence                                                                                                                                                                             |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------- |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dissimilarity and spatial dissimilarity           | Reardon and O'Sullivan (2004), equation (12), p. 140. Two groups give equal absolute deviations; their regional diversity is $2\rho(1-\rho)$, producing the denominator above.                              |
 | Theil information and spatial Theil information   | Same paper, equations (6)–(8), p. 139. Discrete population-weighted entropy replaces the integral; the logarithm base cancels.                                                                              |
 | Relative diversity and spatial relative diversity | Same paper, equations (9)–(11), pp. 139–140. Its interaction diversity becomes $2p(1-p)$ for two groups.                                                                                                    |
 | All six nonnegative-weight Moran scores           | Anselin (2020), _Global Spatial Autocorrelation (1)_, “Concept / Moran's I,” gives $n \langle z,z\rangle_W/(S_0\langle z,z\rangle)$ with $S_0=\sum W_{ij}$. The matrices listed above specify our variants. |
 | Metropolis matrix within Moran                    | Xiao and Boyd (2004), section 4.2, p. 70: $1/\max(d_i,d_j)$ on edges. Equation (18), p. 69, supplies the diagonal. This is not the alternative $1/(1+\max(d_i,d_j))$ convention.                            |
-| Negative-Laplacian score                          | A project-defined extension: $W=A-\operatorname{diag}(d)$ and $S_0=\sum                                                                                                                                     | W\_{ij} | $. The ordinary signed sum is zero, so the standard Moran formula cannot be used unchanged. |
+| Negative-Laplacian score                          | A project-defined extension: $W=A-\operatorname{diag}(d)$ and $S_0=\sum\lvert W_{ij}\rvert$. The ordinary signed sum is zero, so the standard Moran formula cannot be used unchanged.                       |
 | Half-edge assortativity                           | Newman (2003), equation (2), section II.A, gives categorical $r$. Our binary specialization reports $(1+r)/2$, with a study-defined population-share threshold.                                             |
 | Edge assortativity                                | A study-specific mean of edge fractions. The different denominator prevents attributing this formula to Newman's coefficient.                                                                               |
 
@@ -346,13 +361,12 @@ The sources are:
   _Sociological Methodology_ **34**, 121–162. Equations (1)–(2), p. 129, define local shares; pp.
   130 and 139 explain the aspatial special case. The graph-unit interpretation here is a discrete
   specialization.
-- Anselin, L. (2020 revision).
-  [_Global Spatial Autocorrelation (1)_](https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i).
-  _GeoDa Workbook_, “Concept / Moran's I.” This gives the general weighted expression.
-- Xiao, L., and Boyd, S. (2004).
-  [_Fast linear iterations for distributed averaging_](https://web.stanford.edu/~boyd/papers/pdf/fastavg.pdf).
-  _Systems & Control Letters_ **53**, 65–78.
-  [DOI](https://doi.org/10.1016/j.sysconle.2004.02.022).
+- Anselin, L. (2020 revision). [_Global Spatial Autocorrelation
+  (1)_](https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i). _GeoDa
+  Workbook_, “Concept / Moran's I.” This gives the general weighted expression.
+- Xiao, L., and Boyd, S. (2004). [_Fast linear iterations for distributed
+  averaging_](https://web.stanford.edu/~boyd/papers/pdf/fastavg.pdf). _Systems & Control Letters_
+  **53**, 65–78. [DOI](https://doi.org/10.1016/j.sysconle.2004.02.022).
 - Newman, M. E. J. (2003).
   [_Mixing patterns in networks_](https://arxiv.org/pdf/cond-mat/0209450). _Physical Review E_
   **67**, 026126. [DOI](https://doi.org/10.1103/PhysRevE.67.026126). Equations (1)–(2) appear on
@@ -367,7 +381,7 @@ same graph remain available.
 | ------------------------- | ---------------------------------------------------------------------------------------- |
 | `no_graph`                | The graph stage recorded no graph; `graph_status` preserves its specific reason.         |
 | `absent_population_group` | One comparison group has no residents, making an evenness denominator zero.              |
-| `no_pair_interactions`    | A group has no eligible pairs for its Capy skew.                                         |
+| `no_pair_interactions`    | A group or class has no eligible pairs for its Capy skew or assortativity fraction.      |
 | `zero_share_variance`     | Every unit has the same share, so Moran's denominator is zero.                           |
 | `no_neighbors`            | The requested spatial weights have zero total absolute weight.                           |
 | `absent_majority_class`   | Every unit is in the same relative-majority class.                                       |
@@ -398,24 +412,24 @@ all five years; block and block-group means require 1990–2020 because 1980 bou
 unavailable. An empty sample produces a null mean. No population-size threshold is applied here;
 publication figures may require an additional, explicitly chosen sample restriction.
 
-Reruns replace the metric tables for that study-area type and vintage, including results for years
-or metrics removed from the configuration. Use a different `metric_results_directory` to keep two
-runs. Year/level tables are saved as they finish, while the means are written last. If a run
-fails, it can leave completed year/level files but no means file; rerun the stage after fixing the
-input.
+Reruns replace the metric tables for that study-area type and vintage, including years or metrics
+removed from the configuration. Use a different `metric_results_directory` to keep two runs.
+Year/level tables are saved as they finish, while the graph-outcome table and means are written
+last. If a run fails, it can leave completed year/level files but neither of those final tables;
+rerun the stage after fixing the input.
 
-## Following the code
+## Stage workflow and function responsibilities
 
-[`capy_metrics/`](../code/capy_metrics/) contains reusable functions organized by metric family.
+[`capy_metrics/`](../../code/capy_metrics/) contains reusable functions organized by metric family.
 Graph functions live beside their numerical counterparts, and neither depends on study
 configuration or output tables. Shared input checks cover array shapes, numeric counts, and matrix
 alignment; the formulas retain their own mathematical conditions.
 
-[`calculate_scores.py`](../code/national_pipeline/compute_metrics/calculate_scores.py) is the pipeline
-adapter. It chooses the study's comparisons, prepares requested adjacency weights once per graph,
-and calls only selected numerical functions. Distance scores evaluate their batches independently.
-[`run_metrics.py`](../code/national_pipeline/compute_metrics/run_metrics.py) selects archives, checks
-graph accounting, and writes results. Finally,
-[`summarize_years.py`](../code/national_pipeline/compute_metrics/summarize_years.py) builds the
-fixed-sample means. The stage checks archive inventories and population accounting without
-repeating upstream boundary, membership, or adjacency construction checks.
+[`calculate_scores.py`](../../code/national_pipeline/compute_metrics/calculate_scores.py) is the
+pipeline adapter. It chooses the study's comparisons, prepares requested adjacency weights once per
+graph, and calls only selected numerical functions. Distance scores evaluate their batches
+independently. [`run_metrics.py`](../../code/national_pipeline/compute_metrics/run_metrics.py)
+selects archives, checks graph accounting, and writes results. Finally,
+[`summarize_years.py`](../../code/national_pipeline/compute_metrics/summarize_years.py) builds the
+fixed-sample means. The stage checks archive inventories and population accounting without repeating
+upstream boundary, membership, or adjacency construction checks.
