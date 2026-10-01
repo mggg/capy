@@ -65,7 +65,7 @@ def morans_I_from_graph(
             must share a projected coordinate system. Default: centroid_x and centroid_y.
 
     Returns:
-        float: The requested score. Node order, graph attributes, and input data are unchanged.
+        float: The requested Moran score.
 
     Raises:
         KeyError: A required population or coordinate attribute is missing.
@@ -125,7 +125,7 @@ def morans_I(weight_matrix: WeightMatrix, population_shares: np.ndarray) -> floa
             Centering uses their unweighted mean, not the overall population-weighted share.
 
     Returns:
-        float: Unclipped Moran score. Neither input is changed.
+        float: Unclipped Moran score.
 
     Raises:
         ValueError: Shares or weights are invalid or their dimensions disagree.
@@ -175,8 +175,7 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
             are evaluated with distance_morans_I() so a full pairwise matrix is unnecessary.
 
     Returns:
-        sparse.csr_array: Requested weights. The input adjacency is not modified.
-            Row-standardized adjacency leaves isolated rows zero.
+        sparse.csr_array: Requested weights. Row-standardized adjacency leaves isolated rows zero.
 
     Raises:
         ValueError: Adjacency is invalid or a distance-weight type is requested.
@@ -256,7 +255,7 @@ def distance_morans_I(
             Use 2 for inverse-squared distance. Self-weights are zero.
 
     Returns:
-        float: Exact all-pairs score without storing the full distance matrix. Inputs are unchanged.
+        float: Exact all-pairs score without storing the full distance matrix.
 
     Raises:
         ValueError: Shares, coordinate dimensions, or the distance exponent are invalid.

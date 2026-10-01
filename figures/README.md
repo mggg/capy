@@ -1,4 +1,7 @@
 # Figures
 
-Publication figures belong here. Figure generation follows data preparation and metric computation
-in the [pipeline plan](../plans/pipeline.md).
+Each image is a separate 300 dpi PNG for assembly in LaTeX or TikZ, without titles or axis labels.
+Folders group related comparisons, experiments, and demographic scenarios; descriptive filenames
+identify the plotted quantity. Legends and colorbars are independent components.
+
+- [National figures](../documentation/figures.md): image sets, commands, and source conventions.

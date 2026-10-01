@@ -15,6 +15,7 @@ from national_pipeline.build_graphs.archive_inventory import read_graph_selectio
 from national_pipeline.build_graphs.build_area_graph import GraphStatus
 from national_pipeline.build_graphs.graph_archives import read_graph_from_archive
 from national_pipeline.data_directories import resolve_separate_output_directory
+from national_pipeline.derived_file_paths import build_study_area_label
 from national_pipeline.geography_types import GeographyLevel
 from national_pipeline.pipeline_config import PipelineConfig
 from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
@@ -59,14 +60,21 @@ def compute_metrics(config: PipelineConfig, repository_root: Path) -> pd.DataFra
     results_root = resolve_separate_output_directory(
         repository_root, config.metric_results_directory, input_directories
     )
-    output_directory = results_root / config.study_area_type / str(config.study_area_vintage)
+    output_directory = results_root / config.study_area_type
+    study_area_label = build_study_area_label(config)
+    graph_summary_path = output_directory / f"{study_area_label}_graph_summary.parquet"
+    averages_path = output_directory / f"{study_area_label}_average_when_all_years_present.parquet"
     output_directory.mkdir(parents=True, exist_ok=True)
 
     summaries_by_archive = read_selected_graph_summaries(config, graph_directory)
-    graph_outcomes_df = pd.concat(summaries_by_archive.values(), ignore_index=True)
+    graph_summary_df = pd.concat(summaries_by_archive.values(), ignore_index=True)
 
-    for previous_table in output_directory.glob("*.parquet"):
-        previous_table.unlink()
+    for previous_table in [
+        *output_directory.glob(f"*_{study_area_label}_metrics.parquet"),
+        graph_summary_path,
+        averages_path,
+    ]:
+        previous_table.unlink(missing_ok=True)
 
     metric_tables = []
     expected_years_by_level: dict[GeographyLevel, tuple[int, ...]] = {}
@@ -74,7 +82,9 @@ def compute_metrics(config: PipelineConfig, repository_root: Path) -> pd.DataFra
     for archive_path, summary_df in summaries_by_archive.items():
         census_year = int(summary_df[MembershipColumn.CENSUS_YEAR].iloc[0])
         geography_level = GeographyLevel(summary_df[MembershipColumn.GEOGRAPHY_LEVEL].iloc[0])
-        output_path = output_directory / f"{census_year}_{geography_level}.parquet"
+        output_path = (
+            output_directory / f"{census_year}_{geography_level}_{study_area_label}_metrics.parquet"
+        )
 
         try:
             metrics_df = compute_archive_metrics(archive_path, summary_df, config)
@@ -90,8 +100,8 @@ def compute_metrics(config: PipelineConfig, repository_root: Path) -> pd.DataFra
 
     metric_values_df = pd.concat(metric_tables, ignore_index=True)
     means_df = average_when_all_years_present(metric_values_df, expected_years_by_level)
-    save_metric_table(graph_outcomes_df, output_directory / "graph_outcomes.parquet")
-    save_metric_table(means_df, output_directory / "average_when_all_years_present.parquet")
+    save_metric_table(graph_summary_df, graph_summary_path)
+    save_metric_table(means_df, averages_path)
 
     return metric_values_df
 
@@ -153,7 +163,7 @@ def compute_archive_metrics(
 
     Returns:
         pd.DataFrame: One row per area/comparison/metric with value or undefined reason, graph
-            status, census year, and resolution. A graph loads once for both comparisons.
+            status, census year, and resolution.
 
     Raises:
         OSError: An archived graph cannot be read.

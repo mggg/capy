@@ -31,7 +31,7 @@ from .select_inputs import GeographyJoinInputs, select_geography_join_inputs
 
 
 def join_geography_tables(config: PipelineConfig, repository_root: Path) -> pd.DataFrame:
-    """Join selected boundaries to processed populations without downloading or building graphs.
+    """Join selected boundaries to processed populations and save exclusion accounting.
 
     Blocks requested only to rank cities are read from their raw internal points at the study-area
     stage and do not need a population–polygon join. Selected block graph nodes are still joined.
@@ -206,7 +206,6 @@ def read_prepared_boundary_tables(
 
     Yields:
         tuple[gpd.GeoDataFrame, pd.DataFrame]: Prepared boundaries and their geometry repairs.
-            No population joins or output writes occur here.
 
     Raises:
         OSError: A source file cannot be read.

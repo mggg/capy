@@ -58,8 +58,8 @@ def process_population_tables(
     """Process population inputs using the configured folders and raw-file selections.
 
     Required state tables and published resident totals are read even if filename filters omit
-    them. Historical tables use their corresponding NHGIS states and published workbooks. This
-    command never downloads files or reads boundaries. Diagnostic extracts remain join-stage inputs.
+    them. Historical tables use their corresponding NHGIS states and published workbooks.
+    Diagnostic extracts remain join-stage inputs.
 
     Reruns remove selected derived files and the previous summary before checking inputs, so a
     failed run cannot leave an old selected output looking current. Files from other selections
@@ -322,9 +322,6 @@ def process_historical_population_tables(
 ) -> list[PopulationTableSummary]:
     """Load and check NHGIS state references, then process each selected historical level.
 
-    State references are loaded before any output is written, regardless of request order.
-    Their tables are reused when saving the national state outputs.
-
     Args:
         nhgis_requests (list[NhgisTableFileRequest]): Population extracts and their state references.
         raw_data_directory (Path): Configured raw-data root.
@@ -447,7 +444,7 @@ def process_historical_substate_archive(
         raw_data_directory (Path): Folder containing the downloaded archive.
         population_table_directory (Path): Separate folder for processed population tables.
         states_df (pd.DataFrame): National state table for the same Census year, already compared
-            with published totals. This function does not change it.
+            with published totals.
 
     Returns:
         list[PopulationTableSummary]: Accounting for the tables saved from this archive.

@@ -57,8 +57,7 @@ def main() -> int:
     """Run selected stages in pipeline order, stopping on failure or incomplete retrieval.
 
     Each selected stage runs once. With no stage names, run every implemented stage; otherwise
-    use existing inputs for unselected prerequisites. Summaries retain each stage's accounting.
-    ValueError and OSError become command-line failures; other reader exceptions propagate.
+    use existing inputs for unselected prerequisites.
 
     Returns:
         int: Zero after all selected stages complete, or one if retrieval is incomplete.

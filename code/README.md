@@ -6,24 +6,29 @@ below to run it, understand the inputs, or follow the code.
 
 Reusable score functions live in [`capy_metrics/`](capy_metrics/). Use their array or graph
 interfaces to calculate individual metrics without running the pipeline; the
-[metric guide](../documentation/metric_computation.md#use-individual-metric-functions) shows both.
-[`capy_core/`](capy_core/) owns the pipeline stages, including archive loading, study-specific
-metric choices, and result tables in `compute_metrics/`.
+[metric guide](../documentation/national_pipeline/06_metric_computation.md#use-individual-metric-functions)
+shows both. [`national_pipeline/`](national_pipeline/) owns retrieval through metric-table
+generation. [`national_figures/`](national_figures/) owns the available national image sets.
+[`plotting/`](plotting/) contains shared style and drawing functions.
+[`make_figures.py`](make_figures.py) renders figures and saves one 300 dpi PNG per component,
+leaving axis labels and titles to LaTeX. The [figure guide](../documentation/figures.md) explains
+commands and scientific choices.
 
-| What you want to do                                             | Where to start                                                                                                                                                           |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Install the environment and run a small example                 | [Repository README](../README.md#run)                                                                                                                                    |
-| Choose years, geography levels, and data folders                | [Commented example configuration](configs/example.yaml)                                                                                                                  |
-| Understand the Census variable codes and population definitions | [Population variable guide](../documentation/raw_source_acquisition.md#census-population-variable-guide)                                                                 |
-| Find data sources and geographic coverage limits                | [Sources and coverage](../documentation/raw_source_acquisition.md#sources-and-coverage)                                                                                  |
-| Find official API documentation and where requests are made     | [API reference](../documentation/raw_source_acquisition.md#api-documentation-and-request-addresses)                                                                      |
-| Reuse downloaded files or resume retrieval                      | [Run instructions below](#run-retrieval) and [reusing local files](../documentation/raw_source_acquisition.md#reusing-local-files)                                       |
-| Follow execution or change which tables are requested           | [Code walkthrough](../documentation/raw_source_acquisition.md#following-the-code) and [input definitions](../documentation/raw_source_acquisition.md#editing-raw-inputs) |
-| Process downloaded population tables                            | [Population processing](../documentation/population_processing.md)                                                                                                       |
-| Join boundaries and inspect unmatched records                   | [Geography joining](../documentation/geography_population_joining.md)                                                                                                    |
-| Define study areas and select their Census units                | [Study-area assignment](../documentation/study_area_assignment.md)                                                                                                       |
-| Build and read connected graph archives                         | [Graph construction](../documentation/graph_construction.md)                                                                                                             |
-| Calculate segregation scores and fixed-sample yearly means      | [Metric computation](../documentation/metric_computation.md)                                                                                                             |
+| What you want to do                                             | Where to start                                                                                                                                                                                                                             |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Install the environment and run a small example                 | [Repository README](../README.md#run)                                                                                                                                                                                                      |
+| Choose years, geography levels, and data folders                | [Commented example configuration](configs/example.yaml)                                                                                                                                                                                    |
+| Understand the Census variable codes and population definitions | [Population variable guide](../documentation/national_pipeline/01_raw_source_acquisition.md#census-population-variable-guide)                                                                                                              |
+| Find data sources and geographic coverage limits                | [Sources and coverage](../documentation/national_pipeline/01_raw_source_acquisition.md#sources-and-coverage)                                                                                                                               |
+| Find official API documentation and where requests are made     | [API reference](../documentation/national_pipeline/01_raw_source_acquisition.md#api-documentation-and-request-addresses)                                                                                                                   |
+| Reuse downloaded files or resume retrieval                      | [Run instructions below](#run-retrieval) and [reusing local files](../documentation/national_pipeline/01_raw_source_acquisition.md#reusing-local-files)                                                                                    |
+| Follow execution or change which tables are requested           | [Stage workflow](../documentation/national_pipeline/01_raw_source_acquisition.md#stage-workflow-and-function-responsibilities) and [input definitions](../documentation/national_pipeline/01_raw_source_acquisition.md#editing-raw-inputs) |
+| Process downloaded population tables                            | [Population processing](../documentation/national_pipeline/02_population_processing.md)                                                                                                                                                    |
+| Join boundaries and inspect unmatched records                   | [Geography joining](../documentation/national_pipeline/03_geography_population_joining.md)                                                                                                                                                 |
+| Define study areas and select their Census units                | [Study-area assignment](../documentation/national_pipeline/04_study_area_assignment.md)                                                                                                                                                    |
+| Build and read connected graph archives                         | [Graph construction](../documentation/national_pipeline/05_graph_construction.md)                                                                                                                                                          |
+| Calculate segregation scores and fixed-sample yearly means      | [Metric computation](../documentation/national_pipeline/06_metric_computation.md)                                                                                                                                                          |
+| Review decisions that shape the data and known source anomalies | [Data decisions and anomalies](../documentation/national_pipeline/data_processing_decisions_and_anomalies.md)                                                                                                                              |
 
 ## Run the pipeline
 
@@ -57,42 +62,42 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml 
 ```
 
 The first command downloads 2020 Delaware tract and county inputs, with population references; the
-second requests the raw inputs for the paper's national CBSA analyses. For NHGIS downloads, supply
-`IPUMS_API_KEY` in your shell or set `env_file: .env` in the YAML to load credentials from a file at
-the repository root.
-Census downloads require `CENSUS_API_KEY`. Existing environment variables take precedence over
-values in the file. By default, `env_file: null` loads no file, and neither offline runs nor the
-checksum command reads one.
+second requests the raw inputs for national CBSA analyses. For NHGIS downloads, supply
+`IPUMS_API_KEY` in your shell or set `env_file: .env` in the YAML to load credentials from a file
+at the repository root. Census downloads require `CENSUS_API_KEY`. Existing environment variables
+take precedence over values in the file. By default, `env_file: null` loads no file, and neither
+offline runs nor the checksum command reads one.
 
 Start with the commented [`configs/example.yaml`](configs/example.yaml) to make a custom run.
 Choose geography levels and census years for both population and boundary data, plus the
 study-area type and boundary year. The code adds the county and city inputs needed to define those
-areas. [`configs/replication.yaml`](configs/replication.yaml) covers entire metropolitan areas
-for the paper's national analyses. [`configs/max_city.yaml`](configs/max_city.yaml) uses the same
-years and levels but selects one city per metro, adding the place inputs needed for city selection.
+areas. [`configs/replication.yaml`](configs/replication.yaml) covers entire metropolitan areas for
+national analyses. [`configs/max_city.yaml`](configs/max_city.yaml) uses the same years and levels
+but selects one city per metro, adding the place inputs needed for city selection.
 [`configs/county.yaml`](configs/county.yaml) covers individual counties, while
-[`configs/max_county.yaml`](configs/max_county.yaml) selects the most populous county in each metro.
-Both use the same years and levels as the paper configuration, with 2020 study-area definitions.
-[`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts, their county
-study-area definitions, and population references. The settings also control folders, download
-workers, offline mode, and checksum output. Input definitions live alongside their retrieval code
-in [`capy_core/retrieve_data/`](capy_core/retrieve_data/), grouped into `census/` and `nhgis/`
-workflows. Configuration and temporary-file handling are shared under `capy_core/`.
+[`configs/max_county.yaml`](configs/max_county.yaml) selects the most populous county in each
+metro. Both use the same years and levels as the replication configuration, with 2020 study-area
+definitions. [`configs/small_example.yaml`](configs/small_example.yaml) selects Delaware tracts,
+their county study-area definitions, and population references. The settings also control folders,
+download workers, offline mode, and checksum output. Input definitions live alongside their
+retrieval code in [`national_pipeline/retrieve_data/`](national_pipeline/retrieve_data/), grouped
+into `census/` and `nhgis/` workflows. Configuration and temporary-file handling are shared under
+`national_pipeline/`.
 
 The command calls `retrieve_raw_data(config, repository)` in
-[`retrieve_files.py`](capy_core/retrieve_data/retrieve_files.py), which is also the entry point
-for running retrieval from Python.
+[`retrieve_files.py`](national_pipeline/retrieve_data/retrieve_files.py), which is also the entry
+point for running retrieval from Python.
 
 Unless absolute, top-level paths are relative to the repository root, while entries under
 `raw_data_subdirectories` are relative to `raw_data_directory`. Filename selection patterns follow
 that configured layout, as described in the
-[retrieval guide](../documentation/raw_source_acquisition.md#configuring-paths), which also
-explains command-line overrides.
+[retrieval guide](../documentation/national_pipeline/01_raw_source_acquisition.md#configuring-paths),
+which also explains command-line overrides.
 
 Retrieval checks existing files before reusing them and downloads missing inputs, putting any
 required 2010 county tables ahead of the block queries that depend on them. These
-[basic checks](../documentation/raw_source_acquisition.md#basic-checks) cover file format and, for
-NHGIS, any saved request. If a file fails, unrelated downloads continue.
+[basic checks](../documentation/national_pipeline/01_raw_source_acquisition.md#basic-checks) cover
+file format and, for NHGIS, any saved request. If a file fails, unrelated downloads continue.
 
 In a terminal, active downloads show byte counts, speed, and an estimated completion time when the
 size is known. The overall bar counts every processed file, including reused files and failed
@@ -127,10 +132,10 @@ uv run --locked python code/reproduce.py --config code/configs/replication.yaml 
     --offline retrieve
 ```
 
-See [raw-data retrieval](../documentation/raw_source_acquisition.md) for file locations, input
-coverage, editing the Python input definitions, parallel Census/NHGIS workflows, and the separate
-command used to publish diagnostic checksums. The sections below cover population processing,
-geographic joins, study-area assignment, and graph construction.
+See [raw-data retrieval](../documentation/national_pipeline/01_raw_source_acquisition.md) for file
+locations, input coverage, editing the Python input definitions, parallel Census/NHGIS workflows,
+and the separate command used to publish diagnostic checksums. The sections below cover population
+processing, geographic joins, study-area assignment, and graph construction.
 
 Run checks with `uv run --locked python -m pytest`. Use one retrieval run per raw-data directory;
 `max_parallel_downloads` controls parallel workers within that run.
@@ -147,8 +152,8 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 Use `code/configs/replication.yaml` for all supported years and levels, or
 `code/configs/modern_population.yaml` for only 2000–2020. The command reads existing inputs,
 checks population counts, and saves Parquet tables beneath `processed_population_directory`. See
-the [population-processing guide](../documentation/population_processing.md) for output fields,
-checks, file locations, and rerun behavior.
+the [population-processing guide](../documentation/national_pipeline/02_population_processing.md)
+for output fields, checks, file locations, and rerun behavior.
 
 ## Join boundaries and populations
 
@@ -160,8 +165,9 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 
 The command saves GeoParquet files, unmatched records, and population accounting beneath
 `joined_geography_directory`. Use the same configuration for retrieval, population processing, and
-joining. The [geography-joining guide](../documentation/geography_population_joining.md) explains
-historical corrections, geometry repair, source limitations, and rerun behavior.
+joining. The
+[geography-joining guide](../documentation/national_pipeline/03_geography_population_joining.md)
+explains historical corrections, geometry repair, source limitations, and rerun behavior.
 
 ## Assign study areas
 
@@ -174,8 +180,9 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 The small example assigns Delaware tracts to its three counties. Metro modes use the March 2020
 county roster; `max_city` ranks places by 2020 block population inside each metro. Outputs include
 boundaries, candidate scores, unit memberships, and explicit empty or unavailable outcomes under
-`study_area_directory`. See the [study-area guide](../documentation/study_area_assignment.md) for
-selection rules, required inputs, and output interpretation. This command does not build graphs.
+`study_area_directory`. See the
+[study-area guide](../documentation/national_pipeline/04_study_area_assignment.md) for selection
+rules, required inputs, and output interpretation. This command does not build graphs.
 
 ## Build graph archives
 
@@ -187,13 +194,13 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 
 Numbered ZIP parts contain whole study-area graphs for one Census year and geography level, with
 removed-unit records and summary accounting. Completed selections are reused on reruns; set
-`rebuild_graphs: true` after changing input shapes or graph methods. Read graphs directly from these
-archives using `read_graph_from_archive()`; no extraction step is needed. See the [graph
-guide](../documentation/graph_construction.md) for filtering, connections, and examples. Set
-`max_parallel_graphs` in the YAML to control concurrent graph builds and JSON writes; the national
-configurations default to 4 workers. Existing ZIPs can be repackaged without rebuilding graphs using
-`code/repackage_graphs.py --config CONFIG`; see [archive parts and
-repackaging](../documentation/graph_construction.md#archive-parts-and-repackaging).
+`rebuild_graphs: true` after changing input shapes or graph methods. Read graphs directly from
+these archives using `read_graph_from_archive()`; no extraction step is needed. See the
+[graph guide](../documentation/national_pipeline/05_graph_construction.md) for filtering,
+connections, and examples. Set `max_parallel_graphs` in the YAML to control concurrent graph
+builds and JSON writes; the national configurations default to 4 workers. Existing ZIPs can be
+repackaged without rebuilding graphs using `code/repackage_graphs.py --config CONFIG`; see
+[archive parts and repackaging](../documentation/national_pipeline/05_graph_construction.md#archive-parts-and-repackaging).
 
 ## Compute metrics
 
@@ -204,10 +211,11 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 ```
 
 No extraction or intermediate data files are required. The default output is
-`results/metrics/county/2020/` for this example, with both White–Black and White–POC comparisons.
+`results/metrics/county/` for this example, with filenames such as `2020_tracts_COUNTY20_metrics.parquet`.
+Each table includes both White–Black and White–POC comparisons.
 For individual scores on your own graphs or arrays, use the
-[public metric functions](../documentation/metric_computation.md#use-individual-metric-functions).
+[public metric functions](../documentation/national_pipeline/06_metric_computation.md#use-individual-metric-functions).
 Use `metric_names` to select formulas and `metric_results_directory` to change the output root.
-The [metric guide](../documentation/metric_computation.md) explains the supported scores,
-undefined values, population denominators, and the fixed sample used for each metric's yearly
-means.
+The [metric guide](../documentation/national_pipeline/06_metric_computation.md) explains the
+supported scores, undefined values, population denominators, and the fixed sample used for each
+metric's yearly means.

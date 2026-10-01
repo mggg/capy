@@ -32,7 +32,7 @@ def dissimilarity_from_graph(
             order. Default: None, using the units' own shares. Use I+A to include graph neighbors.
 
     Returns:
-        float: Dissimilarity index without modifying the graph or weights.
+        float: Dissimilarity index.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -84,7 +84,7 @@ def dissimilarity(
             Default: None. Smoothing changes local shares but keeps original population weights.
 
     Returns:
-        float: Dissimilarity index. Neither populations nor weights are changed.
+        float: Dissimilarity index.
 
     Raises:
         ValueError: Counts or matrix dimensions/weights are invalid, or an environment is empty.
@@ -119,8 +119,7 @@ def entropy_index_from_graph(
             graph node order. Default: None, using each unit's own share.
 
     Returns:
-        float: Entropy index; negative spatial values are retained. Inputs are
-            unchanged.
+        float: Entropy index; negative spatial values are retained.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -174,8 +173,7 @@ def entropy_index(
             smoothing.
 
     Returns:
-        float: Entropy index without clipping negative spatial values. Inputs are
-            unchanged.
+        float: Entropy index without clipping negative spatial values.
 
     Raises:
         ValueError: Counts or spatial weights are invalid, or an environment has no population.
@@ -211,8 +209,7 @@ def relative_diversity_from_graph(
             graph node order. Default: None, using each unit's own share.
 
     Returns:
-        float: Relative diversity index; negative spatial values are retained. Inputs are
-            unchanged.
+        float: Relative diversity index; negative spatial values are retained.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -265,7 +262,7 @@ def relative_diversity(
             smoothing.
 
     Returns:
-        float: Relative diversity index, including negative spatial values. Inputs are unchanged.
+        float: Relative diversity index, including negative spatial values.
 
     Raises:
         ValueError: Counts or spatial weights are invalid, or an environment has no population.
@@ -286,7 +283,7 @@ def _prepare_evenness_inputs(
     """Prepare local shares, original population weights, and overall share for evenness indices.
 
     Invalid counts/weights or empty environments raise ValueError. An absent group raises
-    UndefinedMetricError. Smoothing retains original unit weights; inputs are not modified.
+    UndefinedMetricError. Smoothing retains original unit weights.
     """
     shares = population_shares(group_population, total_population)
     group_population = np.asarray(group_population, dtype=float)

@@ -66,7 +66,7 @@ def aspatial_capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str
         group2_attr (str): Second group's population attribute, not the total population.
 
     Returns:
-        float: Aspatial Capy score, including self-pairs. Graph attributes are unchanged.
+        float: Aspatial Capy score, including self-pairs.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -106,7 +106,7 @@ def aspatial_capy(first_population: np.ndarray, second_population: np.ndarray) -
             Fractional estimates are accepted, and zero-population units contribute nothing.
 
     Returns:
-        float: Mean of the two group skews with identity weights. Neither input is changed.
+        float: Mean of the two group skews with identity weights.
 
     Raises:
         ValueError: Counts are invalid or vector shapes disagree.
@@ -138,7 +138,7 @@ def capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str, lam: fl
             Default: 1.
 
     Returns:
-        float: Capy score. Zero weight gives aspatial_capy(); inputs are unchanged.
+        float: Capy score. Zero weight gives aspatial_capy().
 
     Raises:
         KeyError: A population attribute is missing.
@@ -182,8 +182,7 @@ def capy(
     self-pairs when the populations are integer counts.
 
     Notes:
-        This quadratic formulation has three useful mathematical properties that make it
-        convenient when examining population distributions compared to the `capy_exact()` formula:
+        The quadratic formulation has the following properties:
 
         - Population-scale invariance: replacing $x,y$ by $s x,s y$ for any $s>0$ leaves the score
           unchanged, since all three interaction totals scale by $s^2$. The adjacency and
@@ -193,10 +192,9 @@ def capy(
         - Continuous populations: the formula accepts nonnegative fractional counts or population
           masses and is continuous wherever both denominators are positive.
 
-        These properties concern the mathematical formula; floating-point evaluation is subject to
-        rounding and overflow. The distinct-person correction in capy_exact() introduces
-        population-size dependence and need not preserve the $1/2$ baseline. "Exact" refers to
-        counting distinct people, not to a universally more accurate score.
+        The distinct-person correction in capy_exact() introduces population-size dependence and
+        need not preserve the $1/2$ baseline. "Exact" refers to counting distinct people, not to a
+        universally more accurate score.
 
     Args:
         adjacency (WeightMatrix): Symmetric nonnegative neighbor weights with zero diagonal.
@@ -207,7 +205,7 @@ def capy(
             accepted.
 
     Returns:
-        float: Mean of the two group skews, including self-pairs. Inputs are unchanged.
+        float: Mean of the two group skews, including self-pairs.
 
     Raises:
         ValueError: Counts, adjacency, or lam are invalid.
@@ -252,7 +250,7 @@ def capy_exact_from_graph(
 
     Returns:
         float: Exact Capy score. At zero neighbor weight, self-pairs are still excluded; this
-            differs from aspatial_capy(). The input graph is unchanged.
+            differs from aspatial_capy().
 
     Raises:
         KeyError: A population attribute is missing.
@@ -305,8 +303,7 @@ def capy_exact(
 
     Returns:
         float: Mean of X-skew and Y-skew. The same-group terms subtract each group's population to
-            exclude self-pairs; the between-group inner product is unchanged. Inputs are
-            unchanged.
+            exclude self-pairs; the between-group inner product is unchanged.
 
     Raises:
         ValueError: Counts, adjacency, or lam are invalid, including fractional counts.
@@ -343,7 +340,7 @@ def capy_exact(
 def _prepare_capy_adjacency(
     adjacency: WeightMatrix, node_count: int, lam: float
 ) -> sparse.csr_array:
-    """Check symmetric neighbor weights and a finite nonnegative lambda without changing inputs.
+    """Check symmetric neighbor weights and a finite nonnegative lambda.
 
     Args:
         adjacency (WeightMatrix): Neighbor weights; self-pairs are handled by the score formula.

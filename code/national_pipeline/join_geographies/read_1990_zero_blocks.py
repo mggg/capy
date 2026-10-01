@@ -119,8 +119,7 @@ def read_1990_pl_zero_block_ids(pl_reference_table_path: Path, state_code: str) 
     """Select blocks confirmed empty by both geographic totals and population/housing cells.
 
     California's original file repeats one zero record. Repeated identifiers are accepted only
-    when their population and housing counts agree; membership in the returned set cannot add
-    that record twice. This exception does not allow conflicting source counts.
+    when their population and housing counts agree.
 
     Args:
         pl_reference_table_path (Path): Original California or Connecticut P.L. 94-171 DBF.
@@ -170,7 +169,7 @@ def build_checked_1990_block_ids(block_reference_df: pd.DataFrame, state_code: s
         state_code (str): Two-digit state code expected in every record.
 
     Returns:
-        pd.Series: Census block identifiers with six-digit tract codes; source columns unchanged.
+        pd.Series: Census block identifiers with six-digit tract codes.
 
     Raises:
         ValueError: Records are absent or contain wrong-state, malformed, or missing identifiers

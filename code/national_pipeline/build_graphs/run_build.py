@@ -43,8 +43,7 @@ def build_graph_archives(config: PipelineConfig, repository_root: Path) -> pd.Da
 
     Complete selections are reused after membership and archive checks. Set rebuild_graphs to
     replace them when inputs or graph methods change. The completion summary is removed at startup
-    and written last; other selections' archives are left untouched. Each worker reads polygons
-    and saves one area's files. One process packages whole areas in stable order.
+    and written last; other selections' archives are left untouched.
 
     Args:
         config (PipelineConfig): Node selections, study-area settings, and input/output folders.

@@ -8,8 +8,7 @@ class StudyAreaColumn(StrEnum):
 
     COUNTY_ID is a full five-digit county identifier, unlike the three-digit county component
     in GeographyColumn.COUNTY_CODE. COUNTY_IDS lists counties intersecting the selected area;
-    METRO_COUNTY_IDS retains the selecting metro's full county roster. Saved column labels retain
-    their existing "code" spelling, such as county_code and county_codes.
+    METRO_COUNTY_IDS retains the selecting metro's full county roster.
     """
 
     STUDY_AREA_ID = "study_area_id"
@@ -31,9 +30,7 @@ class SelectionColumn(StrEnum):
 
     Block counts support city population estimates. POPULATION_INSIDE_METRO counts residents
     within the candidate city and selecting metro; CITY_POPULATION covers the whole city.
-    Shared metro and county identifiers use StudyAreaColumn rather than being repeated here.
-    PLACE_ID and BLOCK_ID are full seven- and fifteen-digit geographic IDs, respectively;
-    their saved labels remain place_code and block_code.
+    PLACE_ID and BLOCK_ID are full seven- and fifteen-digit geographic IDs, respectively.
     """
 
     PLACE_ID = "place_code"

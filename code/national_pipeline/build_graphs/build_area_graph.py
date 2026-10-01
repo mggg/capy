@@ -33,7 +33,7 @@ class AreaGraphInputs:
     """One area's metadata, validated assignment, and saved membership rows.
 
     The definition excludes its polygon: workers read the selected Census polygons from disk.
-    Tables are read-only inputs, and only the active workers' membership subsets are submitted.
+    Tables are read-only inputs.
     """
 
     definition: pd.Series
@@ -73,8 +73,7 @@ def build_and_save_area_graph(
             False suppresses overlap warnings without changing adjacency or population counts.
 
     Returns:
-        AreaGraphFiles: Saved member paths and population accounting. No graph or polygon table
-            is sent back to the parent process. Input tables remain unchanged.
+        AreaGraphFiles: Saved member paths and population accounting.
 
     Raises:
         OSError: Reading or writing fails; the selection owner cleans up temporary files.

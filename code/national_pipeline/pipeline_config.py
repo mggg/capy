@@ -100,7 +100,8 @@ class PipelineConfig(BaseModel):
             Defaults to False. Set True after changing input shapes or graph construction methods.
         metric_results_directory (Path): Per-area scores, graph accounting, and complete-history
             averages. Defaults to results/metrics. Relative paths start at the repository root;
-            keep it separate from all data inputs. Outputs are grouped by study-area type/vintage.
+            keep it separate from all data inputs. Outputs are grouped by study-area type;
+            filenames include the definition vintage.
         population_comparisons (tuple[PopulationComparison, ...]): white_black and/or white_poc,
             defaulting to both. Each uses the same saved graph and the sum of its two groups.
         metric_names (tuple[MetricName, ...]): Scores to compute, defaulting to all supported scores.
@@ -183,11 +184,10 @@ class PipelineConfig(BaseModel):
 def load_configuration(configuration_path: Path) -> PipelineConfig:
     """Read a YAML configuration, check individual settings, and fill in omitted defaults.
 
-    This opens only the YAML file, not any of the requested data files. Paths in the settings are
-    left as written: most start at the repository root, while raw-data subfolders start inside
+    Paths in the settings are left as written: most start at the repository root, while raw-data
+    subfolders start inside
     raw_data_directory. Combinations of years, levels, and study areas are checked when building
-    requests. A relative path supplied on the command line starts at the shell's current
-    directory.
+    requests.
 
     Args:
         configuration_path (Path): YAML filename. Relative filenames start at the shell's

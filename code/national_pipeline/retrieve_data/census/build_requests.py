@@ -45,8 +45,7 @@ def build_census_file_requests(
 
     Returns:
         list[CensusFileRequest | PublicFileRequest]: Census population inputs followed by
-            published files. The combined Census/NHGIS input list is sorted by its caller. This
-            describes downloads without reading files or contacting the Census Bureau.
+            published files.
     """
     requests: list[CensusFileRequest | PublicFileRequest] = [
         *build_census_population_requests(directories, geography_requests),
@@ -62,12 +61,12 @@ def build_census_population_requests(
 
     Requests the selected modern geographies for the 50 states, DC, and Puerto Rico. Each required
     modern year also gets one national table of state totals, which can be used to check the
-    population sums later. This builds requests without reading or downloading files.
+    population sums later.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
         geography_requests (tuple[GeographyRequest, ...]): Years and levels needed for the
-            analysis and its enclosing areas. The boundary builder receives the same selections.
+            analysis and its enclosing areas.
 
     Returns:
         list[CensusFileRequest]: Selected statewide population files and state-total files.
@@ -170,7 +169,7 @@ def build_census_table_relative_path(
         state_code (str): Two-digit state FIPS code.
 
     Returns:
-        str: Relative filename, such as census/2020/tracts/10/state.json. No file is opened.
+        str: Relative filename, such as census/2020/tracts/10/state.json.
 
     Raises:
         ValueError: National state totals belong in population_reference_tables instead.

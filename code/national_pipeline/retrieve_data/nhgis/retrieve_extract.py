@@ -71,9 +71,7 @@ def retrieve_nhgis_extract(
     selections; later runs reuse that record instead of submitting again. This function checks the
     extract's status once. If it is completed, it downloads the file immediately, even on the
     first run. If it is still queued or processing, it returns a pending result so the caller can
-    continue with other files. NHGIS continues preparing the extract independently. The batch
-    runner retries pending files after the initial downloads, up to the configured wait limit.
-    This function itself does not repeatedly check or wait for completion.
+    continue with other files. NHGIS continues preparing the extract independently.
 
     Reads IPUMS_API_KEY from the environment and saves one submission record per destination.
     Before downloading, it requires NHGIS's completed selections to match the request and rejects

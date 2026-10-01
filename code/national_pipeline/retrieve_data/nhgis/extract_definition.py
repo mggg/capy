@@ -215,7 +215,8 @@ def validate_nhgis_definition(
     NHGIS can describe the same selection differently by reordering lists, reporting defaults, or
     omitting an irrelevant layout setting. These allowances prevent rejecting matching extracts;
     they do not allow changes to the selected data. See
-    documentation/raw_source_acquisition.md#nhgis-request-comparisons for examples.
+    documentation/national_pipeline/01_raw_source_acquisition.md#nhgis-request-comparisons for
+    examples.
 
     Reordered selections count as a match. For 1980/1990 STF1, omitted years and area breakdowns
     are compared using the known Census-year and whole-area defaults. Data format and layout are
@@ -261,7 +262,8 @@ def can_omit_data_layout(definition: NhgisExtractDefinition) -> bool:
     NHGIS metadata reports hasMultipleDataTypes=false for 1980_STF1 and 1990_STF1. Omitted
     breakdown selections use their single whole-area default. Other datasets require an explicit
     layout because their data types have not been established here. See
-    documentation/raw_source_acquisition.md#nhgis-table-layout for the source references.
+    documentation/national_pipeline/01_raw_source_acquisition.md#nhgis-table-layout for the source
+    references.
 
     Args:
         definition (NhgisExtractDefinition): Table selections whose layout is being compared.
@@ -282,8 +284,7 @@ def validate_dataset_selection(
     """Require matching table and area selections, regardless of the order NHGIS lists them.
 
     For 1980/1990 STF1, omitted years and breakdowns mean the dataset's Census year and whole
-    area. Compare those defaults without changing either selection. Other datasets receive no
-    defaults, and explicit selections always take precedence.
+    area. Other datasets receive no defaults, and explicit selections always take precedence.
 
     Args:
         dataset_name (str): NHGIS dataset whose selections are being compared.

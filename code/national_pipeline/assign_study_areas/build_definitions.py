@@ -90,7 +90,7 @@ def read_metro_counties(metro_membership_workbook_path: Path) -> pd.DataFrame:
 def build_metro_boundaries(
     counties_df: gpd.GeoDataFrame, metro_counties_df: pd.DataFrame
 ) -> gpd.GeoDataFrame:
-    """Combine complete county lists into metro boundaries without changing either input.
+    """Combine complete county lists into metro boundaries.
 
     Args:
         counties_df (gpd.GeoDataFrame): Definition-vintage counties with county_code and TOTPOP.
@@ -210,7 +210,6 @@ def rank_and_select_city_candidates(
 
     Returns:
         pd.DataFrame: All candidates with population_inside_metro, selected, and selection_reason.
-            Equal positive scores use the smallest place GEOID as a reproducible tie-break.
 
     Raises:
         ValueError: A metro has no populated candidate, a score exceeds city population, or

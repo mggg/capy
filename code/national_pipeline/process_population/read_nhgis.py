@@ -163,12 +163,6 @@ def read_nhgis_population_chunks(
 ) -> Generator[pd.DataFrame, None, None]:
     """Read, validate, and label chunks of a single-level NHGIS CSV inside its ZIP.
 
-    The national 1990 block CSV is about 1.43 GB uncompressed and needs more memory as a pandas
-    table. Reading 100,000 rows at a time avoids loading the whole table before the caller can
-    assemble and save individual states. Smaller extracts use the same reading path. Memory
-    use still grows with the largest state's table and the identifiers retained across chunks
-    to detect duplicate GISJOINs.
-
     Wrap this generator in ``with closing(...)``, importing ``closing`` from ``contextlib``.
     The CSV stream and ZIP stay open between chunks. The wrapper closes both if the caller
     stops iterating early or raises an error while processing a chunk.

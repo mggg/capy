@@ -14,8 +14,7 @@ def build_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
     """List the population, boundary, and supporting files needed by the configured run.
 
     Edit the Census or NHGIS builders in this package to change variables, source coverage, URLs,
-    or extracts. Choose the run's geography levels and years in YAML. This function only describes
-    the files to retrieve; it does not open files or start downloads.
+    or extracts. Choose the run's geography levels and years in YAML.
 
     Args:
         config (PipelineConfig): Geography levels and years, study areas, and raw-data folders.
@@ -103,7 +102,7 @@ def select_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
         config (PipelineConfig): Geography selections, raw folders, and file-path patterns.
 
     Returns:
-        list[RawFileRequest]: Selected downloads in destination order, without opening files.
+        list[RawFileRequest]: Selected downloads in destination order.
 
     Raises:
         ValueError: Geography selections are unsupported or a pattern matches no request.

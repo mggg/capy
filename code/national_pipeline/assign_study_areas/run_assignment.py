@@ -47,7 +47,7 @@ def assign_study_areas(config: PipelineConfig, repository_root: Path) -> pd.Data
 
     Outputs for this area type/vintage are removed before validating inputs, so a failed rerun
     cannot expose old memberships as current. Files are published individually; summary.parquet
-    is written last, only after every selected input succeeds. No graphs are built here.
+    is written last, only after every selected input succeeds.
 
     Args:
         config (PipelineConfig): Shared input selections and raw, population, geography, and

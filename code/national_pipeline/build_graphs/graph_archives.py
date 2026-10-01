@@ -70,9 +70,6 @@ def build_zip_member(member_name: str) -> ZipInfo:
 def read_graph_from_archive(archive_path: Path, member_name: str) -> Graph:
     """Read one GerryChain adjacency JSON directly from a ZIP, without extracting it.
 
-    GerryChain.from_json accepts filenames only. This uses the same NetworkX adjacency decoder
-    and GerryChain.from_networkx conversion, leaving the archive and filesystem unchanged.
-
     Args:
         archive_path (Path): Completed graph ZIP archive.
         member_name (str): Graph member listed in the archive's summary.csv.

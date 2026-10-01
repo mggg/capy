@@ -88,6 +88,17 @@ def test_population_scores_match_independent_reference_and_leave_graph_unchanged
 
     assert scores[MetricName.CAPY_EXACT] == pytest.approx(direct_capy)
 
+    # Restore each person's self-pair to the two within-group totals.
+    first_group_pairs += 13
+    second_group_pairs += 17
+    capy_with_self_pairs = 0.5 * (
+        first_group_pairs / (first_group_pairs + between_group_pairs)
+        + second_group_pairs / (second_group_pairs + between_group_pairs)
+    )
+
+    assert scores[MetricName.CAPY] == pytest.approx(capy_with_self_pairs)
+    assert scores[MetricName.CAPY] != scores[MetricName.CAPY_EXACT]
+
     # Additional residents change the White–POC denominator and its weights, but not White–Black.
     graph.nodes["c"].update(TOTPOP=20, POC=16)
     white_poc_scores = calculate_graph_metrics(
@@ -248,7 +259,8 @@ def test_complete_history_means_use_a_separate_fixed_cohort_for_each_metric():
     assert empty_df.area_count.eq(0).all()
 
 
-def test_archive_to_metrics_preserves_no_graph_rows_and_invalidates_failed_rerun(tmp_path):
+@pytest.fixture
+def metric_archive(tmp_path):
     config = PipelineConfig(
         census_geography_years=(2020,),
         census_geography_levels=(GeographyLevel.TRACT,),
@@ -297,6 +309,13 @@ def test_archive_to_metrics_preserves_no_graph_rows_and_invalidates_failed_rerun
         archive.writestr("summary.csv", summary_df.to_csv(index=False))
         archive.write(graph_path, "graphs/county_10001.json")
 
+    return config, archive_path, graph_path, summary_df
+
+
+def test_archive_to_metrics_preserves_no_graph_rows_and_invalidates_failed_rerun(
+    tmp_path, metric_archive
+):
+    config, archive_path, graph_path, summary_df = metric_archive
     scores_df = compute_metrics(config, tmp_path)
 
     assert len(scores_df) == 2 * 2 * len(MetricName)
@@ -306,9 +325,38 @@ def test_archive_to_metrics_preserves_no_graph_rows_and_invalidates_failed_rerun
         .all()
     )
 
-    result_directory = config.metric_results_directory / "county/2020"
+    result_directory = config.metric_results_directory / "county"
 
-    assert (result_directory / "average_when_all_years_present.parquet").is_file()
+    assert (result_directory / "COUNTY20_average_when_all_years_present.parquet").is_file()
+    graph_summary_df = pd.read_parquet(result_directory / "COUNTY20_graph_summary.parquet")
+    pd.testing.assert_frame_equal(
+        graph_summary_df[summary_df.columns], summary_df, check_dtype=False
+    )
+
+    preserved_paths = [
+        result_directory / "2020_tracts_COUNTY10_metrics.parquet",
+        result_directory / "COUNTY10_graph_summary.parquet",
+        result_directory / "COUNTY10_average_when_all_years_present.parquet",
+        result_directory / "notes.parquet",
+    ]
+    for path in preserved_paths:
+        path.write_bytes(b"other run")
+
+    obsolete_path = result_directory / "1990_tracts_COUNTY20_metrics.parquet"
+    obsolete_path.write_bytes(b"obsolete selection")
+    config.metric_names = (MetricName.CAPY,)
+    replacement_df = compute_metrics(config, tmp_path)
+
+    assert not obsolete_path.exists()
+    assert all(path.read_bytes() == b"other run" for path in preserved_paths)
+    assert len(replacement_df) == 4
+    assert replacement_df.metric.eq("capy").all()
+    pd.testing.assert_frame_equal(
+        pd.read_parquet(result_directory / "2020_tracts_COUNTY20_metrics.parquet"), replacement_df
+    )
+    means_df = pd.read_parquet(result_directory / "COUNTY20_average_when_all_years_present.parquet")
+
+    assert means_df.metric.eq("capy").all()
 
     summary_df.loc[0, "edge_count"] = 99
 
@@ -319,4 +367,5 @@ def test_archive_to_metrics_preserves_no_graph_rows_and_invalidates_failed_rerun
     with pytest.raises(ValueError, match="node or edge counts"):
         compute_metrics(config, tmp_path)
 
-    assert not list(result_directory.glob("*.parquet"))
+    assert set(result_directory.glob("*.parquet")) == set(preserved_paths)
+    assert all(path.read_bytes() == b"other run" for path in preserved_paths)

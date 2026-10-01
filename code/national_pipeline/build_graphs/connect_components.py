@@ -24,10 +24,6 @@ def connect_graph_components(graph: Graph, units_df: gpd.GeoDataFrame) -> Graph:
     distances are resolved by the sorted pair of geographic IDs. Original edges retain their
     attributes; added edges have artificial=True and shared_perim=0.
 
-    Note:
-        Other MST algorithms could be used, but Prim's is simple and maps well to the problem of
-        connecting a small number of disconnected components.
-
     Args:
         graph (Graph): Geographic adjacency with string geographic node IDs.
         units_df (gpd.GeoDataFrame): Retained polygons indexed by those IDs, in a metre CRS.

@@ -57,7 +57,7 @@ def calculate_graph_metrics(
     comparisons: tuple[PopulationComparison, ...],
     metric_names: tuple[MetricName, ...],
 ) -> dict[PopulationComparison, dict[MetricName, MetricValue]]:
-    """Calculate selected study scores, preparing shared weights once for the graph.
+    """Calculate selected study scores for each population comparison.
 
     Args:
         graph (Graph): Connected graph already checked against its archive population accounting.
@@ -164,9 +164,7 @@ def _calculate_selected_metric(
 ) -> float:
     """Apply the selected public numerical function to one study population comparison.
 
-    Weight preparation supplies the matrices needed by the selected formula. All population
-    totals refer to these two groups, not necessarily every resident. Validation and undefined
-    exceptions propagate to calculate_graph_metrics(); no inputs are changed.
+    Population totals refer to the two comparison groups, not necessarily every resident.
     """
     total_population = first_population + second_population
 

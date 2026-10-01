@@ -340,11 +340,11 @@ def normalize_nhgis_boundaries(
     census_year: int,
     geography_level: GeographyLevel,
 ) -> gpd.GeoDataFrame:
-    """Return checked NHGIS geography and correction notes without changing the source table.
+    """Return checked NHGIS geography and correction notes.
 
-    Corrections are applied to a working copy. The returned table preserves the original GISJOIN
-    in SOURCE_ID and uses corrected identifiers for joining. Geometry and its coordinate system
-    are unchanged; source attributes not needed by the join remain in the raw archive.
+    The returned table preserves the original GISJOIN in SOURCE_ID and uses corrected identifiers
+    for joining. Geometry and its coordinate system are unchanged; source attributes not needed
+    by the join remain in the raw archive.
 
     Args:
         source_boundaries_df (gpd.GeoDataFrame): One NHGIS source layer, left unchanged.
@@ -411,7 +411,6 @@ def check_1980_bna_codes(boundaries_df: gpd.GeoDataFrame) -> None:
 
     Args:
         boundaries_df (gpd.GeoDataFrame): BNA layer with GISJOIN, STATE80, COUNTY80, and BNA80.
-            Values are inspected without changing the table.
 
     Raises:
         ValueError: A required field is missing, the coordinate system is absent, or BNA codes are
@@ -435,7 +434,6 @@ def check_nhgis_state_and_county_codes(boundaries_df: gpd.GeoDataFrame) -> None:
         boundaries_df (gpd.GeoDataFrame): Working table with normalized state and county columns.
             BNA attributes use FIPS codes; NHGISST/NHGISCTY add a trailing zero. Some 1990 block
             products have neither pair and are checked against FIPSSTCO during block preparation.
-            This function does not change the table.
 
     Raises:
         ValueError: An available source pair disagrees with the normalized codes, a county field
@@ -469,8 +467,9 @@ def correct_kalawao_county_attribute_in_place(boundaries_df: gpd.GeoDataFrame) -
     """Replace Kalawao's conflicting NHGIS county attribute and record the correction in place.
 
     GISJOIN identifies Kalawao (005), but the county attribute identifies Maui (009). The
-    population record agrees with GISJOIN. See documentation/geography_population_joining.md,
-    "Historical corrections", for the source correspondence.
+    population record agrees with GISJOIN. See "Historical boundary corrections" in
+    documentation/national_pipeline/data_processing_decisions_and_anomalies.md for the source
+    correspondence.
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Working NHGIS table with GEOID and a correction column.
@@ -554,9 +553,9 @@ def correct_known_1990_block_errors_in_place(boundaries_df: gpd.GeoDataFrame) ->
 
     These are exact repairs, not a rule for resolving arbitrary disagreements. The Maryland county
     and New Jersey STFIDs follow the agreeing component codes, GISJOINs, and original STF1B
-    records. Alaska's two malformed GISJOINs have intact Census IDs. See
-    documentation/geography_population_joining.md, "Historical corrections", for the evidence. The
-    caller checks that all identifiers agree after these repairs.
+    records. Alaska's two malformed GISJOINs have intact Census IDs. See "Historical boundary
+    corrections" in documentation/national_pipeline/data_processing_decisions_and_anomalies.md for
+    the evidence. The caller checks that all identifiers agree after these repairs.
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Working block table with source GISJOIN/FIPSSTCO/STFID,
@@ -603,7 +602,7 @@ def correct_known_1990_block_errors_in_place(boundaries_df: gpd.GeoDataFrame) ->
 def check_boundary_columns_and_crs(
     boundaries_df: gpd.GeoDataFrame, required_columns: list[str]
 ) -> None:
-    """Require source columns and a declared coordinate system without changing the table.
+    """Require source columns and a declared coordinate system.
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Source or working boundary table to inspect.
@@ -637,9 +636,9 @@ def build_boundary_output(
 ) -> gpd.GeoDataFrame:
     """Check identifiers and build a separate output table with source locations and flags.
 
-    The supplied table is unchanged. Existing Census IDs, correction notes, and water flags are
-    carried into the output; absent fields default to empty text or False. A default water flag
-    means no water classification was made, not that the feature was independently checked.
+    Existing Census IDs, correction notes, and water flags are carried into the output. Absent
+    fields default to empty text or False. A default water flag means no water classification
+    was made, not that the feature was independently checked.
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Working layer with normalized geography columns.

@@ -31,7 +31,7 @@ def publish_graph_archive_parts(
     Parts are built and checked in a temporary directory before replacing previous parts. The
     source ZIP is never removed here. Each area stays together, in sorted ID order. The 80 MiB
     target leaves room below GitHub's 100 MiB file limit; a single larger area gets its own part
-    but still must fit that limit. Recompression is required by Python's ZIP writer.
+    but still must fit that limit.
 
     Args:
         source_path (Path): Complete ZIP, either a legacy archive or a newly built temporary ZIP.
