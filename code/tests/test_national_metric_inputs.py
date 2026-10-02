@@ -307,13 +307,15 @@ def test_history_outputs_keep_cohorts_legends_and_filenames_together(tmp_path, m
     pd.testing.assert_frame_equal(scores_df, original_df)
 
 
-def test_history_draws_on_supplied_axes_and_returns_matching_legend_lines():
+@pytest.mark.parametrize("metric", [MetricName.CAPY, MetricName.ENTROPY_INDEX])
+@pytest.mark.parametrize("level", ["tracts", "block_groups", "blocks"])
+def test_history_draws_on_supplied_axes_and_returns_matching_legend_lines(metric, level):
     scores_df = pd.DataFrame(
         {
             "study_area_id": ["cbsa_10000", "cbsa_10000", "cbsa_30000", "cbsa_30000"],
             "census_year": [2000, 2010, 2000, 2010],
-            "geography_level": ["tracts"] * 4,
-            "metric": ["capy"] * 4,
+            "geography_level": [level] * 4,
+            "metric": [metric] * 4,
             "value": [0.6, 0.8, 0.2, 0.4],
         }
     )
@@ -331,15 +333,20 @@ def test_history_draws_on_supplied_axes_and_returns_matching_legend_lines():
         top_10_handles, individual_and_mean_handles = plot_national_results.plot_score_history(
             axes, scores_df, top_10_metros_df, config
         )
+        assert [label.get_text() for label in axes.get_xticklabels()] == ["2000", "2010"]
+
+        if metric == MetricName.ENTROPY_INDEX:
+            assert axes.get_ylim() == (0, 1)
+
         axes.set_xticks([2000, 2005, 2010], labels=["2000", "2005", "2010"])
-        axes.set_ylim(0, 1)
+        axes.set_ylim(-0.1, 1.1)
         figure.canvas.draw()
 
         assert plt.get_fignums() == open_figures
         assert len(figure.axes) == 2
         assert not unused_axes.lines
         assert list(axes.get_xticks()) == [2000, 2005, 2010]
-        assert axes.get_ylim() == (0, 1)
+        assert axes.get_ylim() == (-0.1, 1.1)
         assert [line.get_label() for line in top_10_handles] == ["Missing", "Present"]
         assert len(top_10_handles[0].get_xdata()) == 0
         assert list(top_10_handles[1].get_ydata()) == [0.6, 0.8]
@@ -350,6 +357,36 @@ def test_history_draws_on_supplied_axes_and_returns_matching_legend_lines():
         assert list(individual_and_mean_handles[1].get_ydata()) == pytest.approx([0.4, 0.6])
         pd.testing.assert_frame_equal(scores_df, original_scores_df)
         pd.testing.assert_frame_equal(top_10_metros_df, original_top_10_df)
+    finally:
+        plt.close(figure)
+
+
+@pytest.mark.parametrize("show_labels", [True, False])
+def test_history_year_labels_can_be_customized_or_hidden(monkeypatch, show_labels):
+    monkeypatch.setattr(plot_national_results, "HISTORY_X_TICK_LABELS", {1980: "'80", 2000: ""})
+    monkeypatch.setattr(plot_national_results, "HISTORY_SHOW_X_TICK_LABELS", show_labels)
+    scores_df = pd.DataFrame(
+        {
+            "study_area_id": ["cbsa_10000", "cbsa_10000"],
+            "census_year": [1980, 2020],
+            "geography_level": ["tracts", "tracts"],
+            "metric": ["capy", "capy"],
+            "value": [0.55, 0.95],
+        }
+    )
+    top_10_metros_df = pd.DataFrame({"study_area_id": [], "name": []})
+    figure, axes = plot_national_results.create_plot()
+
+    try:
+        plot_national_results.plot_score_history(
+            axes, scores_df, top_10_metros_df, PipelineConfig()
+        )
+        figure.canvas.draw()
+
+        expected_labels = ["'80", "1990", "", "2010", "2020"] if show_labels else []
+        assert [label.get_text() for label in axes.get_xticklabels()] == expected_labels
+        assert list(axes.get_xticks()) == [1980, 1990, 2000, 2010, 2020]
+        assert all(line.get_visible() for line in axes.get_xgridlines())
     finally:
         plt.close(figure)
 

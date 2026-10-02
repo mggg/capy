@@ -11,6 +11,7 @@ FIGURE_DIRECTORIES = {
     "score-ranks": ("national/processed_data/score_ranks", "national"),
     "population-composition": ("national/processed_data/population_composition", "national"),
     "capy-weights": ("national/processed_data/capy_weights", "national"),
+    "entropy-by-geography": ("national/processed_data/entropy_by_geography", "national"),
 }
 
 
@@ -42,7 +43,18 @@ def main() -> None:
         data_directory = repository_root / arguments.data_directory / result_subdirectory
         output_directory = repository_root / arguments.output_directory / figure_subdirectory
 
-        if figure_name == "population-composition":
+        if figure_name == "entropy-by-geography":
+            from national_figures.plot_entropy_by_geography import plot_entropy_by_geography
+
+            config = load_configuration(
+                arguments.config or repository_root / "code/configs/replication.yaml"
+            )
+
+            selection_folder = f"WB_{build_study_area_label(config)}"
+
+            plot_entropy_by_geography(config, output_directory, data_directory / selection_folder)
+
+        elif figure_name == "population-composition":
             from national_figures.plot_population_composition import plot_population_composition
 
             config = load_configuration(

@@ -19,7 +19,9 @@ from national_pipeline.pipeline_config import PipelineConfig
 from plotting.figure_style import (
     AREA_COLORS,
     DENIM,
+    INDIVIDUAL_METRO_COLOR_FOR_HISTORIES,
     PLOT_GRID_COLOR,
+    UNAVAILABLE_YEAR_COLOR,
     create_plot,
     save_legend,
     save_plot,
@@ -27,13 +29,16 @@ from plotting.figure_style import (
 
 from national_figures.output_names import POPULATION_COMPARISON_LABELS
 
-INDIVIDUAL_METRO_COLOR_FOR_HISTORIES = "#7cb3f6"
+# Unspecified years use their full numeric labels; an empty string hides one year's label.
+HISTORY_X_TICK_LABELS: dict[int, str] = {}
+HISTORY_SHOW_X_TICK_LABELS = True
 
-# Edit these tick locations for each metric; data are not clipped.
+# Edit these tick locations independently of the limits below.
 HISTORY_Y_TICKS = {
     MetricName.MORAN_ROW_STANDARDIZED: [-0.5, 0, 0.5, 1],
     MetricName.DISSIMILARITY: [0.25, 0.5, 0.75, 1],
     MetricName.CAPY: [0.45, 0.6, 0.75, 0.9],
+    MetricName.ENTROPY_INDEX: [0, 0.25, 0.5, 0.75, 1],
 }
 
 # Horizontal grid positions are independent of ticks; [] hides a metric's horizontal grid.
@@ -42,7 +47,11 @@ HISTORY_Y_GRID_LINES = {
     MetricName.MORAN_ROW_STANDARDIZED: [-0.5, 0, 0.5, 1],
     MetricName.DISSIMILARITY: [0, 0.25, 0.5, 0.75, 1],
     MetricName.CAPY: [0.45, 0.6, 0.75, 0.9],
+    MetricName.ENTROPY_INDEX: [0, 0.25, 0.5, 0.75, 1],
 }
+# Metrics without fixed limits retain the limits set by their data and ticks.
+HISTORY_Y_LIMITS = {MetricName.ENTROPY_INDEX: (0, 1)}
+
 HISTORY_Y_GRID_COLOR = PLOT_GRID_COLOR
 HISTORY_Y_GRID_LINEWIDTH = 0.6  # Points.
 
@@ -177,10 +186,12 @@ def plot_score_history(
             label=str(metro[StudyAreaColumn.NAME]),
         )[0]
 
-    axes.set_xticks(display_years)
-    axes.set_xticklabels([])
+    axes.set_xticks(
+        display_years, labels=[HISTORY_X_TICK_LABELS.get(year, str(year)) for year in display_years]
+    )
+    axes.tick_params(axis="x", labelbottom=HISTORY_SHOW_X_TICK_LABELS)
     axes.set_yticks(HISTORY_Y_TICKS[metric])
-    y_limits = axes.get_ylim()
+    y_limits = HISTORY_Y_LIMITS.get(metric, axes.get_ylim())
     axes.grid(False, axis="y", which="both")
 
     for grid_value in HISTORY_Y_GRID_LINES[metric]:
@@ -191,7 +202,7 @@ def plot_score_history(
     axes.set_ylim(y_limits)
 
     if 1980 in display_years and level in (GeographyLevel.BLOCK_GROUP, GeographyLevel.BLOCK):
-        axes.axvspan(1980, 1990, color="lightgray", alpha=0.3, zorder=0)
+        axes.axvspan(1980, 1990, color=UNAVAILABLE_YEAR_COLOR, alpha=0.3, zorder=0)
 
     axes.set_xlim(display_years[0] - 2, display_years[-1] + 2)
     top_10_handles = [

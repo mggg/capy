@@ -53,8 +53,7 @@ AREA_COLORS = (
 )
 
 
-# These image families retain their original metro shades, in the same 2020 population order.
-ENTROPY_AREA_COLORS = ("#58C995", *AREA_COLORS[1:])
+# Atlas metro shades, in 2020 population order.
 ATLAS_AREA_COLORS = (
     "#1565C0",
     "#83B900",
@@ -72,6 +71,8 @@ ATLAS_AREA_COLORS = (
 TICK_COLOR = "#333333"
 PLOT_GRID_COLOR = "#eae8e0"
 TRACE_GRID_COLOR = "#dddddd"
+INDIVIDUAL_METRO_COLOR_FOR_HISTORIES = "#7cb3f6"
+UNAVAILABLE_YEAR_COLOR = "lightgray"
 
 
 # None keeps the fixed year palette; use AMBER, PURPLE_HEART, DENIM, or a color string for shades.
