@@ -12,6 +12,7 @@ FIGURE_DIRECTORIES = {
     "population-composition": ("national/processed_data/population_composition", "national"),
     "capy-weights": ("national/processed_data/capy_weights", "national"),
     "entropy-by-geography": ("national/processed_data/entropy_by_geography", "national"),
+    "grid-vs-national-scores": ("national/processed_data/grid_vs_national_scores", "national"),
 }
 
 
@@ -53,6 +54,19 @@ def main() -> None:
             selection_folder = f"WB_{build_study_area_label(config)}"
 
             plot_entropy_by_geography(config, output_directory, data_directory / selection_folder)
+
+        elif figure_name == "grid-vs-national-scores":
+            from national_figures.plot_grid_vs_national_scores import plot_grid_vs_national_scores
+
+            config = load_configuration(
+                arguments.config or repository_root / "code/configs/replication.yaml"
+            )
+
+            selection_folder = build_study_area_label(config)
+
+            plot_grid_vs_national_scores(
+                config, output_directory, data_directory / selection_folder
+            )
 
         elif figure_name == "population-composition":
             from national_figures.plot_population_composition import plot_population_composition

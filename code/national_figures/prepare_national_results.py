@@ -141,8 +141,8 @@ def read_national_figure_inputs(
         history_years_by_selection (dict): Supported years per selected comparison and level.
 
     Returns:
-        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: Metric rows, area definitions without
-            geometry, and graph summaries. Each selected image set's year/level tables are required.
+        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: Metric rows, study-area attributes,
+            and graph summaries. Each selected image set's year/level tables are required.
 
     Raises:
         OSError: An input is missing or unreadable.

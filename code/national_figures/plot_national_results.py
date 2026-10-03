@@ -19,7 +19,9 @@ from national_pipeline.pipeline_config import PipelineConfig
 from plotting.figure_style import (
     AREA_COLORS,
     DENIM,
+    GRAY_60,
     INDIVIDUAL_METRO_COLOR_FOR_HISTORIES,
+    METRO_COLORS,
     PLOT_GRID_COLOR,
     UNAVAILABLE_YEAR_COLOR,
     create_plot,
@@ -117,7 +119,7 @@ def plot_score_history(
         axes (Axes): Caller-owned axes, left open for further adjustments.
         scores_df (pd.DataFrame): One comparison, geography level, and metric; complete histories
             sorted by area and year.
-        top_10_metros_df (pd.DataFrame): Top-ten identities and names in population order.
+        top_10_metros_df (pd.DataFrame): Top-ten identities, names, and metro_code in population order.
         config (PipelineConfig): Display years and study-area type for legend wording.
 
     Returns:
@@ -139,7 +141,16 @@ def plot_score_history(
         if config.study_area_type == StudyAreaType.COUNTY
         else ("metro", "metros")
     )
-    top_10_metros_df = top_10_metros_df.assign(color=list(AREA_COLORS[: len(top_10_metros_df)]))
+    if config.study_area_type == StudyAreaType.COUNTY:
+        colors = list(AREA_COLORS[: len(top_10_metros_df)])
+    else:
+        # Unlisted metros use the same neutral color in every figure.
+        colors = [
+            METRO_COLORS.get(metro.get(StudyAreaColumn.METRO_CODE), GRAY_60)
+            for _, metro in top_10_metros_df.iterrows()
+        ]
+
+    top_10_metros_df = top_10_metros_df.assign(color=colors)
 
     history_lines = []
 

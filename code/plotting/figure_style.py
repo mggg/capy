@@ -12,6 +12,7 @@ from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Colormap, Normalize
 from matplotlib.figure import Figure
+from national_pipeline.geography_types import MetroCode
 from seaborn import blend_palette
 
 # Names and exact hex values from GerryTools' LaTeX color table.
@@ -53,24 +54,27 @@ AREA_COLORS = (
 )
 
 
-# Atlas metro shades, in 2020 population order.
-ATLAS_AREA_COLORS = (
-    "#1565C0",
-    "#83B900",
-    "#FFB2C1",
-    "#FF9F0A",
-    "#007F4E",
-    "#7435A5",
-    "#D4143F",
-    "#4AAEE3",
-    "#000000",
-    "#9E9E9E",
-)
+# Metro identities keep their colors across rankings, vintages, and selected subsets.
+METRO_COLORS = {
+    MetroCode.NEW_YORK: DENIM,
+    MetroCode.LOS_ANGELES: APPLE_GREEN,
+    MetroCode.CHICAGO: CHERRY_BLOSSOM_PINK,
+    MetroCode.DALLAS: DARK_TANGERINE,
+    MetroCode.HOUSTON: CADMIUM_GREEN,
+    MetroCode.WASHINGTON: PURPLE_HEART,
+    MetroCode.PHILADELPHIA: ALIZARIN,
+    MetroCode.MIAMI: OKABE_ITO_SKY_BLUE,
+    MetroCode.ATLANTA: BLACK,
+    MetroCode.BOSTON: GRAY_60,
+    MetroCode.PHOENIX: TEAL,
+    MetroCode.SAN_ANTONIO: BYZANTINE,
+    MetroCode.SAN_DIEGO: CHINESE_GOLD,
+    MetroCode.SAN_JOSE: GOLDEN_YELLOW,
+}
 
 
 TICK_COLOR = "#333333"
 PLOT_GRID_COLOR = "#eae8e0"
-TRACE_GRID_COLOR = "#dddddd"
 INDIVIDUAL_METRO_COLOR_FOR_HISTORIES = "#7cb3f6"
 UNAVAILABLE_YEAR_COLOR = "lightgray"
 
@@ -184,20 +188,8 @@ def write_figure_png(figure: Figure, output_path: Path) -> None:
         plt.close(figure)
 
 
-def create_trace_plot() -> tuple[Figure, Axes]:
-    """Create a diffusion or atlas-history plot with left/bottom axes and a light gray grid."""
-    with plt.rc_context({"font.family": "sans-serif", "font.size": 9}):
-        figure, axes = plt.subplots(figsize=(3.6, 3.1), layout="constrained")
-
-    axes.spines[["top", "right"]].set_visible(False)
-    axes.grid(color=TRACE_GRID_COLOR, linewidth=0.7)
-    axes.set_axisbelow(True)
-
-    return figure, axes
-
-
-def create_atlas_plot() -> tuple[Figure, Axes]:
-    """Create serif axes sized for an atlas."""
+def create_score_scatter_plot() -> tuple[Figure, Axes]:
+    """Create serif axes for scores plotted against population share."""
     with plt.rc_context({"font.family": "serif", "font.size": 10}):
         figure, axes = plt.subplots(figsize=(2.8, 3.3), layout="constrained")
 

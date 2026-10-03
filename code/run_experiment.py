@@ -12,6 +12,7 @@ EXPERIMENT_DIRECTORIES = {
     "score-ranks": "national/processed_data/score_ranks",
     "population-composition": "national/processed_data/population_composition",
     "entropy-by-geography": "national/processed_data/entropy_by_geography",
+    "grid-vs-national-scores": "national/processed_data/grid_vs_national_scores",
     "capy-weights": "national/processed_data/capy_weights",
 }
 
@@ -58,6 +59,20 @@ def main() -> None:
             selection_folder = f"WB_{build_study_area_label(config)}"
 
             prepare_entropy_data(config, repository_root, data_directory / selection_folder)
+
+        elif experiment_name == "grid-vs-national-scores":
+            from national_figures.prepare_grid_vs_national_scores import (
+                prepare_grid_vs_national_scores,
+            )
+
+            config = load_configuration(
+                arguments.config or repository_root / "code/configs/replication.yaml"
+            )
+            selection_folder = build_study_area_label(config)
+
+            prepare_grid_vs_national_scores(
+                config, repository_root, data_directory / selection_folder
+            )
 
         elif experiment_name == "population-composition":
             from national_figures.prepare_population_composition import (

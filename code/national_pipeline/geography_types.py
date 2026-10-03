@@ -31,3 +31,23 @@ class StudyAreaType(StrEnum):
     CBSA = "cbsa"
     MAX_COUNTY = "max_county"
     MAX_CITY = "max_city"
+
+
+class MetroCode(StrEnum):
+    """Named CBSA identifiers used in national figure selections and colors."""
+
+    NEW_YORK = "35620"
+    LOS_ANGELES = "31080"
+    CHICAGO = "16980"
+    DALLAS = "19100"
+    HOUSTON = "26420"
+    WASHINGTON = "47900"
+    PHILADELPHIA = "37980"
+    MIAMI = "33100"
+    ATLANTA = "12060"
+    BOSTON = "14460"
+
+    PHOENIX = "38060"
+    SAN_ANTONIO = "41700"
+    SAN_DIEGO = "41740"
+    SAN_JOSE = "41940"

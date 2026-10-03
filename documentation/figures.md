@@ -232,3 +232,20 @@ supported configured year, with definition population above 100,000. Preparation
 most populous eligible metros from the study-area definitions and requires each to have a complete
 history at every selected level. It saves their identities with the cohorts. Images and legends
 live together in `figures/national/entropy_by_geography/WB_CBSA20_entropy_by_geography/`.
+
+## Grid versus national scores
+
+```bash
+uv run --locked python code/run_experiment.py grid-vs-national-scores --config code/configs/replication.yaml
+uv run --locked python code/make_figures.py grid-vs-national-scores --config code/configs/replication.yaml
+```
+
+Preparation reads 2020 tract scores and retained population accounting for all areas, with no
+population cutoff. Highlights use the fixed ten largest 2020 metros. Each metric is a separate
+image with a matching legend. Reference curves describe a regular square lattice rather than
+universal bounds for irregular graphs. Both observations and reference curves use regular Capy.
+
+Prepared tables live under `results/national/processed_data/grid_vs_national_scores/CBSA20/`.
+Images live under `figures/national/grid_vs_national_scores/WB_CBSA20_2020_tract/`, with names
+such as `TRACT_grid_v_nat_capy_by_share.png` and `TRACT_grid_v_nat_top_10_capy_by_share.png`. The
+samples share `top_10_legend.png` and `reference_legend.png`.
