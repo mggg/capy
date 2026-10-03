@@ -1,5 +1,7 @@
 """Analytic score curves for equal-mass populations on a four-neighbor square lattice."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from scipy.special import entr
@@ -113,3 +115,17 @@ def build_grid_reference_scores(group_shares: np.ndarray | None = None) -> pd.Da
     ]
 
     return pd.concat(score_tables, ignore_index=True)
+
+
+def save_grid_reference_scores(data_directory: Path) -> None:
+    """Save the default analytic arrangement curves for ten score conventions.
+
+    Args:
+        data_directory (Path): Destination for theoretical_scores.parquet.
+
+    Raises:
+        OSError: The destination cannot be created or the score table cannot be written.
+    """
+    scores_df = build_grid_reference_scores()
+    data_directory.mkdir(parents=True, exist_ok=True)
+    scores_df.to_parquet(data_directory / "theoretical_scores.parquet", index=False)

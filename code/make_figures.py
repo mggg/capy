@@ -11,8 +11,24 @@ FIGURE_DIRECTORIES = {
     "score-ranks": ("national/processed_data/score_ranks", "national"),
     "population-composition": ("national/processed_data/population_composition", "national"),
     "capy-weights": ("national/processed_data/capy_weights", "national"),
+    "grid-distributions": (
+        "experiments/grid_configurations/distributions",
+        "grid_configurations/distributions",
+    ),
     "entropy-by-geography": ("national/processed_data/entropy_by_geography", "national"),
     "grid-vs-national-scores": ("national/processed_data/grid_vs_national_scores", "national"),
+    "grid-reference-scores": (
+        "experiments/grid_configurations/grid_reference_scores",
+        "grid_configurations/grid_reference_scores",
+    ),
+    "grid-pop-share-arrangements": (
+        "experiments/grid_configurations/grid_pop_share_arrangements",
+        "grid_configurations/grid_pop_share_arrangements",
+    ),
+    "grid-score-comparisons": (
+        "experiments/grid_configurations/grid_score_comparisons",
+        "grid_configurations/grid_score_comparisons",
+    ),
 }
 
 
@@ -88,6 +104,27 @@ def main() -> None:
 
             plot_score_rank_comparisons(config, output_directory, data_directory / selection_folder)
 
+        elif figure_name == "grid-reference-scores":
+            from experiments.grid_configurations.plot_grid_reference_scores import (
+                plot_grid_reference_scores,
+            )
+
+            plot_grid_reference_scores(data_directory, output_directory)
+
+        elif figure_name == "grid-pop-share-arrangements":
+            from experiments.grid_configurations.plot_grid_pop_share_arrangements import (
+                plot_grid_pop_share_arrangements,
+            )
+
+            plot_grid_pop_share_arrangements(data_directory, output_directory)
+
+        elif figure_name == "grid-score-comparisons":
+            from experiments.grid_configurations.plot_grid_score_comparisons import (
+                plot_grid_score_comparisons,
+            )
+
+            plot_grid_score_comparisons(data_directory, output_directory)
+
         elif figure_name == "national":
             from national_figures.plot_national_results import plot_national_figures
 
@@ -98,6 +135,13 @@ def main() -> None:
             selection_folder = build_study_area_label(config)
 
             plot_national_figures(config, output_directory, data_directory / selection_folder)
+
+        elif figure_name == "grid-distributions":
+            from experiments.grid_configurations.plot_grid_distributions import (
+                plot_grid_distributions,
+            )
+
+            plot_grid_distributions(data_directory, output_directory)
 
         elif figure_name == "capy-weights":
             from national_figures.plot_capy_weights import plot_capy_weight_comparison

@@ -13,6 +13,8 @@ generation. [`national_figures/`](national_figures/) owns the available national
 [`make_figures.py`](make_figures.py) renders figures and saves one 300 dpi PNG per component,
 leaving axis labels and titles to LaTeX. The [figure guide](../documentation/figures.md) explains
 commands and scientific choices.
+[`run_experiment.py`](run_experiment.py) prepares saved inputs for both national figures and
+[grid, diffusion, and neighborhood experiments](../documentation/experiments.md).
 
 | What you want to do                                             | Where to start                                                                                                                                                                                                                             |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

@@ -13,6 +13,10 @@ EXPERIMENT_DIRECTORIES = {
     "population-composition": "national/processed_data/population_composition",
     "entropy-by-geography": "national/processed_data/entropy_by_geography",
     "grid-vs-national-scores": "national/processed_data/grid_vs_national_scores",
+    "grid-reference-scores": "experiments/grid_configurations/grid_reference_scores",
+    "grid-pop-share-arrangements": "experiments/grid_configurations/grid_pop_share_arrangements",
+    "grid-score-comparisons": "experiments/grid_configurations/grid_score_comparisons",
+    "grid-distributions": "experiments/grid_configurations/distributions",
     "capy-weights": "national/processed_data/capy_weights",
 }
 
@@ -30,6 +34,13 @@ def main() -> None:
         type=Path,
         default=Path("results"),
         help="Result root, relative to the repository unless absolute (default: results)",
+    )
+    parser.add_argument("--samples", type=int, default=10000, help="Binary grids per class")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=20260918,
+        help="Random seed for grid-pop-share-arrangements, grid-score-comparisons, grid-distributions",
     )
     arguments = parser.parse_args()
 
@@ -117,6 +128,32 @@ def main() -> None:
             prepare_ranked_population_table(
                 config, repository_root, data_directory / selection_folder
             )
+
+        elif experiment_name == "grid-reference-scores":
+            from experiments.grid_configurations.grid_reference_scores import (
+                save_grid_reference_scores,
+            )
+
+            save_grid_reference_scores(data_directory)
+
+        elif experiment_name == "grid-pop-share-arrangements":
+            from experiments.grid_configurations.grid_pop_share_arrangements import (
+                run_grid_pop_share_arrangements,
+            )
+
+            run_grid_pop_share_arrangements(data_directory, arguments.seed)
+
+        elif experiment_name == "grid-score-comparisons":
+            from experiments.grid_configurations.grid_score_comparisons import (
+                run_grid_score_comparisons,
+            )
+
+            run_grid_score_comparisons(data_directory, arguments.seed)
+
+        elif experiment_name == "grid-distributions":
+            from experiments.grid_configurations.grid_distributions import run_grid_distributions
+
+            run_grid_distributions(data_directory, arguments.samples, arguments.seed)
 
         elif experiment_name == "capy-weights":
             from national_figures.compare_capy_weights import run_capy_weight_comparison
