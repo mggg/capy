@@ -29,7 +29,7 @@ def test_national_figures_use_pipeline_scores_without_reading_graphs(
     rows = []
 
     for comparison in ("white_black", "white_poc"):
-        for metric in prepare_national_results.PRIMARY_METRICS:
+        for metric in prepare_national_results.HISTORY_METRICS:
             if metric == MetricName.CAPY and not include_capy:
                 continue
 
@@ -209,7 +209,7 @@ def test_history_outputs_keep_cohorts_legends_and_filenames_together(tmp_path, m
 
             for area_id in sorted(excluded_ids | set(top_10_metro_ids)):
                 for year in years:
-                    for metric in prepare_national_results.PRIMARY_METRICS:
+                    for metric in prepare_national_results.HISTORY_METRICS:
                         rows.append(
                             {
                                 "study_area_id": area_id,
@@ -281,7 +281,7 @@ def test_history_outputs_keep_cohorts_legends_and_filenames_together(tmp_path, m
     )
     tract_directory = tmp_path / "figures/history/WB_CBSA20_tract_histories"
 
-    for metric in prepare_national_results.PRIMARY_METRICS:
+    for metric in prepare_national_results.HISTORY_METRICS:
         all_areas_path = tract_directory / f"TRACT_{metric}_histories.png"
         assert all_areas_path in plot_paths
         assert tract_directory / "top_10_legend" in legend_paths
@@ -303,7 +303,7 @@ def test_history_outputs_keep_cohorts_legends_and_filenames_together(tmp_path, m
         if output_path.parent != tract_directory:
             assert set(plotted_df.study_area_id) == excluded_ids | set(top_10_metro_ids)
 
-    assert len(plot_paths) == 9
+    assert len(plot_paths) == 3 * len(prepare_national_results.HISTORY_METRICS)
     pd.testing.assert_frame_equal(scores_df, original_df)
 
 
@@ -514,7 +514,7 @@ def test_configured_histories_read_saved_scores_and_render_selected_years(
         assert axes.get_xlim() == (min(years) - 2, max(years) + 2)
         assert len(axes.patches) == int(1980 in years and level != GeographyLevel.TRACT)
         plotted_metrics = [
-            metric for metric in prepare_national_results.PRIMARY_METRICS if metric in metrics
+            metric for metric in prepare_national_results.HISTORY_METRICS if metric in metrics
         ]
         metric = plotted_metrics[len(exports)]
         assert len(axes.lines) == 3 + len(plot_national_results.HISTORY_Y_GRID_LINES[metric])
@@ -590,3 +590,61 @@ def test_missing_requested_moran_rows_are_rejected_even_when_capy_is_complete():
             history_selections_df,
             (MetricName.CAPY, MetricName.MORAN_ROW_STANDARDIZED),
         )
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        metric
+        for metric in prepare_national_results.HISTORY_METRICS
+        if metric not in prepare_national_results.PRIMARY_METRICS
+    ],
+)
+def test_additional_histories_keep_population_exclusions_and_independent_cohorts(
+    tmp_path, monkeypatch, metric
+):
+    config = PipelineConfig(
+        study_area_type=StudyAreaType.CBSA,
+        census_geography_years=(1980, 2020),
+        census_geography_levels=(GeographyLevel.TRACT,),
+        population_comparisons=(PopulationComparison.WHITE_BLACK,),
+        metric_names=(MetricName.CAPY, metric),
+    )
+    definitions_df = pd.DataFrame(
+        {
+            "study_area_id": ["cbsa_10000", "cbsa_10001", "cbsa_10002", "cbsa_25940"],
+            "definition_population": [300000, 200000, 100000, 150000],
+        }
+    )
+    scores_df = pd.DataFrame(
+        [
+            {
+                "study_area_id": area_id,
+                "census_year": year,
+                "geography_level": "tracts",
+                "population_comparison": "white_black",
+                "metric": score,
+                "value": float("nan")
+                if (area_id, year, score) == ("cbsa_10000", 1980, metric)
+                else 0.6,
+            }
+            for area_id in definitions_df.study_area_id
+            for year in config.census_geography_years
+            for score in config.metric_names
+        ]
+    )
+    graph_summary_df = scores_df[prepare_national_results.IDENTITY_COLUMNS].drop_duplicates()
+    monkeypatch.setattr(
+        prepare_national_results,
+        "read_national_figure_inputs",
+        lambda *_: (scores_df, definitions_df, graph_summary_df),
+    )
+    prepare_national_results.prepare_national_figure_data(config, tmp_path, tmp_path)
+    histories_df = pd.read_parquet(tmp_path / "trajectory_rows.parquet")
+
+    assert set(histories_df.loc[histories_df.metric.eq(MetricName.CAPY), "study_area_id"]) == {
+        "cbsa_10000",
+        "cbsa_10001",
+    }
+    assert set(histories_df.loc[histories_df.metric.eq(metric), "study_area_id"]) == {"cbsa_10001"}
+    assert set(histories_df.census_year) == {1980, 2020}

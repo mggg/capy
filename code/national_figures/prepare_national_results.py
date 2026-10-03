@@ -20,6 +20,16 @@ from national_pipeline.pipeline_config import PipelineConfig
 from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
 
 PRIMARY_METRICS = (MetricName.MORAN_ROW_STANDARDIZED, MetricName.DISSIMILARITY, MetricName.CAPY)
+HISTORY_METRICS = (
+    *PRIMARY_METRICS,
+    MetricName.ENTROPY_INDEX,
+    MetricName.RELATIVE_DIVERSITY,
+    MetricName.ASPATIAL_CAPY,
+    MetricName.SPATIAL_DISSIMILARITY,
+    MetricName.SPATIAL_ENTROPY_INDEX,
+    MetricName.SPATIAL_RELATIVE_DIVERSITY,
+    MetricName.MORAN_WITH_SELF,
+)
 
 # Two-node 1980 BNA graphs force Moran's I to -1, so we exclude their complete tract histories.
 TWO_NODE_1980_CBSA_IDS = frozenset(
@@ -180,7 +190,7 @@ def prepare_national_figure_data(
 
     Histories require finite scores throughout the period and definition population above 100,000.
     Scores come from the completed pipeline metric tables. Image sets use the configured years,
-    geography levels, comparisons, and primary metrics; unavailable 1980 resolutions are omitted.
+    geography levels, comparisons, and history metrics; unavailable 1980 resolutions are omitted.
 
     Args:
         config (PipelineConfig): Study areas, years, levels, comparisons, and available metrics.
@@ -192,7 +202,7 @@ def prepare_national_figure_data(
         ValueError: Required selections or input identities are invalid.
     """
     history_years_by_selection = select_history_years(config)
-    selected_metrics = tuple(metric for metric in PRIMARY_METRICS if metric in config.metric_names)
+    selected_metrics = tuple(metric for metric in HISTORY_METRICS if metric in config.metric_names)
     history_selections_df = pd.DataFrame(
         list(history_years_by_selection),
         columns=pd.Index([MetricColumn.COMPARISON, MembershipColumn.GEOGRAPHY_LEVEL]),
@@ -250,13 +260,13 @@ def check_figure_score_selection(
     history_selections_df: pd.DataFrame,
     selected_metrics: tuple[MetricName, ...],
 ) -> None:
-    """Require each configured primary score for every graph/comparison in the image sets.
+    """Require each configured score for every graph/comparison in the image sets.
 
     Args:
         scores_df (pd.DataFrame): Selected pipeline scores, including undefined results.
         graph_summary_df (pd.DataFrame): Selected area/year/level graph accounting.
         history_selections_df (pd.DataFrame): Selected comparison/level pairs, one row per image set.
-        selected_metrics (tuple[MetricName, ...]): Primary scores requested for each image set.
+        selected_metrics (tuple[MetricName, ...]): Scores requested for each image set.
 
     Raises:
         ValueError: Identities repeat, are missing, or disagree with the selected graph summary.
@@ -289,9 +299,9 @@ def select_score_histories(
     """Select complete histories for each image set, applying historical coverage exclusions.
 
     Args:
-        scores_df (pd.DataFrame): Primary pipeline scores for eligible areas.
+        scores_df (pd.DataFrame): Pipeline scores for eligible areas.
         history_years_by_selection (dict): Required years per selected comparison and level.
-        selected_metrics (tuple[MetricName, ...]): Primary scores requested for each image set.
+        selected_metrics (tuple[MetricName, ...]): Scores requested for each image set.
         config (PipelineConfig): Study-area type and vintage governing historical exclusions.
 
     Returns:

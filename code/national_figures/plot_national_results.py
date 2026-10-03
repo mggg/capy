@@ -41,6 +41,12 @@ HISTORY_Y_TICKS = {
     MetricName.DISSIMILARITY: [0.25, 0.5, 0.75, 1],
     MetricName.CAPY: [0.45, 0.6, 0.75, 0.9],
     MetricName.ENTROPY_INDEX: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.RELATIVE_DIVERSITY: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.ASPATIAL_CAPY: [0.5, 0.6, 0.7, 0.8, 0.9, 1],
+    MetricName.SPATIAL_DISSIMILARITY: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.SPATIAL_ENTROPY_INDEX: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.SPATIAL_RELATIVE_DIVERSITY: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.MORAN_WITH_SELF: [-0.5, 0, 0.5, 1],
 }
 
 # Horizontal grid positions are independent of ticks; [] hides a metric's horizontal grid.
@@ -50,6 +56,12 @@ HISTORY_Y_GRID_LINES = {
     MetricName.DISSIMILARITY: [0, 0.25, 0.5, 0.75, 1],
     MetricName.CAPY: [0.45, 0.6, 0.75, 0.9],
     MetricName.ENTROPY_INDEX: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.RELATIVE_DIVERSITY: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.ASPATIAL_CAPY: [0.5, 0.6, 0.7, 0.8, 0.9, 1],
+    MetricName.SPATIAL_DISSIMILARITY: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.SPATIAL_ENTROPY_INDEX: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.SPATIAL_RELATIVE_DIVERSITY: [0, 0.25, 0.5, 0.75, 1],
+    MetricName.MORAN_WITH_SELF: [-0.5, 0, 0.5, 1],
 }
 # Metrics without fixed limits retain the limits set by their data and ticks.
 HISTORY_Y_LIMITS = {MetricName.ENTROPY_INDEX: (0, 1)}

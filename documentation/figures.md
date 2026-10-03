@@ -27,16 +27,15 @@ affected pipeline stages and then both commands.
 
 Preparation uses the configured study-area type, vintage, years, geography levels, population
 comparisons, and metrics. `HISTORY_SELECTIONS` in
-`code/national_figures/prepare_national_results.py` lists the image sets, and `PRIMARY_METRICS`
+`code/national_figures/prepare_national_results.py` lists the image sets, and `HISTORY_METRICS`
 lists their scores; only entries selected by the configuration are prepared. The current sets are
-White–Black histories for tracts, block groups, and blocks, and White–POC tract histories, using
-Capy, row-standardized Moran's I, and dissimilarity. A tract-only or later-decade run does not
-require the other levels or 1980 data.
+White–Black and White–POC histories for tracts, block groups, and blocks. A tract-only or
+later-decade run does not require the other levels or 1980 data.
 
 It reads study-area definitions, the image sets' metric tables, and the matching graph summary
 (for example, `CBSA20_graph_summary.parquet`), so the
 [metric computation stage](national_pipeline/06_metric_computation.md#run-the-stage) must have
-finished. Each selected graph needs a row for every requested primary score and population
+finished. Each selected graph needs a row for every requested history score and population
 comparison used by the image sets, including an explicit undefined result where appropriate.
 Unrelated levels and comparisons are not prerequisites for these images. Missing files or score
 rows stop preparation. The source collection has no 1980 block or block-group boundaries, so these
@@ -87,6 +86,11 @@ the geography and score. Both legends, `top_10_legend.png` and `individual_metro
 alongside the images. The x-axis covers the configured years, with a gray band from 1980 to 1990
 for blocks and block groups when 1980 is requested.
 
+The history metrics include Capy, aspatial Capy, dissimilarity, entropy, relative diversity,
+their three spatial segregation variants, and both row-standardized and self-inclusive Moran's I.
+Only metrics selected by `metric_names` are prepared. Each metric keeps its own complete cohort,
+using the population cutoff and historical exclusions described below.
+
 The prepared tables are `national_score_rows.parquet` (selected scores for eligible areas),
 `eligible_areas.parquet`, `top_10_metros.parquet`, and `trajectory_rows.parquet` (the complete
 histories that the panels draw). For style changes, edit
@@ -118,7 +122,7 @@ population; see
 ## Two-node historical graphs
 
 When the configuration uses 2020 CBSA definitions and includes 1980, White–Black tract histories
-exclude the following five CBSAs from every plotted year and all selected primary scores. The
+exclude the following five CBSAs from every plotted year and all selected history scores. The
 exclusion applies to both individual trajectories and the mean across metros. It leaves the
 pipeline graphs and metric tables intact. Later-only histories and other study-area definitions do
 not apply this exclusion.
@@ -139,7 +143,7 @@ $2a(-a)/(a^2+(-a)^2)=-1$. That value reflects the two-node representation rather
 distinguishing the strength of demographic clustering among these metros.
 
 We omit their complete histories because this spatial resolution gives an uninformative 1980 Moran
-comparison. Applying the same exclusion to all three scores keeps the decision consistent across
+comparison. Applying the same exclusion to all history scores keeps the decision consistent across
 the image set, while removing every year preserves each metric's fixed cohort. Other negative
 Moran scores remain eligible. This is a specific historical-coverage exclusion, not a general
 cutoff on score values.

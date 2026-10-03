@@ -44,7 +44,7 @@ def test_national_commands_prepare_once_then_plot_without_pipeline_access(tmp_pa
                 )
 
                 for comparison in PopulationComparison:
-                    for metric in prepare_national_results.PRIMARY_METRICS:
+                    for metric in prepare_national_results.HISTORY_METRICS:
                         scores.append(
                             {
                                 **identity,
