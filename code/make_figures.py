@@ -30,6 +30,11 @@ FIGURE_DIRECTORIES = {
         "experiments/grid_configurations/grid_score_comparisons",
         "grid_configurations/grid_score_comparisons",
     ),
+    "expanding-support": (
+        "experiments/synthetic_diffusion/expanding_support",
+        "synthetic_diffusion/expanding_support",
+    ),
+    "stochastic": ("experiments/synthetic_diffusion/stochastic", "synthetic_diffusion/stochastic"),
 }
 
 
@@ -125,6 +130,20 @@ def main() -> None:
             )
 
             plot_grid_score_comparisons(data_directory, output_directory)
+
+        elif figure_name == "expanding-support":
+            from experiments.synthetic_diffusion.plot_expanding_support import (
+                plot_expanding_support,
+            )
+
+            plot_expanding_support(data_directory, output_directory)
+
+        elif figure_name == "stochastic":
+            from experiments.synthetic_diffusion.plot_stochastic_diffusion import (
+                plot_stochastic_diffusion,
+            )
+
+            plot_stochastic_diffusion(data_directory, output_directory)
 
         elif figure_name == "national":
             from national_figures.plot_national_results import plot_national_figures

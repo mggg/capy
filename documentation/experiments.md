@@ -46,6 +46,66 @@ saved samples; changing styles does not repeat the sampling.
 Images in `figures/grid_configurations/distributions/` identify the clustering class and plot type,
 for example `grid_low_clustering.png` and `low_clustering_capy_histogram.png`.
 
+## Expanding-support diffusion
+
+```bash
+uv run --locked python code/run_experiment.py expanding-support
+uv run --locked python code/make_figures.py expanding-support
+```
+
+`expanding-support` uses 20×20 grids with a centered rectangle, a rook-expanding core, or a thick
+cross. Each begins with a pure first-group region and zero first-group share outside it, then
+spreads mass uniformly over the growing support.
+
+The rectangle begins at 10×10 and adds alternating horizontal and vertical bands. The core begins
+at 5×5 and expands by rook steps. The thick cross begins with 99 occupied cells and uses the same
+rook-distance rule. Each shape has constant, growth, and decline variants. Rectangle and cross
+growth end at share 0.4 and decline at 0.1; the smaller core ends at 0.1 and 0.025. Each cell has
+total mass one. Overall first-group shares change linearly with step for the rectangle and core,
+and with occupied area for the cross. Shares within occupied cells equal the overall share
+divided by the occupied fraction of the grid.
+
+Dissimilarity, entropy, and Capy traces overlay the demographic variants. The Moran comparison
+uses closed-neighborhood and row-standardized weights. Within a shape, scaling all cell shares by
+a common multiplier leaves Moran unchanged; the final uniform grid has undefined Moran and remains
+a gap. Each shape has a folder under
+`results/experiments/synthetic_diffusion/expanding_support/`, containing `states.npz` and
+`expanding_support_scores.parquet`. The corresponding folder under
+`figures/synthetic_diffusion/expanding_support/` contains its snapshots, score plots, legends,
+and colorbar. Shape folders use names such as `centered_rectangle` and `rook_expanding_core`.
+
+## Stochastic diffusion
+
+```bash
+uv run --locked python code/run_experiment.py stochastic \
+    --moon-source-directory /path/to/moon-capy/code/capy_deck_replication
+uv run --locked python code/make_figures.py stochastic
+```
+
+Preparation reads the two long-run score CSVs under the source directory's
+`scripts/synthetic/stochastic_data/`. It saves complete early replicate histories, their medians
+and pointwise 10th–90th percentile bands, and independent seeded snapshot trajectories. Rendering
+reads these saved results without consulting the source CSVs or aggregating the replicates again.
+The supplied replicate scores are reused, not recomputed with the current metric functions.
+
+Every cell initially contains 1,000 people. The central 10×10 square is entirely the first group;
+other cells are entirely the second. At each step, a person moves to a uniformly chosen rook
+neighbor with probability 0.2. One-sided diffusion moves only the first population; two-sided
+moves both. First-group births or deaths follow movement. Growth doubles expected first-group
+population over 4,000 steps, while decline reduces it to one third. The plotted interval ends at
+step 800, using those same rates.
+
+Snapshots at steps 0, 25, 100, 250, 500, and 800 are independent examples rather than replicate
+medians. The NPZ stores these step coordinates alongside the population arrays. Separate images
+show group share and first-group counts; count colors saturate at 1,000 to keep a common scale.
+The one-sided cache has 25 complete early replicates per variant. Two-sided constant and growth
+have 23 each, and decline has 22. A decline replicate ending at step 518 is excluded throughout;
+`source_replicate_coverage.parquet` records that decision. Results live under
+`results/experiments/synthetic_diffusion/stochastic/one_sided/` and `two_sided/`, each containing
+its score tables, replicate coverage, and snapshot arrays. Figures use the same movement
+subfolders under `figures/synthetic_diffusion/stochastic/`, with legends and colorbars beside
+the plots.
+
 ## Paths and plot adjustments
 
 Grid-score comparison images are grouped into `grids/` and `scores/` under

@@ -75,6 +75,7 @@ METRO_COLORS = {
 
 TICK_COLOR = "#333333"
 PLOT_GRID_COLOR = "#eae8e0"
+TRACE_GRID_COLOR = "#dddddd"
 INDIVIDUAL_METRO_COLOR_FOR_HISTORIES = "#7cb3f6"
 UNAVAILABLE_YEAR_COLOR = "lightgray"
 
@@ -186,6 +187,18 @@ def write_figure_png(figure: Figure, output_path: Path) -> None:
         figure.savefig(output_path.with_suffix(".png"), dpi=300)
     finally:
         plt.close(figure)
+
+
+def create_trace_plot() -> tuple[Figure, Axes]:
+    """Create a diffusion or score-history plot with left/bottom axes and a light gray grid."""
+    with plt.rc_context({"font.family": "sans-serif", "font.size": 9}):
+        figure, axes = plt.subplots(figsize=(3.6, 3.1), layout="constrained")
+
+    axes.spines[["top", "right"]].set_visible(False)
+    axes.grid(color=TRACE_GRID_COLOR, linewidth=0.7)
+    axes.set_axisbelow(True)
+
+    return figure, axes
 
 
 def create_score_scatter_plot() -> tuple[Figure, Axes]:

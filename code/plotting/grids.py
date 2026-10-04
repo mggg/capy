@@ -5,6 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib.colors import Colormap, LinearSegmentedColormap
 
 SHARE_CMAP = LinearSegmentedColormap.from_list("group_share", ["#f5f2e9", "#008080"])
+COUNT_CMAP = LinearSegmentedColormap.from_list("group_count", ["#f5f2e9", "#BD33A4"])
 GRID_POP_SHARE_CMAP = LinearSegmentedColormap.from_list(
     "grid_population_share", ["#0878C1", "#8B4AA5", "#ED1C24"]
 )

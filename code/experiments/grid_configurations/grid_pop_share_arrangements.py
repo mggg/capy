@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from experiments.experiment_scores import calculate_example_scores
+from experiments.experiment_scores import calculate_experiment_scores
 from experiments.grid_adjacency import build_grid_adjacency
 
 
@@ -104,7 +104,9 @@ def run_grid_pop_share_arrangements(data_directory: Path, seed: int = 20260918) 
                 {
                     "example": name,
                     "seed": seed,
-                    **calculate_example_scores(adjacency, grid.ravel(), 1 - grid.ravel()),
+                    **calculate_experiment_scores(
+                        adjacency, grid.ravel(), 1 - grid.ravel()
+                    ).to_record(),
                 }
             )
 

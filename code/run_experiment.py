@@ -16,6 +16,8 @@ EXPERIMENT_DIRECTORIES = {
     "grid-reference-scores": "experiments/grid_configurations/grid_reference_scores",
     "grid-pop-share-arrangements": "experiments/grid_configurations/grid_pop_share_arrangements",
     "grid-score-comparisons": "experiments/grid_configurations/grid_score_comparisons",
+    "expanding-support": "experiments/synthetic_diffusion/expanding_support",
+    "stochastic": "experiments/synthetic_diffusion/stochastic",
     "grid-distributions": "experiments/grid_configurations/distributions",
     "capy-weights": "national/processed_data/capy_weights",
     "triangular": "experiments/reardon_osullivan",
@@ -43,7 +45,15 @@ def main() -> None:
         default=20260918,
         help="Random seed for grid-pop-share-arrangements, grid-score-comparisons, grid-distributions",
     )
+    parser.add_argument(
+        "--moon-source-directory",
+        type=Path,
+        help="Source root containing scripts/synthetic/stochastic_data; required for stochastic",
+    )
     arguments = parser.parse_args()
+
+    if "stochastic" in arguments.experiments and arguments.moon_source_directory is None:
+        parser.error("stochastic requires --moon-source-directory")
 
     repository_root = Path(__file__).resolve().parent.parent
 
@@ -150,6 +160,20 @@ def main() -> None:
             )
 
             run_grid_score_comparisons(data_directory, arguments.seed)
+
+        elif experiment_name == "expanding-support":
+            from experiments.synthetic_diffusion.expanding_support import run_expanding_support
+
+            run_expanding_support(data_directory)
+
+        elif experiment_name == "stochastic":
+            from experiments.synthetic_diffusion.stochastic_diffusion import (
+                run_stochastic_diffusion,
+            )
+
+            run_stochastic_diffusion(
+                data_directory, repository_root / arguments.moon_source_directory
+            )
 
         elif experiment_name == "grid-distributions":
             from experiments.grid_configurations.grid_distributions import run_grid_distributions

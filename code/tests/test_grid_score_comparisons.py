@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from experiments.experiment_scores import calculate_example_scores
+from experiments.experiment_scores import calculate_experiment_scores
 from experiments.grid_configurations import grid_score_comparisons
 from experiments.grid_configurations.grid_pop_share_arrangements import (
     Arrangement,
@@ -37,11 +37,11 @@ def test_grid_score_comparisons_saves_explicit_categories_and_reference_scores(
 
 def test_binary_grid_scores_draws_exact_score_without_recomputing_on_caller_axes():
     adjacency = sparse.csr_array([[0, 1], [1, 0]])
-    scores = calculate_example_scores(
+    scores = calculate_experiment_scores(
         adjacency, np.array([1, 0]), np.array([0, 1]), distinct_people=True
     )
     scores_df = pd.DataFrame(
-        [{"family": "binary", "category": "few_unlike", "arrangement": None, **scores}]
+        [{"family": "binary", "category": "few_unlike", "arrangement": None, **scores.to_record()}]
     )
     original_df = scores_df.copy(deep=True)
     figure, axes = plt.subplots(1, 2)

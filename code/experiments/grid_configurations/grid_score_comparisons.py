@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from itertools import product
 
-from experiments.experiment_scores import calculate_example_scores
+from experiments.experiment_scores import calculate_experiment_scores
 from experiments.grid_adjacency import build_grid_adjacency
 from experiments.grid_configurations.grid_pop_share_arrangements import (
     Arrangement,
@@ -175,12 +175,12 @@ def run_grid_score_comparisons(data_directory: Path, seed: int = 20260918) -> No
             {
                 **identity,
                 "seed": seed,
-                **calculate_example_scores(
+                **calculate_experiment_scores(
                     adjacency,
                     grid.ravel(),
                     1 - grid.ravel(),
                     distinct_people=identity["family"] == "binary",
-                ),
+                ).to_record(),
             }
         )
 

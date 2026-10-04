@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from experiments.experiment_scores import calculate_example_scores
+from experiments.experiment_scores import calculate_experiment_scores
 
 # Binary transcription of the lattice patterns in Reardon and O'Sullivan (2004), p. 126. Rows run
 # top to bottom; odd rows shift left by half a lattice spacing.
@@ -176,9 +176,9 @@ def build_triangular_lattice_results() -> tuple[pd.DataFrame, dict[str, np.ndarr
                     "period_columns": pattern.shape[1],
                     "white_exposure_to_black": exposure,
                     # NOTE: Distict people is True will call capy_exact
-                    **calculate_example_scores(
+                    **calculate_experiment_scores(
                         adjacency, black_population, 1 - black_population, distinct_people=True
-                    ),
+                    ).to_record(),
                 }
             )
             window = np.tile(pattern, (12 // pattern.shape[0] + 1, 10 // pattern.shape[1] + 1))[

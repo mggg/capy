@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from experiments.experiment_scores import calculate_example_scores
+from experiments.experiment_scores import calculate_experiment_scores
 from experiments.reardon_osullivan.plot_triangular_lattices import plot_triangular_lattice
 from experiments.reardon_osullivan.triangular_lattices import (
     PRINTED_PATTERNS,
@@ -24,11 +24,11 @@ def test_triangular_repeat_has_six_neighbors_and_preserves_the_printed_seam_pair
 
     independent_period = np.tile([[1, 0, 0], [0, 0, 1]], (2, 1)).ravel()
     adjacency = build_triangular_adjacency(4, 3, periodic=True)
-    scores = calculate_example_scores(
+    scores = calculate_experiment_scores(
         adjacency, independent_period, 1 - independent_period, distinct_people=True
     )
-    assert scores["capy_exact"] == pytest.approx(0.25)
-    assert scores["spatial_relative_diversity"] == pytest.approx(4 / 49)
+    assert scores.metric_values["capy_exact"] == pytest.approx(0.25)
+    assert scores.metric_values["spatial_relative_diversity"] == pytest.approx(4 / 49)
 
 
 def test_triangular_lattice_draws_saved_window_on_caller_axes():

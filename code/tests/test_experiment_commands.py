@@ -84,3 +84,17 @@ def test_experiment_failure_stops_later_workflows(monkeypatch):
         run_experiment.main()
 
     assert len(calls) == 1
+
+
+def test_missing_stochastic_source_prevents_earlier_computation(monkeypatch):
+    monkeypatch.setattr(
+        compare_capy_weights,
+        "run_capy_weight_comparison",
+        lambda *args: pytest.fail("Missing stochastic source must fail before any computation"),
+    )
+    monkeypatch.setattr(sys, "argv", ["run_experiment.py", "capy-weights", "stochastic"])
+
+    with pytest.raises(SystemExit) as error:
+        run_experiment.main()
+
+    assert error.value.code == 2
