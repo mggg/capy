@@ -9,8 +9,8 @@ legends and colorbars saved separately for LaTeX assembly.
 ## Grid arrangements and reference curves
 
 ```bash
-uv run --locked python code/run_experiment.py grid-reference-scores grid-pop-share-arrangements grid-score-comparisons
-uv run --locked python code/make_figures.py grid-reference-scores grid-pop-share-arrangements grid-score-comparisons
+uv run --locked python code/run_experiment.py grid-reference-scores grid-pop-share-arrangements grid-score-comparisons triangular
+uv run --locked python code/make_figures.py grid-reference-scores grid-pop-share-arrangements grid-score-comparisons triangular
 ```
 
 `grid-reference-scores` saves continuous-mass score curves for clustered, constant, isolated, and
@@ -27,6 +27,11 @@ adds six perturbations per combination, producing 54 share examples, plus sixty 
 All examples have population share 0.5, so their score points lie on that vertical line. The saved
 score table carries explicit population distribution, arrangement, sample, and category fields. Its reference
 scores are saved during preparation; changing a formula requires rerunning that step.
+
+`triangular` computes the Reardon–O'Sullivan lattice examples and their observation windows.
+Outputs live under `results/experiments/reardon_osullivan/` and
+`figures/grid_configurations/reardon_osullivan/`. Other grid families use descriptive folders
+under `results/experiments/grid_configurations/` and `figures/grid_configurations/`.
 
 For score distributions from randomized binary arrangements:
 

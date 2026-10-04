@@ -15,6 +15,7 @@ FIGURE_DIRECTORIES = {
         "experiments/grid_configurations/distributions",
         "grid_configurations/distributions",
     ),
+    "triangular": ("experiments/reardon_osullivan", "grid_configurations/reardon_osullivan"),
     "entropy-by-geography": ("national/processed_data/entropy_by_geography", "national"),
     "grid-vs-national-scores": ("national/processed_data/grid_vs_national_scores", "national"),
     "grid-reference-scores": (
@@ -153,6 +154,13 @@ def main() -> None:
             selection_folder = build_study_area_label(config)
 
             plot_capy_weight_comparison(config, output_directory, data_directory / selection_folder)
+
+        elif figure_name == "triangular":
+            from experiments.reardon_osullivan.plot_triangular_lattices import (
+                plot_triangular_lattices,
+            )
+
+            plot_triangular_lattices(data_directory, output_directory)
 
 
 if __name__ == "__main__":

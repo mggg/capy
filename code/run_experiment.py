@@ -18,6 +18,7 @@ EXPERIMENT_DIRECTORIES = {
     "grid-score-comparisons": "experiments/grid_configurations/grid_score_comparisons",
     "grid-distributions": "experiments/grid_configurations/distributions",
     "capy-weights": "national/processed_data/capy_weights",
+    "triangular": "experiments/reardon_osullivan",
 }
 
 
@@ -167,6 +168,11 @@ def main() -> None:
             data_directory /= selection_folder
 
             run_capy_weight_comparison(config, repository_root, data_directory)
+
+        elif experiment_name == "triangular":
+            from experiments.reardon_osullivan.triangular_lattices import run_triangular_lattices
+
+            run_triangular_lattices(data_directory)
 
 
 if __name__ == "__main__":
