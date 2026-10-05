@@ -27,6 +27,7 @@ class CountyArrangement(StrEnum):
     ISOLATED = "isolated"
     CLUSTERED = "clustered"
     MULTICLUSTER = "multicluster"
+    RANDOM = "random"
 
 
 @dataclass(frozen=True)
@@ -128,16 +129,18 @@ def select_county_arrangement(
     arrangement: CountyArrangement,
     rng: random.Random,
 ) -> set[str] | None:
-    """Choose a greedy independent set, one cluster, or two to four surviving clusters.
+    """Choose random counties, a greedy independent set, or connected county clusters.
 
     Each county is assigned wholly to one group. Independent sets can exhaust their eligible
     nodes before the target; cluster growth can overshoot. Multicluster attempts split the target
     equally among four seeds and retry up to 50 times, returning None if none retain 2–4 components.
+    Random arrangements take counties in shuffled order until the target is reached or exceeded,
+    without an adjacency constraint; they are not uniform draws from all feasible subsets.
 
     Args:
         graph (nx.Graph): Connected county graph with string IDs and positive TOTPOP counts.
         target_share (float): Requested share of total county population, strictly between 0 and 1.
-        arrangement (CountyArrangement): ISOLATED, CLUSTERED, or MULTICLUSTER constraint.
+        arrangement (CountyArrangement): RANDOM, ISOLATED, CLUSTERED, or MULTICLUSTER selection.
         rng (random.Random): Experiment-owned random stream, advanced by the selection.
 
     Returns:
@@ -182,7 +185,10 @@ def select_county_arrangement(
             continue
 
         selected_counties.add(county_id)
-        excluded_counties |= {county_id, *graph.neighbors(county_id)}
+
+        if arrangement == CountyArrangement.ISOLATED:
+            excluded_counties |= {county_id, *graph.neighbors(county_id)}
+
         selected_population += graph.nodes[county_id][PopulationColumn.TOTAL]
 
         if selected_population >= target_population:

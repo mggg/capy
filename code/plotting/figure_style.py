@@ -15,23 +15,32 @@ from matplotlib.colors import Colormap, LinearSegmentedColormap, Normalize, to_h
 from matplotlib.figure import Figure
 from national_pipeline.geography_types import MetroCode
 
-# Names and exact hex values from GerryTools' LaTeX color table.
-TEAL = "#008080"
-BYZANTINE = "#BD33A4"
-DENIM = "#1560bd"
+# Preferred paper palette; exact hex values from GerryTools' LaTeX color table.
+# https://github.com/mggg/gerrytools/blob/main/gerrytools/colors/_latex_table.py
 APPLE_GREEN = "#8db600"
+ALIZARIN = "#d11a42"
+SLATE_GRAY = "#708090"
+AMBER = "#ffbf00"
+MIKADO_YELLOW = "#ffc40c"
+CADMIUM_GREEN = "#006b3c"
+FOREST_GREEN = "#228b22"  # GerryTools' "Forest green (web)".
+LUST = "#e62020"
+DENIM = "#1560bd"
+PURPLE_HEART = "#69359c"
 CHERRY_BLOSSOM_PINK = "#ffb7c5"
 DARK_TANGERINE = "#ffa812"
-CADMIUM_GREEN = "#006b3c"
-PURPLE_HEART = "#69359c"
-ALIZARIN = "#d11a42"
+BANANA_YELLOW = "#ffe135"
+LIGHT_BLUE = "#add8e6"
+
+# Additional colors used by existing figures.
+TEAL = "#008080"
+BYZANTINE = "#BD33A4"
 BLACK = "#000000"
 GOLDEN_YELLOW = "#FFCC00"
 VERMILION = "#E32636"
 
 # These exact shades are outside GerryTools' LaTeX color table.
 CHINESE_GOLD = "#CC9900"
-AMBER = "#ffbf00"
 OKABE_ITO_SKY_BLUE = "#56b4e9"
 GRAY_60 = "#999999"  # 60% white.
 

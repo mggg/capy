@@ -7,8 +7,11 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+import pytest
 from experiments.iowa_configurations import county_configurations, plot_county_configurations
-from matplotlib.collections import LineCollection
+from matplotlib.collections import LineCollection, PathCollection
+from matplotlib.colors import to_rgba
+from national_pipeline.compute_metrics.metric_types import MetricName
 from national_pipeline.derived_file_paths import (
     build_join_output_paths,
     build_population_output_path,
@@ -34,7 +37,7 @@ def test_iowa_arrangements_preserve_graph_and_respect_component_constraints():
             assert first_group_graph.number_of_edges() == 0
         elif arrangement == county_configurations.CountyArrangement.CLUSTERED:
             assert nx.is_connected(first_group_graph)
-        else:
+        elif arrangement == county_configurations.CountyArrangement.MULTICLUSTER:
             assert 2 <= nx.number_connected_components(first_group_graph) <= 4
 
     assert all(attributes == {"TOTPOP": 100} for _, attributes in graph.nodes(data=True))
@@ -99,6 +102,16 @@ def test_iowa_computation_saves_adjacency_and_plotting_does_not_rebuild_it(tmp_p
             )
             assert len(drawn_edges.get_segments()) == len(expected_edges)
 
+        markers = next(item for item in axes.collections if isinstance(item, PathCollection))
+        assert np.all(markers.get_linewidths() == 0)
+        assert markers.get_edgecolors().size == 0
+
+        if not output_path.name.startswith("dualgraph_") and output_path.parent.name in {
+            arrangement.value for arrangement in county_configurations.CountyArrangement
+        }:
+            expected_color = plot_county_configurations.ARRANGEMENT_COLORS[output_path.parent.name]
+            assert np.allclose(markers.get_facecolors(), to_rgba(expected_color))
+
         axes.set_yticks([0, 0.5, 1])
         np.testing.assert_array_equal(axes.get_yticks(), [0, 0.5, 1])
         exports.append(output_path)
@@ -106,4 +119,71 @@ def test_iowa_computation_saves_adjacency_and_plotting_does_not_rebuild_it(tmp_p
 
     monkeypatch.setattr(plot_county_configurations, "save_plot", inspect_export)
     plot_county_configurations.plot_iowa_experiments(result_directory, tmp_path / "figures")
-    assert len(exports) == 9
+    assert len(exports) == 14
+    assert (tmp_path / "figures" / "county_arrangement_legend.png").is_file()
+
+    examples_path = result_directory / "iowa_examples.parquet"
+    examples_df = gpd.read_parquet(examples_path)
+    examples_df.loc[examples_df.arrangement.ne("random")].to_parquet(examples_path)
+
+    with pytest.raises(ValueError, match="rerun code/run_experiment.py iowa"):
+        plot_county_configurations.plot_iowa_experiments(result_directory, tmp_path / "figures")
+
+    assert len(exports) == 14
+
+
+def test_random_counties_reach_target_without_an_adjacency_constraint():
+    graph = nx.complete_graph(["a", "b", "c", "d"])
+    nx.set_node_attributes(graph, {"a": 10, "b": 20, "c": 30, "d": 40}, "TOTPOP")
+    selected_counties = county_configurations.select_county_arrangement(
+        graph, 0.65, county_configurations.CountyArrangement.RANDOM, random.Random(42)
+    )
+
+    # Shuffled county order is c, b, d, a; the last selected county crosses the target.
+    assert selected_counties == {"c", "b", "d"}
+    assert sum(graph.nodes[county]["TOTPOP"] for county in selected_counties) == 90
+    assert all(set(attributes) == {"TOTPOP"} for _, attributes in graph.nodes(data=True))
+
+
+def test_comparison_preserves_scores_and_colors_with_repeatable_mixed_layering():
+    scores_df = pd.DataFrame(
+        {
+            "arrangement": ["random", "clustered", "isolated", "multicluster"] * 5,
+            "group_share": np.arange(20) / 40,
+            "capy": np.arange(20) / 20,
+        }
+    )
+    original_df = scores_df.copy(deep=True)
+    figures_and_axes = [plt.subplots(), plt.subplots()]
+
+    try:
+        for _, axes in figures_and_axes:
+            plot_county_configurations.plot_county_arrangement_comparison(
+                axes, scores_df, MetricName.CAPY
+            )
+
+        first_scatter = figures_and_axes[0][1].collections[0]
+        second_scatter = figures_and_axes[1][1].collections[0]
+        offsets = first_scatter.get_offsets()
+        np.testing.assert_array_equal(offsets, second_scatter.get_offsets())
+        pd.testing.assert_frame_equal(scores_df, original_df)
+        expected_df = scores_df.loc[scores_df.arrangement.ne("multicluster")]
+        assert sorted(map(tuple, offsets)) == sorted(
+            expected_df[["group_share", "capy"]].itertuples(index=False, name=None)
+        )
+        assert not np.array_equal(offsets[:, 0], expected_df.group_share)
+
+        for (share, score), color in zip(offsets, first_scatter.get_facecolors(), strict=True):
+            arrangement = scores_df.loc[scores_df.group_share.eq(share), "arrangement"].iloc[0]
+            expected_color = plot_county_configurations.COMPARISON_COLORS[arrangement]
+            np.testing.assert_allclose(color, to_rgba(expected_color))
+
+        with pytest.raises(ValueError, match="rerun code/run_experiment.py iowa"):
+            plot_county_configurations.plot_county_arrangement_comparison(
+                figures_and_axes[0][1],
+                scores_df.loc[scores_df.arrangement.ne("random")],
+                MetricName.CAPY,
+            )
+    finally:
+        for figure, _ in figures_and_axes:
+            plt.close(figure)

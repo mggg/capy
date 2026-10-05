@@ -359,9 +359,10 @@ examples have no replicate-ID join to the supplied histories.
 
 ## Iowa county configurations
 
-The Iowa experiment compares isolated, clustered, and multicluster population arrangements on an
-irregular geographic graph. It requires Iowa's joined 2020 county boundaries and populations from
-the pipeline's [geography-joining stage](national_pipeline/03_geography_population_joining.md).
+The Iowa experiment compares random, isolated, clustered, and multicluster population arrangements
+on an irregular geographic graph. It requires Iowa's joined 2020 county boundaries and populations
+from the pipeline's
+[geography-joining stage](national_pipeline/03_geography_population_joining.md).
 
 ```bash
 uv run --locked python code/run_experiment.py iowa --samples-per-share 500 --share-count 100
@@ -373,6 +374,10 @@ population shares. `--share-count` sets the number of targets per arrangement fa
 `--samples-per-share` sets the number of sampling attempts at each target. Whole-county
 assignments can overshoot a target while an independent set can exhaust eligible counties before
 reaching it. Scores therefore use the attained population shares.
+
+The random baseline shuffles the counties and assigns whole counties to the first group until
+their population reaches or exceeds the target, without imposing an adjacency constraint. This
+samples prefixes of random county orders, not uniformly from all subsets at a given share.
 
 The experiment uses the configured joined-geography input root but always selects 2020 Iowa
 counties, regardless of the national selections. To use a configuration other than the default
@@ -386,6 +391,19 @@ Filenames begin with the plot type, followed by geography and arrangement, such 
 `dualgraph_ia_county_clustered.png` and `capy_by_share_ia_county_clustered.png`. Moran plots
 retain `moran_row_standardized` in their names.
 
+Two combined panels compare random (denim), clustered (dark tangerine), and isolated (cadmium
+green) arrangements: `capy_by_share_ia_county_comparison.png` and
+`moran_row_standardized_by_share_ia_county_comparison.png`. Their points are shuffled with a fixed
+drawing seed so no arrangement is consistently drawn on top. The separate
+`county_arrangement_legend.png` identifies the colors for both panels. Multicluster results retain
+their individual plots. If saved results lack the random baseline, rerun preparation before
+rendering.
+
+Individual score panels use the same arrangement colors, with purple heart for multicluster.
+County maps show the first group in dark tangerine and the second in denim, connected by
+slate-gray adjacency lines. These colors use GerryTools' LaTeX palette hex values. All Iowa
+markers omit outlines so strokes do not inflate the small points in dense score panels.
+
 ### Saved Iowa format
 
 #### Sampling results: `iowa_scores.parquet`
@@ -398,8 +416,8 @@ retain `moran_row_standardized` in their names.
 The same sample stream is evaluated at two target shares here, producing an attained `group_share`
 above each requested `target_share`. A sampling attempt is identified by the combination of
 `arrangement`, zero-based integer `sample`, and `target_share` while the omitted integer `seed`
-records its random stream. Arrangement can be `isolated`, `clustered`, or `multicluster`; `status`
-distinguishes a `ready` result from `no_multicluster_sample`.
+records its random stream. Arrangement can be `random`, `isolated`, `clustered`, or
+`multicluster`. The `status` distinguishes a `ready` result from `no_multicluster_sample`.
 
 For a successful attempt, `component_count` counts the first-group components and the numeric
 `capy` and `moran_row_standardized` fields score the attained arrangement. An unsuccessful

@@ -12,6 +12,7 @@ while titles and axis labels are added in LaTeX. Legends are saved separately wi
 
 ## Contents
 
+- [Shared color palette](#shared-color-palette)
 - [National score histories](#national-score-histories)
 - [Figure components and saved tables](#figure-components-and-saved-tables)
 - [Reading the saved tables](#reading-the-saved-tables)
@@ -24,6 +25,31 @@ while titles and axis labels are added in LaTeX. Legends are saved separately wi
 - [Capy neighbor weights](#capy-neighbor-weights)
 - [Entropy by geographic level](#entropy-by-geographic-level)
 - [Grid versus national scores](#grid-versus-national-scores)
+
+## Shared color palette
+
+The paper figures draw from the palette below, whose hex values follow
+[GerryTools' LaTeX color table](https://github.com/mggg/gerrytools/blob/main/gerrytools/colors/_latex_table.py).
+The table includes the full preferred palette, including colors not currently used in a figure.
+Its definitions are stored in [`figure_style.py`](../code/plotting/figure_style.py).
+
+| Color               | Hex value |
+| ------------------- | --------- |
+| Apple green         | `#8db600` |
+| Alizarin            | `#d11a42` |
+| Slate gray          | `#708090` |
+| Amber               | `#ffbf00` |
+| Mikado yellow       | `#ffc40c` |
+| Cadmium green       | `#006b3c` |
+| Forest green (web)  | `#228b22` |
+| Lust                | `#e62020` |
+| Denim               | `#1560bd` |
+| Purple heart        | `#69359c` |
+| Cherry blossom pink | `#ffb7c5` |
+| Dark tangerine      | `#ffa812` |
+| Banana yellow       | `#ffe135` |
+| Light blue          | `#add8e6` |
+
 
 ## National score histories
 
