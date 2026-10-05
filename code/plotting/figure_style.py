@@ -83,7 +83,7 @@ UNAVAILABLE_YEAR_COLOR = "lightgray"
 # None keeps the fixed year palette; use AMBER, PURPLE_HEART, DENIM, or a color string for shades.
 YEAR_BASE_COLOR: str | None = None
 
-# Fixed dark-to-light blue palette: earlier census years use darker shades.
+# Fixed colors for each census year.
 YEAR_COLORS = {
     1980: DENIM,
     1990: CADMIUM_GREEN,
