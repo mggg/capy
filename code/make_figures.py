@@ -17,7 +17,7 @@ FIGURE_DIRECTORIES = {
     ),
     "iowa": ("experiments/iowa_configurations", "iowa_configurations"),
     "dispersion": ("experiments/neighborhood_change", "neighborhood_change"),
-    "triangular": ("experiments/reardon_osullivan", "grid_configurations/reardon_osullivan"),
+    "triangular": ("experiments/reardon_osullivan", "reardon_osullivan"),
     "entropy-by-geography": ("national/processed_data/entropy_by_geography", "national"),
     "grid-vs-national-scores": ("national/processed_data/grid_vs_national_scores", "national"),
     "grid-reference-scores": (
