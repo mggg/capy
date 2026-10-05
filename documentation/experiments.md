@@ -106,6 +106,25 @@ its score tables, replicate coverage, and snapshot arrays. Figures use the same 
 subfolders under `figures/synthetic_diffusion/stochastic/`, with legends and colorbars beside
 the plots.
 
+## Iowa county configurations
+
+```bash
+uv run --locked python code/run_experiment.py iowa --samples-per-share 500 --share-count 100
+uv run --locked python code/make_figures.py iowa
+```
+
+Preparation reads Iowa's joined 2020 county boundaries and populations, builds county adjacency once,
+and samples isolated, clustered, and multicluster population arrangements. The saved edge pairs
+and county examples describe the graph displayed by the renderer; plotting does not reconstruct
+adjacency. Whole-county assignments can overshoot a requested share, and an independent set can
+exhaust eligible counties before reaching it. Scores use the attained population shares.
+
+Tables live under `results/experiments/iowa_configurations/`. Images are grouped by arrangement
+under `figures/iowa_configurations/`, with a county graph and separate score plots for each.
+Filenames lead with the plot type, followed by geography and arrangement, such as
+`dualgraph_ia_county_clustered.png` and `capy_by_share_ia_county_clustered.png`.
+Moran plots retain `moran_row_standardized` in their names.
+
 ## Paths and plot adjustments
 
 Grid-score comparison images are grouped into `grids/` and `scores/` under

@@ -18,6 +18,7 @@ EXPERIMENT_DIRECTORIES = {
     "grid-score-comparisons": "experiments/grid_configurations/grid_score_comparisons",
     "expanding-support": "experiments/synthetic_diffusion/expanding_support",
     "stochastic": "experiments/synthetic_diffusion/stochastic",
+    "iowa": "experiments/iowa_configurations",
     "grid-distributions": "experiments/grid_configurations/distributions",
     "capy-weights": "national/processed_data/capy_weights",
     "triangular": "experiments/reardon_osullivan",
@@ -40,10 +41,16 @@ def main() -> None:
     )
     parser.add_argument("--samples", type=int, default=10000, help="Binary grids per class")
     parser.add_argument(
+        "--samples-per-share", type=int, default=500, help="Iowa samples per target share"
+    )
+    parser.add_argument(
+        "--share-count", type=int, default=100, help="Iowa target population shares"
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=20260918,
-        help="Random seed for grid-pop-share-arrangements, grid-score-comparisons, grid-distributions",
+        help="Random seed for grid-pop-share-arrangements, grid-score-comparisons, grid-distributions, and Iowa",
     )
     parser.add_argument(
         "--moon-source-directory",
@@ -173,6 +180,22 @@ def main() -> None:
 
             run_stochastic_diffusion(
                 data_directory, repository_root / arguments.moon_source_directory
+            )
+
+        elif experiment_name == "iowa":
+            from experiments.iowa_configurations.county_configurations import run_iowa_experiments
+
+            config = load_configuration(
+                arguments.config or repository_root / "code/configs/replication.yaml"
+            )
+
+            run_iowa_experiments(
+                config,
+                repository_root,
+                data_directory,
+                arguments.samples_per_share,
+                arguments.share_count,
+                arguments.seed,
             )
 
         elif experiment_name == "grid-distributions":

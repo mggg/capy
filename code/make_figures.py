@@ -15,6 +15,7 @@ FIGURE_DIRECTORIES = {
         "experiments/grid_configurations/distributions",
         "grid_configurations/distributions",
     ),
+    "iowa": ("experiments/iowa_configurations", "iowa_configurations"),
     "triangular": ("experiments/reardon_osullivan", "grid_configurations/reardon_osullivan"),
     "entropy-by-geography": ("national/processed_data/entropy_by_geography", "national"),
     "grid-vs-national-scores": ("national/processed_data/grid_vs_national_scores", "national"),
@@ -155,6 +156,13 @@ def main() -> None:
             selection_folder = build_study_area_label(config)
 
             plot_national_figures(config, output_directory, data_directory / selection_folder)
+
+        elif figure_name == "iowa":
+            from experiments.iowa_configurations.plot_county_configurations import (
+                plot_iowa_experiments,
+            )
+
+            plot_iowa_experiments(data_directory, output_directory)
 
         elif figure_name == "grid-distributions":
             from experiments.grid_configurations.plot_grid_distributions import (
