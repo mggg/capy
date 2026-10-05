@@ -1,9 +1,8 @@
 """Editable definitions for TIGER boundaries and published reference tables."""
 
-from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.geography_types import GeographyLevel, GeographySelection, StudyAreaType
 from national_pipeline.pipeline_config import RawDataSubdirectories
 from national_pipeline.retrieve_data.raw_file_requests import (
-    GeographyRequest,
     PublicFileRequest,
     RawFileFormat,
     TigerBoundaryFileRequest,
@@ -40,14 +39,14 @@ MISSING_1980_BNAS_BY_COUNTY = {
 
 def build_census_published_file_requests(
     directories: RawDataSubdirectories,
-    geography_requests: tuple[GeographyRequest, ...],
+    geography_requests: tuple[GeographySelection, ...],
     study_area_type: StudyAreaType,
 ) -> list[PublicFileRequest]:
     """Build selected TIGER boundaries and the supporting published data.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Shared node and definition selections.
+        geography_requests (tuple[GeographySelection, ...]): Shared node and definition selections.
         study_area_type (StudyAreaType): county needs no metro workbook; the other modes require it.
 
     Returns:
@@ -127,13 +126,13 @@ def build_1990_block_reference_requests(
 
 
 def build_tiger_file_requests(
-    directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
+    directories: RawDataSubdirectories, geography_requests: tuple[GeographySelection, ...]
 ) -> list[TigerBoundaryFileRequest]:
     """Build selected 2000/2010 boundaries from TIGER2010 and 2020 boundaries from TIGER2020.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Shared node and definition selections.
+        geography_requests (tuple[GeographySelection, ...]): Shared node and definition selections.
 
     Returns:
         list[TigerBoundaryFileRequest]: Selected modern boundaries. Counties use national files; other
@@ -194,14 +193,14 @@ def build_tiger_file_requests(
 
 def build_reference_file_requests(
     directories: RawDataSubdirectories,
-    geography_requests: tuple[GeographyRequest, ...],
+    geography_requests: tuple[GeographySelection, ...],
     study_area_type: StudyAreaType,
 ) -> list[PublicFileRequest]:
     """Request population reference tables and, for metro-based modes, the March 2020 workbook.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Required years, including definition
+        geography_requests (tuple[GeographySelection, ...]): Required years, including definition
             data.
         study_area_type (StudyAreaType): county omits the workbook; all other supported modes
             include it.

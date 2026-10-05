@@ -70,13 +70,13 @@ def read_graph_archive_summary(
 def read_graph_selection_summary(
     archive_path: Path, census_year: int, geography_level: GeographyLevel
 ) -> pd.DataFrame:
-    """Read one legacy ZIP or every numbered part for a year/level, rejecting incomplete sets.
+    """Read every numbered part for a year/level, rejecting incomplete sets.
 
-    A legacy ZIP takes precedence while its replacement parts are being published. Each numbered
-    part records the total part count in its summary, so a missing last part cannot pass as complete.
+    Each part records the total part count in its summary, so a missing last part cannot pass
+    as complete.
 
     Args:
-        archive_path (Path): Original unnumbered ZIP name; also the base name for numbered parts.
+        archive_path (Path): Base ZIP name used to locate numbered parts; the base itself is not read.
         census_year (int): Expected population year.
         geography_level (GeographyLevel): Expected graph-node resolution.
 
@@ -88,11 +88,6 @@ def read_graph_selection_summary(
         ValueError: Parts are missing, repeated, inconsistent, or have overlapping area inventories.
             ZIP and summary parsing errors propagate.
     """
-    if archive_path.exists():
-        return read_graph_archive_summary(archive_path, census_year, geography_level).assign(
-            archive=archive_path.name
-        )
-
     part_paths = list(archive_path.parent.glob(f"{archive_path.stem}_part*.zip"))
 
     if not part_paths:

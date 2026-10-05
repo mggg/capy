@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from national_pipeline.derived_file_paths import build_study_area_label
-from national_pipeline.pipeline_config import load_configuration
+from national_pipeline.pipeline_config import PipelineConfig, load_configuration
 
 EXPERIMENT_DIRECTORIES = {
     "national": "national/processed_data/history",
@@ -30,39 +30,92 @@ def main() -> None:
     """Run selected experiments in argument order, stopping if any experiment fails."""
     parser = argparse.ArgumentParser(
         description=__doc__,
-        epilog="Experiments run in the supplied order. Options apply to the selected workflows that use them.",
+        epilog=(
+            "Experiments run in the supplied order and stop on the first failure. "
+            "Options affect only the selected workflows that use them. "
+            "Draw saved results afterward with code/make_figures.py. "
+            "Example from the repository root: python code/run_experiment.py national score-ranks"
+        ),
     )
-    parser.add_argument("experiments", nargs="+", choices=EXPERIMENT_DIRECTORIES)
-    parser.add_argument("--config", type=Path, help="YAML configuration for national inputs")
+    parser.add_argument(
+        "experiments",
+        nargs="+",
+        choices=EXPERIMENT_DIRECTORIES,
+        metavar="EXPERIMENT",
+        help="One or more workflows to compute. Choices: " + ", ".join(EXPERIMENT_DIRECTORIES),
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help=(
+            "YAML settings for national workflows, dispersion, and iowa; ignored by other "
+            "experiments. Defaults to code/configs/max_city.yaml for dispersion and "
+            "code/configs/replication.yaml otherwise, both in the repository. "
+            "An explicit relative filename starts at the current directory."
+        ),
+    )
     parser.add_argument(
         "--data-directory",
         type=Path,
         default=Path("results"),
-        help="Result root, relative to the repository unless absolute (default: results)",
+        help=(
+            "Root for computed results and tables, not an individual workflow folder. Workflow "
+            "and national study-area subfolders are added automatically. Relative to the "
+            "repository unless absolute (default: %(default)s)."
+        ),
     )
-    parser.add_argument("--samples", type=int, default=10000, help="Binary grids per class")
     parser.add_argument(
-        "--samples-per-share", type=int, default=500, help="Iowa samples per target share"
+        "--samples",
+        type=int,
+        default=10000,
+        help=(
+            "grid-distributions: independent binary grids per clustering class; "
+            "must be positive (default: %(default)s)."
+        ),
     )
     parser.add_argument(
-        "--share-count", type=int, default=100, help="Iowa target population shares"
+        "--samples-per-share",
+        type=int,
+        default=500,
+        help=(
+            "iowa: sampling attempts per target population share and arrangement family; "
+            "must be positive (default: %(default)s)."
+        ),
+    )
+    parser.add_argument(
+        "--share-count",
+        type=int,
+        default=100,
+        help=(
+            "iowa: evenly spaced target population shares per arrangement family; "
+            "must be at least 2 (default: %(default)s)."
+        ),
     )
     parser.add_argument(
         "--seed",
         type=int,
         default=20260918,
-        help="Random seed for grid-pop-share-arrangements, grid-score-comparisons, grid-distributions, and Iowa",
+        help=(
+            "Base random seed for grid-pop-share-arrangements, grid-score-comparisons, "
+            "grid-distributions, and iowa (default: %(default)s)."
+        ),
     )
     parser.add_argument(
         "--buffer-steps",
         type=int,
         default=3,
-        help="Neighborhood plotting buffer, zero through ten graph steps",
+        help=(
+            "dispersion: neighborhood buffer retained for maps, from 0 to 10 graph steps. "
+            "Scores and memberships include all buffers (default: %(default)s)."
+        ),
     )
     parser.add_argument(
         "--moon-source-directory",
         type=Path,
-        help="Source root containing scripts/synthetic/stochastic_data; required for stochastic",
+        help=(
+            "stochastic: required source root containing scripts/synthetic/stochastic_data. "
+            "Relative to the repository unless absolute; ignored by other experiments."
+        ),
     )
     arguments = parser.parse_args()
 
@@ -70,169 +123,216 @@ def main() -> None:
         parser.error("stochastic requires --moon-source-directory")
 
     repository_root = Path(__file__).resolve().parent.parent
+    results_directory = repository_root / arguments.data_directory
+
+    national_config: PipelineConfig | None = None
 
     for experiment_name in arguments.experiments:
-        data_directory = (
-            repository_root / arguments.data_directory / EXPERIMENT_DIRECTORIES[experiment_name]
-        )
+        result_subdirectory = EXPERIMENT_DIRECTORIES[experiment_name]
+        data_directory = results_directory / result_subdirectory
 
-        if experiment_name == "national":
+        if result_subdirectory.startswith("national/"):
+            if national_config is None:
+                national_config = load_configuration(
+                    arguments.config or repository_root / "code/configs/replication.yaml"
+                )
+
+            run_national_experiment(
+                national_config, experiment_name, repository_root, results_directory, data_directory
+            )
+
+        else:
+            run_experiment(
+                experiment_name,
+                repository_root,
+                data_directory,
+                config_path=arguments.config,
+                samples=arguments.samples,
+                samples_per_share=arguments.samples_per_share,
+                share_count=arguments.share_count,
+                seed=arguments.seed,
+                buffer_steps=arguments.buffer_steps,
+                moon_source_directory=arguments.moon_source_directory,
+            )
+
+
+def run_national_experiment(
+    national_config: PipelineConfig,
+    experiment_name: str,
+    repository_root: Path,
+    results_directory: Path,
+    data_directory: Path,
+) -> None:
+    """Prepare national results in a study-area subfolder.
+
+    Input validation and file-access errors from the selected workflow propagate to the caller.
+
+    Args:
+        national_config (PipelineConfig): Study areas, Census years/levels, and input folders.
+        experiment_name (str): A national workflow from EXPERIMENT_DIRECTORIES.
+        repository_root (Path): Base for configured relative input paths.
+        results_directory (Path): Result root, also used for the separate score-rank tables.
+        data_directory (Path): Workflow destination before adding the study-area subfolder.
+    """
+
+    selection_folder = build_study_area_label(national_config)
+    if experiment_name == "entropy-by-geography":
+        selection_folder = f"WB_{selection_folder}"
+
+    data_directory /= selection_folder
+
+    match experiment_name:
+        case "national":
             from national_figures.prepare_national_results import prepare_national_figure_data
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
+            prepare_national_figure_data(national_config, repository_root, data_directory)
 
-            prepare_national_figure_data(config, repository_root, data_directory / selection_folder)
-
-        elif experiment_name == "entropy-by-geography":
+        case "entropy-by-geography":
             from national_figures.prepare_entropy_by_geography import prepare_entropy_data
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = f"WB_{build_study_area_label(config)}"
+            prepare_entropy_data(national_config, repository_root, data_directory)
 
-            prepare_entropy_data(config, repository_root, data_directory / selection_folder)
-
-        elif experiment_name == "grid-vs-national-scores":
+        case "grid-vs-national-scores":
             from national_figures.prepare_grid_vs_national_scores import (
                 prepare_grid_vs_national_scores,
             )
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
+            prepare_grid_vs_national_scores(national_config, repository_root, data_directory)
 
-            prepare_grid_vs_national_scores(
-                config, repository_root, data_directory / selection_folder
-            )
-
-        elif experiment_name == "population-composition":
+        case "population-composition":
             from national_figures.prepare_population_composition import (
                 prepare_population_composition_data,
             )
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
+            prepare_population_composition_data(national_config, repository_root, data_directory)
 
-            prepare_population_composition_data(
-                config, repository_root, data_directory / selection_folder
-            )
-
-        elif experiment_name == "score-ranks":
+        case "score-ranks":
             from national_figures.prepare_score_ranks import prepare_score_rank_data
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
+            table_directory = results_directory / "national/tables/score_ranks"
 
-            table_directory = (
-                repository_root / arguments.data_directory / "national/tables/score_ranks"
-            )
             prepare_score_rank_data(
-                config,
+                national_config,
                 repository_root,
-                data_directory / selection_folder,
+                data_directory,
                 table_directory / selection_folder,
             )
 
-        elif experiment_name == "ranked-population-table":
+        case "ranked-population-table":
             from national_figures.prepare_ranked_table import prepare_ranked_population_table
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
+            prepare_ranked_population_table(national_config, repository_root, data_directory)
 
-            prepare_ranked_population_table(
-                config, repository_root, data_directory / selection_folder
-            )
+        case "capy-weights":
+            from national_figures.compare_capy_weights import run_capy_weight_comparison
 
-        elif experiment_name == "grid-reference-scores":
+            run_capy_weight_comparison(national_config, repository_root, data_directory)
+
+
+def run_experiment(
+    experiment_name: str,
+    repository_root: Path,
+    data_directory: Path,
+    *,
+    config_path: Path | None,
+    samples: int,
+    samples_per_share: int,
+    share_count: int,
+    seed: int,
+    buffer_steps: int,
+    moon_source_directory: Path | None,
+) -> None:
+    """Run a grid, diffusion, neighborhood, or Iowa experiment and save its results.
+
+    Only the options used by the selected experiment affect its execution. Configuration,
+    input validation, and file-access errors from the selected workflow propagate to the caller.
+
+    Args:
+        experiment_name (str): A non-national workflow from EXPERIMENT_DIRECTORIES.
+        repository_root (Path): Base for relative input paths and default configuration files.
+        data_directory (Path): Destination for the selected experiment's results.
+        config_path (Path | None): YAML configuration for dispersion or Iowa; None selects
+            max_city.yaml for dispersion and replication.yaml for Iowa.
+        samples (int): Binary grids per class for grid distributions.
+        samples_per_share (int): Iowa samples per target population share.
+        share_count (int): Number of Iowa target population shares.
+        seed (int): Random seed for grid arrangements, comparisons, distributions, and Iowa.
+        buffer_steps (int): Neighborhood buffer for observed dispersion.
+        moon_source_directory (Path | None): Stochastic source root, relative to the repository
+            unless absolute. Required only for stochastic diffusion.
+
+    Raises:
+        ValueError: Stochastic diffusion was selected without a source directory.
+    """
+
+    match experiment_name:
+        case "grid-reference-scores":
             from experiments.grid_configurations.grid_reference_scores import (
                 save_grid_reference_scores,
             )
 
             save_grid_reference_scores(data_directory)
 
-        elif experiment_name == "grid-pop-share-arrangements":
+        case "grid-pop-share-arrangements":
             from experiments.grid_configurations.grid_pop_share_arrangements import (
                 run_grid_pop_share_arrangements,
             )
 
-            run_grid_pop_share_arrangements(data_directory, arguments.seed)
+            run_grid_pop_share_arrangements(data_directory, seed)
 
-        elif experiment_name == "grid-score-comparisons":
+        case "grid-score-comparisons":
             from experiments.grid_configurations.grid_score_comparisons import (
                 run_grid_score_comparisons,
             )
 
-            run_grid_score_comparisons(data_directory, arguments.seed)
+            run_grid_score_comparisons(data_directory, seed)
 
-        elif experiment_name == "expanding-support":
+        case "expanding-support":
             from experiments.synthetic_diffusion.expanding_support import run_expanding_support
 
             run_expanding_support(data_directory)
 
-        elif experiment_name == "stochastic":
+        case "stochastic":
             from experiments.synthetic_diffusion.stochastic_diffusion import (
                 run_stochastic_diffusion,
             )
 
-            run_stochastic_diffusion(
-                data_directory, repository_root / arguments.moon_source_directory
-            )
+            if moon_source_directory is None:
+                raise ValueError("stochastic requires a source directory")
 
-        elif experiment_name == "dispersion":
+            run_stochastic_diffusion(data_directory, repository_root / moon_source_directory)
+
+        case "dispersion":
             from experiments.neighborhood_change.observed_dispersion import run_observed_dispersion
 
             config = load_configuration(
-                arguments.config or repository_root / "code/configs/max_city.yaml"
+                config_path or repository_root / "code/configs/max_city.yaml"
             )
 
-            run_observed_dispersion(config, repository_root, data_directory, arguments.buffer_steps)
+            run_observed_dispersion(config, repository_root, data_directory, buffer_steps)
 
-        elif experiment_name == "iowa":
+        case "iowa":
             from experiments.iowa_configurations.county_configurations import run_iowa_experiments
 
             config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
+                config_path or repository_root / "code/configs/replication.yaml"
             )
 
             run_iowa_experiments(
                 config,
                 repository_root,
                 data_directory,
-                arguments.samples_per_share,
-                arguments.share_count,
-                arguments.seed,
+                samples_per_share,
+                share_count,
+                seed,
             )
 
-        elif experiment_name == "grid-distributions":
+        case "grid-distributions":
             from experiments.grid_configurations.grid_distributions import run_grid_distributions
 
-            run_grid_distributions(data_directory, arguments.samples, arguments.seed)
+            run_grid_distributions(data_directory, samples, seed)
 
-        elif experiment_name == "capy-weights":
-            from national_figures.compare_capy_weights import run_capy_weight_comparison
-
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-
-            selection_folder = build_study_area_label(config)
-
-            data_directory /= selection_folder
-
-            run_capy_weight_comparison(config, repository_root, data_directory)
-
-        elif experiment_name == "triangular":
+        case "triangular":
             from experiments.reardon_osullivan.triangular_lattices import run_triangular_lattices
 
             run_triangular_lattices(data_directory)

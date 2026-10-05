@@ -6,12 +6,14 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from national_pipeline.compute_metrics.metric_types import MetricName, PopulationComparison
-from national_pipeline.geography_types import GeographyLevel, StudyAreaType
-
-from .retrieve_data.raw_file_requests import (
+from national_pipeline.geography_types import (
     CensusYear,
-    validate_relative_file_path,
+    GeographyLevel,
+    GeographySelection,
+    StudyAreaType,
 )
+
+from .retrieve_data.raw_file_requests import validate_relative_file_path
 
 
 class RawDataSubdirectories(BaseModel):
@@ -179,6 +181,41 @@ class PipelineConfig(BaseModel):
             raise ValueError("Graph nodes must be counties, tracts, block_groups, or blocks")
 
         return levels
+
+
+def select_graph_node_geographies(config: PipelineConfig) -> tuple[GeographySelection, ...]:
+    """Select supported graph-node years and levels, excluding study-area input dependencies.
+
+    Args:
+        config (PipelineConfig): Requested node years and levels and study-area settings.
+
+    Returns:
+        tuple[GeographySelection, ...]: Unique year/level pairs in sorted order. Unsupported
+            1980 blocks and block groups are omitted, without implying zero population.
+
+    Raises:
+        ValueError: No supported node pairs remain, or max_city uses a vintage other than 2020.
+    """
+    if config.study_area_type == StudyAreaType.MAX_CITY and config.study_area_vintage != 2020:
+        raise ValueError("max_city requires study_area_vintage: 2020 for its place inputs")
+
+    selections = set()
+
+    for year in config.census_geography_years:
+        for level in config.census_geography_levels:
+            if year == 1980 and level in (GeographyLevel.BLOCK, GeographyLevel.BLOCK_GROUP):
+                continue
+
+            selections.add(GeographySelection(census_year=year, geography_level=level))
+
+    if not selections:
+        raise ValueError(
+            "No supported node boundaries: 1980 blocks and block groups are unavailable"
+        )
+
+    return tuple(
+        sorted(selections, key=lambda selection: (selection.census_year, selection.geography_level))
+    )
 
 
 def load_configuration(configuration_path: Path) -> PipelineConfig:

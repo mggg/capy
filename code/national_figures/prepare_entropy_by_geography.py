@@ -14,11 +14,11 @@ from national_pipeline.compute_metrics.metric_types import (
 )
 from national_pipeline.geography_types import GeographyLevel
 from national_pipeline.pipeline_config import PipelineConfig
-from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
 
 from national_figures.prepare_national_results import (
     read_national_figure_inputs,
     select_complete_histories,
+    select_figure_years_by_selection,
 )
 
 ENTROPY_LEVELS = (GeographyLevel.TRACT, GeographyLevel.BLOCK_GROUP, GeographyLevel.BLOCK)
@@ -84,20 +84,13 @@ def prepare_entropy_data(
         or MetricName.ENTROPY_INDEX not in config.metric_names
     ):
         raise ValueError("Entropy histories require configured White–Black entropy scores")
-    geography_requests = build_geography_requests(config)
-    years_by_level = {}
-    for level in ENTROPY_LEVELS:
-        years = sorted(
-            {
-                request.census_year
-                for request in geography_requests
-                if request.geography_level == level
-                and level in config.census_geography_levels
-                and request.census_year in config.census_geography_years
-            }
-        )
-        if years:
-            years_by_level[level] = years
+    years_by_selection = select_figure_years_by_selection(config)
+    years_by_level = {
+        level: years_by_selection[PopulationComparison.WHITE_BLACK, level]
+        for level in ENTROPY_LEVELS
+        if (PopulationComparison.WHITE_BLACK, level) in years_by_selection
+    }
+
     if not years_by_level:
         raise ValueError("No configured resolutions match the entropy history image sets")
 

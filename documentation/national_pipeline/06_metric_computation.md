@@ -33,7 +33,7 @@ raw downloads and intermediate population, geography, and membership tables are 
 Graph inputs may be an original single ZIP or a complete set of numbered parts. The stage
 discovers parts automatically, checks their combined area inventory, and reads each graph from its
 recorded archive. It still writes one metric table per year and level. See
-[archive parts](05_graph_construction.md#archive-parts-and-repackaging) for naming and conversion.
+[archive parts](05_graph_construction.md#archive-parts) for naming and completeness checks.
 
 By default, every supported metric is calculated for both `white_black` and `white_poc`. Set
 `metric_names` or `population_comparisons` in the YAML to restrict those choices, using the names

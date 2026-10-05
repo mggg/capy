@@ -10,8 +10,18 @@ from matplotlib.colors import to_rgb
 from plotting import figure_style
 
 
-@pytest.mark.parametrize("base_color", [None, figure_style.AMBER, figure_style.PURPLE_HEART])
-def test_year_palette_keeps_year_order_and_dark_to_light_shades(tmp_path, base_color):
+@pytest.mark.parametrize(
+    "base_color, expected_shades",
+    [
+        (None, None),
+        (figure_style.AMBER, ["#543f00", "#aa7f00", "#ffbf01", "#ffd455", "#ffeaab"]),
+        (figure_style.PURPLE_HEART, ["#231133", "#462368", "#6a369c", "#9b78bd", "#cebcde"]),
+        (figure_style.DENIM, ["#07203e", "#0e407e", "#1661bd", "#6395d3", "#b2cbe9"]),
+    ],
+)
+def test_year_palette_keeps_year_order_and_dark_to_light_shades(
+    tmp_path, base_color, expected_shades
+):
     # Exercise the source setting as a user would edit it, without changing imported styling.
     style_source = Path(figure_style.__file__).read_text()
     configured_source = re.sub(
@@ -32,6 +42,7 @@ def test_year_palette_keeps_year_order_and_dark_to_light_shades(tmp_path, base_c
         assert all(len(to_rgb(color)) == 3 for color in palette.values())
         return
 
+    assert list(palette.values()) == expected_shades
     shades = np.array([to_rgb(color) for color in palette.values()])
     assert np.all(np.diff(shades.mean(axis=1)) > 0)
     assert np.allclose(shades[2], to_rgb(base_color), atol=1 / 255)

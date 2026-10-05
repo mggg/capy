@@ -20,10 +20,10 @@ from national_pipeline.data_directories import resolve_separate_output_directory
 from national_pipeline.join_geographies.select_inputs import (
     GeographyJoinInputs,
     select_geography_join_inputs,
+    select_graph_node_join_inputs,
 )
 from national_pipeline.pipeline_config import PipelineConfig
 from national_pipeline.population_table_columns import PopulationColumn
-from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
 from national_pipeline.stage_files import stage_file
 
 from .archive_inventory import read_graph_selection_summary
@@ -34,7 +34,6 @@ from .build_area_graph import (
     GraphStatus,
     build_and_save_area_graph,
 )
-from .graph_archives import build_zip_member, write_file_to_archive
 from .read_inputs import read_selection_memberships, read_study_area_definitions
 
 
@@ -79,23 +78,7 @@ def build_graph_archives(config: PipelineConfig, repository_root: Path) -> pd.Da
 
     definitions_df = read_study_area_definitions(study_area_directory, config).to_crs("ESRI:102003")
     selected_geography_inputs = select_geography_join_inputs(config)
-    graph_node_inputs = [
-        geography_inputs
-        for geography_inputs in selected_geography_inputs
-        if geography_inputs.census_year in config.census_geography_years
-        and geography_inputs.geography_level in config.census_geography_levels
-    ]
-    expected_years_and_levels = {
-        (request.census_year, request.geography_level)
-        for request in build_geography_requests(config)
-        if request.census_year in config.census_geography_years
-        and request.geography_level in config.census_geography_levels
-    }
-
-    if {
-        (inputs.census_year, inputs.geography_level) for inputs in graph_node_inputs
-    } != expected_years_and_levels:
-        raise ValueError("Filename filters omit configured graph-node selections")
+    graph_node_inputs = select_graph_node_join_inputs(config, selected_geography_inputs)
 
     summary_tables = []
 
@@ -139,7 +122,7 @@ def build_selection_archive(
     """Reuse a complete selection or build its graphs and publish numbered ZIP parts.
 
     Args:
-        archive_path (Path): Legacy ZIP name and base name for numbered parts.
+        archive_path (Path): Base ZIP name used to locate numbered parts.
         definitions_df (gpd.GeoDataFrame): All configured study-area definitions.
         geography_inputs (GeographyJoinInputs): Node year/level and expected source paths.
         study_area_directory (Path): Definitions and membership output directory.
@@ -185,7 +168,7 @@ def build_selection_archive(
             warn_on_polygon_overlaps=warn_on_polygon_overlaps,
         )
 
-        return publish_selection_archive(archive_path, area_files, temporary_directory)
+        return publish_graph_archive_parts(archive_path, area_files, temporary_directory)
 
 
 def reuse_graph_selection(
@@ -193,10 +176,10 @@ def reuse_graph_selection(
     geography_inputs: GeographyJoinInputs,
     assignment_summary_df: pd.DataFrame,
 ) -> pd.DataFrame | None:
-    """Check a completed selection against current assignments, converting a legacy ZIP if needed.
+    """Check a completed selection against current assignments and read every member for ZIP errors.
 
     Args:
-        archive_path (Path): Legacy name and base name for numbered ZIP parts.
+        archive_path (Path): Base ZIP name used to locate numbered parts.
         geography_inputs (GeographyJoinInputs): Expected year and resolution.
         assignment_summary_df (pd.DataFrame): Current assignment counts indexed by area ID.
 
@@ -207,7 +190,7 @@ def reuse_graph_selection(
 
     Raises:
         ValueError: Complete saved accounting differs from current assignments.
-        OSError: Reading or repackaging fails. Corrupt legacy ZIP errors propagate.
+        OSError: Reading fails. ZIP errors propagate.
     """
     try:
         summary_df = read_graph_selection_summary(
@@ -216,9 +199,6 @@ def reuse_graph_selection(
     except FileNotFoundError:
         return None
     except (ValueError, BadZipFile, KeyError):
-        if archive_path.exists():
-            raise
-
         tqdm.write(f"Rebuilding incomplete graph parts: {archive_path.stem}")
         return None
 
@@ -243,75 +223,20 @@ def reuse_graph_selection(
             observed = saved[f"input_{column}"]
             expected = assignment[column]
 
-            if pd.isna(observed) and pd.isna(expected):
+            if bool(pd.isna(observed)) and bool(pd.isna(expected)):
                 continue
 
-            if pd.isna(observed) or pd.isna(expected) or observed != expected:
+            if bool(pd.isna(observed)) or bool(pd.isna(expected)) or observed != expected:
                 raise ValueError(f"Saved graph counts changed; set rebuild_graphs: true: {area_id}")
 
-    if archive_path.exists():
-        summary_df = publish_graph_archive_parts(archive_path, archive_path)
-        archive_path.unlink()
-    else:
-        for filename in summary_df.archive.unique():
-            with ZipFile(archive_path.parent / filename) as archive:
-                damaged_member = archive.testzip()
+    for filename in summary_df.archive.unique():
+        with ZipFile(archive_path.parent / filename) as archive:
+            damaged_member = archive.testzip()
 
-            if damaged_member is not None:
-                raise ValueError(f"Damaged graph member {damaged_member}: {filename}")
+        if damaged_member is not None:
+            raise ValueError(f"Damaged graph member {damaged_member}: {filename}")
 
     tqdm.write(f"Reusing {archive_path.stem}: {len(summary_df)} area outcomes")
-
-    return summary_df
-
-
-def publish_selection_archive(
-    archive_path: Path, area_files: list[AreaGraphFiles], temporary_directory: Path
-) -> pd.DataFrame:
-    """Compress completed area files, then publish size-limited ZIP parts with local summaries.
-
-    Args:
-        archive_path (Path): Unnumbered base name for the final ZIP parts.
-        area_files (list[AreaGraphFiles]): Complete worker results in study-area ID order.
-        temporary_directory (Path): Selection-owned folder containing the saved member files.
-
-    Returns:
-        pd.DataFrame: Combined inventory; each part contains its own rows in summary.csv.
-
-    Raises:
-        OSError: Reading files or writing/publishing the ZIP fails.
-    """
-    summary_rows = [area.summary for area in area_files]
-
-    with stage_file(archive_path.parent) as temporary_path:
-        with ZipFile(temporary_path, "w") as archive:
-            for area in tqdm(
-                area_files, desc=f"Saving {archive_path.stem}", unit="area", disable=None
-            ):
-                for member_path in area.member_paths:
-                    write_file_to_archive(archive, member_path, temporary_directory)
-
-            summary_df = pd.DataFrame(summary_rows)
-            summary_df["archive"] = archive_path.name
-            count_columns = [
-                "node_count",
-                "edge_count",
-                "input_unit_count",
-                "removed_unit_count",
-                "initial_component_count",
-                "artificial_edge_count",
-                *(
-                    f"{group}_{column}"
-                    for group in ("input", "retained", "removed")
-                    for column in PopulationColumn
-                ),
-            ]
-            summary_df[count_columns] = summary_df[count_columns].astype("Int64")
-            archive.writestr(build_zip_member("summary.csv"), summary_df.to_csv(index=False))
-
-        summary_df = publish_graph_archive_parts(temporary_path, archive_path)
-
-    archive_path.unlink(missing_ok=True)
 
     return summary_df
 

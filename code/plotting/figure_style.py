@@ -7,13 +7,13 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
-from matplotlib.colors import Colormap, Normalize
+from matplotlib.colors import Colormap, LinearSegmentedColormap, Normalize, to_hex
 from matplotlib.figure import Figure
 from national_pipeline.geography_types import MetroCode
-from seaborn import blend_palette
 
 # Names and exact hex values from GerryTools' LaTeX color table.
 TEAL = "#008080"
@@ -94,9 +94,10 @@ YEAR_COLORS = {
 
 if YEAR_BASE_COLOR is not None:
     # Blend through the base color, omitting pure black and white at the endpoints.
-    year_shades = blend_palette(
-        ["black", YEAR_BASE_COLOR, "white"], n_colors=len(YEAR_COLORS) + 2
-    ).as_hex()[1:-1]
+    year_cmap = LinearSegmentedColormap.from_list("years", ["black", YEAR_BASE_COLOR, "white"])
+    year_shades = [
+        to_hex(color) for color in year_cmap(np.linspace(0, 1, len(YEAR_COLORS) + 2))[1:-1]
+    ]
     YEAR_COLORS = dict(zip(YEAR_COLORS, year_shades, strict=True))
 
 

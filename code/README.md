@@ -12,8 +12,8 @@ generation. [`national_figures/`](national_figures/) owns the available national
 [`plotting/`](plotting/) contains shared style and drawing functions.
 [`make_figures.py`](make_figures.py) renders figures and saves one 300 dpi PNG per component,
 leaving axis labels and titles to LaTeX. The [figure guide](../documentation/figures.md) explains
-commands and scientific choices.
-[`run_experiment.py`](run_experiment.py) prepares saved inputs for both national figures and
+commands and scientific choices. [`run_experiment.py`](run_experiment.py) prepares saved inputs
+for both national figures and
 [grid, diffusion, and neighborhood experiments](../documentation/experiments.md).
 
 | What you want to do                                             | Where to start                                                                                                                                                                                                                             |
@@ -200,9 +200,9 @@ removed-unit records and summary accounting. Completed selections are reused on 
 these archives using `read_graph_from_archive()`; no extraction step is needed. See the
 [graph guide](../documentation/national_pipeline/05_graph_construction.md) for filtering,
 connections, and examples. Set `max_parallel_graphs` in the YAML to control concurrent graph
-builds and JSON writes; the national configurations default to 4 workers. Existing ZIPs can be
-repackaged without rebuilding graphs using `code/repackage_graphs.py --config CONFIG`; see
-[archive parts and repackaging](../documentation/national_pipeline/05_graph_construction.md#archive-parts-and-repackaging).
+builds and JSON writes; the national configurations default to 4 workers. See
+[archive parts](../documentation/national_pipeline/05_graph_construction.md#archive-parts) for
+packaging and interruption recovery.
 
 ## Compute metrics
 
@@ -213,9 +213,9 @@ uv run --locked python code/reproduce.py --config code/configs/small_example.yam
 ```
 
 No extraction or intermediate data files are required. The default output is
-`results/metrics/county/` for this example, with filenames such as `2020_tracts_COUNTY20_metrics.parquet`.
-Each table includes both White–Black and White–POC comparisons.
-For individual scores on your own graphs or arrays, use the
+`results/metrics/county/` for this example, with filenames such as
+`2020_tracts_COUNTY20_metrics.parquet`. Each table includes both White–Black and White–POC
+comparisons. For individual scores on your own graphs or arrays, use the
 [public metric functions](../documentation/national_pipeline/06_metric_computation.md#use-individual-metric-functions).
 Use `metric_names` to select formulas and `metric_results_directory` to change the output root.
 The [metric guide](../documentation/national_pipeline/06_metric_computation.md) explains the

@@ -4,7 +4,6 @@ NHGIS extract requests, status responses, and download links:
 https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/
 """
 
-import json
 import os
 import warnings
 from dataclasses import dataclass
@@ -298,8 +297,7 @@ def save_nhgis_submission(submission_path: Path, submission: NhgisSubmissionReco
         OSError: Writing the temporary record or moving it to its final path fails. If replacement
             fails, any previous record remains unchanged.
     """
-    record = submission.model_dump(mode="json", by_alias=True)
-    content = (json.dumps(record, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    content = (submission.model_dump_json(by_alias=True, indent=2) + "\n").encode("utf-8")
 
     with stage_file(submission_path.parent) as temporary_path:
         temporary_path.write_bytes(content)

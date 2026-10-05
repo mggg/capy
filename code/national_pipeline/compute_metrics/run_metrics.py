@@ -17,8 +17,7 @@ from national_pipeline.build_graphs.graph_archives import read_graph_from_archiv
 from national_pipeline.data_directories import resolve_separate_output_directory
 from national_pipeline.derived_file_paths import build_study_area_label
 from national_pipeline.geography_types import GeographyLevel
-from national_pipeline.pipeline_config import PipelineConfig
-from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
+from national_pipeline.pipeline_config import PipelineConfig, select_graph_node_geographies
 from national_pipeline.stage_files import stage_file
 
 from .calculate_scores import calculate_graph_metrics
@@ -126,13 +125,7 @@ def read_selected_graph_summaries(
     summaries_by_archive = {}
     expected_area_ids = None
 
-    for request in build_geography_requests(config):
-        if (
-            request.census_year not in config.census_geography_years
-            or request.geography_level not in config.census_geography_levels
-        ):
-            continue
-
+    for request in select_graph_node_geographies(config):
         archive_path = graph_directory / (
             f"{config.study_area_type}_{config.study_area_vintage}_"
             f"{request.census_year}_{request.geography_level}.zip"

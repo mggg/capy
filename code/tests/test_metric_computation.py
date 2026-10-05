@@ -269,7 +269,7 @@ def metric_archive(tmp_path):
         metric_results_directory=tmp_path / "results",
     )
     config.graph_archive_directory.mkdir()
-    archive_path = config.graph_archive_directory / "county_2020_2020_tracts.zip"
+    archive_path = config.graph_archive_directory / "county_2020_2020_tracts_part01.zip"
     graph = build_example_graph()
     graph.graph.update(
         study_area_id="county_10001",
@@ -303,7 +303,7 @@ def metric_archive(tmp_path):
 
         summary_rows.append(row)
 
-    summary_df = pd.DataFrame(summary_rows)
+    summary_df = pd.DataFrame(summary_rows).assign(archive_part_count=1)
 
     with ZipFile(archive_path, "w") as archive:
         archive.writestr("summary.csv", summary_df.to_csv(index=False))

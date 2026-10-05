@@ -15,6 +15,7 @@ from national_pipeline.geography_types import GeographyLevel, StudyAreaType
 from national_pipeline.join_geographies.select_inputs import (
     GeographyJoinInputs,
     select_geography_join_inputs,
+    select_graph_node_join_inputs,
 )
 from national_pipeline.pipeline_config import PipelineConfig
 from national_pipeline.population_table_columns import GeographyColumn, PopulationColumn
@@ -22,7 +23,6 @@ from national_pipeline.retrieve_data.census.build_published_file_requests import
     METRO_MEMBERSHIP_FILENAME,
 )
 from national_pipeline.retrieve_data.census.table_columns import CensusGeographyColumn
-from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
 from national_pipeline.stage_files import stage_file
 
 from .assign_units import (
@@ -76,31 +76,7 @@ def assign_study_areas(config: PipelineConfig, repository_root: Path) -> pd.Data
     )
     remove_previous_assignments(study_area_output_directory)
     selected_geography_inputs = select_geography_join_inputs(config)
-    graph_node_input_groups = [
-        geography_inputs
-        for geography_inputs in selected_geography_inputs
-        if geography_inputs.census_year in config.census_geography_years
-        and geography_inputs.geography_level in config.census_geography_levels
-    ]
-
-    expected_node_years_and_levels = {
-        (request.census_year, request.geography_level)
-        for request in build_geography_requests(config)
-        if request.census_year in config.census_geography_years
-        and request.geography_level in config.census_geography_levels
-    }
-    selected_node_years_and_levels = {
-        (geography_inputs.census_year, geography_inputs.geography_level)
-        for geography_inputs in graph_node_input_groups
-    }
-    missing_node_years_and_levels = expected_node_years_and_levels - selected_node_years_and_levels
-
-    if missing_node_years_and_levels:
-        raise ValueError(
-            "Filename filters omit configured node selections: "
-            f"{sorted(missing_node_years_and_levels)}. "
-            "Restore their inputs or change the configured node years and levels."
-        )
+    graph_node_input_groups = select_graph_node_join_inputs(config, selected_geography_inputs)
 
     study_area_definitions_df, selection_candidates_df, city_county_populations_df = (
         prepare_study_area_definitions(

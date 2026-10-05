@@ -1,6 +1,8 @@
 """Shared names for geographic units and the areas used to organize the analysis."""
 
+from dataclasses import dataclass
 from enum import StrEnum
+from typing import Literal
 
 
 class GeographyLevel(StrEnum):
@@ -17,6 +19,25 @@ class GeographyLevel(StrEnum):
     BLOCK_GROUP = "block_groups"
     BLOCK = "blocks"
     PLACE = "places"
+
+
+CensusYear = Literal[1980, 1990, 2000, 2010, 2020]
+
+
+@dataclass(frozen=True)
+class GeographySelection:
+    """One year and kind of geographic unit needed by the run.
+
+    Both population tables and boundary files use this selection. It can describe units to
+    analyze, such as 1990 tracts, or units needed to define a study area, such as 2020 counties.
+
+    Attributes:
+        census_year (CensusYear): One of 1980, 1990, 2000, 2010, or 2020.
+        geography_level (GeographyLevel): Kind of unit whose population and boundaries are needed.
+    """
+
+    census_year: CensusYear
+    geography_level: GeographyLevel
 
 
 class StudyAreaType(StrEnum):

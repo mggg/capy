@@ -1,7 +1,7 @@
 """Run selections drive both population and boundary inputs, including study-area data."""
 
 import pytest
-from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.geography_types import GeographyLevel, GeographySelection, StudyAreaType
 from national_pipeline.pipeline_config import (
     PipelineConfig,
     RawDataSubdirectories,
@@ -19,7 +19,6 @@ from national_pipeline.retrieve_data.prepare_file_requests import (
 from national_pipeline.retrieve_data.raw_file_requests import (
     CensusDataset,
     CensusFileRequest,
-    GeographyRequest,
     NhgisTableFileRequest,
 )
 from national_pipeline.retrieve_data.retrieve_files import retrieve_raw_data
@@ -171,7 +170,7 @@ def test_modern_selection_matches_populations_and_boundaries():
 def test_tiger_requests_keep_vintage_names_and_geographic_coverage(
     census_year, geography_level, expected_destination, expected_url_path, expected_count
 ):
-    selection = GeographyRequest(census_year=census_year, geography_level=geography_level)
+    selection = GeographySelection(census_year=census_year, geography_level=geography_level)
     requests = build_tiger_file_requests(
         RawDataSubdirectories(census_boundary_files="custom/boundaries"),
         (selection, selection),

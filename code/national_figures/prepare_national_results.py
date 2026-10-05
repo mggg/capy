@@ -16,8 +16,7 @@ from national_pipeline.compute_metrics.metric_types import (
 )
 from national_pipeline.derived_file_paths import build_study_area_label
 from national_pipeline.geography_types import GeographyLevel, StudyAreaType
-from national_pipeline.pipeline_config import PipelineConfig
-from national_pipeline.retrieve_data.prepare_file_requests import build_geography_requests
+from national_pipeline.pipeline_config import PipelineConfig, select_graph_node_geographies
 
 PRIMARY_METRICS = (MetricName.MORAN_ROW_STANDARDIZED, MetricName.DISSIMILARITY, MetricName.CAPY)
 HISTORY_METRICS = (
@@ -66,25 +65,12 @@ def select_history_years(
     Raises:
         ValueError: No supported configured selections match the history image sets.
     """
-    geography_requests = build_geography_requests(config)
-    years_by_selection = {}
-
-    for comparison, level in HISTORY_SELECTIONS:
-        if (
-            comparison not in config.population_comparisons
-            or level not in config.census_geography_levels
-        ):
-            continue
-
-        years = [
-            request.census_year
-            for request in geography_requests
-            if request.geography_level == level
-            and request.census_year in config.census_geography_years
-        ]
-
-        if years:
-            years_by_selection[comparison, level] = years
+    figure_years_by_selection = select_figure_years_by_selection(config)
+    years_by_selection = {
+        selection: figure_years_by_selection[selection]
+        for selection in HISTORY_SELECTIONS
+        if selection in figure_years_by_selection
+    }
 
     if not years_by_selection:
         raise ValueError("No configured selections match the national history image sets")
@@ -110,26 +96,10 @@ def select_figure_years_by_selection(
     Raises:
         ValueError: The configuration selects no supported graph geography.
     """
-    graph_levels = (
-        GeographyLevel.COUNTY,
-        GeographyLevel.TRACT,
-        GeographyLevel.BLOCK_GROUP,
-        GeographyLevel.BLOCK,
-    )
     years_by_level: dict[GeographyLevel, set[int]] = {}
 
-    for request in build_geography_requests(config):
-        if (
-            request.geography_level not in graph_levels
-            or request.geography_level not in config.census_geography_levels
-            or request.census_year not in config.census_geography_years
-        ):
-            continue
-
+    for request in select_graph_node_geographies(config):
         years_by_level.setdefault(request.geography_level, set()).add(request.census_year)
-
-    if not years_by_level:
-        raise ValueError("No configured years and levels have supported graph geography")
 
     return {
         (comparison, level): sorted(years)

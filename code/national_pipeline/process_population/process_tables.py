@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from national_pipeline.data_directories import resolve_separate_output_directory
 from national_pipeline.derived_file_paths import build_population_output_path
-from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.geography_types import GeographyLevel, GeographySelection
 from national_pipeline.pipeline_config import PipelineConfig, RawDataSubdirectories
 from national_pipeline.population_table_columns import GeographyColumn
 from national_pipeline.retrieve_data.census.build_published_file_requests import (
@@ -28,7 +28,6 @@ from national_pipeline.retrieve_data.prepare_file_requests import (
 )
 from national_pipeline.retrieve_data.raw_file_requests import (
     CensusFileRequest,
-    GeographyRequest,
     NhgisTableFileRequest,
     RawFileRequest,
 )
@@ -258,7 +257,7 @@ def select_population_requests(
 
     historical_years = {describe_nhgis_population_request(request)[0] for request in nhgis_requests}
     reference_selections = tuple(
-        GeographyRequest(census_year=year, geography_level=GeographyLevel.STATE)
+        GeographySelection(census_year=year, geography_level=GeographyLevel.STATE)
         for year in (1980, 1990)
         if year in historical_years
     )

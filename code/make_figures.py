@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from national_pipeline.derived_file_paths import build_study_area_label
-from national_pipeline.pipeline_config import load_configuration
+from national_pipeline.pipeline_config import PipelineConfig, load_configuration
 
 FIGURE_DIRECTORIES = {
     "national": ("national/processed_data/history", "national"),
@@ -44,153 +44,197 @@ def main() -> None:
     """Draw selected image sets in argument order; an input or rendering failure stops the run."""
     parser = argparse.ArgumentParser(
         description=__doc__,
-        epilog="Workflows run in the supplied order. Shared options apply to every selected workflow.",
+        epilog=(
+            "Selections run in the supplied order and stop on the first failure. "
+            "Prepare their inputs with code/run_experiment.py first. "
+            "Example from the repository root: python code/make_figures.py national score-ranks"
+        ),
     )
-    parser.add_argument("figures", nargs="+", choices=FIGURE_DIRECTORIES)
-    parser.add_argument("--config", type=Path, help="YAML configuration for national inputs")
+    parser.add_argument(
+        "figures",
+        nargs="+",
+        choices=FIGURE_DIRECTORIES,
+        metavar="FIGURE",
+        help="One or more saved-result figure sets. Choices: " + ", ".join(FIGURE_DIRECTORIES),
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help=(
+            "YAML study-area, year, and geography settings for national figures only; "
+            "use the settings that prepared the results. Defaults to code/configs/replication.yaml "
+            "in the repository. An explicit relative filename starts at the current directory."
+        ),
+    )
     parser.add_argument(
         "--data-directory",
         type=Path,
         default=Path("results"),
-        help="Result root, relative to the repository unless absolute (default: results)",
+        help=(
+            "Root containing saved results, not an individual workflow folder. Workflow and "
+            "national study-area subfolders are added automatically. Relative to the repository "
+            "unless absolute (default: %(default)s)."
+        ),
     )
     parser.add_argument(
         "--output-directory",
         type=Path,
         default=Path("figures"),
-        help="Figure root, relative to the repository unless absolute (default: figures)",
+        help=(
+            "Root for PNG figures and legends; each workflow adds its own subfolders. "
+            "Relative to the repository unless absolute (default: %(default)s)."
+        ),
     )
     arguments = parser.parse_args()
     repository_root = Path(__file__).resolve().parent.parent
+
+    national_config: PipelineConfig | None = None
 
     for figure_name in arguments.figures:
         result_subdirectory, figure_subdirectory = FIGURE_DIRECTORIES[figure_name]
         data_directory = repository_root / arguments.data_directory / result_subdirectory
         output_directory = repository_root / arguments.output_directory / figure_subdirectory
 
-        if figure_name == "entropy-by-geography":
+        if result_subdirectory.startswith("national/"):
+            if national_config is None:
+                national_config = load_configuration(
+                    arguments.config or repository_root / "code/configs/replication.yaml"
+                )
+            make_national_figure(national_config, figure_name, data_directory, output_directory)
+
+        else:
+            make_experiment_figure(figure_name, data_directory, output_directory)
+
+
+def make_national_figure(
+    national_config: PipelineConfig, figure_name: str, data_directory: Path, output_directory: Path
+) -> None:
+    """Draw national figures and legends from saved results.
+
+    Input-validation, file-access, and rendering errors from the selected plotting workflow
+    propagate to the caller.
+
+    Args:
+        national_config (PipelineConfig): Study areas, Census years/levels, and upstream input
+            folders.
+        figure_name (str): A national selection from FIGURE_DIRECTORIES.
+        data_directory (Path): Selected workflow's result directory before adding the study-area
+            subfolder. Entropy uses the study-area label prefixed with WB_.
+        output_directory (Path): Destination for PNG figures and legends.
+    """
+
+    selection_folder = build_study_area_label(national_config)
+    if figure_name == "entropy-by-geography":
+        selection_folder = f"WB_{selection_folder}"
+
+    data_directory /= selection_folder
+
+    match figure_name:
+        case "entropy-by-geography":
             from national_figures.plot_entropy_by_geography import plot_entropy_by_geography
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
+            plot_entropy_by_geography(national_config, output_directory, data_directory)
+
+        case "grid-vs-national-scores":
+            from national_figures.plot_grid_vs_national_scores import (
+                plot_grid_vs_national_scores,
             )
 
-            selection_folder = f"WB_{build_study_area_label(config)}"
+            plot_grid_vs_national_scores(national_config, output_directory, data_directory)
 
-            plot_entropy_by_geography(config, output_directory, data_directory / selection_folder)
-
-        elif figure_name == "grid-vs-national-scores":
-            from national_figures.plot_grid_vs_national_scores import plot_grid_vs_national_scores
-
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
+        case "population-composition":
+            from national_figures.plot_population_composition import (
+                plot_population_composition,
             )
 
-            selection_folder = build_study_area_label(config)
+            plot_population_composition(national_config, output_directory, data_directory)
 
-            plot_grid_vs_national_scores(
-                config, output_directory, data_directory / selection_folder
-            )
-
-        elif figure_name == "population-composition":
-            from national_figures.plot_population_composition import plot_population_composition
-
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
-
-            plot_population_composition(config, output_directory, data_directory / selection_folder)
-
-        elif figure_name == "score-ranks":
+        case "score-ranks":
             from national_figures.plot_score_ranks import plot_score_rank_comparisons
 
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-            selection_folder = build_study_area_label(config)
+            plot_score_rank_comparisons(national_config, output_directory, data_directory)
 
-            plot_score_rank_comparisons(config, output_directory, data_directory / selection_folder)
+        case "national":
+            from national_figures.plot_national_results import plot_national_figures
 
-        elif figure_name == "grid-reference-scores":
+            plot_national_figures(national_config, output_directory, data_directory)
+
+        case "capy-weights":
+            from national_figures.plot_capy_weights import plot_capy_weight_comparison
+
+            plot_capy_weight_comparison(national_config, output_directory, data_directory)
+
+
+def make_experiment_figure(figure_name: str, data_directory: Path, output_directory: Path) -> None:
+    """Draw figures and legends from saved experiment results.
+
+    Input-validation, file-access, and rendering errors from the selected plotting workflow
+    propagate to the caller.
+
+    Args:
+        figure_name (str): A non-national selection from FIGURE_DIRECTORIES.
+        data_directory (Path): Location of saved results for the selected figure.
+        output_directory (Path): Destination for PNG figures and legends.
+    """
+
+    match figure_name:
+        case "grid-reference-scores":
             from experiments.grid_configurations.plot_grid_reference_scores import (
                 plot_grid_reference_scores,
             )
 
             plot_grid_reference_scores(data_directory, output_directory)
 
-        elif figure_name == "grid-pop-share-arrangements":
+        case "grid-pop-share-arrangements":
             from experiments.grid_configurations.plot_grid_pop_share_arrangements import (
                 plot_grid_pop_share_arrangements,
             )
 
             plot_grid_pop_share_arrangements(data_directory, output_directory)
 
-        elif figure_name == "grid-score-comparisons":
+        case "grid-score-comparisons":
             from experiments.grid_configurations.plot_grid_score_comparisons import (
                 plot_grid_score_comparisons,
             )
 
             plot_grid_score_comparisons(data_directory, output_directory)
 
-        elif figure_name == "expanding-support":
+        case "expanding-support":
             from experiments.synthetic_diffusion.plot_expanding_support import (
                 plot_expanding_support,
             )
 
             plot_expanding_support(data_directory, output_directory)
 
-        elif figure_name == "stochastic":
+        case "stochastic":
             from experiments.synthetic_diffusion.plot_stochastic_diffusion import (
                 plot_stochastic_diffusion,
             )
 
             plot_stochastic_diffusion(data_directory, output_directory)
 
-        elif figure_name == "national":
-            from national_figures.plot_national_results import plot_national_figures
-
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-
-            selection_folder = build_study_area_label(config)
-
-            plot_national_figures(config, output_directory, data_directory / selection_folder)
-
-        elif figure_name == "dispersion":
+        case "dispersion":
             from experiments.neighborhood_change.plot_observed_dispersion import (
                 plot_observed_dispersion,
             )
 
             plot_observed_dispersion(data_directory, output_directory)
 
-        elif figure_name == "iowa":
+        case "iowa":
             from experiments.iowa_configurations.plot_county_configurations import (
                 plot_iowa_experiments,
             )
 
             plot_iowa_experiments(data_directory, output_directory)
 
-        elif figure_name == "grid-distributions":
+        case "grid-distributions":
             from experiments.grid_configurations.plot_grid_distributions import (
                 plot_grid_distributions,
             )
 
             plot_grid_distributions(data_directory, output_directory)
 
-        elif figure_name == "capy-weights":
-            from national_figures.plot_capy_weights import plot_capy_weight_comparison
-
-            config = load_configuration(
-                arguments.config or repository_root / "code/configs/replication.yaml"
-            )
-
-            selection_folder = build_study_area_label(config)
-
-            plot_capy_weight_comparison(config, output_directory, data_directory / selection_folder)
-
-        elif figure_name == "triangular":
+        case "triangular":
             from experiments.reardon_osullivan.plot_triangular_lattices import (
                 plot_triangular_lattices,
             )

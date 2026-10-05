@@ -317,6 +317,9 @@ def read_nhgis_boundary_layers(
             )
         )
 
+    if len(normalized_boundary_tables) == 1:
+        return normalized_boundary_tables[0].reset_index(drop=True)
+
     if any(
         boundaries_df.crs != normalized_boundary_tables[0].crs
         for boundaries_df in normalized_boundary_tables

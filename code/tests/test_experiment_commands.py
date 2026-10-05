@@ -1,6 +1,7 @@
 """Keep numerical execution and figure rendering independent at the command boundary."""
 
 import sys
+from pathlib import Path
 
 import make_figures
 import pytest
@@ -98,3 +99,56 @@ def test_missing_stochastic_source_prevents_earlier_computation(monkeypatch):
         run_experiment.main()
 
     assert error.value.code == 2
+
+
+@pytest.mark.parametrize("command", [run_experiment, make_figures])
+def test_synthetic_commands_ignore_unused_configuration(monkeypatch, tmp_path, command):
+    from experiments.grid_configurations import grid_reference_scores, plot_grid_reference_scores
+
+    calls = []
+    monkeypatch.setattr(
+        grid_reference_scores, "save_grid_reference_scores", lambda *args: calls.append(args)
+    )
+    monkeypatch.setattr(
+        plot_grid_reference_scores, "plot_grid_reference_scores", lambda *args: calls.append(args)
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            command.__name__,
+            "grid-reference-scores",
+            "--config",
+            str(tmp_path / "absent.yaml"),
+            "--data-directory",
+            str(tmp_path),
+        ],
+    )
+
+    command.main()
+
+    assert len(calls) == 1
+    assert calls[0][0] == tmp_path / "experiments/grid_configurations/grid_reference_scores"
+
+
+def test_dispersion_default_stays_separate_from_shared_national_configuration(monkeypatch):
+    from experiments.neighborhood_change import observed_dispersion
+
+    calls = []
+    monkeypatch.setattr(
+        observed_dispersion, "run_observed_dispersion", lambda *args: calls.append(args)
+    )
+    monkeypatch.setattr(
+        compare_capy_weights, "run_capy_weight_comparison", lambda *args: calls.append(args)
+    )
+    monkeypatch.setattr(
+        sys, "argv", ["run_experiment.py", "capy-weights", "dispersion", "capy-weights"]
+    )
+
+    run_experiment.main()
+
+    assert [args[0].study_area_type for args in calls] == ["cbsa", "max_city", "cbsa"]
+    assert calls[0][2] == calls[2][2]
+    assert calls[1][2] == Path(run_experiment.__file__).resolve().parents[1] / (
+        "results/experiments/neighborhood_change"
+    )

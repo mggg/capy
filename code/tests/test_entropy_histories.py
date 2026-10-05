@@ -70,10 +70,23 @@ def test_entropy_commands_share_compact_prepared_data_path(tmp_path, monkeypatch
 
     import make_figures
     import run_experiment
-    from national_figures import plot_entropy_by_geography, prepare_entropy_by_geography
+    from national_figures import (
+        plot_entropy_by_geography,
+        plot_national_results,
+        prepare_entropy_by_geography,
+        prepare_national_results,
+    )
 
     preparation_calls = []
     plotting_calls = []
+    national_calls = []
+    configuration_paths = []
+    load_configuration = run_experiment.load_configuration
+
+    def load_and_record_configuration(path):
+        configuration_paths.append(path)
+        return load_configuration(path)
+
     monkeypatch.setattr(
         prepare_entropy_by_geography,
         "prepare_entropy_data",
@@ -84,15 +97,103 @@ def test_entropy_commands_share_compact_prepared_data_path(tmp_path, monkeypatch
         "plot_entropy_by_geography",
         lambda *args: plotting_calls.append(args),
     )
+    monkeypatch.setattr(
+        prepare_national_results,
+        "prepare_national_figure_data",
+        lambda *args: national_calls.append(args),
+    )
+    monkeypatch.setattr(
+        plot_national_results, "plot_national_figures", lambda *args: national_calls.append(args)
+    )
     for command in (run_experiment, make_figures):
+        configuration_paths.clear()
+        monkeypatch.setattr(command, "load_configuration", load_and_record_configuration)
         monkeypatch.setattr(
             sys,
             "argv",
-            [command.__name__, "entropy-by-geography", "--data-directory", str(tmp_path)],
+            [
+                command.__name__,
+                "entropy-by-geography",
+                "national",
+                "entropy-by-geography",
+                "--data-directory",
+                str(tmp_path),
+            ],
         )
         command.main()
+        assert len(configuration_paths) == 1
 
-    assert preparation_calls[0][2] == plotting_calls[0][2]
+    assert len(preparation_calls) == len(plotting_calls) == 2
+    assert len(national_calls) == 2
+    assert preparation_calls[0][2] == preparation_calls[1][2] == plotting_calls[0][2]
+    assert (
+        national_calls[0][2]
+        == national_calls[1][2]
+        == (tmp_path / "national/processed_data/history/CBSA20")
+    )
     assert (
         plotting_calls[0][2] == tmp_path / "national/processed_data/entropy_by_geography/WB_CBSA20"
     )
+
+
+def test_history_year_selection_preserves_image_order_and_omits_dependency_only_geography():
+    from national_figures.prepare_national_results import select_history_years
+    from national_pipeline.compute_metrics.metric_types import PopulationComparison
+    from national_pipeline.geography_types import GeographyLevel
+    from national_pipeline.pipeline_config import PipelineConfig
+
+    config = PipelineConfig(
+        census_geography_years=(1990, 1980),
+        census_geography_levels=(GeographyLevel.BLOCK, GeographyLevel.COUNTY, GeographyLevel.TRACT),
+        population_comparisons=(PopulationComparison.WHITE_POC, PopulationComparison.WHITE_BLACK),
+    )
+
+    assert list(select_history_years(config).items()) == [
+        ((PopulationComparison.WHITE_BLACK, GeographyLevel.TRACT), [1980, 1990]),
+        ((PopulationComparison.WHITE_BLACK, GeographyLevel.BLOCK), [1990]),
+        ((PopulationComparison.WHITE_POC, GeographyLevel.TRACT), [1980, 1990]),
+        ((PopulationComparison.WHITE_POC, GeographyLevel.BLOCK), [1990]),
+    ]
+
+
+def test_entropy_preparation_reads_only_selected_white_black_years_and_levels(
+    tmp_path, monkeypatch
+):
+    from national_figures import prepare_entropy_by_geography as preparation
+    from national_pipeline.geography_types import GeographyLevel
+    from national_pipeline.pipeline_config import PipelineConfig
+
+    config = PipelineConfig(
+        census_geography_years=(1990, 1980),
+        census_geography_levels=(GeographyLevel.COUNTY, GeographyLevel.BLOCK, GeographyLevel.TRACT),
+    )
+    expected_selections = {
+        ("white_black", "tracts"): [1980, 1990],
+        ("white_black", "blocks"): [1990],
+    }
+    metrics_df = pd.DataFrame(
+        [
+            {
+                "study_area_id": "metro_1",
+                "census_year": year,
+                "geography_level": level,
+                "population_comparison": comparison,
+                "metric": "entropy_index",
+                "value": 0.5,
+            }
+            for (comparison, level), years in expected_selections.items()
+            for year in years
+        ]
+    )
+    definitions_df = pd.DataFrame({"study_area_id": ["metro_1"], "definition_population": [200000]})
+
+    def read_inputs(config, root, selections):
+        assert list(selections.items()) == list(expected_selections.items())
+        return metrics_df, definitions_df, pd.DataFrame()
+
+    monkeypatch.setattr(preparation, "read_national_figure_inputs", read_inputs)
+    preparation.prepare_entropy_data(config, tmp_path, tmp_path / "prepared")
+
+    histories_df = pd.read_parquet(tmp_path / "prepared/entropy_histories.parquet")
+    assert histories_df.census_year.tolist() == [1980, 1990, 1990]
+    assert histories_df.geography_level.tolist() == ["tracts", "tracts", "blocks"]

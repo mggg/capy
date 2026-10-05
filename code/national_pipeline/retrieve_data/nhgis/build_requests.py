@@ -1,9 +1,8 @@
 """Editable NHGIS population and boundary extract definitions."""
 
-from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.geography_types import GeographyLevel, GeographySelection
 from national_pipeline.pipeline_config import RawDataSubdirectories
 from national_pipeline.retrieve_data.raw_file_requests import (
-    GeographyRequest,
     NhgisBoundaryFileRequest,
     NhgisTableFileRequest,
 )
@@ -27,7 +26,7 @@ TOTAL_AND_SUBAREA_BREAKDOWNS_1980 = ("bs03.ge0000", "bs03.ge0100", "bs03.ge0800"
 
 
 def build_nhgis_file_requests(
-    directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
+    directories: RawDataSubdirectories, geography_requests: tuple[GeographySelection, ...]
 ) -> list[NhgisBoundaryFileRequest | NhgisTableFileRequest]:
     """List historical boundary files and population archives needed by the run.
 
@@ -40,7 +39,7 @@ def build_nhgis_file_requests(
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Years and levels needed for the
+        geography_requests (tuple[GeographySelection, ...]): Years and levels needed for the
             analysis and the areas enclosing it.
 
     Returns:
@@ -87,7 +86,7 @@ def build_nhgis_file_requests(
 
 
 def build_historical_population_requests(
-    directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
+    directories: RawDataSubdirectories, geography_requests: tuple[GeographySelection, ...]
 ) -> list[NhgisTableFileRequest]:
     """Request selected historical population levels, plus state totals for checking their sums.
 
@@ -97,7 +96,7 @@ def build_historical_population_requests(
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Node and study-area inputs needed.
+        geography_requests (tuple[GeographySelection, ...]): Node and study-area inputs needed.
 
     Returns:
         list[NhgisTableFileRequest]: One archive per required historical year and population
