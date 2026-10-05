@@ -18,6 +18,7 @@ EXPERIMENT_DIRECTORIES = {
     "grid-score-comparisons": "experiments/grid_configurations/grid_score_comparisons",
     "expanding-support": "experiments/synthetic_diffusion/expanding_support",
     "stochastic": "experiments/synthetic_diffusion/stochastic",
+    "dispersion": "experiments/neighborhood_change",
     "iowa": "experiments/iowa_configurations",
     "grid-distributions": "experiments/grid_configurations/distributions",
     "capy-weights": "national/processed_data/capy_weights",
@@ -51,6 +52,12 @@ def main() -> None:
         type=int,
         default=20260918,
         help="Random seed for grid-pop-share-arrangements, grid-score-comparisons, grid-distributions, and Iowa",
+    )
+    parser.add_argument(
+        "--buffer-steps",
+        type=int,
+        default=3,
+        help="Neighborhood plotting buffer, zero through ten graph steps",
     )
     parser.add_argument(
         "--moon-source-directory",
@@ -181,6 +188,15 @@ def main() -> None:
             run_stochastic_diffusion(
                 data_directory, repository_root / arguments.moon_source_directory
             )
+
+        elif experiment_name == "dispersion":
+            from experiments.neighborhood_change.observed_dispersion import run_observed_dispersion
+
+            config = load_configuration(
+                arguments.config or repository_root / "code/configs/max_city.yaml"
+            )
+
+            run_observed_dispersion(config, repository_root, data_directory, arguments.buffer_steps)
 
         elif experiment_name == "iowa":
             from experiments.iowa_configurations.county_configurations import run_iowa_experiments

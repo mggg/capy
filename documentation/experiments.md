@@ -20,13 +20,13 @@ for the isolated arrangement, so those curves are absent. Gray shading marks lat
 regions rather than universal bounds for irregular graphs. Coincident curves retain their exact
 values, distinguished by line styles.
 
-`grid-pop-share-arrangements` saves nine grids from three population-share distributions and
-three arrangements. `grid-score-comparisons`
-adds six perturbations per combination, producing 54 share examples, plus sixty binary grids with
-72 people of each group. The binary classes have 30–50, 120–145, or 210–235 unlike-neighbor edges.
-All examples have population share 0.5, so their score points lie on that vertical line. The saved
-score table carries explicit population distribution, arrangement, sample, and category fields. Its reference
-scores are saved during preparation; changing a formula requires rerunning that step.
+`grid-pop-share-arrangements` saves nine grids from three population-share distributions and three
+arrangements. `grid-score-comparisons` adds six perturbations per combination, producing 54 share
+examples, plus sixty binary grids with 72 people of each group. The binary classes have 30–50,
+120–145, or 210–235 unlike-neighbor edges. All examples have population share 0.5, so their score
+points lie on that vertical line. The saved score table carries explicit population distribution,
+arrangement, sample, and category fields. Its reference scores are saved during preparation;
+changing a formula requires rerunning that step.
 
 `triangular` computes the Reardon–O'Sullivan lattice examples and their observation windows.
 Outputs live under `results/experiments/reardon_osullivan/` and
@@ -40,11 +40,11 @@ uv run --locked python code/run_experiment.py grid-distributions --samples 10000
 uv run --locked python code/make_figures.py grid-distributions
 ```
 
-Each cell contains 100 people of one group, so these scores use regular Capy.
-This retains the sampled score rows and representative grids. Histograms are drawn from those
-saved samples; changing styles does not repeat the sampling.
-Images in `figures/grid_configurations/distributions/` identify the clustering class and plot type,
-for example `grid_low_clustering.png` and `low_clustering_capy_histogram.png`.
+Each cell contains 100 people of one group, so these scores use regular Capy. This retains the
+sampled score rows and representative grids. Histograms are drawn from those saved samples;
+changing styles does not repeat the sampling. Images in
+`figures/grid_configurations/distributions/` identify the clustering class and plot type, for
+example `grid_low_clustering.png` and `low_clustering_capy_histogram.png`.
 
 ## Expanding-support diffusion
 
@@ -62,17 +62,16 @@ at 5×5 and expands by rook steps. The thick cross begins with 99 occupied cells
 rook-distance rule. Each shape has constant, growth, and decline variants. Rectangle and cross
 growth end at share 0.4 and decline at 0.1; the smaller core ends at 0.1 and 0.025. Each cell has
 total mass one. Overall first-group shares change linearly with step for the rectangle and core,
-and with occupied area for the cross. Shares within occupied cells equal the overall share
-divided by the occupied fraction of the grid.
+and with occupied area for the cross. Shares within occupied cells equal the overall share divided
+by the occupied fraction of the grid.
 
 Dissimilarity, entropy, and Capy traces overlay the demographic variants. The Moran comparison
 uses closed-neighborhood and row-standardized weights. Within a shape, scaling all cell shares by
 a common multiplier leaves Moran unchanged; the final uniform grid has undefined Moran and remains
-a gap. Each shape has a folder under
-`results/experiments/synthetic_diffusion/expanding_support/`, containing `states.npz` and
-`expanding_support_scores.parquet`. The corresponding folder under
-`figures/synthetic_diffusion/expanding_support/` contains its snapshots, score plots, legends,
-and colorbar. Shape folders use names such as `centered_rectangle` and `rook_expanding_core`.
+a gap. Each shape has a folder under `results/experiments/synthetic_diffusion/expanding_support/`,
+containing `states.npz` and `expanding_support_scores.parquet`. The corresponding folder under
+`figures/synthetic_diffusion/expanding_support/` contains its snapshots, score plots, legends, and
+colorbar. Shape folders use names such as `centered_rectangle` and `rook_expanding_core`.
 
 ## Stochastic diffusion
 
@@ -103,8 +102,8 @@ have 23 each, and decline has 22. A decline replicate ending at step 518 is excl
 `source_replicate_coverage.parquet` records that decision. Results live under
 `results/experiments/synthetic_diffusion/stochastic/one_sided/` and `two_sided/`, each containing
 its score tables, replicate coverage, and snapshot arrays. Figures use the same movement
-subfolders under `figures/synthetic_diffusion/stochastic/`, with legends and colorbars beside
-the plots.
+subfolders under `figures/synthetic_diffusion/stochastic/`, with legends and colorbars beside the
+plots.
 
 ## Iowa county configurations
 
@@ -113,17 +112,39 @@ uv run --locked python code/run_experiment.py iowa --samples-per-share 500 --sha
 uv run --locked python code/make_figures.py iowa
 ```
 
-Preparation reads Iowa's joined 2020 county boundaries and populations, builds county adjacency once,
-and samples isolated, clustered, and multicluster population arrangements. The saved edge pairs
-and county examples describe the graph displayed by the renderer; plotting does not reconstruct
-adjacency. Whole-county assignments can overshoot a requested share, and an independent set can
-exhaust eligible counties before reaching it. Scores use the attained population shares.
+Preparation reads Iowa's joined 2020 county boundaries and populations, builds county adjacency
+once, and samples isolated, clustered, and multicluster population arrangements. The saved edge
+pairs and county examples describe the graph displayed by the renderer; plotting does not
+reconstruct adjacency. Whole-county assignments can overshoot a requested share, and an
+independent set can exhaust eligible counties before reaching it. Scores use the attained
+population shares.
 
 Tables live under `results/experiments/iowa_configurations/`. Images are grouped by arrangement
 under `figures/iowa_configurations/`, with a county graph and separate score plots for each.
 Filenames lead with the plot type, followed by geography and arrangement, such as
-`dualgraph_ia_county_clustered.png` and `capy_by_share_ia_county_clustered.png`.
-Moran plots retain `moran_row_standardized` in their names.
+`dualgraph_ia_county_clustered.png` and `capy_by_share_ia_county_clustered.png`. Moran plots
+retain `moran_row_standardized` in their names.
+
+## Neighborhood change
+
+```bash
+uv run --locked python code/run_experiment.py dispersion --config code/configs/max_city.yaml
+uv run --locked python code/make_figures.py dispersion
+```
+
+This workflow follows tract populations around selected neighborhood cores. City and neighborhood
+definitions in `observed_dispersion.py` specify each core's component rank and reference tract.
+Preparation checks that the ranked core contains its reference tract before assigning the name,
+so a changed ranking cannot silently relabel a neighborhood. Saved core membership, maps, and
+scores retain the accounting needed to interpret the selected regions.
+
+Preparation saves scores and tract memberships for every buffer from zero through ten graph steps.
+Use `--buffer-steps` to choose which buffer supplies the saved maps and displayed score traces;
+the default is three. Rendering reads these results under
+`results/experiments/neighborhood_change/`. Every neighborhood gets radial views; Chicago also
+gets choropleths and score traces. Each neighborhood's plots share one folder beneath
+`figures/neighborhood_change/`, with shared colorbars at that root. Map filenames begin with their
+type: `choro_1980_black_share.png` or `radial_1980_black_share.png`.
 
 ## Paths and plot adjustments
 
@@ -139,5 +160,5 @@ Drawing functions accept caller-owned `Axes` and leave them open. Make tick, sca
 changes after drawing and before the batch function calls `save_plot()`. Shared colors live near
 the top of `code/plotting/figure_style.py`; family-specific display choices stay with their plots.
 
-Binary grid examples use exact Capy because each node represents one person.
-Fractional population masses use regular Capy, including when masses sum to one per node.
+Binary grid examples use exact Capy because each node represents one person. Fractional population
+masses use regular Capy, including when masses sum to one per node.
