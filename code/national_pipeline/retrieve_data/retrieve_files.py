@@ -95,7 +95,7 @@ def retrieve_files(
 
     Pending extracts are checked again after the initial batches, up to the configured wait limit.
     Completed files are not retried. Remaining pending and failed inputs make the run incomplete;
-    a later run reuses their saved submissions. Checksums are recorded by a separate command.
+    a later run reuses their saved submissions.
     """
     if config.env_file is not None and not config.offline:
         with (repository / config.env_file).open(encoding="utf-8") as env_stream:
@@ -148,10 +148,9 @@ def retrieve_files_in_parallel(
 
     Call this through retrieve_files() so required county tables are retrieved first. Progress
     advances for ready and failed files; pending files are counted when a retry finishes or the
-    run stops waiting. Returned results retain request order. Each worker calls
-    retrieve_raw_file(), which may retry a broken transfer. This function does not recheck pending
-    extracts; retrieve_files() coordinates those later rounds. On interruption or an unexpected
-    error, queued work is cancelled. Downloads already running are allowed to finish or fail
+    run stops waiting. Returned results retain request order. This function does not recheck
+    pending extracts; retrieve_files() coordinates those later rounds. On interruption or an
+    unexpected error, queued work is cancelled. Downloads already running are allowed to finish or fail
     before this function exits.
 
     Args:
@@ -164,7 +163,7 @@ def retrieve_files_in_parallel(
 
     Returns:
         list[FileRetrievalResult]: One ready, pending, or failed result per requested file,
-    in definition order.
+            in definition order.
     """
     worker = partial(
         retrieve_raw_file,

@@ -185,7 +185,7 @@ def read_and_verify_state_memberships(
 
     Returns:
         pd.DataFrame: Combined saved memberships after their source paths, IDs, and populations
-            agree with the spatial selection. Input files are not changed.
+            agree with the spatial selection.
 
     Raises:
         OSError: A required membership or joined-geography file cannot be read.
@@ -240,8 +240,6 @@ def check_membership_summary(
     unavailable_area_ids: set[str],
 ) -> None:
     """Validate membership IDs and counts, then reconcile them with each area's saved outcome.
-
-    Neither input table is modified.
 
     Args:
         memberships_df (pd.DataFrame): Combined memberships for one Census year and level.
@@ -315,7 +313,6 @@ def check_state_memberships(
     """Recompute one state's complete spatial selection and compare IDs and population counts.
 
     This includes polygons absent from the saved memberships and areas previously marked empty.
-    Only one state's joined polygons are held at a time. Inputs are not changed.
 
     Args:
         saved_memberships_df (pd.DataFrame): Membership rows read from this state's saved file.
@@ -355,9 +352,6 @@ def read_area_polygons(
     joined_geography_directory: Path,
 ) -> gpd.GeoDataFrame:
     """Read one area's whole polygons and require their counts to equal the saved memberships.
-
-    Parquet filters limit the returned rows to the area's IDs. Files may still be scanned, but
-    only one area's polygons are held at a time rather than the national block collection.
 
     Args:
         area_memberships_df (pd.DataFrame): Nonempty memberships for one study area.

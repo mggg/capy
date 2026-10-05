@@ -313,17 +313,17 @@ def test_processed_folder_cannot_replace_raw_inputs(tmp_path):
 
 
 def test_historical_references_load_once_before_out_of_order_archives(tmp_path, monkeypatch):
+    from national_pipeline.geography_types import GeographySelection
     from national_pipeline.process_population import process_tables
     from national_pipeline.retrieve_data.nhgis.build_requests import (
         build_historical_population_requests,
     )
     from national_pipeline.retrieve_data.nhgis.identifiers import NhgisGeographyLevel
     from national_pipeline.retrieve_data.nhgis.table_columns import NHGIS_COUNT_COLUMNS
-    from national_pipeline.retrieve_data.raw_file_requests import GeographyRequest
 
     requests = build_historical_population_requests(
         RawDataSubdirectories(),
-        (GeographyRequest(census_year=1980, geography_level=GeographyLevel.COUNTY),),
+        (GeographySelection(census_year=1980, geography_level=GeographyLevel.COUNTY),),
     )
     # The county archive precedes the state reference in filename order.
     requests.sort(key=lambda request: request.destination_relative_path)

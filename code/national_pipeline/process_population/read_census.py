@@ -170,7 +170,7 @@ def convert_and_check_census_population_counts(
 
     Returns:
         pd.DataFrame: Only the eleven count columns, containing exact Python integers and
-            retaining the input row index. The caller assigns them to its working table.
+            retaining the input row index.
 
     Raises:
         ValueError: Counts are missing, negative, noninteger, or inconsistent with each other.

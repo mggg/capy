@@ -21,7 +21,7 @@ def check_raw_file(path: Path, file_format: RawFileFormat) -> None:
     header and rows with the same number of values, and must open and close as a JSON array
     within their first and last 64 bytes. Other formats are checked only for a nonempty
     file. These checks do not establish that populations, geographic codes, or coverage are
-    correct; those checks belong to later processing stages. No checksum is compared here.
+    correct; those checks belong to later processing stages.
     Files already published by an earlier run get the cheaper check_existing_raw_file().
 
     Args:

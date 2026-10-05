@@ -146,9 +146,8 @@ def report_unexpected_graph_warning(
 ) -> None:
     """Keep warnings visible except for polygon overlaps at or below 100 square millimetres.
 
-    GerryChain reports overlapping IDs as a Python set in its warning text. Read that set with
-    literal_eval, without executing code, and measure each reported pair. An unknown warning
-    format is passed through unchanged. This changes reporting, not polygons or graph edges.
+    Reported polygon pairs are measured in the projected CRS. Unknown warning formats pass
+    through unchanged. This changes reporting, not polygons or graph edges.
 
     Args:
         graph_warning (warnings.WarningMessage): Warning captured during geographic adjacency.

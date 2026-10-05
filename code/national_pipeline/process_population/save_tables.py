@@ -56,7 +56,6 @@ def build_population_output_paths(
 
     Modern inputs each produce one table. A historical substate archive produces one table for
     each of the 50 states and DC. National state-reference tables use the None state key.
-    Cleanup and downstream joins use these same descriptions; no source files are read here.
 
     Args:
         census_requests (list[CensusFileRequest]): Modern population inputs and state references.
@@ -97,8 +96,7 @@ def build_population_output_paths(
 def save_population_parquet(population_df: pd.DataFrame, population_output_path: Path) -> None:
     """Save a compressed population table, preserving string IDs and integer counts.
 
-    Pandas writes directly to a temporary file while processing one state's table at a time.
-    The final filename appears only after serialization and writing both succeed.
+    The destination is replaced only after the complete table has been written successfully.
 
     Args:
         population_df (pd.DataFrame): Checked population records, including their source columns.
@@ -117,7 +115,7 @@ def save_population_parquet(population_df: pd.DataFrame, population_output_path:
 def save_population_summary(
     summaries: list[PopulationTableSummary], summary_output_path: Path
 ) -> None:
-    """Save this run's small accounting table as CSV after all population tables succeed.
+    """Save population row counts and totals as CSV.
 
     Args:
         summaries (list[PopulationTableSummary]): Input/output names, row counts, and totals.
@@ -142,8 +140,7 @@ def summarize_population_table(
     """Build the row and population accounting for one processed table.
 
     Population processing retains every source row, so both input_rows and output_rows use
-    this table's length. Call after saving the table; this function calculates totals without
-    reading the saved file or repeating the population comparison.
+    this table's length.
 
     Args:
         population_df (pd.DataFrame): Checked records with integer TOTPOP, WHITE, BLACK, and POC

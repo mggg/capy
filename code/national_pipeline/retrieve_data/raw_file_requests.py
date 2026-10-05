@@ -3,10 +3,8 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
-from typing import Annotated, ClassVar, Literal
+from typing import ClassVar, Literal
 from urllib.parse import urlsplit
-
-from pydantic import AfterValidator
 
 from national_pipeline.geography_types import GeographyLevel
 
@@ -46,9 +44,6 @@ def validate_relative_file_path(value: str) -> str:
     return value
 
 
-RelativeFilePath = Annotated[str, AfterValidator(validate_relative_file_path)]
-
-
 @dataclass(frozen=True, kw_only=True)
 class RawFileDestination:
     """A destination shared by the concrete raw-input records.
@@ -63,25 +58,6 @@ class RawFileDestination:
     def __post_init__(self) -> None:
         """Check the destination when an input is constructed."""
         validate_relative_file_path(self.destination_relative_path)
-
-
-CensusYear = Literal[1980, 1990, 2000, 2010, 2020]
-
-
-@dataclass(frozen=True)
-class GeographyRequest:
-    """One year and kind of geographic unit needed by the run.
-
-    Both population tables and boundary files use this selection. It can describe units to
-    analyze, such as 1990 tracts, or units needed to define a study area, such as 2020 counties.
-
-    Attributes:
-        census_year (CensusYear): One of 1980, 1990, 2000, 2010, or 2020.
-        geography_level (GeographyLevel): Kind of unit whose population and boundaries are needed.
-    """
-
-    census_year: CensusYear
-    geography_level: GeographyLevel
 
 
 class CensusDataset(StrEnum):

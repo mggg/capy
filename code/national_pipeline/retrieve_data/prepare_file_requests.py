@@ -2,9 +2,9 @@
 
 import fnmatch
 
-from national_pipeline.geography_types import GeographyLevel, StudyAreaType
-from national_pipeline.pipeline_config import PipelineConfig
-from national_pipeline.retrieve_data.raw_file_requests import GeographyRequest, RawFileRequest
+from national_pipeline.geography_types import GeographyLevel, GeographySelection, StudyAreaType
+from national_pipeline.pipeline_config import PipelineConfig, select_graph_node_geographies
+from national_pipeline.retrieve_data.raw_file_requests import RawFileRequest
 
 from .census.build_requests import build_census_file_requests
 from .nhgis.build_requests import build_nhgis_file_requests
@@ -14,8 +14,7 @@ def build_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
     """List the population, boundary, and supporting files needed by the configured run.
 
     Edit the Census or NHGIS builders in this package to change variables, source coverage, URLs,
-    or extracts. Choose the run's geography levels and years in YAML. This function only describes
-    the files to retrieve; it does not open files or start downloads.
+    or extracts. Choose the run's geography levels and years in YAML.
 
     Args:
         config (PipelineConfig): Geography levels and years, study areas, and raw-data folders.
@@ -38,7 +37,7 @@ def build_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
     return sorted(requests, key=lambda request: request.destination_relative_path)
 
 
-def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, ...]:
+def build_geography_requests(config: PipelineConfig) -> tuple[GeographySelection, ...]:
     """List the years and geography levels needed for graph nodes and their enclosing areas.
 
     For example, 1990 tracts inside cities defined using 2020 data need four selections:
@@ -50,46 +49,30 @@ def build_geography_requests(config: PipelineConfig) -> tuple[GeographyRequest, 
             enclosing study areas.
 
     Returns:
-        tuple[GeographyRequest, ...]: Each needed year/level pair once, sorted by year and level.
+        tuple[GeographySelection, ...]: Each needed year/level pair once, sorted by year and level.
             Unsupported 1980 blocks and block groups are left out. County data for the study-area
             year is always included; max_city also needs places and blocks for 2020.
 
     Raises:
         ValueError: No supported node pairs remain, or max_city uses a vintage other than 2020.
     """
-    if config.study_area_type == StudyAreaType.MAX_CITY and config.study_area_vintage != 2020:
-        raise ValueError("max_city requires study_area_vintage: 2020 for its place inputs")
-
-    requests = set()
-    for year in config.census_geography_years:
-        for level in config.census_geography_levels:
-            if year == 1980 and level in (GeographyLevel.BLOCK, GeographyLevel.BLOCK_GROUP):
-                # NOTE: Population tables exist, but this source collection lacks matching
-                # boundaries. Skipping these graph resolutions does not imply zero population.
-                continue
-
-            requests.add(GeographyRequest(census_year=year, geography_level=level))
-
-    if not requests:
-        raise ValueError(
-            "No supported node boundaries: 1980 blocks and block groups are unavailable"
-        )
+    requests = set(select_graph_node_geographies(config))
 
     # NOTE: Enclosing study areas use one chosen vintage across all population years, so
     # comparisons do not also switch study-area definitions from decade to decade.
     requests.add(
-        GeographyRequest(
+        GeographySelection(
             census_year=config.study_area_vintage, geography_level=GeographyLevel.COUNTY
         )
     )
     if config.study_area_type == StudyAreaType.MAX_CITY:
         requests.add(
-            GeographyRequest(
+            GeographySelection(
                 census_year=config.study_area_vintage, geography_level=GeographyLevel.PLACE
             )
         )
 
-        requests.add(GeographyRequest(census_year=2020, geography_level=GeographyLevel.BLOCK))
+        requests.add(GeographySelection(census_year=2020, geography_level=GeographyLevel.BLOCK))
 
     return tuple(
         sorted(requests, key=lambda request: (request.census_year, request.geography_level))
@@ -103,7 +86,7 @@ def select_raw_file_requests(config: PipelineConfig) -> list[RawFileRequest]:
         config (PipelineConfig): Geography selections, raw folders, and file-path patterns.
 
     Returns:
-        list[RawFileRequest]: Selected downloads in destination order, without opening files.
+        list[RawFileRequest]: Selected downloads in destination order.
 
     Raises:
         ValueError: Geography selections are unsupported or a pattern matches no request.

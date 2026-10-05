@@ -2,12 +2,11 @@
 
 from typing import Literal
 
-from national_pipeline.geography_types import GeographyLevel, StudyAreaType
+from national_pipeline.geography_types import GeographyLevel, GeographySelection, StudyAreaType
 from national_pipeline.pipeline_config import RawDataSubdirectories
 from national_pipeline.retrieve_data.raw_file_requests import (
     CensusDataset,
     CensusFileRequest,
-    GeographyRequest,
     PublicFileRequest,
 )
 
@@ -33,20 +32,19 @@ BLOCK_GROUP_VARIABLES_2000 = ",".join(
 
 def build_census_file_requests(
     directories: RawDataSubdirectories,
-    geography_requests: tuple[GeographyRequest, ...],
+    geography_requests: tuple[GeographySelection, ...],
     study_area_type: StudyAreaType,
 ) -> list[CensusFileRequest | PublicFileRequest]:
     """List Census population tables, boundary archives, and supporting reference files.
 
     Args:
         directories (RawDataSubdirectories): Folder settings beneath the raw-data directory.
-        geography_requests (tuple[GeographyRequest, ...]): Years and levels needed by the run.
+        geography_requests (tuple[GeographySelection, ...]): Years and levels needed by the run.
         study_area_type (StudyAreaType): County runs omit the metro membership workbook.
 
     Returns:
         list[CensusFileRequest | PublicFileRequest]: Census population inputs followed by
-            published files. The combined Census/NHGIS input list is sorted by its caller. This
-            describes downloads without reading files or contacting the Census Bureau.
+            published files.
     """
     requests: list[CensusFileRequest | PublicFileRequest] = [
         *build_census_population_requests(directories, geography_requests),
@@ -56,18 +54,18 @@ def build_census_file_requests(
 
 
 def build_census_population_requests(
-    directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
+    directories: RawDataSubdirectories, geography_requests: tuple[GeographySelection, ...]
 ) -> list[CensusFileRequest]:
     """List the modern population tables and state totals needed by the run.
 
     Requests the selected modern geographies for the 50 states, DC, and Puerto Rico. Each required
     modern year also gets one national table of state totals, which can be used to check the
-    population sums later. This builds requests without reading or downloading files.
+    population sums later.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Years and levels needed for the
-            analysis and its enclosing areas. The boundary builder receives the same selections.
+        geography_requests (tuple[GeographySelection, ...]): Years and levels needed for the
+            analysis and its enclosing areas.
 
     Returns:
         list[CensusFileRequest]: Selected statewide population files and state-total files.
@@ -170,7 +168,7 @@ def build_census_table_relative_path(
         state_code (str): Two-digit state FIPS code.
 
     Returns:
-        str: Relative filename, such as census/2020/tracts/10/state.json. No file is opened.
+        str: Relative filename, such as census/2020/tracts/10/state.json.
 
     Raises:
         ValueError: National state totals belong in population_reference_tables instead.

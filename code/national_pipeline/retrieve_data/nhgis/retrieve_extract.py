@@ -4,7 +4,6 @@ NHGIS extract requests, status responses, and download links:
 https://developer.ipums.org/docs/v2/apiprogram/apis/nhgis/
 """
 
-import json
 import os
 import warnings
 from dataclasses import dataclass
@@ -71,9 +70,7 @@ def retrieve_nhgis_extract(
     selections; later runs reuse that record instead of submitting again. This function checks the
     extract's status once. If it is completed, it downloads the file immediately, even on the
     first run. If it is still queued or processing, it returns a pending result so the caller can
-    continue with other files. NHGIS continues preparing the extract independently. The batch
-    runner retries pending files after the initial downloads, up to the configured wait limit.
-    This function itself does not repeatedly check or wait for completion.
+    continue with other files. NHGIS continues preparing the extract independently.
 
     Reads IPUMS_API_KEY from the environment and saves one submission record per destination.
     Before downloading, it requires NHGIS's completed selections to match the request and rejects
@@ -300,8 +297,7 @@ def save_nhgis_submission(submission_path: Path, submission: NhgisSubmissionReco
         OSError: Writing the temporary record or moving it to its final path fails. If replacement
             fails, any previous record remains unchanged.
     """
-    record = submission.model_dump(mode="json", by_alias=True)
-    content = (json.dumps(record, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    content = (submission.model_dump_json(by_alias=True, indent=2) + "\n").encode("utf-8")
 
     with stage_file(submission_path.parent) as temporary_path:
         temporary_path.write_bytes(content)

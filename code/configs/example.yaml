@@ -31,8 +31,8 @@ census_geography_levels: [tracts]
 #   nhgis/1990/tracts/population.zip
 #   nhgis/1990/tracts/boundaries.zip
 # A tract run requests blocks only when max_city needs 2020 blocks for city ranking.
-# State totals are added for population checks. Each file is reused independently when retrying a run.
-# 1980 tract/BNA matching also needs five original TIGER 1992 county archives to
+# State totals are added for population checks. Each file is reused independently when retrying
+# a run. 1980 tract/BNA matching also needs five original TIGER 1992 county archives to
 # reconstruct omitted outlines; county-only 1980 runs omit them. Original STF1B/PL
 # references establish empty 1990 blocks. Reference workbooks follow the required years.
 census_geography_years: [1990, 2000, 2010, 2020]
@@ -101,8 +101,9 @@ warn_on_polygon_overlaps: true
 rebuild_graphs: false
 
 # Metric Parquet tables; default results/metrics, relative to the repository root.
-# Keep this separate from all data input folders. Outputs add study-area type/vintage.
-# Reruns replace that folder's tables; use a different root to keep separate metric runs.
+# Keep this separate from all data input folders. Outputs add a study-area type folder;
+# filenames identify the Census year, level, and area vintage, e.g. 1980_tracts_CBSA20_metrics.parquet.
+# Reruns replace that vintage's tables; use a different root to keep separate metric runs.
 metric_results_directory: results/metrics
 
 # Compare non-Hispanic White residents with Black residents and/or all POC residents.

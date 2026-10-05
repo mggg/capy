@@ -8,7 +8,7 @@ population accounting that explains which units the graphs retain.
 
 - [Run the stage](#run-the-stage)
 - [Parallel graph construction](#parallel-graph-construction)
-- [Archive parts and repackaging](#archive-parts-and-repackaging)
+- [Archive parts](#archive-parts)
 - [Population filtering and adjacency](#population-filtering-and-adjacency)
 - [Centroid coordinates for distance-based
   metrics](#centroid-coordinates-for-distance-based-metrics)
@@ -67,7 +67,7 @@ fully written ZIP is published. Use an ordinary script or the CLI for parallel r
 scripts must put their entry point inside `if __name__ == "__main__":` so spawned workers do not
 restart the workflow.
 
-## Archive parts and repackaging
+## Archive parts
 
 Archives have names such as `cbsa_2020_1990_blocks_part01.zip`. Each part is an ordinary ZIP
 containing whole study areas: a graph and its removed-population CSV always stay together. Its
@@ -75,37 +75,23 @@ containing whole study areas: a graph and its removed-population CSV always stay
 every consecutively numbered part and rejects repeated area IDs. Max-city, CBSA, and county runs
 use the same layout; smaller selections need only `part01`.
 
-The writer groups areas in sorted ID order using their compressed sizes, aiming for 80 MiB per
-part with room for headers and summaries. It then verifies that every final ZIP is below 100 MiB.
-A single area larger than the target gets its own part; if that part reaches 100 MiB, packaging
-stops rather than splitting a graph into an unreadable fragment. This is an archive publication
-limit, not a quota on scratch storage.
+The writer compresses completed area files directly into numbered parts in sorted study-area ID
+order. After a whole area brings the compressed part to 80 MiB, the next area starts a new part.
+This target leaves room for headers, summaries, and the last area's files. Every finalized ZIP must
+remain below 100 MiB. If a whole-area addition exceeds that limit, the writer retries staging with
+a smaller target. An individual area that cannot fit stops publication rather than being split
+across parts. Compression normally happens once; only an oversized attempt repeats it. This is an
+archive publication limit, not a quota on scratch storage.
 
-Graph construction first writes a temporary complete ZIP so packaging can use actual compressed
-member sizes. Python's ZIP writer then recompresses the files into parts. Each saved graph and
-population CSV is read back and compared with its source before publication; these checks are
-local to packaging and do not create checksum manifests. Temporary ZIPs are removed on completion.
+All parts are staged before replacing an existing selection. The writer reads their ZIP contents
+back to check for corruption and reconciles their saved inventories with the worker accounting.
+Only after those checks pass does it remove previous parts and publish the replacements.
+Publication replaces files individually, so an interruption can leave an incomplete set. Rerun
+`build-graphs` to detect the missing parts and rebuild that selection. Failures before publication
+leave the previous parts intact. Temporary graph files and staged ZIPs are cleaned up on exit.
 
-To repackage existing archives without rebuilding any graphs or recalculating metrics, run:
-
-```bash
-uv run --locked python code/repackage_graphs.py --config code/configs/replication.yaml
-uv run --locked python code/repackage_graphs.py --config code/configs/max_city.yaml
-```
-
-Only available selections are repackaged. Their original ZIPs stay in place until all replacement
-parts pass the content checks and are published. They are then removed. If publication is
-interrupted while the original remains, readers prefer that original and the command can be
-repeated. An interrupted publication without an original leaves an incomplete part set. Rerunning
-the repackaging command then stops with an error at that selection, before reaching later ones;
-run `build-graphs` instead, which rebuilds the incomplete selection. The repackaging command removes
-any existing combined run summary at startup and writes the combined run summary only when
-all configured selections are present. Existing metric values are unchanged; a later metric run
-records the new part filenames in its graph-outcome table.
-
-The metric stage discovers parts automatically and continues to produce one result table per year
-and level. Old unnumbered ZIPs remain readable, and a resumed graph build repackages them before
-reuse. No graph extraction or manual part concatenation is needed.
+The metric stage discovers numbered parts automatically and produces one result table per year
+and level. No graph extraction or manual part concatenation is needed.
 
 ## Population filtering and adjacency
 
@@ -295,8 +281,6 @@ the additional polygon connections.
 serialization and direct archive reading.
 
 [`archive_parts.py`](../../code/national_pipeline/build_graphs/archive_parts.py) packages whole
-areas and checks unchanged contents.
+areas directly into numbered ZIPs and checks their contents and accounting.
 [`archive_inventory.py`](../../code/national_pipeline/build_graphs/archive_inventory.py) checks part
 completeness for both graph resumption and metric reading.
-[`repackage_archives.py`](../../code/national_pipeline/build_graphs/repackage_archives.py) converts
-existing single ZIPs into numbered parts for `code/repackage_graphs.py`.

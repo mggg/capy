@@ -33,7 +33,7 @@ raw downloads and intermediate population, geography, and membership tables are 
 Graph inputs may be an original single ZIP or a complete set of numbered parts. The stage
 discovers parts automatically, checks their combined area inventory, and reads each graph from its
 recorded archive. It still writes one metric table per year and level. See
-[archive parts](05_graph_construction.md#archive-parts-and-repackaging) for naming and conversion.
+[archive parts](05_graph_construction.md#archive-parts) for naming and completeness checks.
 
 By default, every supported metric is calculated for both `white_black` and `white_poc`. Set
 `metric_names` or `population_comparisons` in the YAML to restrict those choices, using the names
@@ -394,15 +394,18 @@ run. They are not converted into mathematical undefined values.
 
 ## Saved tables and yearly averages
 
-Outputs live beneath `metric_results_directory`, followed by study-area type and definition year.
-For the small example, the default location is `results/metrics/county/2020/`:
+Outputs live beneath `metric_results_directory`, in a folder for the study-area type. Filenames
+include the uppercase area type and two-digit definition vintage, such as `CBSA20` or `MAX_CITY20`.
+For the small example, the default location is `results/metrics/county/`:
 
-- `2020_tracts.parquet` has one row per area, population comparison, and metric. Columns identify
+- `2020_tracts_COUNTY20_metrics.parquet` has one row per area, population comparison, and metric. Columns identify
   the area, Census year, geography level, comparison, metric, value, undefined reason, and graph
   status. Other selections produce one file per year and level.
-- `graph_outcomes.parquet` copies the selected archives' area accounting, including retained and
-  removed population, and adds each archive's filename.
-- `average_when_all_years_present.parquet` contains unweighted yearly area means, the expected
+- `COUNTY20_graph_summary.parquet` has one row per study area, Census year, and geography level. It records
+  graph availability, archive and member filenames, node and edge counts, added connections, and
+  input, retained, and removed populations. Rows remain when no graph exists, with the reason in
+  `status`.
+- `COUNTY20_average_when_all_years_present.parquet` contains unweighted yearly area means, the expected
   years, the number of contributing areas, and their identifiers.
 
 Each mean uses a fixed set of areas with a defined value in **every selected, supported year**,
@@ -413,7 +416,8 @@ unavailable. An empty sample produces a null mean. No population-size threshold 
 publication figures may require an additional, explicitly chosen sample restriction.
 
 Reruns replace the metric tables for that study-area type and vintage, including years or metrics
-removed from the configuration. Use a different `metric_results_directory` to keep two runs.
+removed from the configuration. Other vintages in the same folder are preserved. Use a different
+`metric_results_directory` to keep two runs for the same type and vintage.
 Year/level tables are saved as they finish, while the graph-outcome table and means are written
 last. If a run fails, it can leave completed year/level files but neither of those final tables;
 rerun the stage after fixing the input.

@@ -26,7 +26,7 @@ def edge_assortativity_from_graph(graph: nx.Graph, group1_attr: str, total_attr:
 
     Returns:
         float: Mean same-class edge fraction. Ties at the overall group share enter the first
-            class. Classification is temporary; no graph attributes are written.
+            class.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -76,7 +76,7 @@ def edge_assortativity(
 
     Returns:
         float: Mean same-class edge fraction $S$. A same-class edge contributes once;
-            nonbinary adjacency entries act as edge weights. Inputs are unchanged.
+            nonbinary adjacency entries act as edge weights.
 
     Raises:
         ValueError: Counts or adjacency are invalid.
@@ -101,7 +101,7 @@ def half_edge_assortativity_from_graph(graph: nx.Graph, group1_attr: str, total_
 
     Returns:
         float: (1+r)/2 for binary attribute assortativity r on the relative-majority classes.
-            Ties at the overall share enter the first class. Graph attributes are unchanged.
+            Ties at the overall share enter the first class.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -155,7 +155,7 @@ def half_edge_assortativity(
 
     Returns:
         float: Mean same-class endpoint fraction $S$. Each same-class edge supplies two endpoints;
-            nonbinary adjacency entries act as edge weights. Inputs are unchanged.
+            nonbinary adjacency entries act as edge weights.
 
     Raises:
         ValueError: Counts or adjacency are invalid.
@@ -174,7 +174,7 @@ def _relative_majority_edge_totals(
     """Check inputs and count first-class, between-class, and second-class edges.
 
     Invalid counts or adjacency raise ValueError. A missing class raises UndefinedMetricError.
-    The first class includes shares equal to the overall share; inputs are never modified.
+    The first class includes shares equal to the overall share.
     """
     group_population = np.asarray(group_population, dtype=float)
     total_population = np.asarray(total_population, dtype=float)

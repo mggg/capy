@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from national_pipeline.geography_types import GeographyLevel
-from national_pipeline.pipeline_config import PipelineConfig
+from national_pipeline.pipeline_config import PipelineConfig, select_graph_node_geographies
 from national_pipeline.process_population.process_tables import select_population_requests
 from national_pipeline.process_population.save_tables import build_population_output_paths
 from national_pipeline.retrieve_data.prepare_file_requests import select_raw_file_requests
@@ -115,3 +115,44 @@ def select_geography_join_inputs(config: PipelineConfig) -> list[GeographyJoinIn
         raise ValueError("Select at least one substate population table and its boundaries")
 
     return join_inputs
+
+
+def select_graph_node_join_inputs(
+    config: PipelineConfig, selected_geography_inputs: list[GeographyJoinInputs]
+) -> list[GeographyJoinInputs]:
+    """Keep graph-node inputs and reject filename filters that omit a configured year/level.
+
+    Args:
+        config (PipelineConfig): Requested graph-node years and levels.
+        selected_geography_inputs (list[GeographyJoinInputs]): Paired population/boundary inputs
+            after filename filtering, including any study-area dependencies.
+
+    Returns:
+        list[GeographyJoinInputs]: Graph-node inputs in their original order. State coverage is
+            checked against study-area definitions during assignment and graph construction.
+
+    Raises:
+        ValueError: Node selections are unsupported or filename filters omit a selected pair.
+    """
+    expected_years_and_levels = {
+        (selection.census_year, selection.geography_level)
+        for selection in select_graph_node_geographies(config)
+    }
+    graph_node_inputs = [
+        geography_inputs
+        for geography_inputs in selected_geography_inputs
+        if (geography_inputs.census_year, geography_inputs.geography_level)
+        in expected_years_and_levels
+    ]
+    missing_years_and_levels = expected_years_and_levels - {
+        (geography_inputs.census_year, geography_inputs.geography_level)
+        for geography_inputs in graph_node_inputs
+    }
+
+    if missing_years_and_levels:
+        raise ValueError(
+            f"Filename filters omit configured node selections: {sorted(missing_years_and_levels)}. "
+            "Restore their inputs or change the configured node years and levels."
+        )
+
+    return graph_node_inputs

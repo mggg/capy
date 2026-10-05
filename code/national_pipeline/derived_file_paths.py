@@ -1,10 +1,16 @@
-"""Relative filenames shared by population processing, geography joins, and study areas."""
+"""Shared output paths and study-area labels for pipeline results."""
 
 from pathlib import Path
 
 import us
 
 from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.pipeline_config import PipelineConfig
+
+
+def build_study_area_label(config: PipelineConfig) -> str:
+    """Return the uppercase study-area type and two-digit vintage, such as CBSA20."""
+    return f"{config.study_area_type.upper()}{config.study_area_vintage % 100:02d}"
 
 
 def build_population_output_path(
@@ -13,8 +19,7 @@ def build_population_output_path(
     """Build a relative Parquet path using the Census year, geography level, and state.
 
     For example, 1990 tracts with state code "10" produce
-    ``1990/tracts/DE_1990_populations.parquet``. This only constructs the path; it does not create
-    folders or write a table.
+    ``1990/tracts/DE_1990_populations.parquet``.
 
     Args:
         census_year (int): Census year used in the folder and filename.
@@ -53,7 +58,7 @@ def build_join_output_paths(population_relative_path: Path) -> tuple[Path, Path,
     Returns:
         tuple[Path, Path, Path]: Matched geography, unmatched population, and unmatched boundary
             paths, in that order, beneath the joined-geography folder. The year/level folders
-            and state/year filename prefix are preserved. No files are created.
+            and state/year filename prefix are preserved.
     """
     state_year = population_relative_path.stem.removesuffix("_populations")
 
@@ -73,7 +78,7 @@ def build_membership_output_path(population_relative_path: Path) -> Path:
 
     Returns:
         Path: Relative path beneath a study-area type/vintage's memberships folder. The year,
-            level, and state prefix are preserved; no folders or files are created.
+            level, and state prefix are preserved.
     """
     state_year = population_relative_path.stem.removesuffix("_populations")
 

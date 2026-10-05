@@ -45,7 +45,6 @@ def read_joined_state(
 
     Returns:
         gpd.GeoDataFrame: Identifiers, study populations, geometry, and a name when available.
-            Source tables remain unchanged; original exclusion files are not modified.
 
     Raises:
         OSError: Any of the three join outputs is missing or unreadable.

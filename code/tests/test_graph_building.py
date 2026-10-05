@@ -417,11 +417,11 @@ def test_other_warning_text_is_passed_through(message):
     assert str(recorded[0].message) == message
 
 
-def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_run, tmp_path):
-    import shutil
-
+def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(
+    graph_run, tmp_path, monkeypatch
+):
+    from national_pipeline.build_graphs import archive_parts
     from national_pipeline.build_graphs.archive_inventory import read_graph_selection_summary
-    from national_pipeline.build_graphs.archive_parts import publish_graph_archive_parts
     from national_pipeline.compute_metrics.run_metrics import compute_metrics
 
     build_graph_archives(graph_run, tmp_path)
@@ -429,16 +429,19 @@ def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_
     expected_scores_df = compute_metrics(graph_run, tmp_path)
     base_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
     first_part_path = base_path.with_stem(f"{base_path.stem}_part01")
-    shutil.copyfile(first_part_path, base_path)
-    source_bytes = base_path.read_bytes()
 
-    with ZipFile(base_path) as source:
+    with ZipFile(first_part_path) as source:
         expected_members = {
             name: source.read(name) for name in source.namelist() if name != "summary.csv"
         }
 
-    part_summary_df = publish_graph_archive_parts(base_path, base_path, target_size_bytes=1)
-    assert base_path.read_bytes() == source_bytes
+    with monkeypatch.context() as small_parts:
+        small_parts.setattr(archive_parts, "TARGET_ARCHIVE_SIZE_BYTES", 1)
+        graph_run.rebuild_graphs = True
+        part_summary_df = build_graph_archives(graph_run, tmp_path)
+
+    graph_run.rebuild_graphs = False
+    assert not base_path.exists()
     assert part_summary_df.archive.nunique() == 2
     observed_members = {}
 
@@ -450,10 +453,10 @@ def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_
                     observed_members[name] = part.read(name)
 
     assert observed_members == expected_members
-    base_path.unlink()
     pd.testing.assert_frame_equal(compute_metrics(graph_run, tmp_path), expected_scores_df)
     last_part_path = base_path.parent / part_summary_df.archive.iloc[-1]
     last_part_path.unlink()
+    base_path.write_bytes(b"unsupported old archive")
 
     with pytest.raises(ValueError, match="Incomplete"):
         read_graph_selection_summary(base_path, 2020, GeographyLevel.TRACT)
@@ -464,28 +467,120 @@ def test_numbered_parts_preserve_metrics_and_missing_last_part_is_rebuilt(graph_
     pd.testing.assert_frame_equal(compute_metrics(graph_run, tmp_path), expected_scores_df)
 
 
-def test_failed_repackaging_preserves_source_and_previous_parts(graph_run, tmp_path, monkeypatch):
-    import shutil
-
+def test_oversized_final_part_preserves_previous_archives(graph_run, tmp_path, monkeypatch):
     from national_pipeline.build_graphs import archive_parts
 
     build_graph_archives(graph_run, tmp_path)
-    base_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
-    part_path = base_path.with_stem(f"{base_path.stem}_part01")
-    shutil.copyfile(part_path, base_path)
-    original_bytes = base_path.read_bytes()
+    part_path = graph_run.graph_archive_directory / "county_2020_2020_tracts_part01.zip"
+    original_bytes = part_path.read_bytes()
+    graph_run.rebuild_graphs = True
+    monkeypatch.setattr(archive_parts, "MAX_ARCHIVE_SIZE_BYTES", 1)
 
-    def reject_changed_member(*args):
-        raise ValueError("Repackaging changed a member")
+    with pytest.raises(ValueError, match="100 MiB publication limit"):
+        build_graph_archives(graph_run, tmp_path)
 
-    monkeypatch.setattr(archive_parts, "check_repackaged_members", reject_changed_member)
-
-    with pytest.raises(ValueError, match="Repackaging changed"):
-        archive_parts.publish_graph_archive_parts(base_path, base_path)
-
-    assert base_path.read_bytes() == original_bytes
     assert part_path.read_bytes() == original_bytes
-    assert not list(base_path.parent.glob(".graph-package-*"))
+    assert not list(part_path.parent.glob(".graph-*"))
+
+
+@pytest.mark.parametrize("area_sizes", [(7000, 4000), (11000,)])
+def test_archive_size_retry_keeps_whole_areas_and_rejects_oversized_singletons(
+    graph_run, tmp_path, monkeypatch, area_sizes
+):
+    from random import Random
+
+    from national_pipeline.build_graphs import archive_parts
+    from national_pipeline.build_graphs.build_area_graph import AreaGraphFiles
+
+    original_summary_df = build_graph_archives(graph_run, tmp_path)
+    area_template = original_summary_df.iloc[0].drop(["archive", "archive_part_count"]).to_dict()
+    member_directory = tmp_path / "area_files"
+    (member_directory / "graphs").mkdir(parents=True)
+    expected_members = {}
+    area_files = []
+    random = Random(2020)
+
+    for number, size in enumerate(area_sizes):
+        area_id = f"county_{number:05d}"
+        member_path = Path(f"graphs/{area_id}.json")
+        content = random.randbytes(size)
+        (member_directory / member_path).write_bytes(content)
+        expected_members[member_path.as_posix()] = content
+        summary = dict(area_template, study_area_id=area_id, graph_member=member_path.as_posix())
+        area_files.append(AreaGraphFiles(summary=summary, member_paths=(member_path,)))
+
+    monkeypatch.setattr(archive_parts, "TARGET_ARCHIVE_SIZE_BYTES", 8000)
+    monkeypatch.setattr(archive_parts, "MAX_ARCHIVE_SIZE_BYTES", 10000)
+    archive_path = tmp_path / "packaged" / "county_2020_2020_tracts.zip"
+
+    if len(area_sizes) == 1:
+        with pytest.raises(ValueError, match="cannot fit below"):
+            archive_parts.publish_graph_archive_parts(archive_path, area_files, member_directory)
+
+        assert not list(archive_path.parent.iterdir())
+        return
+
+    summary_df = archive_parts.publish_graph_archive_parts(
+        archive_path, area_files, member_directory
+    )
+    assert summary_df.archive.nunique() == 2
+    assert summary_df.archive_part_count.eq(2).all()
+    observed_members = {}
+
+    for filename in summary_df.archive.unique():
+        part_path = archive_path.parent / filename
+        assert part_path.stat().st_size < 10000
+
+        with ZipFile(part_path) as archive:
+            observed_members.update(
+                (name, archive.read(name)) for name in archive.namelist() if name != "summary.csv"
+            )
+
+    assert observed_members == expected_members
+
+
+def test_interrupted_part_publication_is_detected_and_rebuilt(graph_run, tmp_path, monkeypatch):
+    from national_pipeline.build_graphs import archive_parts
+    from national_pipeline.build_graphs.archive_inventory import read_graph_selection_summary
+
+    build_graph_archives(graph_run, tmp_path)
+    base_path = graph_run.graph_archive_directory / "county_2020_2020_tracts.zip"
+    original_replace = Path.replace
+
+    def interrupt_second_part(source, destination):
+        if source.parent.name.startswith(".graph-package-") and source.name.endswith("part02.zip"):
+            raise OSError("Interrupted publication")
+        return original_replace(source, destination)
+
+    with monkeypatch.context() as interrupted:
+        interrupted.setattr(archive_parts, "TARGET_ARCHIVE_SIZE_BYTES", 1)
+        interrupted.setattr(Path, "replace", interrupt_second_part)
+        graph_run.rebuild_graphs = True
+
+        with pytest.raises(OSError, match="Interrupted publication"):
+            build_graph_archives(graph_run, tmp_path)
+
+    with pytest.raises(ValueError, match="Incomplete"):
+        read_graph_selection_summary(base_path, 2020, GeographyLevel.TRACT)
+
+    assert not list(base_path.parent.glob(".graph-*"))
+    graph_run.rebuild_graphs = False
+    rebuilt_df = build_graph_archives(graph_run, tmp_path)
+    assert len(rebuilt_df) == 2
+    assert rebuilt_df.archive.nunique() == 1
+
+
+def test_graph_only_run_rejects_filters_omitting_a_configured_node_year(graph_run, tmp_path):
+    build_graph_archives(graph_run, tmp_path)
+    part_path = graph_run.graph_archive_directory / "county_2020_2020_tracts_part01.zip"
+    original_bytes = part_path.read_bytes()
+    graph_run.census_geography_years = (1990, 2020)
+    graph_run.file_path_patterns = ("*2020*",)
+
+    with pytest.raises(ValueError, match="Filename filters omit configured node selections"):
+        build_graph_archives(graph_run, tmp_path)
+
+    assert part_path.read_bytes() == original_bytes
 
 
 def test_part_numbers_above_99_are_read_in_numeric_order(tmp_path):

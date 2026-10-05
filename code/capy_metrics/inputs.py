@@ -8,7 +8,7 @@ WeightMatrix = sparse.csr_array | sparse.csr_matrix | np.ndarray
 
 
 def node_attribute_to_numpy_arr(graph: nx.Graph, attribute: str) -> np.ndarray:
-    """Read one numeric node attribute in graph iteration order without changing the graph.
+    """Read one numeric node attribute in graph iteration order.
 
     Args:
         graph (nx.Graph): Graph whose node order will also be used for its adjacency matrix.
@@ -34,7 +34,7 @@ def build_csr_adjacency_matrix(graph: nx.Graph) -> sparse.csr_array:
             graphs are accepted. No graph attributes or node identifiers have prescribed names.
 
     Returns:
-        sparse.csr_array: Float adjacency with a zero diagonal. Input graph is not modified.
+        sparse.csr_array: Float adjacency with a zero diagonal.
 
     Raises:
         ValueError: The graph is empty, directed, a multigraph, or contains self-loops.
@@ -95,7 +95,7 @@ def population_shares(group_population: np.ndarray, total_population: np.ndarray
         total_population (np.ndarray): Positive totals in the same order, including the group.
 
     Returns:
-        np.ndarray: Finite shares between zero and one. Inputs are unchanged.
+        np.ndarray: Finite shares between zero and one.
 
     Raises:
         ValueError: Counts are invalid, a total is zero, or a group count exceeds its total.

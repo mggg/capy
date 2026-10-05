@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from national_pipeline.data_directories import resolve_separate_output_directory
 from national_pipeline.derived_file_paths import build_population_output_path
-from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.geography_types import GeographyLevel, GeographySelection
 from national_pipeline.pipeline_config import PipelineConfig, RawDataSubdirectories
 from national_pipeline.population_table_columns import GeographyColumn
 from national_pipeline.retrieve_data.census.build_published_file_requests import (
@@ -28,7 +28,6 @@ from national_pipeline.retrieve_data.prepare_file_requests import (
 )
 from national_pipeline.retrieve_data.raw_file_requests import (
     CensusFileRequest,
-    GeographyRequest,
     NhgisTableFileRequest,
     RawFileRequest,
 )
@@ -58,8 +57,8 @@ def process_population_tables(
     """Process population inputs using the configured folders and raw-file selections.
 
     Required state tables and published resident totals are read even if filename filters omit
-    them. Historical tables use their corresponding NHGIS states and published workbooks. This
-    command never downloads files or reads boundaries. Diagnostic extracts remain join-stage inputs.
+    them. Historical tables use their corresponding NHGIS states and published workbooks.
+    Diagnostic extracts remain join-stage inputs.
 
     Reruns remove selected derived files and the previous summary before checking inputs, so a
     failed run cannot leave an old selected output looking current. Files from other selections
@@ -258,7 +257,7 @@ def select_population_requests(
 
     historical_years = {describe_nhgis_population_request(request)[0] for request in nhgis_requests}
     reference_selections = tuple(
-        GeographyRequest(census_year=year, geography_level=GeographyLevel.STATE)
+        GeographySelection(census_year=year, geography_level=GeographyLevel.STATE)
         for year in (1980, 1990)
         if year in historical_years
     )
@@ -321,9 +320,6 @@ def process_historical_population_tables(
     population_reference_directory: Path,
 ) -> list[PopulationTableSummary]:
     """Load and check NHGIS state references, then process each selected historical level.
-
-    State references are loaded before any output is written, regardless of request order.
-    Their tables are reused when saving the national state outputs.
 
     Args:
         nhgis_requests (list[NhgisTableFileRequest]): Population extracts and their state references.
@@ -447,7 +443,7 @@ def process_historical_substate_archive(
         raw_data_directory (Path): Folder containing the downloaded archive.
         population_table_directory (Path): Separate folder for processed population tables.
         states_df (pd.DataFrame): National state table for the same Census year, already compared
-            with published totals. This function does not change it.
+            with published totals.
 
     Returns:
         list[PopulationTableSummary]: Accounting for the tables saved from this archive.

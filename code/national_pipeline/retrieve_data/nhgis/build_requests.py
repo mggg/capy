@@ -1,9 +1,8 @@
 """Editable NHGIS population and boundary extract definitions."""
 
-from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.geography_types import GeographyLevel, GeographySelection
 from national_pipeline.pipeline_config import RawDataSubdirectories
 from national_pipeline.retrieve_data.raw_file_requests import (
-    GeographyRequest,
     NhgisBoundaryFileRequest,
     NhgisTableFileRequest,
 )
@@ -21,12 +20,13 @@ POPULATION_TABLES_1980 = ("NT1A", "NT7", "NT9A", "NT9B")
 # NOTE: Retain both whole-area and urban/rural detail for geographic correspondence checks.
 # Urban and rural are components; do not add a whole-area total to its component counts.
 # Source: NHGIS 1980_STF1 metadata, breakdowns[bs03].breakdownValues, and extract codebooks.
-# See documentation/raw_source_acquisition.md#nhgis-1980-geographic-subareas for more information.
+# See documentation/national_pipeline/01_raw_source_acquisition.md#nhgis-1980-geographic-subareas
+# for more information.
 TOTAL_AND_SUBAREA_BREAKDOWNS_1980 = ("bs03.ge0000", "bs03.ge0100", "bs03.ge0800")
 
 
 def build_nhgis_file_requests(
-    directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
+    directories: RawDataSubdirectories, geography_requests: tuple[GeographySelection, ...]
 ) -> list[NhgisBoundaryFileRequest | NhgisTableFileRequest]:
     """List historical boundary files and population archives needed by the run.
 
@@ -35,12 +35,12 @@ def build_nhgis_file_requests(
     block archive covers the states and DC, excluding Puerto Rico.
 
     Each selected population level has its own archive. State totals support population checks;
-    boundary files follow the selected levels. No downloads start here.
+    boundary files follow the selected levels.
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Years and levels needed for the
-            analysis and the areas enclosing it. The modern Census builder uses the same list.
+        geography_requests (tuple[GeographySelection, ...]): Years and levels needed for the
+            analysis and the areas enclosing it.
 
     Returns:
         list[NhgisBoundaryFileRequest | NhgisTableFileRequest]: Selected historical population
@@ -86,7 +86,7 @@ def build_nhgis_file_requests(
 
 
 def build_historical_population_requests(
-    directories: RawDataSubdirectories, geography_requests: tuple[GeographyRequest, ...]
+    directories: RawDataSubdirectories, geography_requests: tuple[GeographySelection, ...]
 ) -> list[NhgisTableFileRequest]:
     """Request selected historical population levels, plus state totals for checking their sums.
 
@@ -96,7 +96,7 @@ def build_historical_population_requests(
 
     Args:
         directories (RawDataSubdirectories): Folder settings relative to the raw-data root.
-        geography_requests (tuple[GeographyRequest, ...]): Node and study-area inputs needed.
+        geography_requests (tuple[GeographySelection, ...]): Node and study-area inputs needed.
 
     Returns:
         list[NhgisTableFileRequest]: One archive per required historical year and population

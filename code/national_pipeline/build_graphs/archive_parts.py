@@ -1,218 +1,221 @@
-"""Package complete study-area graphs into independently readable ZIPs below GitHub's file limit."""
+"""Write complete study-area graphs directly into size-limited, independently readable ZIP parts."""
 
-import hashlib
-import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 import pandas as pd
-from tqdm import tqdm
 
-from national_pipeline.assign_study_areas.study_area_columns import StudyAreaColumn
 from national_pipeline.geography_types import GeographyLevel
+from national_pipeline.population_table_columns import PopulationColumn
 
-from .archive_inventory import read_graph_archive_summary, read_graph_selection_summary
-from .build_area_graph import GraphStatus
-from .graph_archives import build_zip_member
+from .archive_inventory import read_graph_selection_summary
+from .build_area_graph import AreaGraphFiles
+from .graph_archives import build_zip_member, write_file_to_archive
 
 TARGET_ARCHIVE_SIZE_BYTES = 80 * 1024**2
 MAX_ARCHIVE_SIZE_BYTES = 100 * 1024**2
 
 
 def publish_graph_archive_parts(
-    source_path: Path,
-    archive_path: Path,
-    *,
-    target_size_bytes: int = TARGET_ARCHIVE_SIZE_BYTES,
+    archive_path: Path, area_files: list[AreaGraphFiles], temporary_directory: Path
 ) -> pd.DataFrame:
-    """Repackage a complete ZIP into numbered parts preserving graph and removed-unit CSV bytes.
+    """Compress completed area files into checked parts, then replace the previous selection.
 
-    Parts are built and checked in a temporary directory before replacing previous parts. The
-    source ZIP is never removed here. Each area stays together, in sorted ID order. The 80 MiB
-    target leaves room below GitHub's 100 MiB file limit; a single larger area gets its own part
-    but still must fit that limit. Recompression is required by Python's ZIP writer.
+    Each area's files stay together in the supplied order. Start a new part after reaching the
+    80 MiB target; whole areas can exceed that target, but every finalized part must stay below
+    100 MiB. If a multi-area part exceeds the limit, staging retries with a smaller target. A
+    single area that cannot fit stops publication. Parts are checked before any previous parts
+    are removed. Publication replaces files individually; an interruption can leave missing parts,
+    which the next build detects through each part's saved total part count and rebuilds.
 
     Args:
-        source_path (Path): Complete ZIP, either a legacy archive or a newly built temporary ZIP.
-        archive_path (Path): Unnumbered destination name, used as the base for part01.zip, etc.
-        target_size_bytes (int): Positive approximate compressed size per part. Defaults to 80 MiB.
+        archive_path (Path): Base ZIP name used to name numbered parts, not itself written.
+        area_files (list[AreaGraphFiles]): Nonempty completed worker results in study-area ID order.
+        temporary_directory (Path): Selection-owned folder containing completed JSON/CSV files.
 
     Returns:
-        pd.DataFrame: All area outcomes with their new archive names and total part count.
+        pd.DataFrame: All area outcomes, with the archive name and total part count for each row.
 
     Raises:
-        OSError: Reading, staging, or publishing fails. The original source remains available.
-        ValueError: Inventory or contents disagree, or a part exceeds 100 MiB. ZIP errors propagate.
+        OSError: Reading, staging, or publishing fails. Prior parts survive staging failures.
+        ValueError: Inventory or accounting disagree, or an area cannot fit below 100 MiB.
+            ZIP errors propagate. The caller retains ownership of the source area files.
     """
-    if target_size_bytes <= 0:
-        raise ValueError("Graph archive target size must be positive")
+    summary_df = build_graph_archive_summary(area_files)
+    census_year = int(summary_df.iloc[0].census_year)
+    geography_level = GeographyLevel(summary_df.iloc[0].geography_level)
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with ZipFile(source_path) as source:
-        with source.open("summary.csv") as summary_file:
-            selection_df = pd.read_csv(summary_file)
+    with TemporaryDirectory(prefix=".graph-package-", dir=archive_path.parent) as temporary_name:
+        staging_directory = Path(temporary_name)
+        part_summaries = write_size_limited_graph_parts(
+            archive_path, area_files, summary_df, temporary_directory, staging_directory
+        )
 
-        if selection_df.empty:
-            raise ValueError(f"Graph archive has an empty summary: {source_path}")
+        for part_summary_df in part_summaries:
+            part_path = staging_directory / str(part_summary_df.iloc[0].archive)
 
-        census_year = int(selection_df.iloc[0].census_year)
-        geography_level = GeographyLevel(selection_df.iloc[0].geography_level)
-        summary_df = read_graph_archive_summary(source_path, census_year, geography_level)
-        summary_df = summary_df.sort_values(StudyAreaColumn.STUDY_AREA_ID).reset_index(drop=True)
-        part_summaries = group_areas_into_parts(source, summary_df, target_size_bytes)
-        archive_path.parent.mkdir(parents=True, exist_ok=True)
+            with ZipFile(part_path) as archive:
+                damaged_member = archive.testzip()
 
-        with TemporaryDirectory(
-            prefix=".graph-package-", dir=archive_path.parent
-        ) as temporary_name:
-            staging_directory = Path(temporary_name)
+            if damaged_member is not None:
+                raise ValueError(f"Damaged graph member {damaged_member}: {part_path.name}")
 
-            for number, part_summary_df in enumerate(
-                tqdm(
-                    part_summaries, desc=f"Packaging {archive_path.stem}", unit="part", disable=None
-                ),
-                start=1,
-            ):
-                part_path = staging_directory / f"{archive_path.stem}_part{number:02d}.zip"
-                write_archive_part(source, part_path, part_summary_df, len(part_summaries))
-                check_repackaged_members(source, part_path)
-
-            saved_summary_df = read_graph_selection_summary(
-                staging_directory / archive_path.name, census_year, geography_level
-            )
-            accounting_columns = summary_df.columns.difference(["archive", "archive_part_count"])
+        saved_summary_df = read_graph_selection_summary(
+            staging_directory / archive_path.name, census_year, geography_level
+        )
+        try:
             pd.testing.assert_frame_equal(
-                summary_df[accounting_columns],
-                saved_summary_df[accounting_columns],
+                summary_df.convert_dtypes(),
+                saved_summary_df[summary_df.columns].convert_dtypes(),
                 check_dtype=False,
             )
+        except AssertionError as error:
+            raise ValueError(
+                f"Saved graph accounting differs from worker results: {archive_path}"
+            ) from error
 
-            # Remove old parts only once every replacement is complete. Missing parts after an
-            # interrupted publication fail the part-count check on the next run.
-            for previous_path in archive_path.parent.glob(f"{archive_path.stem}_part*.zip"):
-                previous_path.unlink()
+        # Remove the old set before replacing any parts so interruption cannot mix generations.
+        for previous_path in archive_path.parent.glob(f"{archive_path.stem}_part*.zip"):
+            previous_path.unlink()
 
-            for part_path in sorted(staging_directory.glob("*.zip")):
-                part_path.replace(archive_path.parent / part_path.name)
+        for part_summary_df in part_summaries:
+            part_path = staging_directory / str(part_summary_df.iloc[0].archive)
+            part_path.replace(archive_path.parent / part_path.name)
 
     return saved_summary_df
 
 
-def area_archive_members(summary: pd.Series) -> list[str]:
-    """Return the files belonging to one area, including fully filtered areas' population CSVs."""
-    area_id = summary[StudyAreaColumn.STUDY_AREA_ID]
-    status = GraphStatus(summary.status)
+def build_graph_archive_summary(area_files: list[AreaGraphFiles]) -> pd.DataFrame:
+    """Collect worker accounting with nullable integer counts for unavailable historical areas."""
+    summary_df = pd.DataFrame([area.summary for area in area_files])
+    count_columns = [
+        "node_count",
+        "edge_count",
+        "input_unit_count",
+        "removed_unit_count",
+        "initial_component_count",
+        "artificial_edge_count",
+        *(
+            f"{group}_{column}"
+            for group in ("input", "retained", "removed")
+            for column in PopulationColumn
+        ),
+    ]
+    summary_df[count_columns] = summary_df[count_columns].astype("Int64")
 
-    if status in (GraphStatus.NO_UNITS_SELECTED, GraphStatus.HISTORICAL_COVERAGE_UNAVAILABLE):
-        return []
-
-    members = [f"removed_units/{area_id}.csv"]
-
-    if status == GraphStatus.READY:
-        members.insert(0, f"graphs/{area_id}.json")
-
-    return members
+    return summary_df
 
 
-def group_areas_into_parts(
-    archive: ZipFile, summary_df: pd.DataFrame, target_size_bytes: int
+def write_size_limited_graph_parts(
+    archive_path: Path,
+    area_files: list[AreaGraphFiles],
+    summary_df: pd.DataFrame,
+    temporary_directory: Path,
+    staging_directory: Path,
 ) -> list[pd.DataFrame]:
-    """Group whole areas by compressed member sizes, allowing room for summaries and ZIP headers.
+    """Write parts with final summaries, retrying a smaller target when whole areas overshoot.
 
     Args:
-        archive (ZipFile): Open source ZIP with complete graph and removed-unit members.
-        summary_df (pd.DataFrame): Nonempty inventory in the desired area order.
-        target_size_bytes (int): Desired compressed size per part; oversized areas stand alone.
+        archive_path (Path): Base name for numbered ZIP parts.
+        area_files (list[AreaGraphFiles]): Completed files in the same order as summary_df.
+        summary_df (pd.DataFrame): Area accounting with nullable integer counts.
+        temporary_directory (Path): Folder containing the completed area files.
+        staging_directory (Path): Empty folder owned by the publishing operation. Failed size
+            attempts are removed before retrying; the owner cleans up on exceptions.
 
     Returns:
-        list[pd.DataFrame]: Consecutive, nonempty slices covering every inventory row once.
-
-    Raises:
-        ValueError: Files are missing or do not belong to the supplied inventory.
-    """
-    part_summaries = []
-    first_row = 0
-    part_size = 0
-    expected_members = {"summary.csv"}
-
-    for row_number, (_, summary) in enumerate(summary_df.iterrows()):
-        members = area_archive_members(summary)
-        expected_members.update(members)
-        # Budget uncompressed summary text plus generous per-member ZIP header space.
-        area_size = len(summary.to_csv().encode()) + 4096
-
-        for member_name in members:
-            area_size += archive.getinfo(member_name).compress_size + 512
-
-        if row_number > first_row and part_size + area_size > target_size_bytes:
-            part_summaries.append(summary_df.iloc[first_row:row_number].copy())
-            first_row = row_number
-            part_size = 0
-
-        part_size += area_size
-
-    if set(archive.namelist()) != expected_members:
-        raise ValueError("Graph archive contains files outside its area inventory")
-
-    part_summaries.append(summary_df.iloc[first_row:].copy())
-
-    return part_summaries
-
-
-def write_archive_part(
-    source: ZipFile, part_path: Path, summary_df: pd.DataFrame, part_count: int
-) -> None:
-    """Stream an area's existing bytes into a part and write its local inventory.
-
-    Args:
-        source (ZipFile): Open source ZIP, left unchanged.
-        part_path (Path): Temporary destination owned by the packaging operation.
-        summary_df (pd.DataFrame): This part's area rows, left unchanged.
-        part_count (int): Total number of parts required for this selection.
+        list[pd.DataFrame]: Inventories of finalized parts, all below the publication limit.
 
     Raises:
         OSError: Reading or writing fails.
-        ValueError: The resulting file exceeds the 100 MiB publication limit.
+        ValueError: A single area cannot fit, or the smallest target still exceeds the limit.
     """
-    with ZipFile(part_path, "w") as destination:
-        for _, summary in summary_df.iterrows():
-            for member_name in area_archive_members(summary):
-                with (
-                    source.open(member_name) as source_file,
-                    destination.open(
-                        build_zip_member(member_name), "w", force_zip64=True
-                    ) as output,
-                ):
-                    shutil.copyfileobj(source_file, output)
+    target_size_bytes = TARGET_ARCHIVE_SIZE_BYTES
 
-        part_summary_df = summary_df.assign(archive=part_path.name, archive_part_count=part_count)
-        destination.writestr(build_zip_member("summary.csv"), part_summary_df.to_csv(index=False))
-
-    if part_path.stat().st_size >= MAX_ARCHIVE_SIZE_BYTES:
-        raise ValueError(
-            f"Graph part exceeds 100 MiB; its areas need different packaging: {part_path}"
+    while True:
+        part_summaries = write_graph_member_parts(
+            archive_path,
+            area_files,
+            summary_df,
+            temporary_directory,
+            staging_directory,
+            target_size_bytes=target_size_bytes,
         )
+        oversized_part_found = False
+
+        for part_summary_df in part_summaries:
+            part_path = staging_directory / str(part_summary_df.iloc[0].archive)
+            part_summary_df["archive_part_count"] = len(part_summaries)
+
+            with ZipFile(part_path, "a") as archive:
+                archive.writestr(
+                    build_zip_member("summary.csv"), part_summary_df.to_csv(index=False)
+                )
+
+            if part_path.stat().st_size >= MAX_ARCHIVE_SIZE_BYTES:
+                if len(part_summary_df) == 1 or target_size_bytes == 1:
+                    raise ValueError(
+                        f"Graph part cannot fit below the 100 MiB publication limit: {part_path.name}"
+                    )
+                oversized_part_found = True
+
+        if not oversized_part_found:
+            return part_summaries
+
+        for part_summary_df in part_summaries:
+            (staging_directory / str(part_summary_df.iloc[0].archive)).unlink()
+
+        target_size_bytes = max(1, target_size_bytes // 2)
 
 
-def check_repackaged_members(source: ZipFile, part_path: Path) -> None:
-    """Read back every graph/CSV and require its bytes to match the source before publication.
+def write_graph_member_parts(
+    archive_path: Path,
+    area_files: list[AreaGraphFiles],
+    summary_df: pd.DataFrame,
+    temporary_directory: Path,
+    staging_directory: Path,
+    *,
+    target_size_bytes: int,
+) -> list[pd.DataFrame]:
+    """Write whole areas until each part reaches the target, leaving summaries for finalization.
 
     Args:
-        source (ZipFile): Original archive, left open and unchanged.
-        part_path (Path): Completed temporary part with a deliberately updated summary.
+        archive_path (Path): Base name for numbered ZIP parts.
+        area_files (list[AreaGraphFiles]): Completed files in the same order as summary_df.
+        summary_df (pd.DataFrame): Area accounting with nullable integer counts.
+        temporary_directory (Path): Folder containing the completed area files.
+        staging_directory (Path): Empty staging folder owned by the publishing operation.
+        target_size_bytes (int): Positive compressed-size target, checked after each whole area.
+
+    Returns:
+        list[pd.DataFrame]: Each part's area rows and filename, in publication order.
+            Total part counts can be added after all graph members have been written.
 
     Raises:
-        ValueError: A graph or population CSV changed during repackaging.
-        OSError: Reading fails. ZIP checksum errors propagate.
+        OSError: Reading an area file or writing a staged ZIP fails.
     """
-    with ZipFile(part_path) as part:
-        for member_name in part.namelist():
-            if member_name == "summary.csv":
-                continue
+    remaining_areas = iter(area_files)
+    part_summaries = []
+    written_area_count = 0
 
-            with source.open(member_name) as original, part.open(member_name) as saved:
-                original_digest = hashlib.file_digest(original, "sha256").digest()
-                saved_digest = hashlib.file_digest(saved, "sha256").digest()
+    while written_area_count < len(area_files):
+        part_path = staging_directory / f"{archive_path.stem}_part{len(part_summaries) + 1:02d}.zip"
+        first_area_index = written_area_count
 
-            if original_digest != saved_digest:
-                raise ValueError(f"Repackaging changed {member_name}: {part_path}")
+        with part_path.open("wb") as output, ZipFile(output, "w") as archive:
+            for area in remaining_areas:
+                for member_path in area.member_paths:
+                    write_file_to_archive(archive, member_path, temporary_directory)
+
+                written_area_count += 1
+
+                if output.tell() >= target_size_bytes:
+                    break
+
+        part_summaries.append(
+            summary_df.iloc[first_area_index:written_area_count].assign(archive=part_path.name)
+        )
+
+    return part_summaries

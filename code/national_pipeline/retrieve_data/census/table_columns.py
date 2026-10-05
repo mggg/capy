@@ -2,7 +2,8 @@
 
 Race categories include Hispanic residents. The NON_HISPANIC_WHITE and NON_HISPANIC_BLACK
 columns supply the study counts. HISPANIC includes residents of any race. The source variable
-dictionaries are linked in documentation/raw_source_acquisition.md#census-population-variable-guide.
+dictionaries are linked in
+documentation/national_pipeline/01_raw_source_acquisition.md#census-population-variable-guide.
 """
 
 from dataclasses import dataclass

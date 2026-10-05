@@ -28,7 +28,7 @@ def check_historical_published_totals(
 
     E-3 (1980) and E-1 (1990) check the study's total, non-Hispanic White, and non-Hispanic
     Black counts. A-3 supplies the separate 1980 race groups that E-3 combines; E-1 supplies
-    all ten 1990 race-by-Hispanic-origin groups. Inputs are not changed.
+    all ten 1990 race-by-Hispanic-origin groups.
 
     Args:
         states_df (pd.DataFrame): Derived NHGIS records for the 50 states and DC, including
@@ -111,7 +111,7 @@ def check_historical_published_totals(
 
 
 def check_1980_published_race_totals(states_df: pd.DataFrame, workbook_path: Path) -> None:
-    """Compare 1980 NHGIS race and Hispanic totals with A-3, without changing either table.
+    """Compare 1980 NHGIS race and Hispanic totals with A-3.
 
     Args:
         states_df (pd.DataFrame): Validated 1980 state records indexed by two-digit state code.
@@ -171,7 +171,7 @@ def read_published_state_reference(
     """Read a Working Paper 56 workbook and retain exactly one row per state and DC.
 
     Args:
-        workbook_path (Path): Published XLSX file, read without modifying it.
+        workbook_path (Path): Published XLSX file.
         census_year (int): Expected year of the 100-percent Census counts.
         expected_headings (dict[tuple[int, int], str]): Required text at zero-based row/column
             positions. Line breaks and repeated spaces in the workbook are ignored.

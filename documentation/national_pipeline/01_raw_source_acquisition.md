@@ -5,7 +5,7 @@ checks them before saving. Each input's origin and local filename are recorded i
 definitions under
 [`code/national_pipeline/retrieve_data/`](../../code/national_pipeline/retrieve_data/), while the
 raw files themselves are ignored by Git. For commands to run retrieval, see the [run
-guide](../../README.md#1-retrieve-source-files).
+guide](../../code/README.md).
 
 ## Contents
 
@@ -419,7 +419,7 @@ completed files to their final names.
 
 Each NHGIS submission saves its extract number immediately. When the extract is still pending, the
 run rechecks it after the initial downloads, as described in the [run
-guide](../../README.md#resume-rerun-or-work-offline). Those records also let a later run resume without
+guide](../../code/README.md#run-retrieval). Those records also let a later run resume without
 submitting the extracts again if the wait limit expires or the run is interrupted.
 
 Before reusing an NHGIS archive, retrieval compares any saved submission with the current request.

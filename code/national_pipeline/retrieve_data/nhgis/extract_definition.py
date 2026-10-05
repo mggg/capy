@@ -28,13 +28,10 @@ class NhgisDatasetSelection(BaseModel):
     selections are sent to NHGIS as written; NHGIS checks whether the codes exist.
     """
 
-    # NOTE: NHGIS calls these fields dataTables, geogLevels, and breakdownValues.
-    # Validation aliases read those names; serialization aliases write them in requests and saved
-    # definitions. validate_by_name also lets Python callers use our readable field names. Reject
-    # unknown fields and prevent reassignment.
-    model_config = ConfigDict(
-        extra="forbid", frozen=True, validate_by_name=True, validate_by_alias=True
-    )
+    # Separate aliases keep Python names in the typed constructor and NHGIS names on the wire.
+    # validate_by_name accepts the Python names when parsing.
+    # Reject unknown fields and prevent reassignment.
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_by_name=True)
     tables: tuple[str, ...] = Field(
         validation_alias="dataTables", serialization_alias="dataTables", min_length=1
     )
@@ -79,14 +76,11 @@ class NhgisExtractDefinition(BaseModel):
             None. Retrieval does not select or compare it; time-series tables are unsupported.
 
     NOTE: Aliases let Python use readable names while NHGIS uses its required API names: for
-    example, data_layout corresponds to breakdownAndDataTypeLayout. Both directions are needed:
-    validation aliases read responses and saved definitions; serialization aliases write requests
-    and saved definitions when by_alias=True is used.
+    example, data_layout corresponds to breakdownAndDataTypeLayout. Aliases read provider names
+    and write them when by_alias=True is used.
     """
 
-    model_config = ConfigDict(
-        extra="forbid", frozen=True, validate_by_name=True, validate_by_alias=True
-    )
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_by_name=True)
     collection: Literal["nhgis"] = "nhgis"
     description: str = ""
     version: int | None = None
@@ -161,12 +155,10 @@ class NhgisExtractResponse(BaseModel):
     Extra response fields are ignored. Do not save this response in a submission record because
     its download addresses may themselves grant temporary access to the files.
 
-    NOTE: This model only reads responses, so retrieval needs its validation aliases but does not
-    use its serialization aliases. These translate extractDefinition and downloadLinks into the
-    Python attributes described above.
+    Aliases translate extractDefinition and downloadLinks into the Python attributes above.
     """
 
-    model_config = ConfigDict(extra="ignore", validate_by_name=True, validate_by_alias=True)
+    model_config = ConfigDict(extra="ignore", validate_by_name=True)
     request_definition: NhgisExtractDefinition = Field(
         validation_alias="extractDefinition", serialization_alias="extractDefinition"
     )
@@ -215,7 +207,8 @@ def validate_nhgis_definition(
     NHGIS can describe the same selection differently by reordering lists, reporting defaults, or
     omitting an irrelevant layout setting. These allowances prevent rejecting matching extracts;
     they do not allow changes to the selected data. See
-    documentation/raw_source_acquisition.md#nhgis-request-comparisons for examples.
+    documentation/national_pipeline/01_raw_source_acquisition.md#nhgis-request-comparisons for
+    examples.
 
     Reordered selections count as a match. For 1980/1990 STF1, omitted years and area breakdowns
     are compared using the known Census-year and whole-area defaults. Data format and layout are
@@ -261,7 +254,8 @@ def can_omit_data_layout(definition: NhgisExtractDefinition) -> bool:
     NHGIS metadata reports hasMultipleDataTypes=false for 1980_STF1 and 1990_STF1. Omitted
     breakdown selections use their single whole-area default. Other datasets require an explicit
     layout because their data types have not been established here. See
-    documentation/raw_source_acquisition.md#nhgis-table-layout for the source references.
+    documentation/national_pipeline/01_raw_source_acquisition.md#nhgis-table-layout for the source
+    references.
 
     Args:
         definition (NhgisExtractDefinition): Table selections whose layout is being compared.
@@ -282,8 +276,7 @@ def validate_dataset_selection(
     """Require matching table and area selections, regardless of the order NHGIS lists them.
 
     For 1980/1990 STF1, omitted years and breakdowns mean the dataset's Census year and whole
-    area. Compare those defaults without changing either selection. Other datasets receive no
-    defaults, and explicit selections always take precedence.
+    area. Other datasets receive no defaults, and explicit selections always take precedence.
 
     Args:
         dataset_name (str): NHGIS dataset whose selections are being compared.
