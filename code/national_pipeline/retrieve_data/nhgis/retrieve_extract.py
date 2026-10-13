@@ -36,6 +36,7 @@ class NhgisExtractStatus(StrEnum):
     STARTED = "started"
     PROCESSING = "processing"
     SUBMITTED = "submitted"
+    PRODUCED = "produced"
     COMPLETED = "completed"
 
 
@@ -45,7 +46,7 @@ class PendingNhgisExtract:
 
     Attributes:
         extract_id (int): Positive account-specific extract number to check on a retry.
-        status (NhgisExtractStatus): QUEUED, STARTED, PROCESSING, or SUBMITTED on this attempt.
+        status (NhgisExtractStatus): QUEUED, STARTED, PROCESSING, SUBMITTED, or PRODUCED.
             A retry uses the saved extract number to check the same request again.
     """
 
@@ -56,6 +57,7 @@ class PendingNhgisExtract:
         NhgisExtractStatus.STARTED,
         NhgisExtractStatus.PROCESSING,
         NhgisExtractStatus.SUBMITTED,
+        NhgisExtractStatus.PRODUCED,
     ]
 
 
@@ -119,6 +121,7 @@ def retrieve_nhgis_extract(
         NhgisExtractStatus.STARTED,
         NhgisExtractStatus.PROCESSING,
         NhgisExtractStatus.SUBMITTED,
+        NhgisExtractStatus.PRODUCED,
     ):
         return PendingNhgisExtract(extract_id=submission_record.extract_id, status=status)
 
