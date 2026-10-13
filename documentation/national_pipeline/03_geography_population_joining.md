@@ -73,8 +73,9 @@ Population definitions and source columns follow the
 Each state also has two unmatched files, even when they are empty. The population file retains the
 complete population record and an `EXCLUSION_REASON`. The boundary file retains the polygon and
 source identity, with a reason and a `KNOWN_TOTAL_POPULATION` column. This column is zero when the
-source establishes zero and is left blank when population is unknown. Ordinary population columns
-are absent from the unmatched boundary file.
+source establishes zero and is left blank when population is unknown. For an excluded ship-crew
+polygon, it holds the crew's total population, which the unmatched population file also counts; do
+not add the two. Ordinary population columns are absent from the unmatched boundary file.
 
 `join_summary.csv` has four rows for each state, year, and geography level: one each for `TOTPOP`,
 `WHITE`, `BLACK`, and `POC`. Its seven columns identify the year, geography level, state, and
@@ -121,7 +122,9 @@ contain. The join applies a fixed list of documented corrections to its derived 
 the raw files and processed population tables unchanged. A corrected boundary records the change
 in `BOUNDARY_CORRECTION`, and a transferred population carries a `POPULATION_CORRECTION` note.
 Records still unmatched after these corrections stay in the unmatched files with their reason, and
-an unmatched boundary keeps unknown population unless a source establishes zero.
+an unmatched boundary keeps unknown population unless a source establishes zero. Historical
+ship-crew units are excluded even when a polygon exists, because Census crew units represent ships
+rather than land areas; both sides go to the unmatched files with the reason `ship_crew`.
 
 The [data-decisions
 guide](data_processing_decisions_and_anomalies.md#historical-boundary-corrections) lists each

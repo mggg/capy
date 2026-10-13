@@ -149,7 +149,8 @@ is also unproven.
 
 For 1990 water blocks, the documented three-digit block number ending in `99`, with any permitted
 water suffix, establishes the expected absence of a population row. Suffix `Z` identifies ship
-crews and is not treated as water. Other empty blocks are identified by exact Census block IDs in
+crews ([1990 area classifications](https://usa.ipums.org/usa/resources/voliii/pubdocs/1990/cph4/appdxa.pdf),
+Block entry) and is not treated as water. Other empty blocks are identified by exact Census block IDs in
 the [original STF1B geographic-zero tables](https://www2.census.gov/census_1990/stf1b/) and
 [PL tables](https://www2.census.gov/census_1990/1990_PL94-171/). Population and housing counts
 must both be zero. These sources classify unmatched polygons without adding population rows or
@@ -158,8 +159,32 @@ changing the NHGIS population table.
 Seven zero-population 1990 tract records and two zero-population Washington block records still
 lack resolved polygon identities. Their known population is retained in the unmatched population
 table. Thirteen boundary-only 1990 block groups have no established population correspondence and
-retain unknown population. Ship-crew records at the supported historical levels remain outside the
-mapped join, with their population included in the accounting.
+retain unknown population.
+
+Identifiable ship-crew records in 1980/1990 tracts and 1990 block groups and blocks remain outside
+the mapped join even when a matching polygon exists. The Census Bureau reports people aboard
+civilian or military ships in census tracts or BNAs with the suffix `.99`. These units "do not
+represent any land area or any specific area of water"
+([Geographic Areas Reference Manual](https://www2.census.gov/geo/pdfs/reference/GARM/Ch10GARM.pdf),
+p. 10-8). In machine-readable files, the suffix makes a six-digit tract code ending in `99`. The
+1990 definitions also give crew blocks the suffix `Z` and place them in `.99` tracts or BNAs
+([1990 area classifications](https://usa.ipums.org/usa/resources/voliii/pubdocs/1990/cph4/appdxa.pdf),
+Block, Block Numbering Area, and Census Tract entries). In the obtained data, the tract and BNA boundary files have no
+polygons for crew units, but the 1990 block-group and block files have small placeholder polygons.
+
+The join therefore identifies crew tracts by a tract code ending in `99`. It identifies crew block
+groups and blocks by their parent tract code (`TRACTA`), and blocks also by `Z`. The 1980 code
+`999999` also ends in `99`, but it marks an untracted remainder
+([1980 STF1 data dictionary](https://www2.census.gov/census_1980/1980_stf1_datadict.txt), `TRACT`
+field), not a crew. The cited 1980 documentation does not describe the `.99` crew suffix. In 1980,
+the rule follows the Census tract-numbering convention above, and none of the 1980 `.99` tracts
+has a polygon. The rule applies only to 1980 and 1990. Later tracts ending in `.99`, such as 71.99
+in Franklin County, Ohio, are ordinary land tracts.
+
+Crew populations remain in the unmatched-population accounting with reason `ship_crew`. Matching
+crew polygons remain in unmatched-boundary output with the same reason and their known total
+population. County totals are unchanged; this rule excludes separate crew units, not crew
+residents already included in aggregate county counts.
 
 One original zero reference conflicts with a populated record: Queens, NY block
 `G3600810077398104` (Census ID `36081077398104`). `STF1BXNY.DBF` record 161405 reports 106 people

@@ -130,6 +130,48 @@ def test_water_and_untracted_exclusions_require_their_documented_source_rules():
     assert pd.isna(result.unmatched_boundaries_df.KNOWN_TOTAL_POPULATION.iloc[1])
 
 
+@pytest.mark.parametrize(
+    "year,level,crew_id,tract_code",
+    [
+        (1980, GeographyLevel.TRACT, "G1000010123499", "123499"),
+        (1990, GeographyLevel.TRACT, "G1000010123499", "123499"),
+        (1990, GeographyLevel.BLOCK_GROUP, "G10000101234991", "123499"),
+        (1990, GeographyLevel.BLOCK, "G1000010123499101", "123499"),
+        (1990, GeographyLevel.BLOCK, "G10000100001101Z", "000100"),
+    ],
+)
+def test_ship_crews_with_polygons_remain_in_exclusion_accounting(year, level, crew_id, tract_code):
+    regular_id = (
+        "G10000100001"
+        + {
+            GeographyLevel.TRACT: "00",
+            GeographyLevel.BLOCK_GROUP: "1",
+            GeographyLevel.BLOCK: "199",
+        }[level]
+    )
+    geographic_ids = [regular_id, crew_id]
+    boundaries_df = build_boundary_table(geographic_ids)
+    population_df = build_population_table(geographic_ids, [25, 7], year, level.value)
+    population_df["TRACTA"] = ["000100", tract_code]
+    population_df["WHITE"] = [15, 4]
+    population_df["BLACK"] = [5, 2]
+    population_df["POC"] = [10, 3]
+
+    result = join_population_to_boundaries(boundaries_df, population_df, year, level)
+
+    assert result.matched_geography_df.GEOID.tolist() == geographic_ids[:1]
+    assert result.unmatched_population_df.GEOID.tolist() == [crew_id]
+    assert result.unmatched_population_df.EXCLUSION_REASON.tolist() == [ExclusionReason.SHIP_CREW]
+    assert result.unmatched_boundaries_df.GEOID.tolist() == [crew_id]
+    assert result.unmatched_boundaries_df.EXCLUSION_REASON.tolist() == [ExclusionReason.SHIP_CREW]
+    assert result.unmatched_boundaries_df.KNOWN_TOTAL_POPULATION.tolist() == [7]
+    for column in ("TOTPOP", "WHITE", "BLACK", "POC"):
+        assert (
+            result.matched_geography_df[column].sum() + result.unmatched_population_df[column].sum()
+            == population_df[column].sum()
+        )
+
+
 def test_configured_join_roundtrip_and_failed_rerun_remove_only_selected_outputs(tmp_path):
     config = PipelineConfig(
         census_geography_years=(2020,),

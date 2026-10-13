@@ -46,13 +46,13 @@ class JoinColumn(StrEnum):
 class ExclusionReason(StrEnum):
     """Why a record remains outside the population-attributed geography table.
 
-    A source-supported exclusion explains an absent match; it does not supply a missing polygon or
-    invent a population assignment. UNRESOLVED remains a valid, explicitly reported outcome.
+    Exclusions explain absent matches or intentionally omitted crew units; they do not supply
+    missing polygons or invent assignments. UNRESOLVED is an explicitly reported outcome.
     """
 
     UNRESOLVED = "unresolved_correspondence"
     UNTRACTED_REMAINDER_1980 = "1980_untracted_county_remainder"
-    SHIP_CREW = "ship_crew_record_without_land_boundary"
+    SHIP_CREW = "ship_crew"
     ZERO_POPULATION_WITHOUT_BOUNDARY = "zero_population_record_without_boundary"
     WATER_BLOCK_1990 = "1990_water_block_absent_from_population_tables"
     EMPTY_BLOCK_1990 = "1990_block_confirmed_empty_by_original_census_tables"
@@ -64,8 +64,8 @@ class PopulationBoundaryJoin:
     """Matched boundaries and the complete records left unmatched on either side.
 
     Population columns appear only where population records exist. Unmatched polygons instead
-    carry KNOWN_TOTAL_POPULATION, which is null unless 1990 water-block numbering or original
-    Census population records establish zero.
+    carry KNOWN_TOTAL_POPULATION: null unless 1990 water-block numbering or original
+    Census population records establish zero or an excluded ship-crew population supplies the count.
     """
 
     matched_geography_df: gpd.GeoDataFrame
@@ -296,7 +296,8 @@ def join_population_to_boundaries(
 
     State and county identities must agree where a population row matches a boundary. Counts
     across matched and unmatched population records must reproduce every input study total.
-    Matched zero-population units remain; graph filtering belongs to a later stage.
+    Ship-crew records are excluded even when polygons exist. Matched zero-population units
+    remain; graph filtering belongs to a later stage.
 
     Args:
         boundaries_df (gpd.GeoDataFrame): Checked, repaired boundaries for one state.
@@ -315,8 +316,25 @@ def join_population_to_boundaries(
     check_unique_identifiers(population_df, "Population")
 
     geographic_id_column = GeographyColumn.GEOGRAPHIC_ID
+    ship_crew_rows = pd.Series(False, index=population_df.index)
+    if census_year in (1980, 1990) and geography_level == GeographyLevel.TRACT:
+        tract_codes = population_df[geographic_id_column].str[8:]
+        ship_crew_rows = tract_codes.str.fullmatch(r"[0-9]{4}99", na=False)
+        if census_year == 1980:
+            # In 1980, 999999 stands for untracted remainder of a county, areas outside any census tract. Not crews.
+            untracted_remainder_rows = tract_codes.eq("999999")
+            ship_crew_rows = ship_crew_rows & ~untracted_remainder_rows
+    elif census_year == 1990 and geography_level in (
+        GeographyLevel.BLOCK_GROUP,
+        GeographyLevel.BLOCK,
+    ):
+        ship_crew_rows = population_df["TRACTA"].str.fullmatch(r"[0-9]{4}99", na=False)
+        if geography_level == GeographyLevel.BLOCK:
+            crew_block_suffix_rows = population_df[geographic_id_column].str.endswith("Z", na=False)
+            ship_crew_rows = ship_crew_rows | crew_block_suffix_rows
+    ship_crew_ids = population_df.loc[ship_crew_rows, geographic_id_column]
     matching_boundary_rows = boundaries_df[geographic_id_column].isin(
-        population_df[geographic_id_column]
+        population_df.loc[~ship_crew_rows, geographic_id_column]
     )
     matched_boundaries_df = boundaries_df.loc[matching_boundary_rows].copy()
     population_by_id_df = population_df.set_index(geographic_id_column)
@@ -351,12 +369,25 @@ def join_population_to_boundaries(
         raise ValueError("A documented 1990 water block unexpectedly has population")
 
     unmatched_population_df = population_df.loc[
-        ~population_df[geographic_id_column].isin(boundaries_df[geographic_id_column])
+        ~population_df[geographic_id_column].isin(matched_geography_df[geographic_id_column])
     ].copy()
     unmatched_boundaries_df = boundaries_df.loc[~matching_boundary_rows].copy()
 
     add_exclusion_reasons_in_place(
         unmatched_population_df, unmatched_boundaries_df, census_year, geography_level
+    )
+    unmatched_population_df.loc[
+        unmatched_population_df[geographic_id_column].isin(ship_crew_ids),
+        JoinColumn.EXCLUSION_REASON,
+    ] = ExclusionReason.SHIP_CREW.value
+    crew_boundary_rows = unmatched_boundaries_df[geographic_id_column].isin(ship_crew_ids)
+    unmatched_boundaries_df.loc[crew_boundary_rows, JoinColumn.EXCLUSION_REASON] = (
+        ExclusionReason.SHIP_CREW.value
+    )
+    unmatched_boundaries_df.loc[crew_boundary_rows, JoinColumn.KNOWN_TOTAL_POPULATION] = (
+        unmatched_boundaries_df.loc[crew_boundary_rows, geographic_id_column].map(
+            population_by_id_df[PopulationColumn.TOTAL]
+        )
     )
 
     matched_geography_df[JoinColumn.GEOGRAPHY_NOTE] = ""
