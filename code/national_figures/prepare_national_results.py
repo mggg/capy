@@ -294,7 +294,6 @@ def select_score_histories(
             config.study_area_type == StudyAreaType.CBSA
             and config.study_area_vintage == 2020
             and 1980 in years
-            and comparison == PopulationComparison.WHITE_BLACK
             and level == GeographyLevel.TRACT
         ):
             selected_df = selected_df.loc[
