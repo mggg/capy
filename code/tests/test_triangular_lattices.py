@@ -1,10 +1,9 @@
 """Finite and periodic triangular-lattice scientific contracts."""
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from experiments.experiment_scores import calculate_experiment_scores
-from experiments.reardon_osullivan.plot_triangular_lattices import plot_triangular_lattice
+from experiments.reardon_osullivan.plot_triangular_lattices import plot_triangular_lattices
 from experiments.reardon_osullivan.triangular_lattices import (
     PRINTED_PATTERNS,
     build_triangular_adjacency,
@@ -31,18 +30,16 @@ def test_triangular_repeat_has_six_neighbors_and_preserves_the_printed_seam_pair
     assert scores.metric_values["spatial_relative_diversity"] == pytest.approx(4 / 49)
 
 
-def test_triangular_lattice_draws_saved_window_on_caller_axes():
+def test_triangular_lattices_exports_four_saved_printed_windows(tmp_path):
     scores_df, windows = build_triangular_lattice_results()
     assert len(scores_df) == 8
-    window = windows["printed_upper_left"]
-    original = window.copy()
-    figure, axes = plt.subplots(1, 2)
-    try:
-        figure_numbers = plt.get_fignums()
-        plot_triangular_lattice(axes[0], window)
-        assert len(axes[0].collections[0].get_offsets()) == window.size
-        assert not axes[1].collections
-        assert plt.get_fignums() == figure_numbers
-        np.testing.assert_array_equal(window, original)
-    finally:
-        plt.close(figure)
+    np.savez_compressed(tmp_path / "triangular_windows.npz", **windows)
+    output_directory = tmp_path / "figures"
+    plot_triangular_lattices(tmp_path, output_directory)
+
+    assert {path.name for path in output_directory.iterdir()} == {
+        "dispersed_sparse_population.png",
+        "dispersed_denser_population.png",
+        "large_population_clusters.png",
+        "small_population_clusters.png",
+    }
