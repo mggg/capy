@@ -236,7 +236,7 @@ population, as described under
 
 ## Two-node historical graphs
 
-When the configuration uses 2020 CBSA definitions and includes 1980, White–Black tract histories
+When the configuration uses 2020 CBSA definitions and includes 1980, both White–Black and White–POC tract histories
 exclude the following five CBSAs from every plotted year and all selected history scores. The
 exclusion applies to both individual trajectories and the mean across metros. It leaves the
 pipeline graphs and metric tables intact. Later-only histories and other study-area definitions do
