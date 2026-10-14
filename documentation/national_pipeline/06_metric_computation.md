@@ -156,7 +156,7 @@ pairs count and by how much. They center shares across units, so a small unit an
 have equal influence on the centering step. This differs from the population-weighted regional
 share used by the evenness scores.
 
-For all variants, $z_i=p_i-\operatorname{mean}(p)$ uses the **unweighted mean of unit shares**. The
+For all variants, $z_i=p_i-\mathrm{mean}(p)$ uses the **unweighted mean of unit shares**. The
 reported expression is based on the weighted definition in [Anselin's GeoDa
 workbook](https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i), with the
 signed-weight qualification below:
@@ -175,10 +175,10 @@ produce different statistics and should not be interpreted as interchangeable es
 | `moran_adjacency`                | $W=A$                                                                                       |
 | `moran_with_self`                | $W=I+A$                                                                                     |
 | `moran_row_standardized`         | $W_{ij}=A_{ij}/d_i$, where $d_i$ is node degree                                             |
-| `moran_negative_laplacian`       | $W=A-\operatorname{diag}(d)$, normalized by $\sum\lvert W_{ij}\rvert$                       |
+| `moran_negative_laplacian`       | $W=A-\mathrm{diag}(d)$, normalized by $\sum\lvert W_{ij}\rvert$                       |
 | `moran_metropolis`               | Adjacent off-diagonal weights $1/\max(d_i,d_j)$; each diagonal completes its row sum to one |
-| `moran_inverse_distance`         | Off-diagonal $1/\operatorname{distance}(i,j)$, then divide each row by its sum              |
-| `moran_inverse_squared_distance` | Off-diagonal $1/\operatorname{distance}(i,j)^2$, then divide each row by its sum            |
+| `moran_inverse_distance`         | Off-diagonal $1/\mathrm{distance}(i,j)$, then divide each row by its sum              |
+| `moran_inverse_squared_distance` | Off-diagonal $1/\mathrm{distance}(i,j)^2$, then divide each row by its sum            |
 
 The adjacency variant counts each edge equally. Row standardization instead gives each
 non-isolated unit equal outgoing weight, reducing the influence of high-degree units. The
@@ -334,7 +334,7 @@ transformation originated in the cited work.
 | Relative diversity and spatial relative diversity | Same paper, equations (9)–(11), pp. 139–140. Its interaction diversity becomes $2p(1-p)$ for two groups.                                                                                                    |
 | All six nonnegative-weight Moran scores           | Anselin (2020), “Concept / Moran's I,” gives $n \langle z,z\rangle_W/(S_0\langle z,z\rangle)$ with $S_0=\sum W_{ij}$. The matrices listed above specify our variants. |
 | Metropolis matrix within Moran                    | Xiao and Boyd (2004), section 4.2, p. 70: $1/\max(d_i,d_j)$ on edges. Equation (18), p. 69, supplies the diagonal. This is not the alternative $1/(1+\max(d_i,d_j))$ convention.                            |
-| Negative-Laplacian score                          | A project-defined extension: $W=A-\operatorname{diag}(d)$ and $S_0=\sum\lvert W_{ij}\rvert$. The ordinary signed sum is zero, so the standard Moran formula cannot be used unchanged.                       |
+| Negative-Laplacian score                          | A project-defined extension: $W=A-\mathrm{diag}(d)$ and $S_0=\sum\lvert W_{ij}\rvert$. The ordinary signed sum is zero, so the standard Moran formula cannot be used unchanged.                       |
 | Half-edge assortativity                           | Newman (2003), equation (2), section II.A, gives categorical $r$. Our binary specialization reports $(1+r)/2$, with a study-defined population-share threshold.                                             |
 | Edge assortativity                                | A study-specific mean of edge fractions. The different denominator prevents attributing this formula to Newman's coefficient.                                                                               |
 
@@ -343,7 +343,7 @@ Newman's mixing matrix is $E=\left(\begin{smallmatrix}a&b\\b&c\end{smallmatrix}\
 row marginals $q_X=(a+b)/S$ and $q_Y=(b+c)/S$. Substituting into his formula gives
 
 $$
-r=\frac{\operatorname{tr}(E)-(q_X^2+q_Y^2)}{1-(q_X^2+q_Y^2)}
+r=\frac{\mathrm{tr}(E)-(q_X^2+q_Y^2)}{1-(q_X^2+q_Y^2)}
 =1-\frac{bS}{(a+b)(b+c)},
 $$
 
