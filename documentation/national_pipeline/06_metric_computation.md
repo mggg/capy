@@ -126,8 +126,7 @@ logarithms in our two-group $H$, with no numerical effect because the base facto
 
 ### Capy scores
 
-For same-group totals $a,c$ and between-group total $b$, the reported score is the mean of X-skew
-and Y-skew:
+Capy is easiest to interpret in terms of the *exploded graph*, which replaces each unit with one node per resident, joins every two residents of the same unit, and joins each resident to every resident of each adjacent unit (aspatial Capy keeps only the within-unit edges). A self-pair on the exploded graph is a self-loop on this graph; aspatial_capy and capy count these self-pairs, while capy_exact excludes them. Let $a$ and $c$ count ordered pairs of joined group X residents and of joined group Y residents, respectively, and let $b$ count X-Y pairs. The X-skew $a/(a+b)$ is the share of group X residents' pairs that are with other group X residents, and the Y-skew $c/(c+b)$ is the same share for group Y. The reported score is their mean:
 
 $$C=\frac12\left(\frac{a}{a+b}+\frac{c}{c+b}\right).$$
 
@@ -137,15 +136,14 @@ $$C=\frac12\left(\frac{a}{a+b}+\frac{c}{c+b}\right).$$
 | `capy`            | $a=\langle x,x\rangle_{I+A}$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}$                       |
 | `capy_exact`      | $a=\langle x,x\rangle_{I+A}-\sum_i x_i$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}-\sum_i y_i$ |
 
-Aspatial Capy, $C_0$, includes quadratic self-pairs and equals one-half when every unit has the
-same composition. Spatial `capy` adds neighboring-unit interactions to those quadratic
-within-unit terms. `capy_exact` instead counts distinct people, with equal weight on within-unit
+Aspatial Capy, $C_0$, includes self-pairs on the exploded graph and equals one-half when every unit has the
+same composition. Spatial `capy` adds neighboring-unit interactions to those
+within-unit terms. `capy_exact` instead excludes self-pairs on the exploded graph,counting only pairs between distinct people and giving equal weight on within-unit
 and neighboring-unit interactions. Its same-group totals count ordered
 pairs, or twice the number of same-group edges in the exploded graph. Subtracting the population
 removes self-pairs; there is no corresponding subtraction from the between-group inner product.
 
-These conventions differ even on a single unit. With one White and one Black resident, quadratic
-within-unit Capy is one-half, while exact distinct-person Capy is zero because the only available
+These conventions can even differ on a single unit. For a unit with one White and one Black resident, ordinary Capy is one-half, while exact Capy is zero because the only available
 neighbor has the other type. The pipeline saves all three Capy scores with neighbor weight
 `lam=1`. Public Capy functions additionally accept other finite nonnegative neighbor weights.
 
@@ -279,7 +277,7 @@ require the pipeline's specific CRS.
 | `entropy_index(group, total)`                      | Group counts and totals including that group                      |
 | `relative_diversity(group, total)`                 | Group counts and totals including that group                      |
 | `aspatial_capy(first, second)`                     | Two disjoint groups' counts                                       |
-| `capy(adjacency, first, second, lam=1)`            | Two disjoint groups' counts, including quadratic self-pairs       |
+| `capy(adjacency, first, second, lam=1)`            | Two disjoint groups' counts, including self-pairs on the exploded graph      |
 | `capy_exact(adjacency, first, second, lam=1)`      | Two disjoint groups' integer counts, excluding self-pairs         |
 | `edge_assortativity(adjacency, group, total)`      | Group counts and totals for relative-majority classification      |
 | `half_edge_assortativity(adjacency, group, total)` | The same counts, with same-class edges contributing two endpoints |
@@ -304,8 +302,8 @@ weighted = capy(adjacency, group_population, second_population, lam=2)
 exact = capy_exact(adjacency, group_population, second_population, lam=2)
 ```
 
-At `lam=0`, the quadratic function equals `aspatial_capy()`. The exact function still removes
-self-pairs and therefore need not equal it. Lambda is available through these public functions;
+At `lam=0`, the `capy()` function equals `aspatial_capy()`. The exact function still removes
+exploded graph self-pairs and therefore need not equal it. Lambda is available through these public functions;
 the pipeline keeps its existing fixed metric choices and does not add YAML parameter sweeps.
 
 Malformed inputs raise `ValueError`, while a missing graph attribute raises `KeyError`. When valid
