@@ -289,7 +289,7 @@ the source overlaps.
 Spatial evenness and Capy scores use each unit together with its neighbors, $I+A$, as the local
 environment. Every saved edge counts equally, including artificial connections, and no edge is
 weighted by shared boundary length. The pipeline saves three Capy variants with neighbor weight
-one: `aspatial_capy`, `capy` (with quadratic self-pairs), and `capy_exact` (distinct people only).
+one: `aspatial_capy`, `capy`, and `capy_exact` (excludes self-pairs on the exploded graph).
 See [metric formulas](06_metric_computation.md#metric-names-and-formulas).
 
 Moran scores center unit shares on their unweighted mean, so a small unit and a large unit have
