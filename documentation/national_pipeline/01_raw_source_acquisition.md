@@ -31,8 +31,10 @@ Choose the Census years and geographic units for a run with `census_geography_ye
 settings and examples. These selections apply to both population tables and boundaries, whether
 supplied by Census or NHGIS. To define the study areas, `study_area_type` and `study_area_vintage`
 add the necessary population and boundary inputs: counties for every mode, plus 2020 places and
-blocks for `max_city`, which ranks cities by block population. Here, _vintage_ means the year of
-the geography used to define those areas, which can differ from the population year.
+blocks for `max_city` (block level data is needed to select the most populated city per CBSA, 
+even if the analysis is not conducted on the block level), which ranks cities by block population.
+Here, _vintage_ means the year of the geography used to define those areas, which can differ from
+ the population year.
 
 For example, 1990 tracts with `max_city` and vintage 2020 require 1990 tract data plus 2020 county,
 place, and block data. Unsupported 1980 block and block-group combinations are left out. If no

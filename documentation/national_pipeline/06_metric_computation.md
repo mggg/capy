@@ -9,9 +9,9 @@ arrays outside the pipeline.
 ## Contents
 
 - [Run the stage](#run-the-stage)
-- [Use individual metric functions](#use-individual-metric-functions)
 - [Populations and spatial weights](#populations-and-spatial-weights)
 - [Metric names and formulas](#metric-names-and-formulas)
+- [Use individual metric functions](#use-individual-metric-functions)
 - [Sources and formula correspondence](#sources-and-formula-correspondence)
 - [Undefined values](#undefined-values)
 - [Saved tables and yearly averages](#saved-tables-and-yearly-averages)
@@ -47,110 +47,6 @@ calculated in batches to bound temporary memory, but the number of pairs still g
 quadratically. The stage runs one graph at a time; `max_parallel_downloads` does not control
 metric computation.
 
-## Use individual metric functions
-
-The functions in `capy_metrics` work independently of the replication pipeline. Each score has an
-array or matrix interface and a graph interface ending in `_from_graph`. Both are public and
-return one floating-point score. Graph functions accept ordinary NetworkX graphs, including
-GerryChain graphs, and take population attribute names rather than assuming the study's column
-names.
-
-For example, this computes Moran's I from custom attributes on a small graph:
-
-```python
-import networkx as nx
-from capy_metrics import MoranWeightType, morans_I_from_graph
-
-graph = nx.path_graph(["a", "b", "c"])
-nx.set_node_attributes(graph, {"a": 2, "b": 7, "c": 4}, "group1")
-nx.set_node_attributes(graph, {"a": 10, "b": 12, "c": 20}, "total")
-
-score = morans_I_from_graph(
-    graph, "group1", "total", MoranWeightType.ROW_STANDARDIZED
-)
-```
-
-Run from an environment with `code/` on the Python import path, for example `PYTHONPATH=code uv run
---locked python your_analysis.py` from the repository root. To reuse prepared inputs across
-computations, call the numerical functions directly:
-
-```python
-import numpy as np
-from capy_metrics import (
-    MoranWeightType,
-    build_csr_adjacency_matrix,
-    build_moran_weights,
-    morans_I,
-)
-
-# `graph` is the path graph from the previous example.
-
-adjacency = build_csr_adjacency_matrix(graph)
-weights = build_moran_weights(adjacency, MoranWeightType.ROW_STANDARDIZED)
-group_population = np.array([2, 7, 4])
-total_population = np.array([10, 12, 20])
-score = morans_I(weights, group_population / total_population)
-```
-
-Matrix rows, matrix columns, and population vectors must use the same node order. The graph helpers
-use graph iteration order, including when labels are mixed types. `morans_I()` accepts a CSR matrix,
-a CSR array, or a dense weight matrix and uses its weights as supplied. It does not construct or
-row-standardize them. For inverse-distance scores, use `distance_morans_I(coordinates, shares,
-distance_power=1)` or `distance_power=2`. That function retains bounded distance batches; its graph
-counterpart accepts the distance choices in `MoranWeightType` and optional centroid attribute names.
-Graph coordinates must share a projected coordinate system, but the reusable functions do not
-require the pipeline's specific CRS.
-
-| Numerical function                                 | Inputs after any leading matrix argument                          |
-| -------------------------------------------------- | ----------------------------------------------------------------- |
-| `morans_I(weights, shares)`                        | Group population divided by the chosen total                      |
-| `dissimilarity(group, total)`                      | Group counts and totals including that group                      |
-| `entropy_index(group, total)`                      | Group counts and totals including that group                      |
-| `relative_diversity(group, total)`                 | Group counts and totals including that group                      |
-| `aspatial_capy(first, second)`                     | Two disjoint groups' counts                                       |
-| `capy(adjacency, first, second, lam=1)`            | Two disjoint groups' counts, including quadratic self-pairs       |
-| `capy_exact(adjacency, first, second, lam=1)`      | Two disjoint groups' integer counts, excluding self-pairs         |
-| `edge_assortativity(adjacency, group, total)`      | Group counts and totals for relative-majority classification      |
-| `half_edge_assortativity(adjacency, group, total)` | The same counts, with same-class edges contributing two endpoints |
-
-For D, H, and R, supply `spatial_weights=` to evaluate local-environment shares while retaining
-original population weights. Omitting it gives the aspatial index. The same optional argument
-works on their graph functions, with weights in graph node order. No functions alter the input
-graph, counts, or matrices, and none requires connectedness merely because the pipeline uses
-connected graphs. Adjacency graph functions require undirected simple graphs without self-loops.
-Isolated rows in row-standardized adjacency remain zero, and Moran's normalization uses the weight
-mass that remains. A weight matrix with no nonzero entries gives an undefined score.
-
-Lambda is a finite, nonnegative **neighbor weight** in $W=I+\lambda A$; within-unit weight stays
-one. For example:
-
-```python
-from capy_metrics import aspatial_capy, capy, capy_exact
-
-second_population = total_population - group_population
-aspatial = aspatial_capy(group_population, second_population)
-weighted = capy(adjacency, group_population, second_population, lam=2)
-exact = capy_exact(adjacency, group_population, second_population, lam=2)
-```
-
-At `lam=0`, the quadratic function equals `aspatial_capy()`. The exact function still removes
-self-pairs and therefore need not equal it. Lambda is available through these public functions;
-the pipeline keeps its existing fixed metric choices and does not add YAML parameter sweeps.
-
-Malformed inputs raise `ValueError`, while a missing graph attribute raises `KeyError`. When valid
-inputs have no defined score, the function raises `UndefinedMetricError`, whose `reason`
-identifies the limitation. The pipeline catches that exception per score and saves the reason with
-a null value, preserving other valid results. Direct callers can catch it in the same way:
-
-```python
-from capy_metrics import UndefinedMetricError
-
-try:
-    score = morans_I(weights, group_population / total_population)
-except UndefinedMetricError as error:
-    print(error.reason.value)
-```
-
 ## Populations and spatial weights
 
 For each comparison, let $x_i$ be the non-Hispanic White population and $y_i$ the Black or POC
@@ -170,6 +66,9 @@ artificial connections, and no edge is weighted by shared boundary length. Local
 shares use a unit together with its neighbors:
 
 $$\widetilde p_i=\frac{((I+A)x)_i}{((I+A)t)_i}.$$
+
+$I+A$ is the standard matrix used in the calculations, while in the paper uses $\widetilde p_i=\frac{(Wx)_i}{(Wt)_i}$
+to leave an option of other matrix types open.
 
 Distance weights instead use all pairs of distinct nodes and their saved geometric centroids in
 ESRI:102003. These centroids can lie outside the polygons, as explained in the [graph
@@ -287,7 +186,7 @@ self-inclusive variant adds each unit's own squared deviation to the numerator, 
 no-self-neighbor statistic. Metropolis weights make connections to high-degree nodes weaker and
 use diagonal weights to complete each row to one. The Metropolis matrix matches
 [Xiao and Boyd (2004)](https://web.stanford.edu/~boyd/papers/pdf/fastavg.pdf), section 4.2, p. 70,
-and equation (18), p. 69; using it in a segregation statistic is our application.
+and equation (18), p. 69; using it in a segregation statistic is our application following Duchin, Weighill and Murphy (2023)
 
 The two distance variants row-standardize all off-diagonal inverse distances, with no distance
 cutoff. Squaring the inverse distance makes nearby units relatively more influential. These
@@ -296,7 +195,7 @@ a citation for Moran's statistic does not establish them as choices made in the 
 
 ### Relative-majority assortativity
 
-Each unit joins the first class when its White share is at least the overall White share $\rho$;
+Unlike in Capy scores described above, a regular (not exploded) graph is used. Each unit joins the first class when its White share is at least the overall White share $\rho$;
 all other units join the second class. This threshold is relative to the selected population
 comparison, rather than a fixed 50% threshold. Let $e_{XX},e_{XY},e_{YY}$ count undirected graph
 edges within or between those classes.
@@ -319,6 +218,110 @@ population-weighted Capy: classes are assigned to whole units, and their graph c
 counted without exploding populations into individual people. The calculation leaves graph
 attributes unchanged.
 
+## Use individual metric functions
+
+The functions in `capy_metrics` work independently of the replication pipeline. Each score has an
+array or matrix interface and a graph interface ending in `_from_graph`. Both are public and
+return one floating-point score. Graph functions accept ordinary NetworkX graphs, including
+GerryChain graphs, and take population attribute names rather than assuming the study's column
+names.
+
+For example, this computes Moran's I from custom attributes on a small graph:
+
+```python
+import networkx as nx
+from capy_metrics import MoranWeightType, morans_I_from_graph
+
+graph = nx.path_graph(["a", "b", "c"])
+nx.set_node_attributes(graph, {"a": 2, "b": 7, "c": 4}, "group1")
+nx.set_node_attributes(graph, {"a": 10, "b": 12, "c": 20}, "total")
+
+score = morans_I_from_graph(
+    graph, "group1", "total", MoranWeightType.ROW_STANDARDIZED
+)
+```
+
+Run from an environment with `code/` on the Python import path, for example `PYTHONPATH=code uv run
+--locked python your_analysis.py` from the repository root. To reuse prepared inputs across
+computations, call the numerical functions directly:
+
+```python
+import numpy as np
+from capy_metrics import (
+    MoranWeightType,
+    build_csr_adjacency_matrix,
+    build_moran_weights,
+    morans_I,
+)
+
+# `graph` is the path graph from the previous example.
+
+adjacency = build_csr_adjacency_matrix(graph)
+weights = build_moran_weights(adjacency, MoranWeightType.ROW_STANDARDIZED)
+group_population = np.array([2, 7, 4])
+total_population = np.array([10, 12, 20])
+score = morans_I(weights, group_population / total_population)
+```
+
+Matrix rows, matrix columns, and population vectors must use the same node order. The graph helpers
+use graph iteration order, including when labels are mixed types. `morans_I()` accepts a CSR matrix,
+a CSR array, or a dense weight matrix and uses its weights as supplied. It does not construct or
+row-standardize them. For inverse-distance scores, use `distance_morans_I(coordinates, shares,
+distance_power=1)` or `distance_power=2`. That function retains bounded distance batches; its graph
+counterpart accepts the distance choices in `MoranWeightType` and optional centroid attribute names.
+Graph coordinates must share a projected coordinate system, but the reusable functions do not
+require the pipeline's specific CRS.
+
+| Numerical function                                 | Inputs after any leading matrix argument                          |
+| -------------------------------------------------- | ----------------------------------------------------------------- |
+| `morans_I(weights, shares)`                        | Group population divided by the chosen total                      |
+| `dissimilarity(group, total)`                      | Group counts and totals including that group                      |
+| `entropy_index(group, total)`                      | Group counts and totals including that group                      |
+| `relative_diversity(group, total)`                 | Group counts and totals including that group                      |
+| `aspatial_capy(first, second)`                     | Two disjoint groups' counts                                       |
+| `capy(adjacency, first, second, lam=1)`            | Two disjoint groups' counts, including quadratic self-pairs       |
+| `capy_exact(adjacency, first, second, lam=1)`      | Two disjoint groups' integer counts, excluding self-pairs         |
+| `edge_assortativity(adjacency, group, total)`      | Group counts and totals for relative-majority classification      |
+| `half_edge_assortativity(adjacency, group, total)` | The same counts, with same-class edges contributing two endpoints |
+
+For D, H, and R, supply `spatial_weights=` to evaluate local-environment shares while retaining
+original population weights. Omitting it gives the aspatial index. The same optional argument
+works on their graph functions, with weights in graph node order. No functions alter the input
+graph, counts, or matrices, and none requires connectedness merely because the pipeline uses
+connected graphs. Adjacency graph functions require undirected simple graphs without self-loops.
+Isolated rows in row-standardized adjacency remain zero, and Moran's normalization uses the weight
+mass that remains. A weight matrix with no nonzero entries gives an undefined score.
+
+Lambda is a finite, nonnegative **neighbor weight** in $W=I+\lambda A$; within-unit weight stays
+one. For example:
+
+```python
+from capy_metrics import aspatial_capy, capy, capy_exact
+
+second_population = total_population - group_population
+aspatial = aspatial_capy(group_population, second_population)
+weighted = capy(adjacency, group_population, second_population, lam=2)
+exact = capy_exact(adjacency, group_population, second_population, lam=2)
+```
+
+At `lam=0`, the quadratic function equals `aspatial_capy()`. The exact function still removes
+self-pairs and therefore need not equal it. Lambda is available through these public functions;
+the pipeline keeps its existing fixed metric choices and does not add YAML parameter sweeps.
+
+Malformed inputs raise `ValueError`, while a missing graph attribute raises `KeyError`. When valid
+inputs have no defined score, the function raises `UndefinedMetricError`, whose `reason`
+identifies the limitation. The pipeline catches that exception per score and saves the reason with
+a null value, preserving other valid results. Direct callers can catch it in the same way:
+
+```python
+from capy_metrics import UndefinedMetricError
+
+try:
+    score = morans_I(weights, group_population / total_population)
+except UndefinedMetricError as error:
+    print(error.reason.value)
+```
+
 ## Sources and formula correspondence
 
 The citations identify the expressions being implemented, not a claim that every weight choice or
@@ -329,7 +332,7 @@ transformation originated in the cited work.
 | Dissimilarity and spatial dissimilarity           | Reardon and O'Sullivan (2004), equation (12), p. 140. Two groups give equal absolute deviations; their regional diversity is $2\rho(1-\rho)$, producing the denominator above.                              |
 | Theil information and spatial Theil information   | Same paper, equations (6)–(8), p. 139. Discrete population-weighted entropy replaces the integral; the logarithm base cancels.                                                                              |
 | Relative diversity and spatial relative diversity | Same paper, equations (9)–(11), pp. 139–140. Its interaction diversity becomes $2p(1-p)$ for two groups.                                                                                                    |
-| All six nonnegative-weight Moran scores           | Anselin (2020), _Global Spatial Autocorrelation (1)_, “Concept / Moran's I,” gives $n \langle z,z\rangle_W/(S_0\langle z,z\rangle)$ with $S_0=\sum W_{ij}$. The matrices listed above specify our variants. |
+| All six nonnegative-weight Moran scores           | Anselin (2020), “Concept / Moran's I,” gives $n \langle z,z\rangle_W/(S_0\langle z,z\rangle)$ with $S_0=\sum W_{ij}$. The matrices listed above specify our variants. |
 | Metropolis matrix within Moran                    | Xiao and Boyd (2004), section 4.2, p. 70: $1/\max(d_i,d_j)$ on edges. Equation (18), p. 69, supplies the diagonal. This is not the alternative $1/(1+\max(d_i,d_j))$ convention.                            |
 | Negative-Laplacian score                          | A project-defined extension: $W=A-\operatorname{diag}(d)$ and $S_0=\sum\lvert W_{ij}\rvert$. The ordinary signed sum is zero, so the standard Moran formula cannot be used unchanged.                       |
 | Half-edge assortativity                           | Newman (2003), equation (2), section II.A, gives categorical $r$. Our binary specialization reports $(1+r)/2$, with a study-defined population-share threshold.                                             |

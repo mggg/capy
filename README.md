@@ -86,6 +86,8 @@ Run all six stages with:
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
 ```
 
+This small example does not use NHGIS data, so the terminal output will show 0 NHGIS files used. This is expected.
+
 The scientific operations run in this order:
 
 ```text
