@@ -3,6 +3,7 @@ census_geography_years: [2020]
 study_area_type: county
 study_area_vintage: 2020
 
+# Raw downloaded files and saved NHGIS submission numbers go here.
 raw_data_directory: data/raw
 
 # Derived population Parquet files; relative paths start at the repository root.
@@ -28,6 +29,7 @@ max_parallel_graphs: 1
 # See example.yaml for metric selection; distance variants can be slow for large block graphs.
 metric_results_directory: results/metrics
 
+# Folder names beneath raw_data_directory.
 raw_data_subdirectories:
   census_population_tables: census
   nhgis_population_and_boundaries: nhgis
@@ -37,6 +39,7 @@ raw_data_subdirectories:
   population_reference_tables: population_reference_tables
   metro_membership_tables: metro_membership_tables
   saved_nhgis_requests: saved_nhgis_requests
+
 # Optional .env path, relative to the repository root; existing environment variables win.
 env_file: null
 offline: false

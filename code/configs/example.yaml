@@ -9,6 +9,8 @@
 #
 # Run settings belong here. Source URLs, Census population column names, and NHGIS
 # table names live in the Python request definitions under code/national_pipeline/retrieve_data/.
+# Most settings have a documented default setting that applies when the key is left out entirely.
+# Setting the key to None or Null will raise an error, not give the default.
 
 # Which Census units will become graph nodes? Choose one or more of:
 #   counties      Each county or county-equivalent is one unit.
@@ -17,11 +19,11 @@
 #   blocks        Individual Census blocks.
 #
 # The same selection controls population tables AND boundary files, across both
-# Census and NHGIS downloads. Omitted setting: all four levels. An empty list is invalid.
+# Census and NHGIS downloads. Default setting: all four levels. An empty list is invalid.
 census_geography_levels: [tracts]
 
 # Census years for those units. Supported values: 1980, 1990, 2000, 2010, 2020.
-# Omitted setting: all five years. An empty list is invalid.
+# Default setting: all five years. An empty list is invalid.
 #
 # There are no supported 1980 block or block-group boundaries in this pipeline.
 # Those combinations are left out; other requested combinations still run. If no
@@ -49,12 +51,12 @@ census_geography_years: [1990, 2000, 2010, 2020]
 # These supporting inputs
 # are included even if their year or level is absent from the node settings above.
 # Requests needed for more than one reason are included only once.
-# Omitted setting: max_city.
+# Default setting: max_city.
 study_area_type: max_city
 
 # Year of the populations and boundaries used to define the enclosing areas.
 # These areas will stay fixed when comparing node data from different census years.
-# Supported values: 1980, 1990, 2000, 2010, 2020. Omitted setting: 2020.
+# Supported values: 1980, 1990, 2000, 2010, 2020. Default setting: 2020.
 # max_city requires 2020 because the current place definitions support only that year.
 #
 # This DOES NOT change the metro membership list. Metro modes use the March 2020
@@ -107,11 +109,11 @@ rebuild_graphs: false
 metric_results_directory: results/metrics
 
 # Compare non-Hispanic White residents with Black residents and/or all POC residents.
-# Accepted values: white_black, white_poc. Omitted setting: both; empty lists are invalid.
+# Accepted values: white_black, white_poc. Default setting: both; empty lists are invalid.
 # Both use the same White–Black-filtered graph, with the sum of the two groups as denominator.
 population_comparisons: [white_black, white_poc]
 
-# Omitted setting: all metrics below. Delete entries to select a subset; an empty list is invalid.
+# Default setting: all metrics below. Delete entries to select a subset; an empty list is invalid.
 # Names distinguish formulas and spatial weights.
 # See documentation/national_pipeline/06_metric_computation.md.
 # Distance variants use all node pairs and can be slow for large block graphs.
@@ -182,7 +184,7 @@ offline: false
 file_path_patterns: ["*"]
 
 # Maximum simultaneous file retrievals, including checks of files already present.
-# Use 1 for one file at a time. Must be at least 1. Omitted setting: 4.
+# Use 1 for one file at a time. Must be at least 1. Default setting: 4.
 # This does not set the number of workers for later graph or metric calculations.
 # Start with 4; higher download concurrency can trigger server rate limits (HTTP 429).
 max_parallel_downloads: 4
