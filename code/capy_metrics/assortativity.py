@@ -46,11 +46,11 @@ def edge_assortativity(
     r"""
     Calculate the average same-class edge fraction for each relative-majority class.
 
-    Let $g_i$ and $t_i$ be the group and total populations of unit $i$. Assign the unit to $X$ when
+    Let $x$ and $t_i$ be the group and total populations of unit $i$. Assign the unit to $X$ when
     its local share is at least the overall group share, and to $Y$ otherwise:
 
     $$
-    \frac{g_i}{t_i} \geq \rho, \qquad \rho = \frac{\sum_i g_i}{\sum_i t_i}.
+    \frac{x_i}{t_i} \geq \rho, \qquad \rho = \frac{\sum_i x_i}{\sum_i t_i}.
     $$
 
     Let $a$, $b$, and $c$ denote the undirected edge weights:
@@ -121,8 +121,8 @@ def half_edge_assortativity(
     r"""
     Calculate the average same-class endpoint fraction for each relative-majority class.
 
-    For group counts $g_i$ and totals $t_i$, assign unit $i$ to $X$ when
-    $g_i/t_i \geq \rho$, where $\rho=\sum_i g_i/\sum_i t_i$, and to $Y$ otherwise.
+    For group counts $x_i$ and totals $t_i$, assign unit $i$ to $X$ when
+    $x_i/t_i \geq \rho$, where $\rho=\sum_i x_i/\sum_i t_i$, and to $Y$ otherwise.
     Let $a$, $b$, and $c$ denote the undirected edge weights:
 
     - $a$: edges within $X$.
