@@ -15,7 +15,7 @@ class UndefinedMetricReason(StrEnum):
 
 
 class UndefinedMetricError(ValueError):
-    """A valid input has no defined score; reason identifies the mathematical limitation.
+    """Raised when a valid input has no defined score; reason identifies the mathematical limitation.
 
     Args:
         reason (UndefinedMetricReason): Stable reason that a caller can report or handle.

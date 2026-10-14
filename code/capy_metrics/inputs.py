@@ -15,26 +15,28 @@ def node_attribute_to_numpy_arr(graph: nx.Graph, attribute: str) -> np.ndarray:
         attribute (str): Required numeric attribute on every node.
 
     Returns:
-        np.ndarray: One-dimensional float array in graph node order. Metric functions check its meaning.
+        np.ndarray: One-dimensional float array in graph node order. 
+            Metric functions will check its validity as demographic data.
 
     Raises:
         KeyError: A node lacks the requested attribute.
         ValueError: An attribute cannot be converted to a number.
-    """
+        TypeError: attributes are pd.NA or a or a non-numeric object such as a dict.
+        """
     return np.asarray(
         [attributes[attribute] for _, attributes in graph.nodes(data=True)], dtype=float
     )
 
 
 def build_csr_adjacency_matrix(graph: nx.Graph) -> sparse.csr_array:
-    """Build binary adjacency in graph node order, including every edge regardless of attributes.
+    """Build unweighted binary adjacency in graph node order, ignoring any edge attributes
 
     Args:
         graph (nx.Graph): Nonempty undirected simple graph without self-loops. Disconnected
             graphs are accepted. No graph attributes or node identifiers have prescribed names.
 
     Returns:
-        sparse.csr_array: Float adjacency with a zero diagonal.
+        sparse.csr_array: Float adjacency matrix with a zero diagonal.
 
     Raises:
         ValueError: The graph is empty, directed, a multigraph, or contains self-loops.
@@ -50,11 +52,12 @@ def build_csr_adjacency_matrix(graph: nx.Graph) -> sparse.csr_array:
 def prepare_population_vectors(
     first_population: np.ndarray, second_population: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Convert two aligned population vectors to floats and reject invalid counts.
+    """Convert two aligned population vectors to floats and reject invalid inputs.
 
     Args:
-        first_population (np.ndarray): Nonempty, one-dimensional nonnegative counts.
-        second_population (np.ndarray): Same-length counts, either another group or a total.
+        first_population (np.ndarray): Nonempty, one-dimensional nonnegative population data 
+        both counts and fractional data are accepted).
+        second_population (np.ndarray): Same-length inputs, either another group or a total.
             Fractional estimates are accepted. Functions requiring whole people check that separately.
 
     Returns:
@@ -62,7 +65,8 @@ def prepare_population_vectors(
             Neither input is modified, and callers must not mutate the returned arrays.
 
     Raises:
-        ValueError: Shapes differ, arrays are empty, or counts are negative or nonfinite.
+        ValueError: Shapes differ, arrays are empty, or inputs are negative or nonfinite.
+        TypeError: attributes are pd.NA or a or a non-numeric object such as a dict.
     """
     first_population = np.asarray(first_population, dtype=float)
     second_population = np.asarray(second_population, dtype=float)
@@ -115,12 +119,11 @@ def prepare_weight_matrix(weight_matrix: WeightMatrix, node_count: int) -> spars
 
     Args:
         weight_matrix (WeightMatrix): Dense or CSR spatial weights, including signed weights.
-        node_count (int): Required number of rows and columns.
+        node_count (int): Required number of rows and columns (the graph's count of nodes).
 
     Returns:
-        sparse.csr_array: Float weights with duplicate entries combined on a private copy when needed.
-            Already canonical inputs may share storage; no input is mutated.
-
+        sparse.csr_array: Float weights in canonical form (duplicates summed, indices sorted), 
+            on a copy if the input wasn't already canonical. No input is mutated.
     Raises:
         ValueError: Matrix shape or weight values are invalid.
     """

@@ -109,7 +109,7 @@ def morans_I(weight_matrix: WeightMatrix, population_shares: np.ndarray) -> floa
           \frac{\langle z,z\rangle_W}{\langle z,z\rangle}.
     $$
 
-    For nonnegative weights, the denominator is the usual sum of weights. This matches Luc
+    For nonnegative weights, Moran's I is normalized is the usual sum of weights $\sum_{i,j} W_{ij}$, matching
     Anselin's GeoDa workbook (2020), "Global Spatial Autocorrelation (1)", Concept / Moran's I:
     https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i.
 
@@ -157,7 +157,10 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
     - ADJACENCY: $W=A$.
     - WITH_SELF: $W=I+A$.
     - ROW_STANDARDIZED: $W_{ij}=A_{ij}/d_i$, with zero rows for isolated nodes.
-    - NEGATIVE_LAPLACIAN: $W=A-\operatorname{diag}(d)$.
+    - NEGATIVE_LAPLACIAN: $W=A-\operatorname{diag}(d)$. 
+        (The negative, as opposed to nonnegative, Laplacian is used to ensure that 
+        trends in Moran's I directionally agree between L and the other weights.
+        Here we differ from Duchin, Murphy, and Weighill (2003) who use the nonnegative Laplacian)
     - METROPOLIS: for adjacent, distinct nodes, use
 
     $$
@@ -220,7 +223,8 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
         diagonal = 1 - np.asarray(weights.sum(axis=1)).ravel()
         return weights + sparse.diags_array(diagonal)
 
-    raise ValueError("Use distance_morans_I() for distance-based weights")
+    raise ValueError(f"No graph weights defined for {weight_type!r}; distance types use distance_morans_I()")
+
 
 
 def distance_morans_I(
@@ -258,7 +262,7 @@ def distance_morans_I(
         float: Exact all-pairs score without storing the full distance matrix.
 
     Raises:
-        ValueError: Shares, coordinate dimensions, or the distance exponent are invalid.
+        ValueError: Shares, coordinate dimensions, nonfinite coordinates, or the distance exponent are invalid.
         UndefinedMetricError: Shares are constant or two distinct nodes have coincident centroids.
     """
     shares = _check_shares(population_shares)
@@ -279,7 +283,6 @@ def distance_morans_I(
     node_count = len(shares)
     rows_per_batch = max(1, 1_000_000 // node_count)
 
-    # ponytail: exact pairwise distances take O(n²) time; approximation requires a method decision.
     for start in range(0, node_count, rows_per_batch):
         stop = min(start + rows_per_batch, node_count)
         distances = cdist(coordinates[start:stop], coordinates)

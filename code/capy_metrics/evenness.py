@@ -38,6 +38,7 @@ def dissimilarity_from_graph(
         KeyError: A population attribute is missing.
         ValueError: Counts or spatial weights are invalid.
         UndefinedMetricError: The group or its complement has zero total population.
+        TypeError: A count is pd.NA or a non-numeric object such as a dict.
     """
     return dissimilarity(
         node_attribute_to_numpy_arr(graph, group1_attr),
@@ -56,17 +57,17 @@ def dissimilarity(
     Calculate dissimilarity from population-weighted deviations in group shares.
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
-    $\rho=\sum_i x_i/T$ the overall group share. The local share is $q_i=x_i/t_i$ by default. With
+    $\rho=\sum_i x_i/T$ the overall group share. The local share is $\rho_i=(Wx)_i/(Wt)_i$ by default. With
     spatial weights $W$, use the population share in each weighted local environment:
 
     $$
-    q_i = \frac{(Wx)_i}{(Wt)_i}.
+    \rho_i = \frac{(Wx)_i}{(Wt)_i}.
     $$
 
     The index is
 
     $$
-    D = \frac{\sum_i \frac{t_i}{T}\lvert q_i-\rho\rvert}{2\rho(1-\rho)}.
+    D = \frac{\sum_i \frac{t_i}{T}\lvert \rho_i-\rho\rvert}{2\rho(1-\rho)}.
     $$
 
     Without spatial weights, this is half the sum of absolute differences between the two groups'
@@ -75,7 +76,8 @@ def dissimilarity(
     This is the two-group discrete form of Reardon and O'Sullivan (2004), equation (12), p. 140.
     Their aspatial special case uses each unit as its own environment.
     DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x.
-    The public interface also accepts nonsymmetric $W$, beyond the paper's proximity assumptions.
+    The public interface also goes beyond the paper's proximity assumptions by accepting a $W$ that is nonsymmetric, 
+    has negative values, and has varying values on the diagonal.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts in unit order.
@@ -88,6 +90,7 @@ def dissimilarity(
 
     Raises:
         ValueError: Counts or matrix dimensions/weights are invalid, or an environment is empty.
+        TypeError: A count is pd.NA or a non-numeric object such as a dict.
         UndefinedMetricError: Either comparison group is absent.
     """
     shares, population_weights, overall_share = _prepare_evenness_inputs(
@@ -124,6 +127,7 @@ def entropy_index_from_graph(
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Counts or spatial weights are invalid.
+        TypeError: A count is pd.NA or a non-numeric object such as a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     return entropy_index(
@@ -143,19 +147,21 @@ def entropy_index(
     Calculate the entropy index (Theil's information index, H).
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
-    $\rho=\sum_i x_i/T$ the overall group share. The local share is $q_i=x_i/t_i$ by default. With
+    $\rho=\sum_i x_i/T$ the overall group share. The local share is $\rho_i=x_i/t_i$ by default. With
     spatial weights $W$, use the population share in each weighted local environment:
 
     $$
-    q_i = \frac{(Wx)_i}{(Wt)_i}.
+    \tilde{\rho_i} = \frac{(Wx)_i}{(Wt)_i}.
     $$
 
-    Define binary entropy with the convention $0\log 0=0$. The index is
+    Define binary entropy with the convention $0\log 0=0$. The aspatial index is
 
     $$
     h(q) = -q\log q-(1-q)\log(1-q), \qquad
-    H = 1-\frac{\sum_i \frac{t_i}{T}h(q_i)}{h(\rho)}.
+    H = 1-\frac{\sum_i \frac{t_i}{T}h(\tilde{\rho_i})}{h(\rho)}.
     $$
+
+    The spatial variant replaces $\rho_i$ with $\tilde{\rho_i}$.
 
     The score measures the relative reduction in diversity from the whole population to local
     environments. Smoothing retains the original population weights and overall share.
@@ -163,7 +169,8 @@ def entropy_index(
     Reardon and O'Sullivan (2004), equations (6)-(8), p. 139, give the spatial expression and its
     aspatial special case. Replacing their integrals by unit sums gives this implementation. The
     logarithm base cancels in the ratio. DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x.
-    The public interface also accepts nonsymmetric $W$, beyond the paper's proximity assumptions.
+    The public interface also goes beyond the paper's proximity assumptions by accepting a $W$ that is nonsymmetric, 
+    has negative values, and has varying values on the diagonal.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts in unit order.
@@ -177,6 +184,7 @@ def entropy_index(
 
     Raises:
         ValueError: Counts or spatial weights are invalid, or an environment has no population.
+        TypeError: A count is pd.NA or a non-numeric object such as a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     shares, population_weights, overall_share = _prepare_evenness_inputs(
@@ -214,6 +222,7 @@ def relative_diversity_from_graph(
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Counts or spatial weights are invalid.
+        TypeError: A count is pd.NA or a non-numeric object such as a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     return relative_diversity(
@@ -233,26 +242,29 @@ def relative_diversity(
     Calculate relative diversity by comparing local and overall two-group diversity.
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
-    $\rho=\sum_i x_i/T$ the overall group share. The local share is $q_i=x_i/t_i$ by default. With
+    $\rho=\sum_i x_i/T$ the overall group share. The local share is $\rho_i=x_i/t_i$ by default. With
     spatial weights $W$, use the population share in each weighted local environment:
 
     $$
-    q_i = \frac{(Wx)_i}{(Wt)_i}.
+    \tilde{\rho_i}= \frac{(Wx)_i}{(Wt)_i}.
     $$
 
     Let $j(q)$ be the probability that two independent population draws have different group
-    labels. The index is
+    labels. The aspatial index is
 
     $$
     j(q) = 2q(1-q), \qquad
-    R = 1-\frac{\sum_i \frac{t_i}{T}j(q_i)}{j(\rho)}.
+    R = 1-\frac{\sum_i \frac{t_i}{T}j(\rho_i)}{j(\rho)}.
     $$
+
+    The spatial variant replaces $\rho_i$ with $\tilde{\rho_i}$.
 
     Smoothing changes the environments being compared but retains the original population weights
     and overall share. This specializes Reardon and O'Sullivan (2004), equations (9)-(11), pp.
     139-140, to two groups and discrete units. The aspatial case uses each unit as its own local
-    environment. DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x. The public interface also
-    accepts nonsymmetric $W$, beyond the paper's proximity assumptions.
+    environment. DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x. The public interface also 
+    goes beyond the paper's proximity assumptions by accepting a $W$ that is nonsymmetric, has negative 
+    values, and has varying values on the diagonal.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts in unit order.
@@ -266,6 +278,7 @@ def relative_diversity(
 
     Raises:
         ValueError: Counts or spatial weights are invalid, or an environment has no population.
+        TypeError: A count is pd.NA or a non-numeric object such as a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     shares, population_weights, overall_share = _prepare_evenness_inputs(

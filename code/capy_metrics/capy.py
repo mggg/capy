@@ -56,7 +56,7 @@ def mean_within_group_fraction(
 
 
 def aspatial_capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str) -> float:
-    """Compute quadratic within-unit Capy from two disjoint population attributes.
+    """Compute within-unit Capy from two disjoint population attributes.
 
     See aspatial_capy() for the formula and interaction-counting convention.
 
@@ -66,7 +66,7 @@ def aspatial_capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str
         group2_attr (str): Second group's population attribute, not the total population.
 
     Returns:
-        float: Aspatial Capy score, including self-pairs.
+        float: Aspatial Capy score, including self-pairs on the exploded graph.
 
     Raises:
         KeyError: A population attribute is missing.
@@ -81,7 +81,7 @@ def aspatial_capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str
 
 def aspatial_capy(first_population: np.ndarray, second_population: np.ndarray) -> float:
     r"""
-    Calculate aspatial Capy, $C_0$ from within-unit inner products, including self-pairs.
+    Calculate aspatial Capy, $C_0$ from within-unit inner products, including self-pairs on the exploded graph.
 
     Let $x$ and $y$ be the population vectors for two disjoint groups. Within-unit interaction
     totals use the ordinary inner product $\langle u,v\rangle=\sum_i u_i v_i$:
@@ -96,7 +96,7 @@ def aspatial_capy(first_population: np.ndarray, second_population: np.ndarray) -
     C_0 = \frac{1}{2}\left(\frac{a}{a+b}+\frac{c}{c+b}\right).
     $$
 
-    This is $C_0$, the quadratic score at zero neighbor weight. It includes each person's
+    This is $C_0$, the score at zero neighbor weight. It includes each person's
     interaction with themselves, so it can differ from capy_exact() even when both ignore
     neighbors.
 
@@ -125,7 +125,7 @@ def aspatial_capy(first_population: np.ndarray, second_population: np.ndarray) -
 
 
 def capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str, lam: float = 1) -> float:
-    """Compute quadratic Capy with neighbor weight lam, retaining within-unit self-pairs.
+    """Compute Capy with neighbor weight lam, retaining self-pairs on the exploded graph.
 
     See capy() for the formula and interaction-counting convention.
 
@@ -160,7 +160,7 @@ def capy(
     lam: float = 1,
 ) -> float:
     r"""
-    Calculate Capy with parameterized neighbor weights, including self-pairs.
+    Calculate Capy with parameterized neighbor weights, including self-pairs on the eploded graph.
 
     Let $x$ and $y$ be the population vectors for two disjoint groups, $A$ the neighbor-weight
     matrix, and $\lambda=\text{lam}\geq0$. Write $\langle u,v\rangle_W=\langle u,Wv\rangle$, where
@@ -177,12 +177,12 @@ def capy(
     C = \frac{1}{2}\left(\frac{a}{a+b}+\frac{c}{c+b}\right).
     $$
 
-    These quadratic totals include self-pairs. Setting $\lambda=0$ gives aspatial_capy(); setting
+    These totals include self-pairs on the exploded graph. Setting $\lambda=0$ gives aspatial_capy(); setting
     $\lambda=1$ gives equal within-unit and neighbor multipliers. Use capy_exact() to exclude
-    self-pairs when the populations are integer counts.
+    self-pairs on the exploded graph when the populations are integer counts.
 
     Notes:
-        The quadratic formulation has the following properties:
+        This inner-product based formulation has the following properties:
 
         - Population-scale invariance: replacing $x,y$ by $s x,s y$ for any $s>0$ leaves the score
           unchanged, since all three interaction totals scale by $s^2$. The adjacency and
@@ -193,8 +193,8 @@ def capy(
           masses and is continuous wherever both denominators are positive.
 
         The distinct-person correction in capy_exact() introduces population-size dependence and
-        need not preserve the $1/2$ baseline. "Exact" refers to counting distinct people, not to a
-        universally more accurate score.
+        need not preserve the $1/2$ baseline. "Exact" refers to not counting self-loops on the exploded graph,
+        not to a universally more accurate score.
 
     Args:
         adjacency (WeightMatrix): Symmetric nonnegative neighbor weights with zero diagonal.
@@ -205,7 +205,7 @@ def capy(
             accepted.
 
     Returns:
-        float: Mean of the two group skews, including self-pairs.
+        float: Mean of the two group skews, including self-pairs on the exploded graph.
 
     Raises:
         ValueError: Counts, adjacency, or lam are invalid.
@@ -236,7 +236,7 @@ def capy(
 def capy_exact_from_graph(
     graph: nx.Graph, group1_attr: str, group2_attr: str, lam: float = 1
 ) -> float:
-    """Compute distinct-person Capy with neighbor weight lam and no self-pairs.
+    """Compute exact Capy with neighbor weight lam and no self-pairs on the exploded graph.
 
     See capy_exact() for the formula and interaction-counting convention.
 
@@ -249,8 +249,8 @@ def capy_exact_from_graph(
             Default: 1.
 
     Returns:
-        float: Exact Capy score. At zero neighbor weight, self-pairs are still excluded; this
-            differs from aspatial_capy().
+        float: Exact Capy score. At zero neighbor weight, self-pairs on the exploded graph 
+            are still excluded; this differs from aspatial_capy().
 
     Raises:
         KeyError: A population attribute is missing.
@@ -272,26 +272,26 @@ def capy_exact(
     lam: float = 1,
 ) -> float:
     r"""
-    Calculate Capy from distinct-person interactions with parameterized neighbor weights.
+    Calculate exact capy using parametrized neighbor weights without including self pairs on the exploded graph
 
     Let $x$ and $y$ be integer population vectors for two disjoint groups, $A$ the neighbor-weight
     matrix, and $\lambda=\text{lam}\geq0$. Write $\langle u,v\rangle=\sum_i u_i v_i$ and
-    $\langle u,v\rangle_A=\langle u,Av\rangle$. The interaction totals exclude self-pairs:
+    $\langle u,v\rangle_A=\langle u,Av\rangle$. The interaction totals exclude self-pairs on the exploded graph:
 
     $$ \begin{aligned}
     a &= \sum_i x_i(x_i-1)+\lambda \langle x,x\rangle_A, \\
     b &= \langle x,y\rangle+\lambda \langle x,y\rangle_A, \\
     c &= \sum_i y_i(y_i-1)+\lambda \langle y,y\rangle_A. \end{aligned} $$
 
-    Capy is the mean of the two groups' same-group interaction fractions:
+    Exact Capy is the mean of the two groups' same-group interaction fractions:
 
     $$
-    C = \frac{1}{2}\left(\frac{a}{a+b}+\frac{c}{c+b}\right).
+    C_{exact} = \frac{1}{2}\left(\frac{a}{a+b}+\frac{c}{c+b}\right).
     $$
 
     Same-group totals count ordered pairs of distinct people. Between-group pairs need no
     self-pair correction. At $\lambda=0$, only within-unit interactions remain, but the result can
-    differ from aspatial_capy(), which includes self-pairs.
+    differ from aspatial_capy(), which includes self-pairs on the exploded graph.
 
     Args:
         adjacency (WeightMatrix): Symmetric nonnegative neighbor weights with zero diagonal.
@@ -303,7 +303,7 @@ def capy_exact(
 
     Returns:
         float: Mean of X-skew and Y-skew. The same-group terms subtract each group's population to
-            exclude self-pairs; the between-group inner product is unchanged.
+            exclude self-pairs on the exploded graph; the between-group inner product is unchanged.
 
     Raises:
         ValueError: Counts, adjacency, or lam are invalid, including fractional counts.
@@ -316,7 +316,7 @@ def capy_exact(
     if np.any(first_population != np.floor(first_population)) or np.any(
         second_population != np.floor(second_population)
     ):
-        raise ValueError("Distinct-person Capy scores require integer population counts")
+        raise ValueError("Exact capy scores require integer population counts")
 
     adjacency = _prepare_capy_adjacency(adjacency, len(first_population), lam)
     first_group_distinct_pairs = float(
@@ -345,7 +345,7 @@ def _prepare_capy_adjacency(
     Args:
         adjacency (WeightMatrix): Neighbor weights; self-pairs are handled by the score formula.
         node_count (int): Required row and column count, matching both population vectors.
-        lam (float): Neighbor-interaction multiplier in I + lam*A.
+        lam (float): Neighbor-interaction multiplier in $I + \lambda A$.
 
     Returns:
         sparse.csr_array: Finite nonnegative symmetric weights with zero diagonal.
