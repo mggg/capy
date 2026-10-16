@@ -318,6 +318,7 @@ def test_nhgis_boundary_download_retry_reuses_submission(tmp_path, monkeypatch):
     assert get.call_count == 2
 
 
+@pytest.mark.parametrize("initial_block_status", ["queued", "produced"])
 @pytest.mark.parametrize(
     "block_status,max_wait_minutes,expected_checks,expected_waits,expected_type",
     [
@@ -333,6 +334,7 @@ def test_nhgis_boundary_download_retry_reuses_submission(tmp_path, monkeypatch):
 def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
     tmp_path,
     monkeypatch,
+    initial_block_status,
     block_status,
     max_wait_minutes,
     expected_checks,
@@ -380,9 +382,13 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
             status_checks.append(number)
             if number == 1:
                 return "completed"
-            return "queued" if status_checks.count(2) == 1 else block_status
+            return initial_block_status if status_checks.count(2) == 1 else block_status
 
         def get_extract_info(self, number, collection):
+            if number == 2:
+                assert status_checks.count(2) > 1
+                assert block_status == "completed"
+
             return {
                 "extractDefinition": submissions[number - 1],
                 "downloadLinks": {"tableData": {"url": "https://example.org/data?token=private"}},
@@ -409,6 +415,8 @@ def test_pending_block_retries_preserve_completed_tract_and_saved_submissions(
     assert isinstance(outcome.file_results[1], expected_type)
     if isinstance(outcome.file_results[1], PendingFile):
         assert isinstance(outcome.file_results[1].pending_extract.status, NhgisExtractStatus)
+        expected_status = initial_block_status if max_wait_minutes == 0 else block_status
+        assert outcome.file_results[1].pending_extract.status == NhgisExtractStatus(expected_status)
     assert outcome.complete == (expected_type is ReadyFile)
     assert len(submissions) == 2
     assert status_checks == expected_checks

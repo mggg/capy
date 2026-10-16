@@ -50,7 +50,6 @@ Its definitions are stored in [`figure_style.py`](../code/plotting/figure_style.
 | Banana yellow       | `#ffe135` |
 | Light blue          | `#add8e6` |
 
-
 ## National score histories
 
 The `national` figure set shows segregation-score histories for the configured study areas. Its
@@ -95,8 +94,8 @@ Relative result and figure paths start at the repository root. A relative `--con
 starts at the shell’s current directory unless the option is omitted and the command uses the
 repository’s `code/configs/replication.yaml`. Reruns replace matching outputs.
 
-For `national`, preparation computes and validates all four history tables before saving any of
-them. A selection or cohort-check failure therefore leaves existing tables unchanged. Writes are
+For `national`, preparation computes and validates the history cohorts before saving any of them.
+A selection or cohort-check failure therefore leaves existing tables unchanged. Writes are
 sequential, however, so a failure during saving can leave an incomplete set that requires another
 preparation run before plotting.
 
@@ -224,7 +223,7 @@ of this definition table, selected as described in their respective sections.
 Eligible study areas have a definition population strictly above 100,000 in the configured
 vintage. The top ten are the ten most populous eligible areas, with geographic ID breaking ties,
 chosen before any score-based filtering. Each metric's histories then keep the eligible areas with
-a finite score in every supported configured year, subject to the historical exclusion below, so
+a finite score in every supported configured year, subject to the historical exclusions below, so
 each metric has its own fixed cohort. A top-ten area without a complete history would appear in
 the legend without a line. Pale lines show individual areas, and the blue mean gives each area
 equal weight.
@@ -234,13 +233,52 @@ tables alongside the other scores, which use graphs filtered to positive White-p
 population, as described under
 [population filtering](national_pipeline/05_graph_construction.md#population-filtering-and-adjacency).
 
+### Historical population coverage
+
+CBSA tract histories that include 1980 require at least 90% population coverage in that year.
+Coverage is the total population assigned to the fixed metro's 1980 tracts, after the boundary
+join and crew exclusions but before removing units with no White or Black residents, divided by
+the sum of its member counties' original 1980 populations. It does not use the metro's later
+definition population or measure land-area coverage. The same eligible metros are used throughout
+the compared years, for both White–Black and White–POC, with each metric still requiring finite
+scores throughout its history. Later-only histories and other study-area types are unaffected.
+
+Preparation reads the configured processed population folder's `1980/counties/` tables and the
+configured study-area folder's `summary.parquet`. These must be prepared before running
+`python code/run_experiment.py national --config code/configs/replication.yaml`. A missing input
+file stops preparation. A missing county code, unavailable assigned population, or zero county
+denominator makes that metro ineligible and is recorded explicitly. The
+[Dade/Miami-Dade name and code change](https://www.census.gov/programs-surveys/geography/technical-documentation/county-changes.1990.html)
+is resolved by reading 1980 code `12025` for current code `12086`. Other county codes are matched
+directly to the fixed definition's member roster; no historical boundary crosswalk or population
+imputation is applied. In particular, Denver's denominator remains unavailable because
+[Broomfield was formed from parts of four counties in 2001](https://www.census.gov/programs-surveys/geography/technical-documentation/county-changes.2000.html).
+Ratios above one remain visible because historical county definitions and representative-point
+tract assignment can disagree. This is an estimated coverage screen, not a claim that historical
+boundaries align exactly or that remaining coverage bias is absent.
+
+Alongside `trajectory_rows.parquet`, preparation saves three comparison files in the same
+`results/national/processed_data/history/<study_area_label>/` folder:
+
+- `1980_cbsa_population_coverage.csv`: numerator, denominator, population-source county codes,
+  missing county codes, fraction, threshold, and eligibility status for every defined metro,
+  including those below the separate definition-population threshold.
+- `trajectory_rows_without_coverage_cutoff.parquet`: complete histories retaining the other rules,
+  including the two-node exclusion, but omitting the 90% screen.
+- `historical_coverage_comparison.csv`: restricted and unrestricted cohort sizes and equal-area
+  mean scores by year, resolution, population comparison, and metric, with their difference.
+
+The screen changes only the main national history figures. Pipeline metrics and other national
+analyses retain their own documented selections. The comparison files allow the effect of the 90%
+choice to be inspected without altering the underlying scores.
+
 ## Two-node historical graphs
 
-When the configuration uses 2020 CBSA definitions and includes 1980, both White–Black and White–POC tract histories
-exclude the following five CBSAs from every plotted year and all selected history scores. The
-exclusion applies to both individual trajectories and the mean across metros. It leaves the
-pipeline graphs and metric tables intact. Later-only histories and other study-area definitions do
-not apply this exclusion.
+When the configuration uses 2020 CBSA definitions and includes 1980, both White–Black and
+White–POC tract histories exclude the following five CBSAs from every plotted year and all
+selected history scores. The exclusion applies to both individual trajectories and the mean across
+metros. It leaves the pipeline graphs and metric tables intact. Later-only histories and other
+study-area definitions do not apply this exclusion.
 
 | CBSA code | Metro                           |
 | --------- | ------------------------------- |

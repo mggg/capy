@@ -60,6 +60,11 @@ def test_national_commands_prepare_once_then_plot_without_pipeline_access(tmp_pa
         lambda *_: (pd.DataFrame(scores), definitions_df, pd.DataFrame(outcomes)),
     )
     monkeypatch.setattr(
+        prepare_national_results,
+        "read_1980_cbsa_coverage",
+        lambda *_: pd.DataFrame({"study_area_id": area_ids, "eligible": True}),
+    )
+    monkeypatch.setattr(
         sys, "argv", ["run_experiment.py", "national", "--data-directory", str(tmp_path)]
     )
     run_experiment.main()
@@ -75,6 +80,7 @@ def test_national_commands_prepare_once_then_plot_without_pipeline_access(tmp_pa
         pytest.fail("Plotting must consume saved inputs without preparing or rewriting them")
 
     monkeypatch.setattr(prepare_national_results, "read_national_figure_inputs", reject_preparation)
+    monkeypatch.setattr(prepare_national_results, "read_1980_cbsa_coverage", reject_preparation)
     monkeypatch.setattr(pd, "read_parquet", read_prepared_table)
     monkeypatch.setattr(pd.DataFrame, "to_parquet", reject_preparation)
     monkeypatch.setattr(pd.DataFrame, "to_csv", reject_preparation)

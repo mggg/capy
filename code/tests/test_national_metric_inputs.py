@@ -262,6 +262,11 @@ def test_history_outputs_keep_cohorts_legends_and_filenames_together(tmp_path, m
         "read_national_figure_inputs",
         lambda *_: (scores_df, definitions_df, graph_summary_df),
     )
+    monkeypatch.setattr(
+        prepare_national_results,
+        "read_1980_cbsa_coverage",
+        lambda *_: pd.DataFrame({"study_area_id": definitions_df.study_area_id, "eligible": True}),
+    )
     prepare_national_results.prepare_national_figure_data(
         PipelineConfig(
             study_area_type=StudyAreaType.CBSA,
@@ -536,9 +541,12 @@ def test_configured_histories_read_saved_scores_and_render_selected_years(
     "vintage,years,excluded",
     [(2020, (1980, 1990), True), (2020, (1990, 2020), False), (2010, (1980, 1990), False)],
 )
-def test_two_node_exclusions_only_apply_to_1980_histories_of_2020_cbsas(vintage, years, excluded):
+@pytest.mark.parametrize("comparison", list(PopulationComparison))
+def test_two_node_exclusions_only_apply_to_1980_histories_of_2020_cbsas(
+    vintage, years, excluded, comparison
+):
     config = PipelineConfig(
-        population_comparisons=(PopulationComparison.WHITE_BLACK,),
+        population_comparisons=(comparison,),
         study_area_type=StudyAreaType.CBSA,
         study_area_vintage=vintage,
         census_geography_levels=(GeographyLevel.TRACT,),
@@ -552,7 +560,7 @@ def test_two_node_exclusions_only_apply_to_1980_histories_of_2020_cbsas(vintage,
                 "study_area_id": area_id,
                 "census_year": year,
                 "geography_level": "tracts",
-                "population_comparison": "white_black",
+                "population_comparison": comparison,
                 "metric": "capy",
                 "value": 0.6,
             }
@@ -566,6 +574,7 @@ def test_two_node_exclusions_only_apply_to_1980_histories_of_2020_cbsas(vintage,
         prepare_national_results.select_history_years(config),
         (MetricName.CAPY,),
         config,
+        eligible_1980_cbsa_ids=set(definitions_df.study_area_id),
     )
     assert ("cbsa_25940" not in set(histories_df.study_area_id)) == excluded
     assert "cbsa_10000" in set(histories_df.study_area_id)
@@ -638,6 +647,11 @@ def test_additional_histories_keep_population_exclusions_and_independent_cohorts
         prepare_national_results,
         "read_national_figure_inputs",
         lambda *_: (scores_df, definitions_df, graph_summary_df),
+    )
+    monkeypatch.setattr(
+        prepare_national_results,
+        "read_1980_cbsa_coverage",
+        lambda *_: pd.DataFrame({"study_area_id": definitions_df.study_area_id, "eligible": True}),
     )
     prepare_national_results.prepare_national_figure_data(config, tmp_path, tmp_path)
     histories_df = pd.read_parquet(tmp_path / "trajectory_rows.parquet")

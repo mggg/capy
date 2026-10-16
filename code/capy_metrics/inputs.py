@@ -15,17 +15,34 @@ def node_attribute_to_numpy_arr(graph: nx.Graph, attribute: str) -> np.ndarray:
         attribute (str): Required numeric attribute on every node.
 
     Returns:
-        np.ndarray: One-dimensional float array in graph node order. 
-            Metric functions will check its validity as demographic data.
+        np.ndarray: Float array in graph node order. Scalar attributes produce one dimension;
+            metric functions check dimensions and validity as demographic data.
 
     Raises:
         KeyError: A node lacks the requested attribute.
-        ValueError: An attribute cannot be converted to a number.
-        TypeError: attributes are pd.NA or a or a non-numeric object such as a dict.
-        """
-    return np.asarray(
-        [attributes[attribute] for _, attributes in graph.nodes(data=True)], dtype=float
+        ValueError: An attribute is complex or cannot be converted to a real number.
+        TypeError: An attribute is pd.NA or a nonnumeric object such as a dict.
+    """
+    return convert_real_values_to_float(
+        np.asarray([attributes[attribute] for _, attributes in graph.nodes(data=True)])
     )
+
+
+def convert_real_values_to_float(values: np.ndarray) -> np.ndarray:
+    """Convert real values without silently discarding complex components.
+
+    Missing values may become NaN; callers check finiteness and domain constraints.
+    Complex values raise ValueError, including complex scalars inside object arrays.
+    Other conversion errors propagate from NumPy. Input arrays are not modified.
+    """
+    values = np.asarray(values)
+
+    if np.iscomplexobj(values) or (
+        values.dtype == object and any(np.iscomplexobj(value) for value in values.flat)
+    ):
+        raise ValueError("Expected real values, not complex values")
+
+    return np.asarray(values, dtype=float)
 
 
 def build_csr_adjacency_matrix(graph: nx.Graph) -> sparse.csr_array:
@@ -55,8 +72,8 @@ def prepare_population_vectors(
     """Convert two aligned population vectors to floats and reject invalid inputs.
 
     Args:
-        first_population (np.ndarray): Nonempty, one-dimensional nonnegative population data 
-        both counts and fractional data are accepted).
+        first_population (np.ndarray): Nonempty, one-dimensional nonnegative real population
+            data; both counts and fractional estimates are accepted.
         second_population (np.ndarray): Same-length inputs, either another group or a total.
             Fractional estimates are accepted. Functions requiring whole people check that separately.
 
@@ -65,11 +82,11 @@ def prepare_population_vectors(
             Neither input is modified, and callers must not mutate the returned arrays.
 
     Raises:
-        ValueError: Shapes differ, arrays are empty, or inputs are negative or nonfinite.
-        TypeError: attributes are pd.NA or a or a non-numeric object such as a dict.
+        ValueError: Shapes differ, arrays are empty, or inputs are complex, negative, or nonfinite.
+        TypeError: Values are pd.NA or nonnumeric objects such as dicts.
     """
-    first_population = np.asarray(first_population, dtype=float)
-    second_population = np.asarray(second_population, dtype=float)
+    first_population = convert_real_values_to_float(first_population)
+    second_population = convert_real_values_to_float(second_population)
 
     if (
         first_population.ndim != 1
@@ -122,11 +139,18 @@ def prepare_weight_matrix(weight_matrix: WeightMatrix, node_count: int) -> spars
         node_count (int): Required number of rows and columns (the graph's count of nodes).
 
     Returns:
-        sparse.csr_array: Float weights in canonical form (duplicates summed, indices sorted), 
+        sparse.csr_array: Float weights in canonical form (duplicates summed, indices sorted),
             on a copy if the input wasn't already canonical. No input is mutated.
     Raises:
         ValueError: Matrix shape or weight values are invalid.
     """
+    if sparse.issparse(weight_matrix):
+        if np.iscomplexobj(weight_matrix):
+            raise ValueError("Expected real weights, not complex weights")
+    else:
+        # Convert missing dense entries to NaN before sparse construction can omit them.
+        weight_matrix = convert_real_values_to_float(np.asarray(weight_matrix))
+
     weights = sparse.csr_array(weight_matrix, dtype=float)
 
     if not weights.has_canonical_format:

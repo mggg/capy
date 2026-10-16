@@ -25,3 +25,9 @@ class UndefinedMetricError(ValueError):
         """Retain the reason and use its value as the exception message."""
         self.reason = reason
         super().__init__(reason.value)
+
+    def __reduce__(
+        self,
+    ) -> tuple[type["UndefinedMetricError"], tuple[UndefinedMetricReason], dict[str, object]]:
+        """Reconstruct with the reason enum and preserve additional exception state."""
+        return type(self), (self.reason,), self.__dict__

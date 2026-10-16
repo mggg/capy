@@ -176,9 +176,9 @@ def _relative_majority_edge_totals(
     Invalid counts or adjacency raise ValueError. A missing class raises UndefinedMetricError.
     The first class includes shares equal to the overall share.
     """
+    shares = population_shares(group_population, total_population)
     group_population = np.asarray(group_population, dtype=float)
     total_population = np.asarray(total_population, dtype=float)
-    shares = population_shares(group_population, total_population)
     adjacency = prepare_weight_matrix(adjacency, len(shares))
 
     if (

@@ -57,33 +57,35 @@ def dissimilarity(
     Calculate dissimilarity from population-weighted deviations in group shares.
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
-    $\rho=\sum_i x_i/T$ the overall group share. The local share is $\rho_i=(Wx)_i/(Wt)_i$ by default. With
-    spatial weights $W$, use the population share in each weighted local environment:
-
-    $$
-    \rho_i = \frac{(Wx)_i}{(Wt)_i}.
-    $$
-
-    The index is
+    $\rho=\sum_i x_i/T$ the overall group share. The unit share is $\rho_i=x_i/t_i$. The aspatial
+    index is
 
     $$
     D = \frac{\sum_i \frac{t_i}{T}\lvert \rho_i-\rho\rvert}{2\rho(1-\rho)}.
     $$
 
-    Without spatial weights, this is half the sum of absolute differences between the two groups'
-    distributions across units. Smoothing changes local shares but retains $t_i/T$ and $\rho$.
+    This is half the sum of absolute differences between the two groups' distributions across
+    units. With spatial weights $W$, define the share in each weighted local environment:
+
+    $$
+    \tilde{\rho}_i = \frac{(Wx)_i}{(Wt)_i}.
+    $$
+
+    The spatial variant $\tilde D$ replaces $\rho_i$ with $\tilde{\rho}_i$ while retaining $t_i/T$
+    and $\rho$.
 
     This is the two-group discrete form of Reardon and O'Sullivan (2004), equation (12), p. 140.
     Their aspatial special case uses each unit as its own environment.
     DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x.
-    The public interface also goes beyond the paper's proximity assumptions by accepting a $W$ that is nonsymmetric, 
-    has negative values, and has varying values on the diagonal.
+    The public interface also accepts nonnegative $W$ that is nonsymmetric or has a nonuniform
+    diagonal (including zero entries), beyond the paper's proximity assumptions. Every local
+    environment must have positive population.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts in unit order.
         total_population (np.ndarray): Positive totals including that group, in the same order.
         spatial_weights (WeightMatrix | None): Optional nonnegative local-environment matrix.
-            Default: None. Smoothing changes local shares but keeps original population weights.
+            Default: None, equivalent to $W=I$, using each unit's own share.
 
     Returns:
         float: Dissimilarity index.
@@ -147,21 +149,22 @@ def entropy_index(
     Calculate the entropy index (Theil's information index, H).
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
-    $\rho=\sum_i x_i/T$ the overall group share. The local share is $\rho_i=x_i/t_i$ by default. With
-    spatial weights $W$, use the population share in each weighted local environment:
-
-    $$
-    \tilde{\rho_i} = \frac{(Wx)_i}{(Wt)_i}.
-    $$
+    $\rho=\sum_i x_i/T$ the overall group share. The unit share is $\rho_i=x_i/t_i$.
 
     Define binary entropy with the convention $0\log 0=0$. The aspatial index is
 
     $$
     h(q) = -q\log q-(1-q)\log(1-q), \qquad
-    H = 1-\frac{\sum_i \frac{t_i}{T}h(\tilde{\rho_i})}{h(\rho)}.
+    H = 1-\frac{\sum_i \frac{t_i}{T}h(\rho_i)}{h(\rho)}.
     $$
 
-    The spatial variant replaces $\rho_i$ with $\tilde{\rho_i}$.
+    With spatial weights $W$, define the share in each weighted local environment:
+
+    $$
+    \tilde{\rho}_i = \frac{(Wx)_i}{(Wt)_i}.
+    $$
+
+    The spatial variant $\tilde H$ replaces $\rho_i$ with $\tilde{\rho}_i$.
 
     The score measures the relative reduction in diversity from the whole population to local
     environments. Smoothing retains the original population weights and overall share.
@@ -169,15 +172,16 @@ def entropy_index(
     Reardon and O'Sullivan (2004), equations (6)-(8), p. 139, give the spatial expression and its
     aspatial special case. Replacing their integrals by unit sums gives this implementation. The
     logarithm base cancels in the ratio. DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x.
-    The public interface also goes beyond the paper's proximity assumptions by accepting a $W$ that is nonsymmetric, 
-    has negative values, and has varying values on the diagonal.
+    The public interface also accepts nonnegative $W$ that is nonsymmetric or has a nonuniform
+    diagonal (including zero entries), beyond the paper's proximity assumptions. Every local
+    environment must have positive population.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts in unit order.
         total_population (np.ndarray): Positive totals including that group, in the same order.
         spatial_weights (WeightMatrix | None): Optional nonnegative local-environment matrix.
-            Default: None. Original population weights and overall share are retained after
-            smoothing.
+            Default: None, equivalent to $W=I$, using each unit's own share. Original population
+            weights and overall share are retained after smoothing.
 
     Returns:
         float: Entropy index without clipping negative spatial values.
@@ -242,12 +246,7 @@ def relative_diversity(
     Calculate relative diversity by comparing local and overall two-group diversity.
 
     Let $x_i$ be the group population, $t_i$ the total population, $T=\sum_i t_i$, and
-    $\rho=\sum_i x_i/T$ the overall group share. The local share is $\rho_i=x_i/t_i$ by default. With
-    spatial weights $W$, use the population share in each weighted local environment:
-
-    $$
-    \tilde{\rho_i}= \frac{(Wx)_i}{(Wt)_i}.
-    $$
+    $\rho=\sum_i x_i/T$ the overall group share. The unit share is $\rho_i=x_i/t_i$.
 
     Let $j(q)$ be the probability that two independent population draws have different group
     labels. The aspatial index is
@@ -257,21 +256,28 @@ def relative_diversity(
     R = 1-\frac{\sum_i \frac{t_i}{T}j(\rho_i)}{j(\rho)}.
     $$
 
-    The spatial variant replaces $\rho_i$ with $\tilde{\rho_i}$.
+    With spatial weights $W$, define the share in each weighted local environment:
+
+    $$
+    \tilde{\rho}_i = \frac{(Wx)_i}{(Wt)_i}.
+    $$
+
+    The spatial variant $\tilde R$ replaces $\rho_i$ with $\tilde{\rho}_i$.
 
     Smoothing changes the environments being compared but retains the original population weights
     and overall share. This specializes Reardon and O'Sullivan (2004), equations (9)-(11), pp.
     139-140, to two groups and discrete units. The aspatial case uses each unit as its own local
-    environment. DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x. The public interface also 
-    goes beyond the paper's proximity assumptions by accepting a $W$ that is nonsymmetric, has negative 
-    values, and has varying values on the diagonal.
+    environment. DOI: https://doi.org/10.1111/j.0081-1750.2004.00150.x. The public interface also
+    accepts nonnegative $W$ that is nonsymmetric or has a nonuniform diagonal (including zero
+    entries), beyond the paper's proximity assumptions. Every local environment must have positive
+    population.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts in unit order.
         total_population (np.ndarray): Positive totals including the group, in the same order.
         spatial_weights (WeightMatrix | None): Optional nonnegative local-environment matrix.
-            Default: None. Original population weights and overall share are retained after
-            smoothing.
+            Default: None, equivalent to $W=I$, using each unit's own share. Original population
+            weights and overall share are retained after smoothing.
 
     Returns:
         float: Relative diversity index, including negative spatial values.

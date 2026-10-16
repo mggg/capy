@@ -18,6 +18,11 @@ from national_pipeline.derived_file_paths import build_study_area_label
 from national_pipeline.geography_types import GeographyLevel, StudyAreaType
 from national_pipeline.pipeline_config import PipelineConfig, select_graph_node_geographies
 
+from .measure_historical_coverage import (
+    compare_coverage_cohort_means,
+    read_1980_cbsa_coverage,
+)
+
 PRIMARY_METRICS = (MetricName.MORAN_ROW_STANDARDIZED, MetricName.DISSIMILARITY, MetricName.CAPY)
 HISTORY_METRICS = (
     *PRIMARY_METRICS,
@@ -159,6 +164,9 @@ def prepare_national_figure_data(
     """Save the national figure inputs without rendering images.
 
     Histories require finite scores throughout the period and definition population above 100,000.
+    CBSA tract histories including 1980 also require at least 90% mapped 1980 population coverage.
+    Save the county-based coverage accounting and the otherwise identical unrestricted histories
+    with a comparison of cohort sizes and equal-area mean scores.
     Scores come from the completed pipeline metric tables. Image sets use the configured years,
     geography levels, comparisons, and history metrics; unavailable 1980 resolutions are omitted.
 
@@ -213,15 +221,50 @@ def prepare_national_figure_data(
     check_figure_score_selection(
         national_scores_df, selected_graph_summary_df, history_selections_df, selected_metrics
     )
-    histories_df = select_score_histories(
-        national_scores_df, history_years_by_selection, selected_metrics, config
+    all_area_ids = set(eligible_areas_df[StudyAreaColumn.STUDY_AREA_ID])
+    unrestricted_histories_df = select_score_histories(
+        national_scores_df,
+        history_years_by_selection,
+        selected_metrics,
+        config,
+        eligible_1980_cbsa_ids=all_area_ids,
     )
+    coverage_df = None
+    histories_df = unrestricted_histories_df
+
+    if config.study_area_type == StudyAreaType.CBSA and any(
+        level == GeographyLevel.TRACT and 1980 in years
+        for (_, level), years in history_years_by_selection.items()
+    ):
+        coverage_df = read_1980_cbsa_coverage(config, repository_root, definitions_df)
+        eligible_ids = set(coverage_df.loc[coverage_df.eligible, "study_area_id"])
+        histories_df = select_score_histories(
+            national_scores_df,
+            history_years_by_selection,
+            selected_metrics,
+            config,
+            eligible_1980_cbsa_ids=eligible_ids,
+        )
 
     data_directory.mkdir(parents=True, exist_ok=True)
     national_scores_df.to_parquet(data_directory / "national_score_rows.parquet", index=False)
     eligible_areas_df.to_parquet(data_directory / "eligible_areas.parquet", index=False)
     top_10_metros_df.to_parquet(data_directory / "top_10_metros.parquet", index=False)
     histories_df.to_parquet(data_directory / "trajectory_rows.parquet", index=False)
+    coverage_path = data_directory / "1980_cbsa_population_coverage.csv"
+    unrestricted_path = data_directory / "trajectory_rows_without_coverage_cutoff.parquet"
+    comparison_path = data_directory / "historical_coverage_comparison.csv"
+
+    if coverage_df is not None:
+        coverage_df.to_csv(coverage_path, index=False)
+        unrestricted_histories_df.to_parquet(unrestricted_path, index=False)
+        compare_coverage_cohort_means(unrestricted_histories_df, histories_df).to_csv(
+            comparison_path, index=False
+        )
+    else:
+        coverage_path.unlink(missing_ok=True)
+        unrestricted_path.unlink(missing_ok=True)
+        comparison_path.unlink(missing_ok=True)
 
 
 def check_figure_score_selection(
@@ -265,6 +308,8 @@ def select_score_histories(
     history_years_by_selection: dict[tuple[PopulationComparison, GeographyLevel], list[int]],
     selected_metrics: tuple[MetricName, ...],
     config: PipelineConfig,
+    *,
+    eligible_1980_cbsa_ids: set[str] | None = None,
 ) -> pd.DataFrame:
     """Select complete histories for each image set, applying historical coverage exclusions.
 
@@ -273,14 +318,17 @@ def select_score_histories(
         history_years_by_selection (dict): Required years per selected comparison and level.
         selected_metrics (tuple[MetricName, ...]): Scores requested for each image set.
         config (PipelineConfig): Study-area type and vintage governing historical exclusions.
+        eligible_1980_cbsa_ids (set[str] | None): Fixed coverage cohort for CBSA tract histories
+            containing 1980. Required for those histories; otherwise unused. Supply all area IDs
+            only when preparing the explicit comparison without the coverage cutoff.
 
     Returns:
         pd.DataFrame: Complete cohorts in selection/metric order, with each cohort sorted by area
             and year.
 
     Raises:
-        ValueError: Area/year identities repeat, a selected cohort is empty, or no scores
-            are selected.
+        ValueError: Required coverage eligibility is absent, area/year identities repeat,
+            a selected cohort is empty, or no scores are selected.
     """
     cohort_tables = []
 
@@ -289,6 +337,20 @@ def select_score_histories(
             scores_df[MetricColumn.COMPARISON].eq(comparison)
             & scores_df[MembershipColumn.GEOGRAPHY_LEVEL].eq(level)
         ]
+
+        if (
+            config.study_area_type == StudyAreaType.CBSA
+            and 1980 in years
+            and level == GeographyLevel.TRACT
+        ):
+            if eligible_1980_cbsa_ids is None:
+                raise ValueError(
+                    "1980 CBSA tract histories require population coverage eligibility"
+                )
+
+            selected_df = selected_df.loc[
+                selected_df[StudyAreaColumn.STUDY_AREA_ID].isin(eligible_1980_cbsa_ids)
+            ]
 
         if (
             config.study_area_type == StudyAreaType.CBSA

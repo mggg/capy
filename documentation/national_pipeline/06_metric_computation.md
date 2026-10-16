@@ -67,8 +67,9 @@ shares use a unit together with its neighbors:
 
 $$\widetilde p_i=\frac{((I+A)x)_i}{((I+A)t)_i}.$$
 
-$I+A$ is the standard matrix used in the calculations, while in the paper uses $\widetilde p_i=\frac{(Wx)_i}{(Wt)_i}$
-to leave an option of other matrix types open.
+$I+A$ is the standard matrix used in the calculations. Note that that definition 
+$\widetilde p_i=\frac{(Wx)_i}{(Wt)_i}$ used in the main paper permits the use of alterntive 
+(spatial) weight matrices.
 
 Distance weights instead use all pairs of distinct nodes and their saved geometric centroids in
 ESRI:102003. These centroids can lie outside the polygons, as explained in the [graph

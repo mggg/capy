@@ -261,3 +261,63 @@ def test_relative_majority_ties_do_not_depend_on_population_array_dtype():
             total_population = np.array([10, 10, 10], dtype=dtype)
 
             assert numerical_function(adjacency, group_population, total_population) == graph_score
+
+
+@pytest.mark.parametrize("dtype", [complex, object])
+def test_complex_population_inputs_are_rejected_before_conversion(dtype):
+    population = np.array([1 + 3j, 2], dtype=dtype)
+    original_population = population.copy()
+
+    with pytest.raises(ValueError, match="real"):
+        metrics.dissimilarity(population, np.array([4, 4]))
+
+    graph = nx.path_graph(2)
+    nx.set_node_attributes(graph, dict(enumerate(population)), "group")
+    nx.set_node_attributes(graph, 4, "total")
+
+    with pytest.raises(ValueError, match="real"):
+        metrics.dissimilarity_from_graph(graph, "group", "total")
+
+    np.testing.assert_array_equal(population, original_population)
+
+
+@pytest.mark.parametrize(
+    "weights",
+    [
+        np.array([[0, None], [1, 0]], dtype=object),
+        np.array([[0, 1 + 2j], [1, 0]]),
+        sparse.csr_array([[0, 1 + 2j], [1, 0]]),
+    ],
+)
+def test_missing_or_complex_weights_cannot_produce_a_score(weights):
+    with pytest.raises(ValueError):
+        metrics.morans_I(weights, np.array([0.2, 0.8]))
+
+
+@pytest.mark.parametrize("reason", list(metrics.UndefinedMetricReason))
+def test_undefined_metric_errors_preserve_reason_message_and_notes_when_pickled(reason):
+    import pickle
+
+    original = metrics.UndefinedMetricError(reason)
+    original.add_note("Area 10000")
+    restored = pickle.loads(pickle.dumps(original))
+
+    assert type(restored) is type(original)
+    assert restored.reason is reason
+    assert restored.args == original.args
+    assert str(restored) == str(original)
+    assert restored.__notes__ == original.__notes__
+
+
+def test_complex_values_are_rejected_by_assortativity_and_direct_moran_inputs():
+    weights = sparse.csr_array([[0, 1], [1, 0]])
+    complex_population = np.array([0.2 + 3j, 0.8])
+
+    with pytest.raises(ValueError, match="real"):
+        metrics.edge_assortativity(weights, complex_population, np.array([1, 1]))
+
+    with pytest.raises(ValueError, match="real"):
+        metrics.morans_I(weights, complex_population)
+
+    with pytest.raises(ValueError, match="real"):
+        metrics.distance_morans_I(np.array([[0, 0], [1 + 2j, 0]]), np.array([0.2, 0.8]))

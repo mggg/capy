@@ -11,6 +11,7 @@ from .errors import UndefinedMetricError, UndefinedMetricReason
 from .inputs import (
     WeightMatrix,
     build_csr_adjacency_matrix,
+    convert_real_values_to_float,
     node_attribute_to_numpy_arr,
     population_shares,
     prepare_weight_matrix,
@@ -23,8 +24,8 @@ class MoranWeightType(StrEnum):
     ADJACENCY is binary A; WITH_SELF is I+A; ROW_STANDARDIZED divides A's rows by degree.
     NEGATIVE_LAPLACIAN is A-diag(degree), with absolute-weight normalization in morans_I().
     METROPOLIS uses 1/max(degree_i, degree_j) on edges and fills each diagonal to row sum one.
-    INVERSE_DISTANCE and INVERSE_SQUARED_DISTANCE row-standardize 1/d and 1/d² respectively,
-    using projected centroid coordinates and zero self-weights.
+    INVERSE_DISTANCE and INVERSE_SQUARED_DISTANCE row-standardize 1/d and 1/d² respectively, using
+    projected centroid coordinates and zero self-weights.
     """
 
     ADJACENCY = "adjacency"
@@ -70,7 +71,8 @@ def morans_I_from_graph(
     Raises:
         KeyError: A required population or coordinate attribute is missing.
         ValueError: Counts, graph structure, weights, or coordinates are invalid.
-        UndefinedMetricError: Shares are constant, weights have no neighbors, or centroids coincide.
+        UndefinedMetricError: Shares are constant, weights have no neighbors, or centroids
+            coincide.
     """
     shares = population_shares(
         node_attribute_to_numpy_arr(graph, group1_attr),
@@ -109,8 +111,9 @@ def morans_I(weight_matrix: WeightMatrix, population_shares: np.ndarray) -> floa
           \frac{\langle z,z\rangle_W}{\langle z,z\rangle}.
     $$
 
-    For nonnegative weights, Moran's I is normalized is the usual sum of weights $\sum_{i,j} W_{ij}$, matching
-    Anselin's GeoDa workbook (2020), "Global Spatial Autocorrelation (1)", Concept / Moran's I:
+    For nonnegative weights, Moran's I is normalized is the usual sum of weights
+    $\sum_{i,j} W_{ij}$, matching Anselin's GeoDa workbook (2020),
+    "Global Spatial Autocorrelation (1)", Concept / Moran's I:
     https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i.
 
     Absolute-weight normalization for signed matrices is a separate convention here. In particular,
@@ -157,10 +160,11 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
     - ADJACENCY: $W=A$.
     - WITH_SELF: $W=I+A$.
     - ROW_STANDARDIZED: $W_{ij}=A_{ij}/d_i$, with zero rows for isolated nodes.
-    - NEGATIVE_LAPLACIAN: $W=A-\operatorname{diag}(d)$. 
-        (The negative, as opposed to nonnegative, Laplacian is used to ensure that 
-        trends in Moran's I directionally agree between L and the other weights.
-        Here we differ from Duchin, Murphy, and Weighill (2003) who use the nonnegative Laplacian)
+    - NEGATIVE_LAPLACIAN: $W=A-\operatorname{diag}(d)$.
+      For a fixed graph, larger scores mean less edge disagreement relative to share variance.
+      This sign choice does not guarantee matching trends under other weight matrices.
+      Duchin, Murphy, and Weighill (2023) use the nonnegative Laplacian:
+      https://doi.org/10.1137/21M1466773.
     - METROPOLIS: for adjacent, distinct nodes, use
 
     $$
@@ -174,8 +178,8 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
 
     Args:
         adjacency (WeightMatrix): Symmetric binary adjacency with zero diagonal.
-        weight_type (MoranWeightType): One of the five adjacency conventions. Distance weights
-            are evaluated with distance_morans_I() so a full pairwise matrix is unnecessary.
+        weight_type (MoranWeightType): One of the five adjacency conventions. Distance weights are
+            evaluated with distance_morans_I() so a full pairwise matrix is unnecessary.
 
     Returns:
         sparse.csr_array: Requested weights. Row-standardized adjacency leaves isolated rows zero.
@@ -223,8 +227,9 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
         diagonal = 1 - np.asarray(weights.sum(axis=1)).ravel()
         return weights + sparse.diags_array(diagonal)
 
-    raise ValueError(f"No graph weights defined for {weight_type!r}; distance types use distance_morans_I()")
-
+    raise ValueError(
+        f"No graph weights defined for {weight_type!r}; distance types use distance_morans_I()"
+    )
 
 
 def distance_morans_I(
@@ -241,8 +246,8 @@ def distance_morans_I(
     \qquad W_{ii}=0.
     $$
 
-    With $z_i=p_i-\bar p$ for population shares $p_i$ and their unweighted mean $\bar p$, the score
-    simplifies because every row sums to one. Using $\langle u,v\rangle=\sum_i u_i v_i$ and
+    With $z_i=p_i-\bar p$ for population shares $p_i$ and their unweighted mean $\bar p$, the
+    score simplifies because every row sums to one. Using $\langle u,v\rangle=\sum_i u_i v_i$ and
     $\langle u,v\rangle_W=\langle u,Wv\rangle$ gives
 
     $$
@@ -253,20 +258,22 @@ def distance_morans_I(
     standardization are weight choices here, rather than a separate score from that reference.
 
     Args:
-        centroid_coordinates (np.ndarray): Finite projected coordinates in share order, shape (n, 2).
+        centroid_coordinates (np.ndarray): Finite projected coordinates in share order, shape (n,
+            2).
         population_shares (np.ndarray): Nonempty one-dimensional shares between zero and one.
-        distance_power (float): Positive finite exponent in 1/distance**power. Default: 1.
-            Use 2 for inverse-squared distance. Self-weights are zero.
+        distance_power (float): Positive finite exponent in 1/distance**power. Default: 1. Use 2
+            for inverse-squared distance. Self-weights are zero.
 
     Returns:
         float: Exact all-pairs score without storing the full distance matrix.
 
     Raises:
-        ValueError: Shares, coordinate dimensions, nonfinite coordinates, or the distance exponent are invalid.
+        ValueError: Shares, coordinate dimensions, nonfinite coordinates, or the distance exponent
+            are invalid.
         UndefinedMetricError: Shares are constant or two distinct nodes have coincident centroids.
     """
     shares = _check_shares(population_shares)
-    coordinates = np.asarray(centroid_coordinates, dtype=float)
+    coordinates = convert_real_values_to_float(centroid_coordinates)
 
     if coordinates.shape != (len(shares), 2) or not np.isfinite(coordinates).all():
         raise ValueError("Centroids must be finite x/y coordinates in population-share order")
@@ -301,7 +308,7 @@ def distance_morans_I(
 
 def _check_shares(population_shares: np.ndarray) -> np.ndarray:
     """Return finite one-dimensional shares in [0, 1], or raise ValueError for malformed input."""
-    shares = np.asarray(population_shares, dtype=float)
+    shares = convert_real_values_to_float(population_shares)
 
     if shares.ndim != 1 or shares.size == 0 or not np.isfinite(shares).all():
         raise ValueError("Population shares must be a nonempty finite vector")

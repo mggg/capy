@@ -340,7 +340,7 @@ def capy_exact(
 def _prepare_capy_adjacency(
     adjacency: WeightMatrix, node_count: int, lam: float
 ) -> sparse.csr_array:
-    """Check symmetric neighbor weights and a finite nonnegative lambda.
+    r"""Check symmetric neighbor weights and a finite nonnegative lambda.
 
     Args:
         adjacency (WeightMatrix): Neighbor weights; self-pairs are handled by the score formula.

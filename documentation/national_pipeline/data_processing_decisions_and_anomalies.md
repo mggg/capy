@@ -24,11 +24,11 @@ guides explain how to run each stage and where its outputs are saved.
 `WHITE` and `BLACK` count non-Hispanic White-alone and Black-alone residents in every year, and
 `POC = TOTPOP - WHITE` counts everyone else, including Hispanic residents of any race. POC is
 therefore not a synonym for Black population. White–Black comparisons use the combined White and
-Black population as their universe, while White–POC comparisons use total population. Modern Census
-tables and the 1990 NHGIS tables supply non-Hispanic counts directly. The 1980 race categories
-include Hispanic residents, so processing subtracts the Hispanic White and Black counts. The
-[population guide](02_population_processing.md#population-definitions-and-checks) lists the source
-columns.
+Black population as their universe, while White–POC comparisons use total population. Modern
+Census tables and the 1990 NHGIS tables supply non-Hispanic counts directly. The 1980 race
+categories include Hispanic residents, so processing subtracts the Hispanic White and Black
+counts. The [population guide](02_population_processing.md#population-definitions-and-checks)
+lists the source columns.
 
 Processing preserves every source record, including units with no residents, and never replaces a
 missing count with zero. It uses only whole-area counts, never urban or rural components, and
@@ -47,8 +47,8 @@ null counts, which are not estimates of zero population. See
 
 The 1980 tract tables do not cover every resident, because national tract/BNA coverage expanded
 after 1980. Their sums are therefore checked only as an upper bound on the state totals and
-recorded as `partial_1980_tract_coverage_bounded_by_state`. Residents outside that coverage are not
-assigned to nearby tracts, so 1980 tract graphs describe the covered population only.
+recorded as `partial_1980_tract_coverage_bounded_by_state`. Residents outside that coverage are
+not assigned to nearby tracts, so 1980 tract graphs describe the covered population only.
 
 ## Geometry repair
 
@@ -149,9 +149,10 @@ is also unproven.
 
 For 1990 water blocks, the documented three-digit block number ending in `99`, with any permitted
 water suffix, establishes the expected absence of a population row. Suffix `Z` identifies ship
-crews ([1990 area classifications](https://usa.ipums.org/usa/resources/voliii/pubdocs/1990/cph4/appdxa.pdf),
-Block entry) and is not treated as water. Other empty blocks are identified by exact Census block IDs in
-the [original STF1B geographic-zero tables](https://www2.census.gov/census_1990/stf1b/) and
+crews
+([1990 area classifications](https://usa.ipums.org/usa/resources/voliii/pubdocs/1990/cph4/appdxa.pdf),
+Block entry) and is not treated as water. Other empty blocks are identified by exact Census block
+IDs in the [original STF1B geographic-zero tables](https://www2.census.gov/census_1990/stf1b/) and
 [PL tables](https://www2.census.gov/census_1990/1990_PL94-171/). Population and housing counts
 must both be zero. These sources classify unmatched polygons without adding population rows or
 changing the NHGIS population table.
@@ -169,8 +170,9 @@ represent any land area or any specific area of water"
 p. 10-8). In machine-readable files, the suffix makes a six-digit tract code ending in `99`. The
 1990 definitions also give crew blocks the suffix `Z` and place them in `.99` tracts or BNAs
 ([1990 area classifications](https://usa.ipums.org/usa/resources/voliii/pubdocs/1990/cph4/appdxa.pdf),
-Block, Block Numbering Area, and Census Tract entries). In the obtained data, the tract and BNA boundary files have no
-polygons for crew units, but the 1990 block-group and block files have small placeholder polygons.
+Block, Block Numbering Area, and Census Tract entries). In the obtained data, the tract and BNA
+boundary files have no polygons for crew units, but the 1990 block-group and block files have
+small placeholder polygons.
 
 The join therefore identifies crew tracts by a tract code ending in `99`. It identifies crew block
 groups and blocks by their parent tract code (`TRACTA`), and blocks also by `Z`. The 1980 code
@@ -204,27 +206,27 @@ county on its roster; a missing county stops the run instead of producing a part
 Maximum-city selection uses only 2020 geography. It counts 2020 blocks whose published internal
 point lies strictly inside a place, restricted to the counties in the metro, and never prorates
 population by polygon area. Census-designated places compete alongside incorporated places, and
-ties go to the smallest place GEOID. The selected city keeps its whole boundary, including any part
-outside the selecting metro, so its score describes 2020 geography rather than the historical
+ties go to the smallest place GEOID. The selected city keeps its whole boundary, including any
+part outside the selecting metro, so its score describes 2020 geography rather than the historical
 residents of a modern city outline.
 
-Census units are assigned whole: a unit belongs to a study area when the area's boundary covers the
-unit's representative point, including a point exactly on the boundary. Units are never clipped
-and their populations never divided, so a unit can belong to several overlapping study areas.
-Counts across study areas must not be summed as though they described distinct residents.
+Census units are assigned whole: a unit belongs to a study area when the area's boundary covers
+the unit's representative point, including a point exactly on the boundary. Units are never
+clipped and their populations never divided, so a unit can belong to several overlapping study
+areas. Counts across study areas must not be summed as though they described distinct residents.
 
 ## Graph construction
 
-Each graph keeps only units with `WHITE + BLACK > 0`, and both population comparisons use that same
-graph, so White–POC results exclude POC residents of removed units. See
+Each graph keeps only units with `WHITE + BLACK > 0`, and both population comparisons use that
+same graph, so White–POC results exclude POC residents of removed units. See
 [population filtering](05_graph_construction.md#population-filtering-and-adjacency) for how the
 archives account for those losses.
 
 Adjacency is rook adjacency between whole retained polygons: two units are neighbors when their
 shared boundary has positive length. When filtering or islands leave separate components, a
 minimum-distance spanning tree joins them using the shortest distance between full polygons, with
-ties broken by geographic ID. A graph with `k` components receives `k - 1` artificial edges, marked
-`artificial: true`, and the metrics count them like any other edge.
+ties broken by geographic ID. A graph with `k` components receives `k - 1` artificial edges,
+marked `artificial: true`, and the metrics count them like any other edge.
 
 Distance-weighted Moran scores use each unit's geometric centroid, even when the centroid falls
 outside its polygon. How often that happens, and how much it affects the scores, has not been
@@ -253,12 +255,12 @@ contains 3,393 positive-area pairs, with 235 exceeding the 100 mm² warning tole
 
 | Inputs                                | Positive overlap pairs | Above 100 mm² |
 | ------------------------------------- | ---------------------: | ------------: |
-| 1980 counties                         | 58                     | 7             |
-| 1980 tracts and BNAs                  | 219                    | 219           |
-| 1990 counties                         | 61                     | 7             |
-| 1990 block groups                     | 1,369                  | 0             |
-| 1990 blocks                           | 1,686                  | 2             |
-| 1990 tracts and every 2000–2020 level | 0                      | 0             |
+| 1980 counties                         |                     58 |             7 |
+| 1980 tracts and BNAs                  |                    219 |           219 |
+| 1990 counties                         |                     61 |             7 |
+| 1990 block groups                     |                  1,369 |             0 |
+| 1990 blocks                           |                  1,686 |             2 |
+| 1990 tracts and every 2000–2020 level |                      0 |             0 |
 
 Every observed pair also overlaps in the original NHGIS files, so neither the `buffer(0)` repair
 nor parallel graph construction introduces them. All 219 tract-level pairs cross county boundaries
@@ -267,17 +269,16 @@ Stafford counties in the Washington metro; a larger area alone does not establis
 records are duplicated. These observations concern retained units within the configured CBSAs, not
 unselected or filtered units, boundary gaps, or pairs in different CBSAs.
 
-Trimming tests show how much the convention can matter. In the tested county and 1990 block graphs,
-trimming either side of the larger overlaps preserved every final connection and every
+Trimming tests show how much the convention can matter. In the tested county and 1990 block
+graphs, trimming either side of the larger overlaps preserved every final connection and every
 non-distance metric, although in one Duluth block graph a lost geographic connection was restored
-only as an artificial edge. County centroid changes moved distance-weighted Moran scores by at most
-0.000107 and Duluth's by at most 5.5 × 10⁻¹⁴; Chicago's distance variants were not recomputed. For
-1980
-tracts, trimming in all 33 affected metros preserved memberships and counts but changed final
-connections in nine metros. The largest `capy_exact` change was 0.001174; a larger Moran change of
-about −0.018 came from a microscopic gap that the subtraction itself introduced. Every connection
-lost in the tract tests involved an overlap smaller than 50 m², so overlap area alone does not
-predict metric sensitivity.
+only as an artificial edge. County centroid changes moved distance-weighted Moran scores by at
+most 0.000107 and Duluth's by at most 5.5 × 10⁻¹⁴; Chicago's distance variants were not
+recomputed. For 1980 tracts, trimming in all 33 affected metros preserved memberships and counts
+but changed final connections in nine metros. The largest `capy_exact` change was 0.001174; a
+larger Moran change of about −0.018 came from a microscopic gap that the subtraction itself
+introduced. Every connection lost in the tract tests involved an overlap smaller than 50 m², so
+overlap area alone does not predict metric sensitivity.
 
 These tests show that clipping can change adjacency without correcting population counts. They
 provide no authoritative replacement border or bound on metric error, and national rankings and
@@ -304,10 +305,11 @@ They weight areas equally and apply no population-size threshold. See
 
 ## Figure selections
 
-The national figures apply their own selections to the pipeline's metric tables without changing
-those tables: a population threshold on metros, a fixed cohort per metric of metros with a finite
-score in every decade, and the exclusion of five CBSAs whose 1980 tract graphs have only two
-nodes. The [figure guide](../figures.md#selections-and-interpretation)
-explains both.
+The national figures apply the following selections to the pipeline's metric tables without
+changing those tables: a population threshold on metros, a fixed cohort per metric of metros with
+a finite score in every decade, a 90% population-coverage screen for CBSA tract histories
+containing 1980, and the exclusion of five CBSAs whose 1980 tract graphs have only two nodes. The
+[figure guide](../figures.md#selections-and-interpretation) explains these selections and the
+saved comparison with unrestricted coverage.
 
 [tiger-1992-documentation]: https://assets.nhgis.org/original-data/gis/TIGER_1992_TechDoc.pdf

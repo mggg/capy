@@ -9,8 +9,9 @@
 #
 # Run settings belong here. Source URLs, Census population column names, and NHGIS
 # table names live in the Python request definitions under code/national_pipeline/retrieve_data/.
-# Most settings have a documented default setting that applies when the key is left out entirely.
-# Setting the key to None or Null will raise an error, not give the default.
+# Defaults apply when a key is omitted. YAML null is accepted only where documented
+# (for example, env_file); it does not generally request the default. None is a string in
+# YAML, so a path setting can interpret it as a path named None.
 
 # Which Census units will become graph nodes? Choose one or more of:
 #   counties      Each county or county-equivalent is one unit.

@@ -9,6 +9,7 @@ import pytest
 from national_pipeline.geography_types import GeographyLevel, StudyAreaType
 from national_pipeline.join_geographies.join_population import (
     ExclusionReason,
+    apply_1990_zero_block_evidence,
     check_population_join_input,
     classify_1990_zero_population_blocks,
     join_population_to_boundaries,
@@ -170,6 +171,44 @@ def test_ship_crews_with_polygons_remain_in_exclusion_accounting(year, level, cr
             result.matched_geography_df[column].sum() + result.unmatched_population_df[column].sum()
             == population_df[column].sum()
         )
+
+
+@pytest.mark.parametrize("crew_population", [0, 7])
+def test_1990_zero_evidence_preserves_crew_accounting_or_rejects_conflicting_population(
+    crew_population,
+):
+    geographic_ids = ["G1000010000100101", "G1000010123499101"]
+    boundaries_df = build_boundary_table(geographic_ids)
+    boundaries_df["BOUNDARY_CENSUS_ID"] = ["10001000100101", "10001123499101"]
+    population_df = build_population_table(geographic_ids, [25, crew_population], 1990, "blocks")
+    population_df["TRACTA"] = ["000100", "123499"]
+
+    result = join_population_to_boundaries(boundaries_df, population_df, 1990, GeographyLevel.BLOCK)
+    original_matched_df = result.matched_geography_df.copy()
+    original_unmatched_boundaries_df = result.unmatched_boundaries_df.copy()
+    original_unmatched_population_df = result.unmatched_population_df.copy()
+    zero_population_block_ids = {"10001123499101"}
+
+    if crew_population > 0:
+        with pytest.raises(ValueError, match="contradicts"):
+            apply_1990_zero_block_evidence(result, zero_population_block_ids)
+    else:
+        classified_result = apply_1990_zero_block_evidence(result, zero_population_block_ids)
+        pd.testing.assert_frame_equal(classified_result.matched_geography_df, original_matched_df)
+        pd.testing.assert_frame_equal(
+            classified_result.unmatched_boundaries_df, original_unmatched_boundaries_df
+        )
+        pd.testing.assert_frame_equal(
+            classified_result.unmatched_population_df, original_unmatched_population_df
+        )
+        assert classified_result.unmatched_boundaries_df.EXCLUSION_REASON.tolist() == [
+            ExclusionReason.SHIP_CREW
+        ]
+        assert classified_result.unmatched_boundaries_df.KNOWN_TOTAL_POPULATION.tolist() == [0]
+
+    pd.testing.assert_frame_equal(result.matched_geography_df, original_matched_df)
+    pd.testing.assert_frame_equal(result.unmatched_boundaries_df, original_unmatched_boundaries_df)
+    pd.testing.assert_frame_equal(result.unmatched_population_df, original_unmatched_population_df)
 
 
 def test_configured_join_roundtrip_and_failed_rerun_remove_only_selected_outputs(tmp_path):

@@ -525,6 +525,9 @@ def apply_1990_zero_block_evidence(
     The reference reader excludes this ID from its empty-block evidence. If matched, the block
     must retain its 106 residents; GEOGRAPHY_NOTE records the conflict.
 
+    Excluded crew boundaries retain their classification and known population. Zero evidence
+    that contradicts a known positive population is rejected for matched and unmatched boundaries.
+
     Args:
         result (PopulationBoundaryJoin): Matched and unmatched 1990 blocks with normalized Census
             block IDs, left unchanged.
@@ -537,7 +540,8 @@ def apply_1990_zero_block_evidence(
             No input table is changed, including when validation fails.
 
     Raises:
-        ValueError: A matched NHGIS population contradicts the original zero-population record.
+        ValueError: A known NHGIS population contradicts the original zero-population record,
+            or the matched Queens block does not retain its documented 106 residents.
     """
     matched_geography_df = result.matched_geography_df.copy()
     known_empty_rows = matched_geography_df[BoundaryColumn.CENSUS_ID].isin(
@@ -567,6 +571,13 @@ def apply_1990_zero_block_evidence(
 
     boundaries_df = result.unmatched_boundaries_df.copy()
     known_empty_rows = boundaries_df[BoundaryColumn.CENSUS_ID].isin(list(zero_population_block_ids))
+
+    if boundaries_df.loc[known_empty_rows, JoinColumn.KNOWN_TOTAL_POPULATION].gt(0).any():
+        raise ValueError("NHGIS population contradicts an original zero-population block record")
+
+    known_empty_rows = known_empty_rows & boundaries_df[JoinColumn.EXCLUSION_REASON].ne(
+        ExclusionReason.SHIP_CREW.value
+    )
     boundaries_df.loc[known_empty_rows, JoinColumn.EXCLUSION_REASON] = (
         ExclusionReason.EMPTY_BLOCK_1990.value
     )
