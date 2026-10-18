@@ -284,14 +284,17 @@ def test_complex_population_inputs_are_rejected_before_conversion(dtype):
 @pytest.mark.parametrize(
     "weights",
     [
-        np.array([[0, None], [1, 0]], dtype=object),
-        np.array([[0, 1 + 2j], [1, 0]]),
-        sparse.csr_array([[0, 1 + 2j], [1, 0]]),
+        np.array([[0, None], [None, 0]], dtype=object),
+        np.array([[0, 1 + 2j], [1 + 2j, 0]]),
+        sparse.csr_array([[0, 1 + 2j], [1 + 2j, 0]]),
     ],
 )
 def test_missing_or_complex_weights_cannot_produce_a_score(weights):
     with pytest.raises(ValueError):
         metrics.morans_I(weights, np.array([0.2, 0.8]))
+
+    with pytest.raises(ValueError):
+        metrics.build_moran_weights(weights, metrics.MoranWeightType.ADJACENCY)
 
 
 @pytest.mark.parametrize("reason", list(metrics.UndefinedMetricReason))

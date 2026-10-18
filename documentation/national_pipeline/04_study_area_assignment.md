@@ -18,21 +18,18 @@ on race, connect graph components, or calculate metrics.
 
 ## Run the stage
 
-Run the pipeline with one configuration:
+With population processing and geographic joining complete, run assignment from the repository
+root using the same configuration:
 
 ```bash
-uv run --locked python code/reproduce.py --config code/configs/small_example.yaml
+uv run --locked python code/reproduce.py --config code/configs/small_example.yaml assign-study-areas
 ```
 
 The small example selects 2020 Delaware tracts and the county definitions needed to assign them.
 Use `code/configs/replication.yaml` for the paper's entire-CBSA study areas or
 `code/configs/max_city.yaml` for the selected cities. For other selections, adapt the
-[commented example](../../code/configs/example.yaml). If the preceding stages have completed, run
-assignment alone:
-
-```bash
-uv run --locked python code/reproduce.py --config code/configs/small_example.yaml assign-study-areas
-```
+[commented example](../../code/configs/example.yaml). If prerequisites are missing, run
+`retrieve process-population join-geographies` with that configuration first.
 
 The assignment stage reads existing inputs; `offline` and download-worker settings do not change
 its behavior.

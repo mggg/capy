@@ -28,13 +28,24 @@ class GraphNodeAttribute(StrEnum):
     CENTROID_Y = "centroid_y"
 
 
-def build_connected_graph(
-    units_df: gpd.GeoDataFrame, *, warn_on_polygon_overlaps: bool = True
-) -> tuple[Graph, pd.DataFrame]:
-    """Build a rook-adjacency graph, retaining units with positive White-plus-Black population.
+class GraphPopulationSupport(StrEnum):
+    """Population support for the shared study graph or a total-population sensitivity graph."""
 
-    Both White–Black and White–POC analysis use this graph. Units removed by the filter can have
-    other residents; their identities and all four population counts are returned separately.
+    WHITE_OR_BLACK = "WHITE + BLACK > 0"
+    TOTAL_POPULATION = "TOTPOP > 0"
+
+
+def build_connected_graph(
+    units_df: gpd.GeoDataFrame,
+    *,
+    warn_on_polygon_overlaps: bool = True,
+    population_support: GraphPopulationSupport = GraphPopulationSupport.WHITE_OR_BLACK,
+) -> tuple[Graph, pd.DataFrame]:
+    """Build a connected rook graph on the selected positive-population support.
+
+    The national pipeline uses the default White-plus-Black support for both comparisons.
+    Total-population support allows White–POC sensitivity analysis with all residents included.
+    Removed units' identities and all four population counts are returned separately.
     Geographic edges require a positive-length intersection, including polygon overlaps. Counts
     remain attached to unique Census records; overlapping shapes do not duplicate their counts.
     Added component connections are marked so removing them recovers geographic adjacency.
@@ -44,6 +55,8 @@ def build_connected_graph(
             study population columns. A defined CRS and valid polygon geometries are required.
         warn_on_polygon_overlaps (bool): Report overlaps above 100 mm²; defaults to True. False
             suppresses GerryChain overlap warnings without changing the graph or other warnings.
+        population_support (GraphPopulationSupport): Defaults to WHITE_OR_BLACK. TOTAL_POPULATION
+            retains every populated unit, including units with no White or Black residents.
 
     Returns:
         tuple[Graph, pd.DataFrame]: Connected graph and removed-unit counts. The graph records
@@ -55,6 +68,7 @@ def build_connected_graph(
         ValueError: Identities, population definitions, or polygons are invalid, or graph counts
             or connections fail their checks. Geometry-library exceptions also propagate.
     """
+    population_support = GraphPopulationSupport(population_support)
     check_graph_units(units_df)
     units_df = gpd.GeoDataFrame(
         units_df.to_crs("ESRI:102003")
@@ -62,10 +76,14 @@ def build_connected_graph(
         .sort_index(),
         crs="ESRI:102003",
     )
-    retained_mask = (
-        units_df[PopulationColumn.NON_HISPANIC_WHITE]
-        + units_df[PopulationColumn.NON_HISPANIC_BLACK]
-    ).gt(0)
+    if population_support == GraphPopulationSupport.WHITE_OR_BLACK:
+        retained_mask = (
+            units_df[PopulationColumn.NON_HISPANIC_WHITE]
+            + units_df[PopulationColumn.NON_HISPANIC_BLACK]
+        ).gt(0)
+    else:
+        retained_mask = units_df[PopulationColumn.TOTAL].gt(0)
+
     retained_units_df = units_df.loc[retained_mask]
     removed_units_df = pd.DataFrame(
         units_df.loc[~retained_mask, [GeographyColumn.GEOGRAPHIC_ID, *PopulationColumn]]
@@ -124,7 +142,7 @@ def build_connected_graph(
     connected_graph.graph.update(
         crs="ESRI:102003",
         adjacency="rook",
-        population_filter="WHITE + BLACK > 0",
+        population_filter=population_support.value,
         initial_component_count=initial_component_count,
         artificial_edge_count=expected_added_edges,
         input_unit_count=len(units_df),

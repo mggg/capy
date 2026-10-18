@@ -4,6 +4,8 @@ Functions ending in _from_graph read named node attributes. Their numerical coun
 aligned arrays and matrices, so callers can reuse prepared inputs. Every score function returns a
 float or raises UndefinedMetricError for a mathematical limitation. No function reads files,
 modifies its inputs, or depends on pipeline configuration or study-specific population names.
+Invalid numerical inputs raise ValueError; unsupported numeric types can raise TypeError during
+conversion. Missing graph attributes raise KeyError. UndefinedMetricError is a ValueError subclass.
 """
 
 from .assortativity import (

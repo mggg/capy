@@ -18,32 +18,30 @@ repairing geometries follow in a separate stage.
 
 ## Run the stage
 
-After choosing the inputs in a YAML configuration, use that same configuration to retrieve and
-process them. For example, run the Delaware tract example from the repository root:
+With the raw inputs in their configured folders, run population processing from the repository
+root using the same YAML configuration as retrieval:
 
 ```bash
-uv run --locked python code/reproduce.py --config code/configs/small_example.yaml retrieve
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml \
     process-population
 ```
 
-The first command retrieves Delaware's 2020 tract and county population and boundaries, together
-with the state tables and published totals needed to check the population counts. Counties are
-included because they define the example's study areas. The second reads the
-population inputs and saves the processed tables. If the raw inputs are already in their
-configured folders, run the second command directly; processing neither downloads files nor reads
-boundaries.
+The small example processes Delaware's 2020 tract and county populations, together with the state
+tables and published totals needed to check the counts. Counties define the example's study areas.
+If raw inputs are missing, run `retrieve` with the same configuration first. Processing reads the
+population inputs and saves derived tables; it neither downloads files nor reads boundaries.
 
-To process all supported modern tables, substitute `code/configs/modern_population.yaml` in both
-commands. That configuration includes counties, tracts, block groups, and blocks for 2000, 2010,
-and 2020, plus the 2020 places used for city selection. `code/configs/replication.yaml` covers the
-paper's CBSA analyses, including counties and tracts in 1980 and all four levels in 1990–2020. Use
+To process all supported modern tables, substitute `code/configs/modern_population.yaml` for both
+retrieval and processing. That configuration includes counties, tracts, block groups, and blocks
+for 2000, 2010, and 2020, plus the 2020 places used for city selection.
+`code/configs/replication.yaml` covers the paper's CBSA analyses, including counties and tracts in
+1980 and all four levels in 1990–2020. Use
 `code/configs/max_city.yaml` for the same years and levels with the additional place inputs needed
 to select cities.
 
-Both commands use the configured years, geography levels, and study-area selections. You can narrow
-processing with `file_path_patterns`, but each selected year still needs its state population table
-and published reference totals, even when the filter omits them. Modern years use the
+Retrieval and processing use the configured years, geography levels, and study-area selections.
+You can narrow processing with `file_path_patterns`, but each selected year still needs its state
+population table and published reference totals, even when the filter omits them. Modern years use the
 resident-population CSV, while 1980 and 1990 use their Census Working Paper 56 workbooks (Tables E-3
 and A-3 for 1980, Table E-1 for 1990). If a required reference is missing, processing stops and
 identifies the missing file.

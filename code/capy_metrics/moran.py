@@ -71,8 +71,9 @@ def morans_I_from_graph(
     Raises:
         KeyError: A required population or coordinate attribute is missing.
         ValueError: Counts, graph structure, weights, or coordinates are invalid.
-        UndefinedMetricError: Shares are constant, weights have no neighbors, or centroids
-            coincide.
+        TypeError: A population value or coordinate has an unsupported numeric type.
+        UndefinedMetricError: Shares are constant, weights have zero total absolute mass, or
+            distinct nodes have coincident centroids.
     """
     shares = population_shares(
         node_attribute_to_numpy_arr(graph, group1_attr),
@@ -111,7 +112,7 @@ def morans_I(weight_matrix: WeightMatrix, population_shares: np.ndarray) -> floa
           \frac{\langle z,z\rangle_W}{\langle z,z\rangle}.
     $$
 
-    For nonnegative weights, Moran's I is normalized is the usual sum of weights
+    For nonnegative weights, the normalization uses the usual sum of weights
     $\sum_{i,j} W_{ij}$, matching Anselin's GeoDa workbook (2020),
     "Global Spatial Autocorrelation (1)", Concept / Moran's I:
     https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i.
@@ -132,6 +133,7 @@ def morans_I(weight_matrix: WeightMatrix, population_shares: np.ndarray) -> floa
 
     Raises:
         ValueError: Shares or weights are invalid or their dimensions disagree.
+        TypeError: A share or weight has an unsupported numeric type, such as pd.NA or a dict.
         UndefinedMetricError: Shares are constant or the weights have zero total absolute mass.
     """
     shares = _check_shares(population_shares)
@@ -186,8 +188,11 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
 
     Raises:
         ValueError: Adjacency is invalid or a distance-weight type is requested.
+        TypeError: An adjacency entry has an unsupported numeric type.
     """
-    adjacency = sparse.csr_array(adjacency, dtype=float)
+    if not sparse.issparse(adjacency):
+        adjacency = np.asarray(adjacency)
+
     if adjacency.shape is None or len(adjacency.shape) != 2:
         raise ValueError("Adjacency must be a two-dimensional matrix")
 
@@ -270,6 +275,7 @@ def distance_morans_I(
     Raises:
         ValueError: Shares, coordinate dimensions, nonfinite coordinates, or the distance exponent
             are invalid.
+        TypeError: A share, coordinate, or distance exponent has an unsupported numeric type.
         UndefinedMetricError: Shares are constant or two distinct nodes have coincident centroids.
     """
     shares = _check_shares(population_shares)
@@ -307,7 +313,7 @@ def distance_morans_I(
 
 
 def _check_shares(population_shares: np.ndarray) -> np.ndarray:
-    """Return finite one-dimensional shares in [0, 1], or raise ValueError for malformed input."""
+    """Validate a nonempty real share vector in [0, 1]; numeric conversion errors propagate."""
     shares = convert_real_values_to_float(population_shares)
 
     if shares.ndim != 1 or shares.size == 0 or not np.isfinite(shares).all():

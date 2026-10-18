@@ -46,7 +46,7 @@ def convert_real_values_to_float(values: np.ndarray) -> np.ndarray:
 
 
 def build_csr_adjacency_matrix(graph: nx.Graph) -> sparse.csr_array:
-    """Build unweighted binary adjacency in graph node order, ignoring any edge attributes
+    """Build unweighted binary adjacency in graph node order, ignoring any edge attributes.
 
     Args:
         graph (nx.Graph): Nonempty undirected simple graph without self-loops. Disconnected
@@ -82,7 +82,8 @@ def prepare_population_vectors(
             Neither input is modified, and callers must not mutate the returned arrays.
 
     Raises:
-        ValueError: Shapes differ, arrays are empty, or inputs are complex, negative, or nonfinite.
+        ValueError: Shapes differ, arrays are empty, or values cannot be converted to floats or
+            are complex, negative, or nonfinite.
         TypeError: Values are pd.NA or nonnumeric objects such as dicts.
     """
     first_population = convert_real_values_to_float(first_population)
@@ -109,17 +110,19 @@ def prepare_population_vectors(
 
 
 def population_shares(group_population: np.ndarray, total_population: np.ndarray) -> np.ndarray:
-    """Divide group counts by positive totals after checking their shapes and containment.
+    """Divide group populations by positive totals after checking shapes and containment.
 
     Args:
-        group_population (np.ndarray): Nonnegative group counts.
+        group_population (np.ndarray): Nonnegative group counts or population masses.
         total_population (np.ndarray): Positive totals in the same order, including the group.
+            Fractional estimates are accepted for both vectors.
 
     Returns:
         np.ndarray: Finite shares between zero and one.
 
     Raises:
         ValueError: Counts are invalid, a total is zero, or a group count exceeds its total.
+        TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
     """
     group_population, total_population = prepare_population_vectors(
         group_population, total_population
@@ -141,8 +144,10 @@ def prepare_weight_matrix(weight_matrix: WeightMatrix, node_count: int) -> spars
     Returns:
         sparse.csr_array: Float weights in canonical form (duplicates summed, indices sorted),
             on a copy if the input wasn't already canonical. No input is mutated.
+
     Raises:
         ValueError: Matrix shape or weight values are invalid.
+        TypeError: A weight has an unsupported numeric type, such as pd.NA or a dict.
     """
     if sparse.issparse(weight_matrix):
         if np.iscomplexobj(weight_matrix):

@@ -12,6 +12,7 @@ import pytest
 from gerrychain import Graph
 from national_pipeline.assign_study_areas.run_assignment import assign_study_areas
 from national_pipeline.build_graphs.construct_graph import (
+    GraphPopulationSupport,
     build_connected_graph,
     report_unexpected_graph_warning,
 )
@@ -62,6 +63,30 @@ def test_filter_preserves_other_residents_in_accounting_and_connects_remaining_p
     assert graph.graph["initial_component_count"] == 2
     assert graph.nodes["10001000100"]["centroid_x"] == 0.5
     assert graph.nodes["10001000100"]["centroid_y"] == 0.5
+    pd.testing.assert_frame_equal(units_df, before_df)
+
+
+def test_total_population_support_keeps_poc_only_bridge_and_removes_empty_units():
+    units_df = sample_units()
+    units_df.loc[3, ["TOTPOP", "WHITE", "BLACK", "POC"]] = 0
+    before_df = units_df.copy()
+    graph, removed_df = build_connected_graph(
+        units_df, population_support=GraphPopulationSupport.TOTAL_POPULATION
+    )
+
+    assert set(graph) == set(units_df.GEOID[:3])
+    assert set(graph.edges) == {
+        ("10001000100", "10001000200"),
+        ("10001000200", "10001000300"),
+    }
+    assert graph.nodes["10001000200"]["POC"] == 7
+    assert graph.nodes["10001000200"]["WHITE"] == 0
+    assert graph.nodes["10001000200"]["BLACK"] == 0
+    assert graph.graph["population_filter"] == "TOTPOP > 0"
+    assert graph.graph["artificial_edge_count"] == 0
+    assert graph.graph["retained_population"]["TOTPOP"] == 37
+    assert graph.graph["removed_population"] == dict.fromkeys(["TOTPOP", "WHITE", "BLACK", "POC"], 0)
+    assert removed_df.GEOID.tolist() == ["10001000400"]
     pd.testing.assert_frame_equal(units_df, before_df)
 
 

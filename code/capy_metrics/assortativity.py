@@ -31,6 +31,7 @@ def edge_assortativity_from_graph(graph: nx.Graph, group1_attr: str, total_attr:
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Graph structure or population counts are invalid.
+        TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
         UndefinedMetricError: A class is absent or has no eligible connections.
     """
     return edge_assortativity(
@@ -80,6 +81,7 @@ def edge_assortativity(
 
     Raises:
         ValueError: Counts or adjacency are invalid.
+        TypeError: A population value or adjacency entry has an unsupported numeric type.
         UndefinedMetricError: A class is absent or has no eligible connections.
     """
     first_edges, between_edges, second_edges = _relative_majority_edge_totals(
@@ -106,6 +108,7 @@ def half_edge_assortativity_from_graph(graph: nx.Graph, group1_attr: str, total_
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Graph structure or population counts are invalid.
+        TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
         UndefinedMetricError: A class is absent or has no eligible connections.
     """
     return half_edge_assortativity(
@@ -159,6 +162,7 @@ def half_edge_assortativity(
 
     Raises:
         ValueError: Counts or adjacency are invalid.
+        TypeError: A population value or adjacency entry has an unsupported numeric type.
         UndefinedMetricError: A class is absent or has no eligible connections.
     """
     first_edges, between_edges, second_edges = _relative_majority_edge_totals(
@@ -173,8 +177,9 @@ def _relative_majority_edge_totals(
 ) -> tuple[float, float, float]:
     """Check inputs and count first-class, between-class, and second-class edges.
 
-    Invalid counts or adjacency raise ValueError. A missing class raises UndefinedMetricError.
-    The first class includes shares equal to the overall share.
+    Invalid numeric values or adjacency raise ValueError; numeric conversion errors propagate.
+    A missing class raises UndefinedMetricError. The first class includes shares equal to the
+    overall share.
     """
     shares = population_shares(group_population, total_population)
     group_population = np.asarray(group_population, dtype=float)

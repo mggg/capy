@@ -74,6 +74,7 @@ def calculate_graph_metrics(
         KeyError: A required population or coordinate attribute is absent.
         ValueError: The graph, coordinates, or numeric inputs/results are invalid. Only
             UndefinedMetricError is converted to a saved reason; other errors stop the run.
+        TypeError: A population or coordinate attribute has an unsupported numeric type.
     """
     if not graph or graph.is_directed() or graph.is_multigraph() or nx.number_of_selfloops(graph):
         raise ValueError(
@@ -117,6 +118,7 @@ def _prepare_selected_weights(
     Returns a weight matrix for each requested adjacency-based score, plus coordinates when
     distance scores are selected. Shared matrices are read-only by convention. Invalid graph
     structure or distance coordinates raise ValueError; missing coordinate attributes raise KeyError.
+    Numeric conversion errors propagate.
     """
     weights_by_metric = {}
     coordinates = None

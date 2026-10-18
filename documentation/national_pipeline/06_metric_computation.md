@@ -61,15 +61,14 @@ population removed by that filter stays excluded from White–POC metrics. The s
 accounting reports that loss; a metric does not silently restore those residents or treat them as
 zero.
 
-Let $A$ be the binary adjacency matrix with zero diagonal. All saved edges participate, including
-artificial connections, and no edge is weighted by shared boundary length. Local-environment
-shares use a unit together with its neighbors:
+For a nonnegative local-environment matrix $W$, define the weighted population share as
 
-$$\widetilde p_i=\frac{((I+A)x)_i}{((I+A)t)_i}.$$
+$$\widetilde p_i=\frac{(Wx)_i}{(Wt)_i}, \qquad (Wt)_i>0.$$
 
-$I+A$ is the standard matrix used in the calculations. Note that that definition 
-$\widetilde p_i=\frac{(Wx)_i}{(Wt)_i}$ used in the main paper permits the use of alterntive 
-(spatial) weight matrices.
+The pipeline uses $W=I+A$, where $A$ is binary adjacency with zero diagonal, so each environment
+contains a unit and its neighbors. All saved edges participate, including artificial connections,
+and no edge is weighted by shared boundary length. The reusable evenness functions also accept
+other nonnegative $W$; omitting spatial weights uses $W=I$.
 
 Distance weights instead use all pairs of distinct nodes and their saved geometric centroids in
 ESRI:102003. These centroids can lie outside the polygons, as explained in the [graph
@@ -127,7 +126,18 @@ logarithms in our two-group $H$, with no numerical effect because the base facto
 
 ### Capy scores
 
-Capy is easiest to interpret in terms of the exploded graph, which replaces each unit with one node per resident, joins every two residents of the same unit, and joins each resident to every resident of each adjacent unit (aspatial Capy keeps only the within-unit edges). Writing group X for the White residents counted by $x_i$ and group Y for the Black or POC residents counted by $y_i$, let $a$ and $c$ count ordered pairs of joined group X residents and of joined group Y residents, respectively, so each same-group edge is counted from both ends, and let $b$ count X–Y edges once each. The X-skew $a/(a+b)$ is the share of group X residents' pairs that are with other group X residents, and the Y-skew $c/(c+b)$ is the same share for group Y. Pairing a resident with themself gives a self-loop on the exploded graph; capy and aspatial_capy count these self-loops, while capy_exact excludes them. The reported Capy score is the mean of these two skews:
+For integer populations, Capy can be interpreted through an exploded graph: replace each unit
+with one node per resident, join every two residents of the same unit, and join each resident to
+every resident of each adjacent unit. Aspatial Capy keeps only within-unit interactions. The
+implementation calculates these totals from population vectors without building that graph.
+
+Writing X for the White residents counted by $x_i$ and Y for the Black or POC residents counted by
+$y_i$, let $a$ and $c$ count ordered same-group interactions, and let $b$ count X–Y interactions
+once each. An edge between distinct same-group residents contributes twice, once from each end;
+a self-pair contributes once. The X-skew $a/(a+b)$ is the fraction of X interactions that stay
+within X, and $c/(c+b)$ is the corresponding Y-skew. Pairing a resident with themself gives a
+self-loop on the exploded graph. `capy` and `aspatial_capy` include these self-pairs, while
+`capy_exact` excludes them. The reported score is the mean of the two skews:
 
 $$C=\frac12\left(\frac{a}{a+b}+\frac{c}{c+b}\right).$$
 
@@ -137,16 +147,18 @@ $$C=\frac12\left(\frac{a}{a+b}+\frac{c}{c+b}\right).$$
 | `capy`            | $a=\langle x,x\rangle_{I+A}$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}$                       |
 | `capy_exact`      | $a=\langle x,x\rangle_{I+A}-\sum_i x_i$, $b=\langle x,y\rangle_{I+A}$, $c=\langle y,y\rangle_{I+A}-\sum_i y_i$ |
 
-Aspatial Capy, $C_0$, includes self-pairs on the exploded graph and equals one-half when every unit has the
-same composition. Spatial `capy` adds neighboring-unit interactions to those
-within-unit terms. `capy_exact` instead excludes self-pairs on the exploded graph, counting only pairs between distinct people and giving equal weight on within-unit
-and neighboring-unit interactions. Its same-group totals count ordered
-pairs, or twice the number of same-group edges in the exploded graph. Subtracting the population
-removes self-pairs on the exploded graph; there is no corresponding subtraction from the between-group inner product.
+Aspatial Capy, $C_0$, equals one-half when every populated unit has the same composition and both
+groups are present. Spatial `capy` adds neighboring-unit interactions to those within-unit terms.
+`capy_exact` counts only pairs between distinct people, with equal within-unit and neighboring-unit
+weight in the pipeline. Subtracting each group's population removes its self-pairs; there is no
+corresponding subtraction from the between-group inner product.
 
-These conventions can even differ on a single unit. For a unit with one White and one Black resident, ordinary Capy is one-half, while exact Capy is zero because the only available
-neighbor is ofs the other type. The pipeline saves all three Capy scores with neighbor weight
-`lam=1`. Public Capy functions additionally accept other finite nonnegative neighbor weights.
+These conventions differ even on a single unit. For one White and one Black resident, ordinary
+Capy is one-half, while exact Capy is zero because each person's only other resident belongs to
+the other group. The pipeline saves all three scores and uses `lam=1` for the two spatial variants.
+Public spatial Capy functions also accept other finite nonnegative neighbor weights. Aspatial and
+ordinary spatial Capy accept fractional counts or population masses; the distinct-person
+correction in exact Capy requires integer counts.
 
 ### Moran scores
 
@@ -185,7 +197,8 @@ self-inclusive variant adds each unit's own squared deviation to the numerator, 
 no-self-neighbor statistic. Metropolis weights make connections to high-degree nodes weaker and
 use diagonal weights to complete each row to one. The Metropolis matrix matches
 [Xiao and Boyd (2004)](https://web.stanford.edu/~boyd/papers/pdf/fastavg.pdf), section 4.2, p. 70,
-and equation (18), p. 69; using it in a segregation statistic is our application following Duchin, Weighill and Murphy (2023)
+and equation (18), p. 69. Applying that matrix to population shares in Moran's formula is a
+separate choice of this implementation.
 
 The two distance variants row-standardize all off-diagonal inverse distances, with no distance
 cutoff. Squaring the inverse distance makes nearby units relatively more influential. These
@@ -194,7 +207,8 @@ a citation for Moran's statistic does not establish them as choices made in the 
 
 ### Relative-majority assortativity
 
-Unlike in Capy scores described above, a regular (not exploded) graph is used. Each unit joins the first class when its White share is at least the overall White share $\rho$;
+Relative-majority assortativity counts connections between geographic units in the ordinary
+graph. Each unit joins the first class when its White share is at least the overall White share $\rho$;
 all other units join the second class. This threshold is relative to the selected population
 comparison, rather than a fixed 50% threshold. Let $e_{XX},e_{XY},e_{YY}$ count undirected graph
 edges within or between those classes.
@@ -262,9 +276,13 @@ total_population = np.array([10, 12, 20])
 score = morans_I(weights, group_population / total_population)
 ```
 
-Matrix rows, matrix columns, and population vectors must use the same node order. The graph helpers
-use graph iteration order, including when labels are mixed types. `morans_I()` accepts a CSR matrix,
-a CSR array, or a dense weight matrix and uses its weights as supplied. It does not construct or
+Population inputs can be counts or fractional population masses, except that exact Capy requires
+whole-person counts. Every graph population attribute must be scalar. The attribute reader
+preserves graph iteration order, including when labels are mixed types; uniform array-valued
+attributes can produce a multidimensional array, which the metric functions reject.
+
+Matrix rows, matrix columns, and population vectors must use the same node order. `morans_I()`
+accepts a CSR matrix, a CSR array, or a dense weight matrix and uses its weights as supplied. It does not construct or
 row-standardize them. For inverse-distance scores, use `distance_morans_I(coordinates, shares,
 distance_power=1)` or `distance_power=2`. That function retains bounded distance batches; its graph
 counterpart accepts the distance choices in `MoranWeightType` and optional centroid attribute names.
@@ -287,7 +305,8 @@ For D, H, and R, supply `spatial_weights=` to evaluate local-environment shares 
 original population weights. Omitting it gives the aspatial index. The same optional argument
 works on their graph functions, with weights in graph node order. No functions alter the input
 graph, counts, or matrices, and none requires connectedness merely because the pipeline uses
-connected graphs. Adjacency graph functions require undirected simple graphs without self-loops.
+connected graphs. Adjacency graph functions require undirected simple graphs without self-loops
+and ignore edge attributes, including `weight`.
 Isolated rows in row-standardized adjacency remain zero, and Moran's normalization uses the weight
 mass that remains. A weight matrix with no nonzero entries gives an undefined score.
 
@@ -307,10 +326,16 @@ At `lam=0`, the `capy()` function equals `aspatial_capy()`. The exact function s
 exploded graph self-pairs and therefore need not equal it. Lambda is available through these public functions;
 the pipeline keeps its existing fixed metric choices and does not add YAML parameter sweeps.
 
-Malformed inputs raise `ValueError`, while a missing graph attribute raises `KeyError`. When valid
-inputs have no defined score, the function raises `UndefinedMetricError`, whose `reason`
-identifies the limitation. The pipeline catches that exception per score and saves the reason with
-a null value, preserving other valid results. Direct callers can catch it in the same way:
+Invalid shapes, nonfinite or negative populations, and invalid weights raise `ValueError`.
+Numeric conversion errors propagate: an unconvertible string typically raises `ValueError`,
+while `pandas.NA` or a dictionary raises `TypeError`. These are not normalized to one exception
+class. A missing graph attribute raises `KeyError`.
+
+When valid inputs have no defined score, the function raises `UndefinedMetricError`, a subclass
+of `ValueError` whose `reason` identifies the mathematical limitation. Catch it before a general
+`ValueError` handler if the distinction matters. The pipeline catches only this exception per
+score and saves its reason with a null value, preserving other valid results. Direct callers can
+catch it in the same way:
 
 ```python
 from capy_metrics import UndefinedMetricError

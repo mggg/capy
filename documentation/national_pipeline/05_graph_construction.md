@@ -106,6 +106,13 @@ can contain other residents. Their IDs and counts remain in the archive's `remov
 and the summary reports the resulting total/POC population losses. These losses are separate from
 unmatched geographic records documented during joining.
 
+For a separate White–POC sensitivity calculation, `build_connected_graph()` accepts
+`population_support=GraphPopulationSupport.TOTAL_POPULATION`. This retains units with `TOTPOP > 0`
+and rebuilds geographic adjacency and component connections on that support. It preserves the
+four population definitions and records the chosen filter in graph metadata. The pipeline's
+archive-building and metric commands continue to use the shared White-plus-Black support.
+The alternative is available through the explicit graph-building call, not a run setting.
+
 GerryChain constructs rook adjacency: two retained polygons are neighbors when their intersection
 has positive length. A corner contact alone does not qualify. Full polygons and population counts
 are retained; the code does not clip units to the study-area outline or divide their populations.

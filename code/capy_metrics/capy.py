@@ -70,7 +70,8 @@ def aspatial_capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str
 
     Raises:
         KeyError: A population attribute is missing.
-        ValueError: Population vectors are empty, negative, or nonfinite.
+        ValueError: Population values or vector dimensions are invalid.
+        TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
         UndefinedMetricError: A group has no eligible pair interactions.
     """
     return aspatial_capy(
@@ -80,8 +81,7 @@ def aspatial_capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str
 
 
 def aspatial_capy(first_population: np.ndarray, second_population: np.ndarray) -> float:
-    r"""
-    Calculate aspatial Capy, $C_0$ from within-unit inner products, including self-pairs on the exploded graph.
+    r"""Calculate aspatial Capy, $C_0$, including self-pairs on the exploded graph.
 
     Let $x$ and $y$ be the population vectors for two disjoint groups. Within-unit interaction
     totals use the ordinary inner product $\langle u,v\rangle=\sum_i u_i v_i$:
@@ -110,6 +110,7 @@ def aspatial_capy(first_population: np.ndarray, second_population: np.ndarray) -
 
     Raises:
         ValueError: Counts are invalid or vector shapes disagree.
+        TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
         UndefinedMetricError: Either group's skew has zero denominator.
     """
     first_population, second_population = prepare_population_vectors(
@@ -143,6 +144,7 @@ def capy_from_graph(graph: nx.Graph, group1_attr: str, group2_attr: str, lam: fl
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Graph structure, counts, or lam are invalid.
+        TypeError: A population value or lam has an unsupported numeric type.
         UndefinedMetricError: A group's skew has zero denominator.
     """
     return capy(
@@ -159,8 +161,7 @@ def capy(
     second_population: np.ndarray,
     lam: float = 1,
 ) -> float:
-    r"""
-    Calculate Capy with parameterized neighbor weights, including self-pairs on the eploded graph.
+    r"""Calculate Capy with neighbor weights, including self-pairs on the exploded graph.
 
     Let $x$ and $y$ be the population vectors for two disjoint groups, $A$ the neighbor-weight
     matrix, and $\lambda=\text{lam}\geq0$. Write $\langle u,v\rangle_W=\langle u,Wv\rangle$, where
@@ -177,9 +178,9 @@ def capy(
     C = \frac{1}{2}\left(\frac{a}{a+b}+\frac{c}{c+b}\right).
     $$
 
-    These totals include self-pairs on the exploded graph. Setting $\lambda=0$ gives aspatial_capy(); setting
-    $\lambda=1$ gives equal within-unit and neighbor multipliers. Use capy_exact() to exclude
-    self-pairs on the exploded graph when the populations are integer counts.
+    These totals include self-pairs on the exploded graph. Setting $\lambda=0$ gives
+    aspatial_capy(); setting $\lambda=1$ gives equal within-unit and neighbor multipliers.
+    Use capy_exact() to exclude self-pairs when the populations are integer counts.
 
     Notes:
         This inner-product based formulation has the following properties:
@@ -193,8 +194,8 @@ def capy(
           masses and is continuous wherever both denominators are positive.
 
         The distinct-person correction in capy_exact() introduces population-size dependence and
-        need not preserve the $1/2$ baseline. "Exact" refers to not counting self-loops on the exploded graph,
-        not to a universally more accurate score.
+        need not preserve the $1/2$ baseline. "Exact" refers to excluding self-loops on the
+        exploded graph, not to a universally more accurate score.
 
     Args:
         adjacency (WeightMatrix): Symmetric nonnegative neighbor weights with zero diagonal.
@@ -209,6 +210,7 @@ def capy(
 
     Raises:
         ValueError: Counts, adjacency, or lam are invalid.
+        TypeError: A population value, adjacency entry, or lam has an unsupported numeric type.
         UndefinedMetricError: A group's skew has zero denominator.
     """
     first_population, second_population = prepare_population_vectors(
@@ -249,12 +251,13 @@ def capy_exact_from_graph(
             Default: 1.
 
     Returns:
-        float: Exact Capy score. At zero neighbor weight, self-pairs on the exploded graph 
+        float: Exact Capy score. At zero neighbor weight, self-pairs on the exploded graph
             are still excluded; this differs from aspatial_capy().
 
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Graph structure, integer counts, or lam are invalid.
+        TypeError: A population value or lam has an unsupported numeric type.
         UndefinedMetricError: A group's skew has zero denominator.
     """
     return capy_exact(
@@ -271,12 +274,11 @@ def capy_exact(
     second_population: np.ndarray,
     lam: float = 1,
 ) -> float:
-    r"""
-    Calculate exact capy using parametrized neighbor weights without including self pairs on the exploded graph
+    r"""Calculate exact Capy with neighbor weights, excluding self-pairs on the exploded graph.
 
     Let $x$ and $y$ be integer population vectors for two disjoint groups, $A$ the neighbor-weight
     matrix, and $\lambda=\text{lam}\geq0$. Write $\langle u,v\rangle=\sum_i u_i v_i$ and
-    $\langle u,v\rangle_A=\langle u,Av\rangle$. The interaction totals exclude self-pairs on the exploded graph:
+    $\langle u,v\rangle_A=\langle u,Av\rangle$. The interaction totals exclude self-pairs:
 
     $$ \begin{aligned}
     a &= \sum_i x_i(x_i-1)+\lambda \langle x,x\rangle_A, \\
@@ -307,6 +309,7 @@ def capy_exact(
 
     Raises:
         ValueError: Counts, adjacency, or lam are invalid, including fractional counts.
+        TypeError: A population value, adjacency entry, or lam has an unsupported numeric type.
         UndefinedMetricError: A group's skew has zero denominator.
     """
     first_population, second_population = prepare_population_vectors(
@@ -352,6 +355,7 @@ def _prepare_capy_adjacency(
 
     Raises:
         ValueError: Weights are invalid or lam is not finite and nonnegative.
+        TypeError: A weight or lam has an unsupported numeric type.
     """
     adjacency = prepare_weight_matrix(adjacency, node_count)
 

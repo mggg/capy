@@ -16,19 +16,20 @@ without treating an absent population record as evidence that a polygon is empty
 
 ## Run the stage
 
-From the repository root, run the three preparation stages with the same configuration:
+With raw boundaries and processed population tables available, run only the join from the
+repository root:
 
 ```bash
 uv run --locked python code/reproduce.py --config code/configs/small_example.yaml \
-    retrieve process-population join-geographies
+    join-geographies
 ```
 
 The small example joins Delaware's 2020 tracts and the counties that define its study areas. Use
 `code/configs/replication.yaml` for the complete selection, or edit the [commented
-configuration](../../code/configs/example.yaml) to choose years and levels. If the raw boundaries
-and processed population tables are already available, select only `join-geographies`. The join
-reads existing files. Study-area assignment, graph construction, and metric calculation follow in
-later stages.
+configuration](../../code/configs/example.yaml) to choose years and levels. If those inputs are
+missing, run `retrieve process-population` with the same configuration first. The join reads
+existing files. Study-area assignment, graph construction, and metric calculation follow in later
+stages.
 
 As in population processing, filename patterns narrow the run. Include both population and
 boundary requests for each selected year and level. For a statewide modern run, select that

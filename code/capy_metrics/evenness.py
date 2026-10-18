@@ -38,7 +38,8 @@ def dissimilarity_from_graph(
         KeyError: A population attribute is missing.
         ValueError: Counts or spatial weights are invalid.
         UndefinedMetricError: The group or its complement has zero total population.
-        TypeError: A count is pd.NA or a non-numeric object such as a dict.
+        TypeError: A population value or weight has an unsupported numeric type, such as pd.NA
+            or a dict.
     """
     return dissimilarity(
         node_attribute_to_numpy_arr(graph, group1_attr),
@@ -92,7 +93,8 @@ def dissimilarity(
 
     Raises:
         ValueError: Counts or matrix dimensions/weights are invalid, or an environment is empty.
-        TypeError: A count is pd.NA or a non-numeric object such as a dict.
+        TypeError: A population value or weight has an unsupported numeric type, such as pd.NA
+            or a dict.
         UndefinedMetricError: Either comparison group is absent.
     """
     shares, population_weights, overall_share = _prepare_evenness_inputs(
@@ -129,7 +131,8 @@ def entropy_index_from_graph(
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Counts or spatial weights are invalid.
-        TypeError: A count is pd.NA or a non-numeric object such as a dict.
+        TypeError: A population value or weight has an unsupported numeric type, such as pd.NA
+            or a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     return entropy_index(
@@ -188,7 +191,8 @@ def entropy_index(
 
     Raises:
         ValueError: Counts or spatial weights are invalid, or an environment has no population.
-        TypeError: A count is pd.NA or a non-numeric object such as a dict.
+        TypeError: A population value or weight has an unsupported numeric type, such as pd.NA
+            or a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     shares, population_weights, overall_share = _prepare_evenness_inputs(
@@ -226,7 +230,8 @@ def relative_diversity_from_graph(
     Raises:
         KeyError: A population attribute is missing.
         ValueError: Counts or spatial weights are invalid.
-        TypeError: A count is pd.NA or a non-numeric object such as a dict.
+        TypeError: A population value or weight has an unsupported numeric type, such as pd.NA
+            or a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     return relative_diversity(
@@ -284,7 +289,8 @@ def relative_diversity(
 
     Raises:
         ValueError: Counts or spatial weights are invalid, or an environment has no population.
-        TypeError: A count is pd.NA or a non-numeric object such as a dict.
+        TypeError: A population value or weight has an unsupported numeric type, such as pd.NA
+            or a dict.
         UndefinedMetricError: The group or its complement is absent.
     """
     shares, population_weights, overall_share = _prepare_evenness_inputs(
@@ -301,8 +307,8 @@ def _prepare_evenness_inputs(
 ) -> tuple[np.ndarray, np.ndarray, float]:
     """Prepare local shares, original population weights, and overall share for evenness indices.
 
-    Invalid counts/weights or empty environments raise ValueError. An absent group raises
-    UndefinedMetricError. Smoothing retains original unit weights.
+    Invalid numeric values or empty environments raise ValueError; numeric conversion errors
+    propagate. An absent group raises UndefinedMetricError. Smoothing retains original unit weights.
     """
     shares = population_shares(group_population, total_population)
     group_population = np.asarray(group_population, dtype=float)
