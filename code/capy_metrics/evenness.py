@@ -8,7 +8,7 @@ from .errors import UndefinedMetricError, UndefinedMetricReason
 from .inputs import (
     WeightMatrix,
     node_attribute_to_numpy_arr,
-    population_shares,
+    prepare_group_and_total_populations,
     prepare_weight_matrix,
 )
 
@@ -310,9 +310,10 @@ def _prepare_evenness_inputs(
     Invalid numeric values or empty environments raise ValueError; numeric conversion errors
     propagate. An absent group raises UndefinedMetricError. Smoothing retains original unit weights.
     """
-    shares = population_shares(group_population, total_population)
-    group_population = np.asarray(group_population, dtype=float)
-    total_population = np.asarray(total_population, dtype=float)
+    group_population, total_population = prepare_group_and_total_populations(
+        group_population, total_population
+    )
+    shares = group_population / total_population
     population_weights = total_population / total_population.sum()
     overall_share = float(group_population.sum() / total_population.sum())
 

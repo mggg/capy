@@ -256,11 +256,31 @@ def test_relative_majority_ties_do_not_depend_on_population_array_dtype():
 
         assert graph_score == 0
 
-        for dtype in (np.float32, np.float64):
+        for dtype in (np.int64, np.float32, np.float64):
             group_population = np.array([1, 0, 2], dtype=dtype)
             total_population = np.array([10, 10, 10], dtype=dtype)
 
             assert numerical_function(adjacency, group_population, total_population) == graph_score
+
+
+@pytest.mark.parametrize("group, total", [([1, 2], [1, 1]), ([0, 1], [0, 1])])
+def test_evenness_and_assortativity_require_positive_totals_containing_the_group(group, total):
+    group_population = np.array(group)
+    total_population = np.array(total)
+    adjacency = sparse.csr_array([[0, 1], [1, 0]])
+
+    for function in (
+        metrics.population_shares,
+        metrics.dissimilarity,
+        metrics.entropy_index,
+        metrics.relative_diversity,
+    ):
+        with pytest.raises(ValueError, match="Every total must be positive"):
+            function(group_population, total_population)
+
+    for function in (metrics.edge_assortativity, metrics.half_edge_assortativity):
+        with pytest.raises(ValueError, match="Every total must be positive"):
+            function(adjacency, group_population, total_population)
 
 
 @pytest.mark.parametrize("dtype", [complex, object])

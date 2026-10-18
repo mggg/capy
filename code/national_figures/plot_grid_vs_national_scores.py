@@ -140,11 +140,13 @@ def plot_score_by_share(
         if metro_df.empty:
             continue
 
+        metro_code = metro[StudyAreaColumn.METRO_CODE]
+        color = METRO_COLORS.get(metro_code, GRAY_60) if isinstance(metro_code, str) else GRAY_60
         artist = axes.scatter(
             metro_df.group_share,
             metro_df[metric],
             s=35,
-            color=METRO_COLORS.get(metro[StudyAreaColumn.METRO_CODE], GRAY_60),
+            color=color,
             edgecolors=TOP_10_EDGE_COLOR,
             linewidths=0.5,
             clip_on=False,

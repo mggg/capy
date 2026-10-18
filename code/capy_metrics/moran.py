@@ -208,7 +208,7 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
         )
 
     weight_type = MoranWeightType(weight_type)
-    degrees = np.asarray(adjacency.sum(axis=1)).ravel()
+    degrees = adjacency.sum(axis=1)
 
     if weight_type == MoranWeightType.ADJACENCY:
         return adjacency.copy()
@@ -218,7 +218,7 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
 
     if weight_type == MoranWeightType.ROW_STANDARDIZED:
         inverse_degrees = np.divide(1.0, degrees, out=np.zeros_like(degrees), where=degrees > 0)
-        return sparse.csr_array(sparse.diags_array(inverse_degrees) @ adjacency)
+        return sparse.diags_array(inverse_degrees, format="csr") @ adjacency
 
     if weight_type == MoranWeightType.NEGATIVE_LAPLACIAN:
         return adjacency - sparse.diags_array(degrees)
@@ -229,7 +229,7 @@ def build_moran_weights(adjacency: WeightMatrix, weight_type: MoranWeightType) -
         rows, columns = edges.row[nonzero], edges.col[nonzero]
         edge_weights = 1 / np.maximum(degrees[rows], degrees[columns])
         weights = sparse.csr_array((edge_weights, (rows, columns)), shape=adjacency.shape)
-        diagonal = 1 - np.asarray(weights.sum(axis=1)).ravel()
+        diagonal = 1 - weights.sum(axis=1)
         return weights + sparse.diags_array(diagonal)
 
     raise ValueError(

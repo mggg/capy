@@ -157,10 +157,11 @@ def plot_score_history(
         colors = list(AREA_COLORS[: len(top_10_metros_df)])
     else:
         # Unlisted metros use the same neutral color in every figure.
-        colors = [
-            METRO_COLORS.get(metro.get(StudyAreaColumn.METRO_CODE), GRAY_60)
-            for _, metro in top_10_metros_df.iterrows()
-        ]
+        colors = []
+        for _, metro in top_10_metros_df.iterrows():
+            metro_code = metro.get(StudyAreaColumn.METRO_CODE)
+            color = METRO_COLORS.get(metro_code, GRAY_60) if isinstance(metro_code, str) else GRAY_60
+            colors.append(color)
 
     top_10_metros_df = top_10_metros_df.assign(color=colors)
 

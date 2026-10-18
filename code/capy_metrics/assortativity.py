@@ -9,7 +9,7 @@ from .inputs import (
     WeightMatrix,
     build_csr_adjacency_matrix,
     node_attribute_to_numpy_arr,
-    population_shares,
+    prepare_group_and_total_populations,
     prepare_weight_matrix,
 )
 
@@ -181,9 +181,10 @@ def _relative_majority_edge_totals(
     A missing class raises UndefinedMetricError. The first class includes shares equal to the
     overall share.
     """
-    shares = population_shares(group_population, total_population)
-    group_population = np.asarray(group_population, dtype=float)
-    total_population = np.asarray(total_population, dtype=float)
+    group_population, total_population = prepare_group_and_total_populations(
+        group_population, total_population
+    )
+    shares = group_population / total_population
     adjacency = prepare_weight_matrix(adjacency, len(shares))
 
     if (

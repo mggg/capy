@@ -22,6 +22,7 @@ from plotting.figure_style import APPLE_GREEN, DENIM, GRAY_60, TEAL
         [MetroCode.NEW_YORK, MetroCode.LOS_ANGELES, MetroCode.PHOENIX],
         [MetroCode.PHOENIX, MetroCode.LOS_ANGELES, MetroCode.NEW_YORK],
         [MetroCode.LOS_ANGELES, "99999"],
+        [MetroCode.LOS_ANGELES, None],
     ],
 )
 def test_history_and_scatter_colors_follow_metros_across_rankings(area_type, selected_codes):
@@ -46,6 +47,7 @@ def test_history_and_scatter_colors_follow_metros_across_rankings(area_type, sel
         MetroCode.LOS_ANGELES: APPLE_GREEN,
         MetroCode.PHOENIX: TEAL,
         "99999": GRAY_60,
+        None: GRAY_60,
     }
     figure, (history_axes, scatter_axes) = plt.subplots(1, 2)
 

@@ -1,7 +1,6 @@
 """Draw prepared population shares and fitted score relationships."""
 
 from pathlib import Path
-from typing import cast
 
 import matplotlib.patheffects as path_effects
 import numpy as np
@@ -57,7 +56,7 @@ def plot_population_composition(
             (line,) = axes.plot(
                 x_points,
                 y_points,
-                color=YEAR_COLORS[cast(int, year)],
+                color=YEAR_COLORS[year],
                 linewidth=2,
                 label=str(year),
                 zorder=3,

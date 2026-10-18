@@ -61,8 +61,12 @@ def build_csr_adjacency_matrix(graph: nx.Graph) -> sparse.csr_array:
     if not graph or graph.is_directed() or graph.is_multigraph() or nx.number_of_selfloops(graph):
         raise ValueError("Expected a nonempty, undirected simple graph without self-loops")
 
-    return sparse.csr_array(
-        nx.to_scipy_sparse_array(graph, nodelist=list(graph), weight=None, dtype=float)  # pyright: ignore[reportArgumentType]
+    return nx.to_scipy_sparse_array(
+        graph,
+        nodelist=list(graph),
+        weight=None,  # pyright: ignore[reportArgumentType]
+        dtype=float,
+        format="csr",
     )
 
 
@@ -109,6 +113,34 @@ def prepare_population_vectors(
     return first_population, second_population
 
 
+def prepare_group_and_total_populations(
+    group_population: np.ndarray, total_population: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Prepare float population vectors with positive totals containing the group.
+
+    Args:
+        group_population (np.ndarray): Nonnegative group counts or population masses.
+        total_population (np.ndarray): Positive totals in the same order, including the group.
+            Fractional estimates are accepted for both vectors.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: Validated group and total vectors, possibly sharing input
+            storage. Neither input is modified; callers must not mutate the returned arrays.
+
+    Raises:
+        ValueError: Counts are invalid, a total is zero, or a group count exceeds its total.
+        TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
+    """
+    group_population, total_population = prepare_population_vectors(
+        group_population, total_population
+    )
+
+    if np.any(total_population == 0) or np.any(group_population > total_population):
+        raise ValueError("Every total must be positive and at least its group population")
+
+    return group_population, total_population
+
+
 def population_shares(group_population: np.ndarray, total_population: np.ndarray) -> np.ndarray:
     """Divide group populations by positive totals after checking shapes and containment.
 
@@ -124,12 +156,9 @@ def population_shares(group_population: np.ndarray, total_population: np.ndarray
         ValueError: Counts are invalid, a total is zero, or a group count exceeds its total.
         TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
     """
-    group_population, total_population = prepare_population_vectors(
+    group_population, total_population = prepare_group_and_total_populations(
         group_population, total_population
     )
-
-    if np.any(total_population == 0) or np.any(group_population > total_population):
-        raise ValueError("Every total must be positive and at least its group population")
 
     return group_population / total_population
 

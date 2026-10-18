@@ -64,7 +64,7 @@ AREA_COLORS = (
 
 
 # Metro identities keep their colors across rankings, vintages, and selected subsets.
-METRO_COLORS = {
+METRO_COLORS: dict[str, str] = {
     MetroCode.NEW_YORK: DENIM,
     MetroCode.LOS_ANGELES: APPLE_GREEN,
     MetroCode.CHICAGO: CHERRY_BLOSSOM_PINK,

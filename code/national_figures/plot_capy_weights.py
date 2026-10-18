@@ -1,7 +1,6 @@
 """Compare Capy ranks under unit, zero, and limiting neighbor weights."""
 
 from pathlib import Path
-from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -69,7 +68,7 @@ def plot_capy_weight_comparison(
         [MembershipColumn.CENSUS_YEAR, MetricColumn.COMPARISON],
         sort=False,
     ):
-        year, comparison = cast(tuple[int, str], selection)
+        year, comparison = selection
         comparison_label = POPULATION_COMPARISON_LABELS[PopulationComparison(comparison)]
         image_name = f"{comparison_label}_{study_area_label}_{year}_tract_capy_neighbor_weights"
         figure, axes = create_plot()
