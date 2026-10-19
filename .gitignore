@@ -180,6 +180,7 @@ cython_debug/
 *.tex
 /data/raw/
 /data/processed/
+/data/exports/
 
 # Final graph release archives are intentionally versioned.
 !/data/graphs/*.zip

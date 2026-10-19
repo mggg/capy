@@ -14,6 +14,7 @@ labels are left to LaTeX assembly.
 
 - [Saved-table conventions](#saved-table-conventions)
 - [Grid arrangements and reference curves](#grid-arrangements-and-reference-curves)
+- [Capy intensity and layout factors](#capy-intensity-and-layout-factors)
 - [Reardon–O’Sullivan lattice examples](#reardonosullivan-lattice-examples)
 - [Expanding-support diffusion](#expanding-support-diffusion)
 - [Stochastic diffusion](#stochastic-diffusion)
@@ -167,6 +168,126 @@ or `high`), and `seed` identifies the sample within that class. The two numeric 
 scores. This table has no reason columns. The histogram renderer groups rows by `kind`.
 `distribution_examples.npz` stores the first sampled grid of each class under the corresponding
 class name. Its zero/one cells denote which group occupies the cell, with 100 people per cell.
+
+## Capy intensity and layout factors
+
+Use `capy-factorization` to compare how Capy, evenness, Moran, isolation, and exposure respond to
+population variation and spatial arrangement on the same grids. Intensity measures variation in
+unit shares, and layout measures the spatial covariance of those shares. Their product gives
+`2*Capy-1` when both factors use the endpoint weights defined below.
+
+Run these commands from the repository root:
+
+```bash
+uv run --locked python code/run_experiment.py capy-factorization
+uv run --locked python code/make_figures.py capy-factorization
+```
+
+The first command saves scores and grids under
+`results/experiments/grid_configurations/capy_factorization/`; the second reads those files and
+writes separate 300 dpi PNG panels under `figures/grid_configurations/capy_factorization/`. Rerun
+only the second command when changing figure styling. Matching output files are replaced.
+Preparation completes sampling and example selection before writing, but the files are written
+sequentially; rerun preparation if writing is interrupted.
+
+### Sampling and acceptance
+
+Preparation attempts seeds 0–6,999 on two workers. Each seed draws 256 positive lognormal
+population masses (log-mean `log(100)`, log-standard-deviation `0.6`) on a 16×16 rook grid. It
+then draws targets for group share, intensity, and layout, uniformly from `[0.05, 0.5]`, `[0, 1]`,
+and `[-0.6, 1]`. Shares come from a beta distribution, a binary distribution shrunk toward its
+target mean, or a uniform band. An infeasible uniform-band target switches to one of the other
+families.
+
+Annealed swaps move each share together with its population, preserving both groups' totals and
+the aspatial scores. The search makes at most 6,000 proposals and stops early when layout is
+within 0.01 of its target. A grid is retained only when its final, recomputed layout is within
+0.03. Targets are not exact achieved moments: the realized population share and endpoint-weighted
+intensity can differ from their targets. Rejection also changes the sample distribution, so the
+retained grids are illustrative arrangements, not a uniform sample of feasible scores.
+
+### Factor and exposure definitions
+
+Write `W = I + A`, with binary rook adjacency `A`, positive unit populations `t`, and unit group
+shares `r`. The factorization uses endpoint masses `m_i = t_i (Wt)_i`, whose normalized mean share
+is `endpoint_share`. With `Omega_ij = t_i W_ij t_j`, the saved factors are
+
+$$
+R_W = \frac{\operatorname{Var}_m(r)}{\rho_m(1-\rho_m)},\qquad
+L_W = \frac{\sum_{ij}\Omega_{ij}(r_i-\rho_m)(r_j-\rho_m)}
+{(\sum_i m_i)\operatorname{Var}_m(r)},\qquad
+2C-1 = R_W L_W.
+$$
+
+These quantities are saved as `intensity`, `layout`, and `capy_phi`. Every accepted grid is
+checked against the factorization identity. The horizontal coordinate in score panels,
+`group_share`, instead uses ordinary population mass: `sum(t*r) / sum(t)`. It need not equal
+`endpoint_share` or stay below one half even though the target share does. Spatial evenness uses
+the maintained metrics with `W`; Moran uses `I+A` with unweighted centering. Capy uses continuous
+population masses without the distinct-person correction.
+
+The local X share is `(W(t*r)) / (Wt)`. `x_isolation` averages those shares with X-population
+weights, and `y_to_x_exposure` averages them with Y-population weights. Their dashed reference
+line is equality with the overall X share. No new national metric is introduced by this
+experiment.
+
+### Saved results and figure components
+
+Results live in `results/experiments/grid_configurations/capy_factorization/`:
+
+| File                           | Contents                                                                                                                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `factorization_scores.parquet` | One row per accepted seed: distribution family, three targets, actual group share, standard scores, factors, isolation, and exposure. Scores retain the usual undefined-reason columns. |
+| `grids.npz`                    | Matching `seed`, `shares`, and `total_population` arrays; each saved grid has shape 16×16. No pickle objects.                                                                           |
+| `selected_examples.parquet`    | Seed, quadrant, target group share, and rank for each selected target. A seed can appear in multiple targets.                                                                           |
+| `run_summary.parquet`          | Attempted, accepted, and rejected target counts.                                                                                                                                        |
+
+The selected set takes ten nearest grids for each of four factor-space centers and four share
+targets, normally giving 160 selections. Centers are intensity 0.25 or 0.75 and layout -0.2 or
+0.6; share targets are 0.45, 0.33, 0.21, and 0.09. Candidates must be within 0.04 of the share
+target. Distance is squared intensity difference plus squared layout difference divided by `1.6²`,
+with seed breaking ties. Rank one supplies each of the sixteen example grids. Small Python runs
+keep fewer than ten candidates when necessary and fail if a share band is empty.
+
+Each panel set includes an intensity-versus-layout key alongside score-versus-share plots:
+
+| Folder                                    | Figure components                                                                             |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `all_quadrants/`                          | All accepted grids, colored by factor quadrant: the key and eight comparison scores.          |
+| `exposure_comparison/`                    | Wider panels for the key, Capy, spatial entropy, isolation, and exposure.                     |
+| `selected_targets/`                       | The key and eight comparison scores for the selected examples.                                |
+| `intensity_gradient/`, `layout_gradient/` | All accepted grids, colored by the corresponding factor: the key and eight comparison scores. |
+| `grids/`                                  | Sixteen individual grayscale share grids with thin gray borders.                              |
+| `grids_2x2/`                              | Four framed two-by-two grid groups and a combined two-by-two arrangement of the groups.       |
+
+Score panels use the metric name, such as `all_quadrants/capy.png` or
+`selected_targets/spatial_entropy_index.png`. The folder identifies the comparison; every score
+panel uses population share on the horizontal axis. Each set's factor-space key is
+`intensity_vs_layout.png`.
+
+The eight comparison scores are dissimilarity, entropy, relative diversity, their spatial
+counterparts, Moran with self-weights, and Capy. The complete run produces 66 PNGs, including the
+separate quadrant legend and three colorbars in the figure root. Grid filenames identify the
+quadrant and share target, such as `weak_clustered_share_45.png`; the table records the actual
+share and selected seed.
+
+The sixteen grid files are the individual boxes from `fig3_strip`: four per quadrant. Within each
+colored group in that strip, targets 0.45 and 0.33 occupy the top row, and 0.21 and 0.09 the
+bottom row. The `grids_2x2/` exports assemble these groups with colored frames and share labels.
+Each quadrant has its own file, such as `weak_clustered_2x2.png`. In `all_groups_2x2.png`, weak
+and strong clustered groups occupy the top row, with weak and strong dispersed groups below. The
+individual files in `grids/` retain their thin gray borders.
+
+Quadrants use intensity 0.5 and layout 0.2 as visual dividing lines. These are classification
+choices, not universal random-layout values or feasible-region bounds for unequal populations.
+Likewise, -0.6 is a search/display endpoint, not an asserted lower bound for arbitrary weights.
+The four quadrant colors fade toward white near the dividing lines using CIELAB interpolation.
+Panels retain tall proportions, boxed axes, compact numeric ticks, and fixed display ranges. The
+share axis ends at 0.52, so observations above that value remain in the saved table but are
+clipped in the figures. Capy uses limits [0.2, 1] for all-grid panels and [0.38, 0.77] for
+selected targets. Gradient points have no outlines and use opacity 0.8; their colorbars have a
+20:1 height-to-width ratio. Labels and titles remain the responsibility of document assembly.
+Rendering requires neither a TeX installation nor the development scripts.
 
 ## Reardon–O’Sullivan lattice examples
 

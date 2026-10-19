@@ -7,6 +7,10 @@ from national_pipeline.derived_file_paths import build_study_area_label
 from national_pipeline.pipeline_config import PipelineConfig, load_configuration
 
 FIGURE_DIRECTORIES = {
+    "capy-factorization": (
+        "experiments/grid_configurations/capy_factorization",
+        "grid_configurations/capy_factorization",
+    ),
     "national": ("national/processed_data/history", "national"),
     "score-ranks": ("national/processed_data/score_ranks", "national"),
     "population-composition": ("national/processed_data/population_composition", "national"),
@@ -178,6 +182,13 @@ def make_experiment_figure(figure_name: str, data_directory: Path, output_direct
     """
 
     match figure_name:
+        case "capy-factorization":
+            from experiments.grid_configurations.plot_capy_factorization import (
+                plot_capy_factorization,
+            )
+
+            plot_capy_factorization(data_directory, output_directory)
+
         case "grid-reference-scores":
             from experiments.grid_configurations.plot_grid_reference_scores import (
                 plot_grid_reference_scores,

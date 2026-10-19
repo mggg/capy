@@ -152,3 +152,44 @@ def test_dispersion_default_stays_separate_from_shared_national_configuration(mo
     assert calls[1][2] == Path(run_experiment.__file__).resolve().parents[1] / (
         "results/experiments/neighborhood_change"
     )
+
+
+@pytest.mark.parametrize("command", [run_experiment, make_figures])
+def test_factorization_commands_route_to_separate_computation_and_rendering(
+    monkeypatch, tmp_path, command
+):
+    from experiments.grid_configurations import capy_factorization, plot_capy_factorization
+
+    calls = []
+
+    if command is run_experiment:
+        monkeypatch.setattr(
+            capy_factorization, "run_capy_factorization", lambda *args: calls.append(args)
+        )
+        monkeypatch.setattr(
+            plot_capy_factorization,
+            "plot_capy_factorization",
+            lambda *_: pytest.fail("Preparation must not render figures"),
+        )
+    else:
+        monkeypatch.setattr(
+            plot_capy_factorization, "plot_capy_factorization", lambda *args: calls.append(args)
+        )
+        monkeypatch.setattr(
+            capy_factorization,
+            "generate_factorization_sample",
+            lambda *_: pytest.fail("Rendering must not regenerate grids"),
+        )
+
+    monkeypatch.setattr(
+        sys, "argv", [command.__name__, "capy-factorization", "--data-directory", str(tmp_path)]
+    )
+
+    command.main()
+
+    assert len(calls) == 1
+    assert calls[0][0] == tmp_path / "experiments/grid_configurations/capy_factorization"
+    assert (
+        make_figures.FIGURE_DIRECTORIES["capy-factorization"][0]
+        == run_experiment.EXPERIMENT_DIRECTORIES["capy-factorization"]
+    )

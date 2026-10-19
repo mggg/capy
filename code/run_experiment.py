@@ -16,6 +16,7 @@ EXPERIMENT_DIRECTORIES = {
     "grid-reference-scores": "experiments/grid_configurations/grid_reference_scores",
     "grid-pop-share-arrangements": "experiments/grid_configurations/grid_pop_share_arrangements",
     "grid-score-comparisons": "experiments/grid_configurations/grid_score_comparisons",
+    "capy-factorization": "experiments/grid_configurations/capy_factorization",
     "expanding-support": "experiments/synthetic_diffusion/expanding_support",
     "stochastic": "experiments/synthetic_diffusion/stochastic",
     "dispersion": "experiments/neighborhood_change",
@@ -266,6 +267,11 @@ def run_experiment(
     """
 
     match experiment_name:
+        case "capy-factorization":
+            from experiments.grid_configurations.capy_factorization import run_capy_factorization
+
+            run_capy_factorization(data_directory)
+
         case "grid-reference-scores":
             from experiments.grid_configurations.grid_reference_scores import (
                 save_grid_reference_scores,
