@@ -1,0 +1,179 @@
+"""
+This script generates scatter plots of capy and Moran's I versus rho for randomly sampled k-cluster configurations of the Iowa county graph, plus a geographic visualization of one such configuration.
+Global Parameters:
+    RHO: float
+        The target group fraction used for the geographic visualization figure
+    num_start_nodes: int
+        Number of clusters used for the geographic visualization figure
+    num_samples: int
+        Number of random k-clustered configurations to sample at each rho value
+    num_rhos: int
+        Number of evenly spaced rho values between 0.001 and 0.5 to sample over
+"""
+
+import argparse
+import sys
+import os
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+os.chdir(ROOT)
+sys.path.insert(0, str(ROOT))
+IOWA_SCRIPTS = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(IOWA_SCRIPTS))
+import capy_core.metrics as metrics
+import networkx as nx
+import matplotlib.pyplot as plt
+import numpy as np
+import random
+import pandas as pd
+import gerrychain
+from iowa_helpers import (
+    visualize_iowa,
+    populate_cluster_random,
+    plot_metric_scatterplots,
+)
+
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "mathtext.fontset": "cm",
+        "font.size": 28,
+        "savefig.dpi": 300,
+    }
+)
+
+RHO = 0.3
+num_start_nodes = 4
+num_samples = 500
+num_rhos = 100
+
+
+def main():
+    g = gerrychain.Graph.from_json(
+        "data/experiment_specific/ia_files/ia_counties_2020.json"
+    )
+
+    rng = random.Random(42)
+    result = generate_kclust_grid(g, RHO, num_start_nodes, rng, max_retries=5000)
+    if result is not None:
+        g_, real_rho, num_components = result
+        fig, ax = visualize_iowa(g_, real_rho)
+        base_filename = f"figures/iowa/multicluster_iowa_visualization_rho={real_rho}_k={num_start_nodes}_numcomponents={num_components}"
+        filestem = base_filename.replace(".", "p")
+        fig.savefig(f"{filestem}.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        raise RuntimeError(
+            "Graph with more than one cluster could not be generated. Try increasing max_retries, lowering RHO, or lowering num_start_nodes"
+        )
+
+    target_rhos = []
+    real_rhos = []
+    capys = []
+    morans = []
+
+    rho_grid = np.linspace(0.001, 0.5, num_rhos)
+
+    for i in range(num_samples):
+        rng = random.Random(i)
+        for rho in rho_grid:
+            result = generate_kclust_grid(g, rho, num_start_nodes, rng)
+            if result is not None:
+                g_, real_rho, num_components = result
+                real_rhos.append(real_rho)
+                target_rhos.append(rho)
+                capys.append(metrics.half_edge(g_, "y_pop", "x_pop"))
+                morans.append(metrics.moran(g_, "x_pop", "TOTPOP")["moran_P"])
+
+    fig_moran, ax_moran, fig_capy, ax_capy = plot_metric_scatterplots(
+        real_rhos, capys, morans
+    )
+
+    base_filename_moran = (
+        f"figures/iowa/moran_by_rho_multicluster_iowa_k={num_start_nodes}"
+    )
+    filestem_moran = base_filename_moran.replace(".", "p")
+    fig_moran.savefig(f"{filestem_moran}.png", dpi=300, bbox_inches="tight")
+
+    base_filename_capy = (
+        f"figures/iowa/capy_by_rho_multicluster_iowa_k={num_start_nodes}"
+    )
+    filestem_capy = base_filename_capy.replace(".", "p")
+    fig_capy.savefig(f"{filestem_capy}.png", dpi=300, bbox_inches="tight")
+
+    pd.DataFrame(
+        {
+            "target_rho": target_rhos,
+            "real_rho": real_rhos,
+            "capy": capys,
+            "moran": morans,
+        }
+    ).to_csv(
+        f"stats/iowa_runs/multicluster_samples_samples={num_samples}_rhos={num_rhos}.csv",
+        index=False,
+    )
+
+
+def generate_kclust_grid(graph, target_rho, num_start_nodes, rng, max_retries=50):
+    """Grow random clusters until group x occupies at least two connected components.
+
+    Each starting node targets an equal share of the total x_pop budget. Clusters can merge, so the
+    number of surviving components may differ from num_start_nodes. Each attempt resets x_pop and
+    y_pop on the supplied graph; an unsuccessful call also leaves it modified.
+
+    Args:
+        graph (nx.Graph): County adjacency graph with a TOTPOP attribute on every node.
+        target_rho (float): Target population share distributed across the clusters.
+        num_start_nodes (int): Number of clusters to start growing per attempt.
+        rng (random.Random): Random generator shared by seed selection and cluster growth.
+        max_retries (int, optional): Maximum number of attempts. Defaults to 50.
+
+    Returns:
+        tuple[nx.Graph, float, int] | None: The modified graph, achieved group share, and number of
+            x-populated components. Returns None if no unassigned seed remains or every attempt
+            produces fewer than two components.
+    """
+    for _ in range(max_retries):
+        for node in graph.nodes():
+            graph.nodes[node]["x_pop"] = 0
+            graph.nodes[node]["y_pop"] = 0
+
+        target_pop = (
+            target_rho * metrics.property_sum(graph, "TOTPOP") / num_start_nodes
+        )
+
+        for _ in range(num_start_nodes):
+            y_nodes = [node for node in graph.nodes if graph.nodes[node]["x_pop"] == 0]
+            if y_nodes == []:
+                return None
+            start_node = rng.choice(y_nodes)
+
+            G, cluster_rho = populate_cluster_random(start_node, graph, target_pop, rng)
+
+        for node in G.nodes():
+            if G.nodes[node]["x_pop"] == 0:
+                G.nodes[node]["y_pop"] = graph.nodes[node]["TOTPOP"]
+
+        real_rho = metrics.property_sum(G, "x_pop") / (
+            metrics.property_sum(G, "x_pop") + metrics.property_sum(G, "y_pop")
+        )
+
+        x_nodes = [node for node in G.nodes() if G.nodes[node]["x_pop"] > 0]
+
+        H = G.subgraph(x_nodes)
+
+        components = nx.number_connected_components(H)
+        if components > 1:
+            return G, real_rho, components
+
+    return None
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Make kclustered iowa plots.",
+        allow_abbrev=False,
+    )
+    parser.parse_args()
+    main()

@@ -1,0 +1,239 @@
+"""
+CLI entry point for generating all line-plot figures.
+
+Usage:
+    python generate_figures.py [--filename PATH] [--n N] [--prefix PREFIX]
+                               [--geography-type TYPE] [--study-area-type TYPE]
+                               [--fixed-y]
+
+Arguments:
+    filename - Path to a metrics CSV (default: outputs/tracts_in_cbsa/white_poc.csv)
+    n - Number of top metros to highlight by 2020 population (default: 10)
+    prefix - Racial-group prefix used in output filenames, e.g. white_poc or white_black
+    geography_type - Census unit label (tracts/block_groups/blocks/counties); inferred from the
+                    input CSV directory, then prefix, if omitted
+    study_area_type - Area type label (cbsa/county/max_county/max_city); inferred from the input
+                    CSV directory if omitted
+    fixed_y - If set, all panels in a figure share the same y-axis range
+
+For each vintage found in definition_month_year, produces figures in:
+    figures/baseline/{geography_type}_in_{study_area_type}/
+        lineplots/ — one PNG per metric, top-N metros coloured by CBSA
+        grid_lineplots/ — top-N panel and all-CBSA mean panel (GRID_METRICS only)
+        metric_family_grids/ — one grid per metric family
+"""
+
+import argparse
+import sys
+from pathlib import Path
+from typing import Optional
+
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[4])
+)  # project root (for capy_core)
+sys.path.insert(
+    0, str(Path(__file__).resolve().parents[2])
+)  # experiment_code/baseline/ (for visualization)
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from capy_core.process_results import join_study_area_metadata
+from experiment_code.visualization_settings import (
+    METRIC_LABELS,
+    METRICS,
+    PALETTE,
+    _apply_panel_style,
+    _shorten_prefix,
+    _short_name,
+)
+from visualization.line_plots.plot_family_grids import plot_family_grids
+from visualization.line_plots.plot_grid_all_census_areas import (
+    plot_grid_all_census_areas,
+)
+from visualization.line_plots.plot_grid_top10 import plot_grid_top10
+
+
+def main(
+    filename: str = "",
+    n: int = 10,
+    prefix: str = "white_poc",
+    geography_type: Optional[str] = None,
+    fixed_y: bool = False,
+    study_area_type: Optional[str] = None,
+):
+    if filename:
+        inferred_geography_type, separator, inferred_study_area_type = Path(
+            filename
+        ).parent.name.partition("_in_")
+        if separator and inferred_geography_type and inferred_study_area_type:
+            geography_type = geography_type or inferred_geography_type
+            study_area_type = study_area_type or inferred_study_area_type
+
+    if geography_type is None:
+        for geo in ("block_groups", "blocks", "tracts", "counties"):
+            if geo in prefix:
+                geography_type = geo
+                break
+        else:
+            geography_type = "tracts"
+    study_area_type = study_area_type or "cbsa"
+
+    if not filename:
+        run_name = f"{geography_type}_in_{study_area_type}"
+        filename = f"data/shared/outputs/{run_name}/white_poc.csv"
+
+    if study_area_type == "max_county":
+        area_label = "most populous counties within CBSAs"
+    elif study_area_type == "max_city":
+        area_label = "most populous cities within CBSAs"
+    elif study_area_type == "county":
+        area_label = "counties"
+    else:
+        area_label = "CBSAs"
+    geography_label = geography_type.replace("_", " ")
+
+    prefix = f"{_shorten_prefix(prefix)}_{study_area_type}_{geography_type}"
+    run_name = f"{geography_type}_in_{study_area_type}"
+    output_dir = Path("figures") / "baseline" / run_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "lineplots").mkdir(exist_ok=True)
+
+    df = ensure_metadata(pd.read_csv(filename))
+    df = df.sort_values("total_population_2020", ascending=False)
+
+    pair_label = "White–Black" if prefix.startswith("wb") else "White–POC"
+    month_year = df["definition_month_year"].iloc[0]
+    month_year_df = df[df["definition_month_year"] == month_year]
+
+    top_n_metros = list(month_year_df["area_code"].drop_duplicates()[:n])
+    code_to_title = month_year_df.drop_duplicates("area_code").set_index("area_code")[
+        "area_title"
+    ]
+    top_n_df = month_year_df[month_year_df["area_code"].isin(top_n_metros)].sort_values(
+        ["area_code", "year"]
+    )
+
+    color_map = {cbsa: PALETTE[i % len(PALETTE)] for i, cbsa in enumerate(top_n_metros)}
+    years = sorted(top_n_df["year"].unique())
+
+    for metric in METRICS:
+        if metric not in top_n_df.columns:
+            continue
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        y_range = top_n_df[metric].max() - top_n_df[metric].min()
+        _apply_panel_style(ax, years, None, y_range=y_range)
+
+        for cbsa in top_n_metros:
+            cbsa_df = top_n_df[top_n_df["area_code"] == cbsa]
+            ax.plot(
+                cbsa_df["year"],
+                cbsa_df[metric],
+                color=color_map[cbsa],
+                linewidth=1.8,
+                marker="o",
+                markersize=4,
+                zorder=2,
+                alpha=0.8,
+            )
+
+        title, subtitle = METRIC_LABELS.get(
+            metric, (metric.replace("_", " ").title(), "")
+        )
+        # ax.set_title(title, fontsize=13, fontweight="bold",
+        #              pad=30 if subtitle else 10, color="#111111")
+        # if subtitle:
+        #     ax.text(0.5, 1.04, subtitle, transform=ax.transAxes,
+        #             ha="center", va="bottom", fontsize=9, color="#777777")
+        # fig.suptitle(f"Segregation over time: {pair_label}",
+        #     fontsize=14, fontweight="bold", color="#111111", y=1.06)
+        # fig.text(0.5, 1, f"Top {n} U.S. metros by 2020 population. Census {geography_label} in {area_label}",
+        #     ha="center", fontsize=9, color="#555555")
+
+        handles = [
+            plt.Line2D(
+                [0],
+                [0],
+                color=color_map[c],
+                linewidth=2.5,
+                label=_short_name(code_to_title[c]),
+            )
+            for c in top_n_metros
+        ]
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            ncol=min(5, len(top_n_metros)),
+            bbox_to_anchor=(0.5, -0.05),
+            frameon=False,
+            fontsize=8,
+            handlelength=1.5,
+            columnspacing=1.0,
+            labelcolor="#333333",
+        )
+
+        fig.savefig(
+            output_dir / "lineplots" / f"{prefix}_{metric}.png", bbox_inches="tight"
+        )
+        plt.close(fig)
+
+    plot_grid_top10(
+        df,
+        prefix,
+        month_year,
+        output_dir,
+        n,
+        geography_label=geography_label,
+        area_label=area_label,
+        fixed_y=fixed_y,
+    )
+    plot_grid_all_census_areas(
+        df,
+        prefix,
+        month_year,
+        output_dir,
+        geography_label=geography_label,
+        area_label=area_label,
+        fixed_y=fixed_y,
+    )
+    plot_family_grids(
+        df,
+        prefix,
+        month_year,
+        output_dir,
+        n,
+        geography_label=geography_label,
+        area_label=area_label,
+        fixed_y=fixed_y,
+    )
+
+
+def ensure_metadata(df: pd.DataFrame) -> pd.DataFrame:
+    required = {
+        "definition_month_year",
+        "year",
+        "area_title",
+        "area_code",
+        "total_population_2020",
+    }
+    if required.issubset(df.columns):
+        return df
+    return join_study_area_metadata(df)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate figures.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("--filename", default="")
+    parser.add_argument("--n", type=int, default=10)
+    parser.add_argument("--prefix", default="white_poc")
+    parser.add_argument("--geography-type", default=None)
+    parser.add_argument(
+        "--fixed-y", action=argparse.BooleanOptionalAction, default=False
+    )
+    parser.add_argument("--study-area-type", default=None)
+    args = parser.parse_args()
+    main(**vars(args))

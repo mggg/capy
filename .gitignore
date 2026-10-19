@@ -11,7 +11,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/build/
 develop-eggs/
 dist/
 downloads/
@@ -72,7 +72,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+documentation/_build/
 
 # PyBuilder
 .pybuilder/
@@ -164,15 +164,31 @@ cython_debug/
 #.idea/
 
 # macOS
-.DS_Store
+**/.DS_Store
 
-# Project data and generated files
-/nhgis/
-/processed/
-/cbsas/
-/census_geographies/
-/study_areas/
-/figures/
-/new-york-swaps/
-/outputs/
-/census_raw/
+# Source formats and generated working data
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.gpkg
+*.zip
+*.xml
+*.tex
+/data/raw/
+/data/processed/
+/data/exports/
+
+# Final graph release archives are intentionally versioned.
+!/data/graphs/*.zip
+
+# Graph construction scratch files and run-completion accounting.
+/data/graphs/.retrieval-*
+/data/graphs/*_summary.parquet
+
+/data/graphs/.graph-build*
+
+/data/graphs/.graph-package-*
