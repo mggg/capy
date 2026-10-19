@@ -33,7 +33,7 @@ def plot_grid(
     """
     axes.imshow(grid, vmin=0, vmax=maximum, cmap=cmap, interpolation="nearest")
     axes.grid(False)
-    axes.set_xticks(np.arange(-0.5, grid.shape[1], 1), minor=True)
-    axes.set_yticks(np.arange(-0.5, grid.shape[0], 1), minor=True)
-    axes.grid(which="minor", color=cell_edge_color, linewidth=0.3, alpha=0.5)
+    axes.set_xticks(np.arange(-0.5, grid.shape[1], 1))
+    axes.set_yticks(np.arange(-0.5, grid.shape[0], 1))
+    axes.grid(which="major", color=cell_edge_color, linewidth=0.3, alpha=0.5)
     axes.tick_params(which="both", bottom=False, left=False, labelbottom=False, labelleft=False)

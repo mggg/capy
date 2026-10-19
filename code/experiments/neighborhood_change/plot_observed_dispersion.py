@@ -48,7 +48,7 @@ CAPY_Y_TICKS = (0.7, 0.8, 0.9)
 
 
 def plot_observed_dispersion(data_directory: Path, output_directory: Path) -> None:
-    """Render saved neighborhood histories, with choropleths and score traces for Chicago.
+    """Render neighborhood choropleths and radial histories, plus Chicago score traces.
 
     Args:
         data_directory (Path): Folder with complete cluster_maps and cluster_scores
@@ -97,7 +97,7 @@ def plot_neighborhood_history(
     scores_df: pd.DataFrame,
     output_directory: Path,
 ) -> None:
-    """Save yearly radial views and, for Chicago neighborhoods, choropleths and score traces.
+    """Save yearly choropleths and radial views, plus score traces for Chicago neighborhoods.
 
     Args:
         cluster_id (str): Saved city/neighborhood identifier; Chicago IDs start with chicago_.
@@ -118,14 +118,13 @@ def plot_neighborhood_history(
     for year, year_rows_df in maps_df.groupby("year"):
         year_map_df = gpd.GeoDataFrame(year_rows_df, crs=maps_df.crs)
 
-        if is_chicago_neighborhood:
-            core_tract_ids = core_memberships_df.loc[
-                core_memberships_df.year.eq(year), "geographic_id"
-            ]
-            figure, axes = create_plot()
-            plot_neighborhood_map(axes, year_map_df, core_tract_ids, map_bounds)
+        core_tract_ids = core_memberships_df.loc[
+            core_memberships_df.year.eq(year), "geographic_id"
+        ]
+        figure, axes = create_plot()
+        plot_neighborhood_map(axes, year_map_df, core_tract_ids, map_bounds)
 
-            save_plot(figure, output_directory / f"choro_{year}_black_share")
+        save_plot(figure, output_directory / f"choro_{year}_black_share")
 
         figure, axes = create_plot()
         plot_radial_black_share(axes, year_map_df, radial_limit)

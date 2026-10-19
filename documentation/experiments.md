@@ -475,7 +475,7 @@ Preparation saves scores and tract memberships for every buffer from zero throug
 `--buffer-steps` chooses the buffer used for saved maps and displayed score traces, defaulting to
 three. The results live under `results/experiments/neighborhood_change/`.
 
-Every neighborhood gets radial views while Chicago also gets choropleths and score traces. Each
+Every neighborhood gets choropleths and radial views while Chicago also gets score traces. Each
 neighborhood's plots share a folder beneath `figures/neighborhood_change/`, with shared colorbars
 at that root. Map filenames begin with their type, for example `choro_1980_black_share.png` or
 `radial_1980_black_share.png`.

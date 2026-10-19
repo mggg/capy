@@ -5,8 +5,34 @@ import networkx as nx
 import pandas as pd
 import pytest
 from experiments.neighborhood_change import observed_dispersion
+from experiments.neighborhood_change.plot_observed_dispersion import plot_neighborhood_history
 from national_pipeline.pipeline_config import PipelineConfig
 from shapely.geometry import box
+
+
+def test_philadelphia_history_exports_choropleths_and_radial_views(tmp_path):
+    maps_df = gpd.GeoDataFrame(
+        {
+            "year": [1980, 2020],
+            "GEOID": ["a", "b"],
+            "black_share": [0.7, 0.8],
+            "radial_x": [0.0, 0.0],
+            "radial_y": [0.0, 0.0],
+            "is_medoid": [True, True],
+        },
+        geometry=[box(0, 0, 1, 1), box(0, 0, 1, 1)],
+        crs="ESRI:102003",
+    )
+    core_memberships_df = pd.DataFrame({"year": [1980, 2020], "geographic_id": ["a", "b"]})
+    plot_neighborhood_history(
+        "philadelphia_germantown", maps_df, core_memberships_df, pd.DataFrame(), tmp_path
+    )
+
+    assert {path.name for path in tmp_path.glob("*.png")} == {
+        f"{kind}_{year}_black_share.png"
+        for kind in ("choro", "radial")
+        for year in (1980, 2020)
+    }
 
 
 def test_population_medoid_uses_full_city_paths_and_sorted_ties():
