@@ -72,7 +72,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+documentation/_build/
 
 # PyBuilder
 .pybuilder/
@@ -166,24 +166,29 @@ cython_debug/
 # macOS
 **/.DS_Store
 
-# Project data and generated files
-/cbsas/
-/census_geographies/
-/study_areas/
-/census_raw/
-/data/
-/archive/
-/outputs/
-**/.qmd
-<<<<<<< Updated upstream
-/experiments/h4_t3_observed_diffusion/data/
-=======
-<<<<<<< Updated upstream
-/experiments/h4_t3_observed_diffusion/data/
-=======
-/experiments/h4_t3_observed_diffusion/data/
-experiments/h4_t2_theoretical_diffusion/figures/*.png
-experiments/h4_t3_observed_diffusion/figures/**/*.png
->>>>>>> Stashed changes
->>>>>>> Stashed changes
-/experiments/h4_t2_theoretical_diffusion/scripts/archive_diffusion_simulation
+# Source formats and generated working data
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.gpkg
+*.zip
+*.xml
+*.tex
+/data/raw/
+/data/processed/
+/data/exports/
+
+# Final graph release archives are intentionally versioned.
+!/data/graphs/*.zip
+
+# Graph construction scratch files and run-completion accounting.
+/data/graphs/.retrieval-*
+/data/graphs/*_summary.parquet
+
+/data/graphs/.graph-build*
+
+/data/graphs/.graph-package-*

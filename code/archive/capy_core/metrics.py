@@ -1,0 +1,741 @@
+import argparse
+import csv
+import glob
+import os
+import sys
+import traceback
+import warnings
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from itertools import product
+from pathlib import Path
+from typing import Optional
+
+import geopandas as gpd
+import gerrychain
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import scipy.sparse
+import tqdm
+
+from capy_core.pipeline_filenames import parse_geography_name
+
+
+def main(
+    input_glob: str,
+    x_col: str,
+    y_col: str,
+    tot_col: str,
+    output: Path,
+    workers: int = 6,
+    years: Optional[str] = None,
+):
+    """Compute segregation metrics for every graph JSON matched by input_glob.
+
+    Runs in parallel via ProcessPoolExecutor. Writes one CSV row per successful file to output.
+    Failures are appended to the path in the METRIC_FAILURES_FILE environment variable.
+
+    Malformed filenames are recorded as failures and skipped. Other selected files finish before a
+    failure exit status is returned. Year selection uses the Census year in the basename,
+    independently of the parent directory.
+
+    Args:
+        input_glob (str): Pattern matching graph JSON files.
+        x_col (str): Node attribute containing the first population group's counts.
+        y_col (str): Node attribute containing the second population group's counts.
+        tot_col (str): Node attribute containing total population counts.
+        output (Path): Destination metrics CSV, including its header.
+        workers (int, optional): Number of worker processes. Defaults to 6.
+        years (str | None, optional): Space-separated Census years, or None for all years. Defaults
+            to None.
+
+    Raises:
+        FileNotFoundError: If no valid files match the requested years and no filename failures were
+            recorded.
+        SystemExit: With status 1 after processing if any filename or metric calculation failed.
+    """
+    files = []
+    n_failed = 0
+    year_set = set(years.split()) if years else None
+    for filename in sorted(glob.glob(input_glob)):
+        try:
+            geography_identity = parse_geography_name(filename)
+        except ValueError as error:
+            write_failure(filename, x_col, y_col, tot_col, error)
+            print(
+                f"FAILED {filename}: {type(error).__name__}: {error}", file=sys.stderr
+            )
+            n_failed += 1
+            continue
+
+        if year_set is None or str(geography_identity.census_year) in year_set:
+            files.append(filename)
+
+    if not files:
+        if n_failed:
+            raise SystemExit(1)
+        raise FileNotFoundError(f"No graph JSON files matched: {input_glob!r}")
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    worker = partial(_process_file, x_col=x_col, y_col=y_col, tot_col=tot_col)
+    n_ok = 0
+    with open(output, "w") as f:
+        f.write(build_headers(x_col, y_col, tot_col) + "\n")
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for row in pool.map(worker, files):
+                if row is not None:
+                    f.write(row + "\n")
+                    n_ok += 1
+                else:
+                    n_failed += 1
+    print(
+        f"Metrics calculations: {n_ok} processes succeeded, {n_failed} failed. Output: {output}",
+        flush=True,
+    )
+    if n_failed:
+        raise SystemExit(1)
+
+
+def build_headers(x_col: str, y_col: str, tot_col: str) -> str:
+    """Return the CSV header row for the metrics output file.
+
+    Columns cover: identifiers (filename, x_col, y_col, tot_col), angle
+    metrics, skew/edge/half-edge variants for λ ∈ {0, 0.5, 1, 2, 10, ∞},
+    dissimilarity (L1/L2/L10), Frey, Gini, four Moran's I variants,
+    population totals, group shares, and graph size.
+    """
+    keys = [
+        "filename",
+        "x_col",
+        "y_col",
+        "tot_col",
+        "angle_1",
+        "angle_2",
+        "e_assort",
+        "he_assort",
+    ]
+    for lam in [0, 0.5, 1, 2, 10, None]:
+        s = "lim" if lam is None else str(lam)
+        keys += [
+            f"skew_self_{s}",
+            f"skew_other_{s}",
+            f"edge_{s}",
+            f"skew'_self_{s}",
+            f"skew'_other_{s}",
+            f"half_edge_{s}",
+            f"skew_self_exact_{s}",
+            f"skew_other_exact_{s}",
+            f"edge_exact_{s}",
+            f"skew'_self_exact_{s}",
+            f"skew'_other_exact_{s}",
+            f"half_edge_exact_{s}",
+        ]
+    for p in [1, 2, 10]:
+        keys.append(f"dissimilarity_{p}")
+    keys += [
+        "frey",
+        "gini",
+        "moran_A",
+        "moran_P",
+        "moran_L",
+        "moran_M",
+        "moran_D_1",
+        "moran_D_2",
+        "total_population",
+        "total_white",
+        "total_poc",
+        "total_black",
+        "share_x",
+        "share_y",
+        "total_nodes",
+        "total_edges",
+    ]
+    return ",".join(keys)
+
+
+FAILURE_FIELDNAMES = [
+    "filename",
+    "study_area_code",
+    "x_col",
+    "y_col",
+    "tot_col",
+    "error_message",
+]
+
+
+def write_failure(
+    filename: str, x_col: str, y_col: str, tot_col: str, exc: Exception
+) -> None:
+    """Append a failure record to the metric_failures CSV.
+
+    Creates the file and writes a header on the first call. Intended to be called from a single writer process only.
+    """
+    metric_failures_file = os.environ.get(
+        "METRIC_FAILURES_FILE", "data/shared/outputs/metric_failures.csv"
+    )
+    failures_dir = os.path.dirname(metric_failures_file)
+    os.makedirs(failures_dir, exist_ok=True)
+
+    try:
+        study_area_code = parse_geography_name(filename).study_area.area_code
+    except ValueError:
+        study_area_code = (
+            ""  # A malformed filename must not prevent recording the original failure.
+        )
+
+    row = {
+        "filename": filename,
+        "study_area_code": study_area_code,
+        "x_col": x_col,
+        "y_col": y_col,
+        "tot_col": tot_col,
+        "error_message": str(exc),
+    }
+
+    # write header once
+    write_header = (
+        not os.path.exists(metric_failures_file)
+        or os.path.getsize(metric_failures_file) == 0
+    )
+    with open(metric_failures_file, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=FAILURE_FIELDNAMES)
+        if write_header:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def _process_file(filename: str, x_col: str, y_col: str, tot_col: str):
+    try:
+        return run_metrics(filename, x_col, y_col, tot_col)
+    except Exception as e:
+        write_failure(filename, x_col, y_col, tot_col, e)
+        print(f"FAILED {filename}: {type(e).__name__}: {e}", file=sys.stderr)
+        return None
+
+
+def run_metrics(filename: str, x_col: str, y_col: str, tot_col: str):
+    """Compute all segregation metrics for a single connected graph JSON.
+
+    Loads the GerryChain graph, computes angle, skew, edge, half-edge,
+    assortativity, dissimilarity, Gini, and Moran's I (A/P/L/M and
+    distance-based). Returns a comma-joined string ready to be written as a
+    CSV row.
+    """
+    warnings.filterwarnings(
+        "ignore", message=".*Found islands.*"
+    )  # degree-0 nodes are handled by connect_components in graphs.py.
+    graph = gerrychain.Graph.from_json(filename)
+
+    for node in graph.nodes():
+        graph.nodes[node]["white_plus_black"] = (
+            graph.nodes[node][x_col] + graph.nodes[node][y_col]
+        )
+
+    capy_metrics = {}
+    capy_metrics["filename"] = filename
+    capy_metrics["x_col"] = x_col
+    capy_metrics["y_col"] = y_col
+    capy_metrics["tot_col"] = tot_col
+
+    capy_metrics["angle_1"] = angle_1(graph, x_col, y_col)
+    capy_metrics["angle_2"] = angle_2(graph, x_col, y_col)
+
+    e_assort, he_assort = assortativity(graph, x_col, y_col)
+    capy_metrics["e_assort"] = e_assort
+    capy_metrics["he_assort"] = he_assort
+
+    for lam in [0, 0.5, 1, 2, 10, None]:
+        lam_str = "lim" if lam is None else str(lam)
+        capy_metrics[f"skew_self_{lam_str}"] = skew(graph, x_col, y_col, lam=lam)
+        capy_metrics[f"skew_other_{lam_str}"] = skew(graph, y_col, x_col, lam=lam)
+        capy_metrics[f"edge_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew_other_{lam_str}"] + capy_metrics[f"skew_self_{lam_str}"]
+        )
+
+        capy_metrics[f"skew'_self_{lam_str}"] = skew_prime(graph, x_col, y_col, lam=lam)
+        capy_metrics[f"skew'_other_{lam_str}"] = skew_prime(
+            graph, y_col, x_col, lam=lam
+        )
+        capy_metrics[f"half_edge_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew'_other_{lam_str}"]
+            + capy_metrics[f"skew'_self_{lam_str}"]
+        )
+
+        capy_metrics[f"skew_self_exact_{lam_str}"] = skew_exact(
+            graph, x_col, y_col, lam=lam
+        )
+        capy_metrics[f"skew_other_exact_{lam_str}"] = skew_exact(
+            graph, y_col, x_col, lam=lam
+        )
+        capy_metrics[f"edge_exact_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew_other_exact_{lam_str}"]
+            + capy_metrics[f"skew_self_exact_{lam_str}"]
+        )
+
+        capy_metrics[f"skew'_self_exact_{lam_str}"] = skew_prime_exact(
+            graph, x_col, y_col, lam=lam
+        )
+        capy_metrics[f"skew'_other_exact_{lam_str}"] = skew_prime_exact(
+            graph, y_col, x_col, lam=lam
+        )
+        capy_metrics[f"half_edge_exact_{lam_str}"] = 0.5 * (
+            capy_metrics[f"skew'_other_exact_{lam_str}"]
+            + capy_metrics[f"skew'_self_exact_{lam_str}"]
+        )
+
+    for p in [1, 2, 10]:
+        string = str(p)
+        capy_metrics[f"dissimilarity_{string}"] = dissimilarity(graph, x_col, y_col, p)
+
+    capy_metrics["frey"] = frey(graph, x_col, y_col)
+    capy_metrics["gini"] = gini(graph, x_col, y_col)
+
+    moran_cont = moran(graph, x_col, "white_plus_black")
+
+    capy_metrics["moran_A"] = moran_cont["moran_A"]
+    capy_metrics["moran_P"] = moran_cont["moran_P"]
+    capy_metrics["moran_L"] = moran_cont["moran_L"]
+    capy_metrics["moran_M"] = moran_cont["moran_M"]
+
+    morans_dist = moran_dist(
+        graph, x_col, "white_plus_black", [inv_dist, inv_dist_square]
+    )
+    capy_metrics["moran_D_1"] = morans_dist["moran_inv_dist"]
+    capy_metrics["moran_D_2"] = morans_dist["moran_inv_dist_square"]
+
+    capy_metrics["total_population"] = property_sum(graph, "TOTPOP")
+    capy_metrics["total_white"] = property_sum(graph, "WHITE")
+    capy_metrics["total_poc"] = property_sum(graph, "POC")
+    capy_metrics["total_black"] = property_sum(graph, "BLACK")
+    # capy_metrics["total_asian"] = property_sum(graph, "ASIAN")
+    # capy_metrics["total_amin"] = property_sum(graph, "AMIN")
+    capy_metrics["share_x"] = property_sum(graph, x_col) / property_sum(graph, "TOTPOP")
+    capy_metrics["share_y"] = property_sum(graph, y_col) / property_sum(graph, "TOTPOP")
+
+    capy_metrics["total_nodes"] = len(graph.nodes())
+    capy_metrics["total_edges"] = len(graph.edges())
+
+    return ",".join(map(str, list(capy_metrics.values())))
+
+
+def angle_1(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    """
+    This implements `<x_col, y_col>` from the paper
+    """
+    first_summation, second_summation = _angle_1(graph, x_col, y_col)
+
+    if lam == None:
+        return first_summation
+    else:
+        return (lam * first_summation) + second_summation
+
+
+def _angle_1(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    """Return the two summation components of the <x, y> inner product.
+
+    First self-interactions.
+    Second cross-neighbour interactions.
+    """
+    first_summation = 0
+    second_summation = 0
+    for node in graph.nodes():
+        first_summation += graph.nodes[node][x_col] * graph.nodes[node][y_col]
+
+    for node, neighbor in graph.edges():
+        second_summation += graph.nodes[node][x_col] * graph.nodes[neighbor][y_col]
+        second_summation += graph.nodes[neighbor][x_col] * graph.nodes[node][y_col]
+
+    return (first_summation, second_summation)
+
+
+def angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    """
+    This implements `<<x_col, y_col>>` from the paper
+    """
+    first_summation, second_summation = _angle_2(graph, x_col, y_col)
+
+    if lam == None:
+        return first_summation
+    else:
+        return 0.5 * ((lam * first_summation) + second_summation)
+
+
+def _angle_2(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    """Return the two summation components of the <<x, y>> inner product.
+
+    Args:
+        graph (gerrychain.Graph): Adjacency graph with numeric population attributes on each node.
+        x_col (str): Node attribute containing the first population group's counts.
+        y_col (str): Node attribute containing the second population group's counts.
+        lam (float, optional): Unused here. The caller applies lambda to the returned components.
+            Defaults to 1.
+
+    Returns:
+        tuple[float, float]: The diagonal-corrected within-node sum and cross-neighbor sum,
+            before lambda weighting or multiplication by one half.
+    """
+    first_summation = 0
+    second_summation = 0
+    for node in graph.nodes():
+        first_summation += (
+            graph.nodes[node][x_col] * graph.nodes[node][y_col]
+            - (graph.nodes[node][x_col] + graph.nodes[node][y_col]) * 0.5
+        )
+
+    for node, neighbor in graph.edges():
+        second_summation += graph.nodes[node][x_col] * graph.nodes[neighbor][y_col]
+        second_summation += graph.nodes[neighbor][x_col] * graph.nodes[node][y_col]
+
+    return (first_summation, second_summation)
+
+
+def skew(graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1) -> float:
+    """Skew-self metric: fraction of x's inner-product mass directed toward
+    other x nodes. Formula: <x,x> / (<x,x> + 2·<x,y>) using angle_1.
+    """
+    x_x = angle_1(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
+
+    return (x_x) / (x_x + (2 * x_y))
+
+
+def skew_prime(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1
+) -> float:
+    """Half-edge variant of skew_self: <x,x> / (<x,x> + <x,y>) using angle_1."""
+    x_x = angle_1(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
+
+    return (x_x) / (x_x + (x_y))
+
+
+def skew_exact(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1
+) -> float:
+    """Diagonal-corrected skew_self using angle_2: <<x,x>> / (<<x,x>> + <x,y>)."""
+    x_x = angle_2(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
+
+    return (x_x) / (x_x + (x_y))
+
+
+def skew_prime_exact(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1
+) -> float:
+    """Half-edge skew using angle_2: 2·<<x,x>> / (2·<<x,x>> + <x,y>)."""
+    x_x = angle_2(graph, x_col, x_col, lam=lam)
+    x_y = angle_1(graph, x_col, y_col, lam=lam)
+
+    return (2 * x_x) / (2 * x_x + (x_y))
+
+
+def edge(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1, func=angle_1
+) -> float:
+    """Symmetric edge metric: average of skew_self(x,y) and skew_self(y,x)."""
+    x_x = func(graph, x_col, x_col, lam=lam)
+    x_y = func(graph, x_col, y_col, lam=lam)
+    y_y = func(graph, y_col, y_col, lam=lam)
+
+    return 0.5 * ((x_x / (x_x + 2 * x_y)) + (y_y / (y_y + 2 * x_y)))
+
+
+def half_edge(
+    graph: gerrychain.Graph, x_col: str, y_col: str, lam: float = 1, func=angle_1
+) -> float:
+    """Symmetric half-edge metric: average of skew_prime(x,y) and skew_prime(y,x)."""
+    x_x = func(graph, x_col, x_col, lam=lam)
+    x_y = func(graph, x_col, y_col, lam=lam)
+    y_y = func(graph, y_col, y_col, lam=lam)
+
+    return 0.5 * ((x_x / (x_x + x_y)) + (y_y / (y_y + x_y)))
+
+
+def assortativity(graph: gerrychain.Graph, x_col: str, y_col: str):
+    """Compute edge and half-edge assortativity via node majority classification.
+
+    Classifies a node as x-majority when its local x share meets or exceeds the global x share.
+    Both shares use x + y as the denominator, with ties assigned to x. Writes x_maj and y_maj
+    attributes to the supplied graph and computes the metrics from those binary assignments.
+
+    Args:
+        graph (gerrychain.Graph): Adjacency graph with positive combined x/y population per node.
+            The x_maj and y_maj node attributes are written in place.
+        x_col (str): Node attribute containing the first population group's counts.
+        y_col (str): Node attribute containing the second population group's counts.
+
+    Returns:
+        tuple[float, float]: Edge and half-edge assortativity. Either value is NaN when its
+            normalization denominator is zero, including when one majority class is absent.
+    """
+    for node in graph.nodes():
+        threshold = property_sum(graph, x_col) / (
+            property_sum(graph, x_col) + property_sum(graph, y_col)
+        )
+        if (
+            graph.nodes[node][x_col]
+            / (graph.nodes[node][y_col] + graph.nodes[node][x_col])
+            >= threshold
+        ):
+            graph.nodes[node]["x_maj"] = 1
+            graph.nodes[node]["y_maj"] = 0
+        else:
+            graph.nodes[node]["x_maj"] = 0
+            graph.nodes[node]["y_maj"] = 1
+
+    try:
+        e_assort = 0.5 * (
+            skew_exact(
+                graph, "x_maj", "y_maj", 0
+            )  # Binary assignments make the within-node terms zero for any lambda.
+            + skew_exact(graph, "y_maj", "x_maj", 0)
+        )
+    except (
+        ZeroDivisionError
+    ):  # if there are no x majority units, then <<x,x>> = ,x,y. = <<x,x>> + <x,y> = 0
+        e_assort = np.nan
+
+    try:
+        he_assort = 0.5 * (
+            skew_prime_exact(graph, "x_maj", "y_maj", 0)
+            + skew_prime_exact(graph, "y_maj", "x_maj", 0)
+        )
+    except ZeroDivisionError:
+        he_assort = np.nan
+    return e_assort, he_assort
+
+
+def property_sum(graph: gerrychain.Graph, col: str) -> float:
+    cummulative = 0
+    for node in graph.nodes():
+        cummulative += graph.nodes[node][col]
+    return cummulative
+
+
+def dissimilarity(graph: gerrychain.Graph, x_col: str, y_col: str, p: float) -> float:
+    """Generalised dissimilarity index (Lp norm).
+
+    p=1 is the classical index. Higher values give
+    more weight to nodes with extreme deviations from the mean composition.
+    """
+    x_bar = property_sum(graph, x_col)
+    p_bar = x_bar + property_sum(graph, y_col)
+
+    summation = 0
+    for node in graph.nodes():
+        node_total = graph.nodes[node][x_col] + graph.nodes[node][y_col]
+        summation += abs((graph.nodes[node][x_col]) * p_bar - (node_total * x_bar)) ** (
+            p
+        )
+
+    return (1 / ((2 ** (1 / p)) * (x_bar * (p_bar - x_bar)))) * (summation ** (1 / p))
+
+
+def frey(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    """Frey segregation index: population-weighted mean
+    absolute deviation of the x/y ratio from the metro-wide ratio.
+    """
+    x_bar = property_sum(graph, x_col)
+    y_bar = property_sum(graph, y_col)
+
+    summation = 0
+    for node in graph.nodes():
+        summation += abs(
+            (graph.nodes[node][x_col] * y_bar) - (graph.nodes[node][y_col] * x_bar)
+        )
+
+    return (1 / (2 * x_bar * y_bar)) * summation
+
+
+def gini(graph: gerrychain.Graph, x_col: str, y_col: str) -> float:
+    """Gini coefficient: normalised sum of pairwise absolute
+    differences in x share across all node pairs (O(n²) computation!).
+    """
+    x_bar = property_sum(graph, x_col)
+    p_bar = x_bar + property_sum(graph, y_col)
+
+    summation = 0
+    for node in graph.nodes():
+        node_total = graph.nodes[node][x_col] + graph.nodes[node][y_col]
+        for other_node in graph.nodes():
+            other_node_total = (
+                graph.nodes[other_node][x_col] + graph.nodes[other_node][y_col]
+            )
+
+            summation += abs(
+                (graph.nodes[node][x_col] * other_node_total)
+                - (node_total * graph.nodes[other_node][x_col])
+            )
+
+    return (1 / (2 * x_bar * (p_bar - x_bar))) * summation
+
+
+def make_adj_weights(graph: gerrychain.Graph):
+    """Build four adjacency-based spatial weight matrices from a GerryChain graph.
+
+    Returns (A, P, L, M) as sparse CSR matrices:
+        A — binary adjacency matrix.
+        P — row-normalized adjacency matrix.
+        L — graph Laplacian (A − D).
+        M — Metropolis–Hastings weight matrix (off-diagonal: 1/max(dᵢ, dⱼ);
+            diagonal: 1 − row sum, ensuring rows sum to 1).
+    """
+    # TODO: check_order
+    nodes = list(graph.nodes())
+    A = nx.adjacency_matrix(graph, nodelist=nodes).tocsr()
+    degrees = np.array([graph.degree(n) for n in nodes])
+    D = scipy.sparse.diags(degrees, dtype=None)
+
+    inv_degrees = np.zeros_like(degrees, dtype=float)
+    mask = degrees > 0
+    inv_degrees[mask] = 1 / degrees[mask]
+    D_inv = scipy.sparse.diags(inv_degrees)
+
+    P = D_inv @ A
+    L = A - D
+
+    A_coo = A.tocoo()
+    rows = A_coo.row
+    cols = A_coo.col
+
+    vals = 1 / np.maximum(degrees[rows], degrees[cols])
+
+    M = scipy.sparse.csr_matrix((vals, (rows, cols)), shape=A.shape)
+
+    diag = 1 - np.asarray(M.sum(axis=1)).ravel()
+    M = M + scipy.sparse.diags(diag)
+
+    return A, P, L, M
+
+
+def moran(graph: gerrychain.Graph, x_col: str, tot_col: str) -> dict:
+    """Compute Moran's I under four adjacency weight matrices (A, P, L, M).
+
+    Returns a dict with keys moran_A, moran_P, moran_L, moran_M.
+    Raises ZeroDivisionError if all node shares are identical (zero variance).
+    """
+    shares = np.array(
+        [
+            graph.nodes[node][x_col] / graph.nodes[node][tot_col]
+            for node in graph.nodes()
+        ]
+    )
+
+    shares -= shares.mean()
+
+    x = scipy.sparse.csr_matrix(shares).T
+
+    denominator = (x.T @ x)[0, 0]
+    if denominator == 0:
+        raise ZeroDivisionError(
+            "Moran's I is undefined when all node shares are identical (zero variance)"
+        )
+
+    weights = make_adj_weights(graph)
+    names = ["A", "P", "L", "M"]
+
+    morans = {}
+
+    for name, W in zip(names, weights):
+        numerator = (x.T @ W @ x)[0, 0]
+        S0 = abs(W).sum()
+        morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
+
+    return morans
+
+
+def inv_dist(x1, y1, x2, y2):
+    d = np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    return 1 / d
+
+
+def inv_dist_square(x1, y1, x2, y2):
+    d = (x1 - x2) ** 2 + (y1 - y2) ** 2
+    return 1 / d
+
+
+def make_dist_weights(graph: gerrychain.graph, dist_funcs: list):
+    """Build distance-based spatial weight matrices from node centroid coordinates.
+
+    For each function in dist_funcs, constructs an N by N weight matrix using
+    pairwise centroid distances (requires centroid_x / centroid_y node
+    attributes), row-standardises it, and returns it as a sparse CSR array.
+
+    Returns (weights, names) where names are the of each function.
+    """
+    weights = []
+    names = []
+
+    for func in dist_funcs:
+        array = np.zeros((len(graph), len(graph)))
+        nodes = list(graph.nodes())
+        for i, i_node in enumerate(nodes):
+            for j, j_node in enumerate(nodes):
+                if i == j:
+                    array[i, j] = 0
+                else:
+                    array[i, j] = func(
+                        graph.nodes[i_node]["centroid_x"],
+                        graph.nodes[i_node]["centroid_y"],
+                        graph.nodes[j_node]["centroid_x"],
+                        graph.nodes[j_node]["centroid_y"],
+                    )
+
+        array = array / array.sum(axis=1, keepdims=True)  # row standardize
+        array = scipy.sparse.csr_array(array)
+        weights.append((array))
+        names.append(func.__name__)
+
+    return weights, names
+
+
+def moran_dist(
+    graph: gerrychain.Graph, x_col: str, tot_col: str, dist_funcs: list
+) -> float:
+    """Compute Moran's I under distance-based weight matrices.
+
+    Like moran() but uses make_dist_weights() instead of adjacency weights.
+    Requires centroid_x, centroid_y attributes on every graph node.
+
+    Returns a dict keyed by moran_function for each distance function.
+    """
+    shares = np.array(
+        [
+            graph.nodes[node][x_col] / graph.nodes[node][tot_col]
+            for node in graph.nodes()
+        ]
+    )
+
+    shares -= shares.mean()
+
+    x = scipy.sparse.csr_matrix(shares).T
+
+    Ws, names = make_dist_weights(graph, dist_funcs)
+
+    morans = {}
+
+    for W, name in zip(Ws, names):
+        numerator = (x.T @ W @ x)[0, 0]
+        denominator = (x.T @ x)[0, 0]
+        S0 = abs(W).sum()
+
+        morans[f"moran_{name}"] = (len(graph) / S0) * numerator / denominator
+
+    return morans
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Compute segregation metrics for every graph JSON matched by input_glob.",
+        allow_abbrev=False,
+    )
+    parser.add_argument("input_glob")
+    parser.add_argument("x_col")
+    parser.add_argument("y_col")
+    parser.add_argument("tot_col")
+    parser.add_argument("output", type=Path)
+    parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument("--years", default=None)
+    args = parser.parse_args()
+    main(**vars(args))

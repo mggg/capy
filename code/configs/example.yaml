@@ -1,0 +1,215 @@
+# Copy this file and edit it for your run. Run it from the repository root with:
+#   uv run --locked python code/reproduce.py --config code/configs/example.yaml
+#
+# This example runs all six implemented stages for tracts from 1990 through 2020,
+# with cities selected inside metropolitan areas using 2020 county and place data.
+# To run a subset, append positional stage names: retrieve, process-population,
+# join-geographies, assign-study-areas, build-graphs, or compute-metrics. Selected stages run
+# in pipeline order; unselected prerequisites must already exist.
+#
+# Run settings belong here. Source URLs, Census population column names, and NHGIS
+# table names live in the Python request definitions under code/national_pipeline/retrieve_data/.
+# Defaults apply when a key is omitted. YAML null is accepted only where documented
+# (for example, env_file); it does not generally request the default. None is a string in
+# YAML, so a path setting can interpret it as a path named None.
+
+# Which Census units will become graph nodes? Choose one or more of:
+#   counties      Each county or county-equivalent is one unit.
+#   tracts        Census tracts; includes historical block numbering areas (BNAs).
+#   block_groups  Groups of Census blocks.
+#   blocks        Individual Census blocks.
+#
+# The same selection controls population tables AND boundary files, across both
+# Census and NHGIS downloads. Default setting: all four levels. An empty list is invalid.
+census_geography_levels: [tracts]
+
+# Census years for those units. Supported values: 1980, 1990, 2000, 2010, 2020.
+# Default setting: all five years. An empty list is invalid.
+#
+# There are no supported 1980 block or block-group boundaries in this pipeline.
+# Those combinations are left out; other requested combinations still run. If no
+# supported node combination remains, the run stops before retrieving anything.
+#
+# NHGIS population and boundary archives are grouped by year and level, for example:
+#   nhgis/1990/tracts/population.zip
+#   nhgis/1990/tracts/boundaries.zip
+# A tract run requests blocks only when max_city needs 2020 blocks for city ranking.
+# State totals are added for population checks. Each file is reused independently when retrying
+# a run. 1980 tract/BNA matching also needs five original TIGER 1992 county archives to
+# reconstruct omitted outlines; county-only 1980 runs omit them. Original STF1B/PL
+# references establish empty 1990 blocks. Reference workbooks follow the required years.
+census_geography_years: [1990, 2000, 2010, 2020]
+
+# What kind of area will contain each graph?
+#   county      An individual county.
+#   cbsa        A metropolitan area made up of its member counties.
+#   max_county  The county with the largest population within each metro area.
+#   max_city    The city with the greatest estimated population inside each metro area.
+#
+# All modes add county population and boundary inputs at study_area_vintage.
+# max_city also adds 2020 place and block populations and boundaries. Census block
+# internal points and populations determine how many city residents live in each metro.
+# These supporting inputs
+# are included even if their year or level is absent from the node settings above.
+# Requests needed for more than one reason are included only once.
+# Default setting: max_city.
+study_area_type: max_city
+
+# Year of the populations and boundaries used to define the enclosing areas.
+# These areas will stay fixed when comparing node data from different census years.
+# Supported values: 1980, 1990, 2000, 2010, 2020. Default setting: 2020.
+# max_city requires 2020 because the current place definitions support only that year.
+#
+# This DOES NOT change the metro membership list. Metro modes use the March 2020
+# Census delineation workbook. County mode does not request that workbook.
+# A historical boundary year does not produce historical metro membership.
+study_area_vintage: 2020
+
+# Raw downloaded files and saved NHGIS submission numbers go here.
+# Relative paths start at the repository root, not at the directory containing
+# this YAML or the shell's current directory. Absolute paths also work.
+# For example, /mnt/census-data/raw can keep the data on a separate drive.
+raw_data_directory: data/raw
+
+# Derived population Parquet files; relative paths start at the repository root.
+processed_population_directory: data/processed/population
+
+# Matched GeoParquet and unmatched-record tables; default data/processed/geography.
+# Relative paths start at the repository root. This folder must neither contain
+# nor sit inside the raw-data or processed-population folder.
+joined_geography_directory: data/processed/geography
+
+# Study-area definitions, candidate scores, and Census-unit memberships.
+# Relative paths start at the repository root. Keep this separate from all input folders.
+study_area_directory: data/processed/study_areas
+
+# Connected graphs in ZIP archives; relative paths start at the repository root.
+# Keep this separate from raw, population, joined-geography, and study-area folders.
+# Numbered ZIP parts per node year/level, with area type and definition vintage in each name.
+graph_archive_directory: data/graphs
+
+# Maximum simultaneous graph builds and JSON writes; independent of download workers.
+# Use 1 for sequential work. More workers hold more polygon/graph data in memory.
+# Default: 4. Positive integer; 28 is suitable to try on a 28-core, 170 GB machine.
+# Membership checks and final ZIP assembly use one process.
+max_parallel_graphs: 4
+
+# Report polygon overlaps above 100 mm² during graph construction. Default: true.
+# Set false to suppress only overlap warnings, in serial and parallel runs. Overlaps still
+# count as adjacency; geometry, populations, validation, and other warnings are unchanged.
+warn_on_polygon_overlaps: true
+
+# Force replacement of completed graph selections. Default: false.
+# Set true after changing input shapes or graph methods; this rebuilds selected graphs.
+rebuild_graphs: false
+
+# Metric Parquet tables; default results/metrics, relative to the repository root.
+# Keep this separate from all data input folders. Outputs add a study-area type folder;
+# filenames identify the Census year, level, and area vintage, e.g. 1980_tracts_CBSA20_metrics.parquet.
+# Reruns replace that vintage's tables; use a different root to keep separate metric runs.
+metric_results_directory: results/metrics
+
+# Compare non-Hispanic White residents with Black residents and/or all POC residents.
+# Accepted values: white_black, white_poc. Default setting: both; empty lists are invalid.
+# Both use the same White–Black-filtered graph, with the sum of the two groups as denominator.
+population_comparisons: [white_black, white_poc]
+
+# Default setting: all metrics below. Delete entries to select a subset; an empty list is invalid.
+# Names distinguish formulas and spatial weights.
+# See documentation/national_pipeline/06_metric_computation.md.
+# Distance variants use all node pairs and can be slow for large block graphs.
+metric_names:
+  - dissimilarity
+  - entropy_index
+  - relative_diversity
+  - aspatial_capy
+  - spatial_dissimilarity
+  - spatial_entropy_index
+  - spatial_relative_diversity
+  - capy
+  - capy_exact
+  - moran_adjacency
+  - moran_negative_laplacian
+  - moran_metropolis
+  - moran_with_self
+  - moran_row_standardized
+  - moran_inverse_distance
+  - moran_inverse_squared_distance
+  - edge_assortativity
+  - half_edge_assortativity
+
+# Folder names beneath raw_data_directory. These are relative paths; subfolders
+# such as tables/census are allowed. Absolute paths and '..' are not allowed here.
+# Changing a name changes the requested destination; it does not move existing files.
+raw_data_subdirectories:
+  # Population tables for 2000 onward, downloaded directly from the Census Bureau.
+  census_population_tables: census
+  # Historical population tables and boundary files downloaded from NHGIS.
+  nhgis_population_and_boundaries: nhgis
+  # Modern boundary files from the Census Bureau's TIGER/Line products.
+  census_boundary_files: tiger
+  # Five original county archives needed only to restore omitted 1980 BNA outlines.
+  original_1980_boundary_files: tiger_1992
+  # Original STF1B/PL files needed only to establish empty 1990 land blocks.
+  original_1990_block_references: census_1990_blocks
+  # Published totals used to check population counts during later processing.
+  population_reference_tables: population_reference_tables
+  # The workbook listing which counties belong to each metro area.
+  metro_membership_tables: metro_membership_tables
+  # NHGIS request details and extract numbers used to continue unfinished downloads.
+  saved_nhgis_requests: saved_nhgis_requests
+
+# Optional file of environment variables, such as IPUMS_API_KEY and CENSUS_API_KEY.
+# Set this to .env for a file at the repository root, or use an absolute path.
+# null (the default) loads no file. Existing environment variables take precedence.
+# Online retrieval requires the file to be readable when configured. Offline runs
+# and the checksum command do not read it. Keep the credentials out of this YAML.
+env_file: null
+
+# true: only check files already in the configured raw-data folders.
+# false: also download missing files. --offline overrides this setting to true.
+# Missing files are reported as failures; an offline run does not silently omit them.
+offline: false
+
+# Advanced: narrow the configured requests by their relative destination filenames.
+# Keep ["*"] for all inputs needed by the selections above, including supporting data.
+# For a partial download, examples include:
+#   ["census/2020/*", "tiger/2020/*"]  # Only configured modern inputs for 2020.
+#   ["nhgis/*"]                       # Only configured historical extracts.
+#
+# Patterns apply AFTER the geography/year settings. They cannot add excluded inputs,
+# and each pattern must match at least one configured file. '*' can span subfolders.
+# These filters can remove study-area inputs, populations, or boundaries: success
+# then means only that the requested partial download is ready, not a complete graph run.
+# 2010 block downloads can still add county tables needed to form their Census query.
+file_path_patterns: ["*"]
+
+# Maximum simultaneous file retrievals, including checks of files already present.
+# Use 1 for one file at a time. Must be at least 1. Default setting: 4.
+# This does not set the number of workers for later graph or metric calculations.
+# Start with 4; higher download concurrency can trigger server rate limits (HTTP 429).
+max_parallel_downloads: 4
+
+# After the initial downloads, recheck only pending NHGIS extracts at this interval.
+# Each round reuses saved extract numbers; it does not submit new extracts.
+# Positive seconds, default 60. No worker is occupied during the wait between rounds.
+nhgis_retry_interval_seconds: 60
+
+# Maximum minutes to keep checking pending extracts after the initial downloads.
+# Default 60. Set 0 to report pending extracts without waiting. Each wait is capped
+# by the time remaining. The following round, including queued files, may finish
+# after the limit; the limit does not cancel requests or downloads within a round.
+# Any extracts still pending leave the run incomplete and can resume on the next run.
+nhgis_max_wait_minutes: 60
+
+# Destination for the SEPARATE checksum command; normal retrieval does not write it:
+#   uv run --locked python code/record_raw_checksums.py --config code/configs/example.yaml
+# Keep this outside raw_data_directory. Relative paths start at the repository root.
+# The file records checksums for diagnosing different replication results. Retrieval
+# does not compare downloaded files against it. --output overrides this path.
+raw_checksums_file: data/raw_checksums.sha256
+
+# Set IPUMS_API_KEY for NHGIS and CENSUS_API_KEY for Census tables, in your shell or the
+# configured env_file. Each is required when its downloads are selected.
+# NHGIS extracts still pending after the wait limit can resume with the same command later.
+# Existing files are reused, and interrupted downloads do not appear as finished files.
