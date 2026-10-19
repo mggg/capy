@@ -118,6 +118,9 @@ def prepare_group_and_total_populations(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Prepare float population vectors with positive totals containing the group.
 
+    Group counts exceeding their totals by at most 1e-12 population units are clamped to the
+    total. This absolute tolerance has no relative component; totals themselves are unchanged.
+
     Args:
         group_population (np.ndarray): Nonnegative group counts or population masses.
         total_population (np.ndarray): Positive totals in the same order, including the group.
@@ -128,21 +131,33 @@ def prepare_group_and_total_populations(
             storage. Neither input is modified; callers must not mutate the returned arrays.
 
     Raises:
-        ValueError: Counts are invalid, a total is zero, or a group count exceeds its total.
+        ValueError: Counts are invalid, a total is zero, or a group count exceeds its total by
+            more than 1e-12.
         TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
     """
     group_population, total_population = prepare_population_vectors(
         group_population, total_population
     )
 
-    if np.any(total_population == 0) or np.any(group_population > total_population):
-        raise ValueError("Every total must be positive and at least its group population")
+    excess_population = group_population - total_population
+
+    if np.any(total_population == 0) or np.any(excess_population > 1e-12):
+        raise ValueError(
+            "Every total must be positive and at least its group population "
+            "within an absolute tolerance of 1e-12"
+        )
+
+    if np.any(excess_population > 0):
+        group_population = np.minimum(group_population, total_population)
 
     return group_population, total_population
 
 
 def population_shares(group_population: np.ndarray, total_population: np.ndarray) -> np.ndarray:
     """Divide group populations by positive totals after checking shapes and containment.
+
+    Group counts exceeding their totals by at most 1e-12 population units are clamped to the
+    total before division. Neither input is modified.
 
     Args:
         group_population (np.ndarray): Nonnegative group counts or population masses.
@@ -153,7 +168,8 @@ def population_shares(group_population: np.ndarray, total_population: np.ndarray
         np.ndarray: Finite shares between zero and one.
 
     Raises:
-        ValueError: Counts are invalid, a total is zero, or a group count exceeds its total.
+        ValueError: Counts are invalid, a total is zero, or a group count exceeds its total by
+            more than 1e-12.
         TypeError: A population value has an unsupported numeric type, such as pd.NA or a dict.
     """
     group_population, total_population = prepare_group_and_total_populations(

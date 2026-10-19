@@ -263,7 +263,50 @@ def test_relative_majority_ties_do_not_depend_on_population_array_dtype():
             assert numerical_function(adjacency, group_population, total_population) == graph_score
 
 
-@pytest.mark.parametrize("group, total", [([1, 2], [1, 1]), ([0, 1], [0, 1])])
+def test_population_roundoff_is_normalized_without_mutating_inputs():
+    group = np.array([0.1 + 0.2, 0.2, 0.1])
+    total = np.array([0.3, 0.5, 0.4])
+    corrected_group = np.array([0.3, 0.2, 0.1])
+    original_group = group.copy()
+    original_total = total.copy()
+    group.setflags(write=False)
+    total.setflags(write=False)
+    graph = nx.path_graph(3)
+    adjacency = metrics.build_csr_adjacency_matrix(graph)
+
+    np.testing.assert_array_equal(metrics.population_shares(group, total), corrected_group / total)
+
+    for function in (metrics.dissimilarity, metrics.entropy_index, metrics.relative_diversity):
+        assert function(group, total) == pytest.approx(function(corrected_group, total))
+        assert function(group, total, spatial_weights=adjacency) == pytest.approx(
+            function(corrected_group, total, spatial_weights=adjacency)
+        )
+
+    for function in (metrics.edge_assortativity, metrics.half_edge_assortativity):
+        assert function(adjacency, group, total) == function(adjacency, corrected_group, total)
+
+    nx.set_node_attributes(graph, dict(enumerate(group)), "group")
+    nx.set_node_attributes(graph, dict(enumerate(total)), "total")
+    weights = metrics.build_moran_weights(adjacency, metrics.MoranWeightType.ROW_STANDARDIZED)
+    assert metrics.morans_I_from_graph(graph, "group", "total") == pytest.approx(
+        metrics.morans_I(weights, corrected_group / total)
+    )
+    np.testing.assert_array_equal(group, original_group)
+    np.testing.assert_array_equal(total, original_total)
+
+
+def test_population_containment_tolerance_includes_exact_boundary():
+    total = np.array([1e-12])
+    np.testing.assert_array_equal(metrics.population_shares(np.array([2e-12]), total), [1])
+
+    with pytest.raises(ValueError, match="Every total must be positive"):
+        metrics.population_shares(np.array([np.nextafter(2e-12, np.inf)]), total)
+
+
+@pytest.mark.parametrize(
+    "group, total",
+    [([1, 2], [1, 1]), ([0, 1], [0, 1]), ([0.3 + 2e-12], [0.3]), ([1e8 + 1e-6], [1e8])],
+)
 def test_evenness_and_assortativity_require_positive_totals_containing_the_group(group, total):
     group_population = np.array(group)
     total_population = np.array(total)

@@ -281,6 +281,11 @@ whole-person counts. Every graph population attribute must be scalar. The attrib
 preserves graph iteration order, including when labels are mixed types; uniform array-valued
 attributes can produce a multidimensional array, which the metric functions reject.
 
+For functions accepting group and total populations, a group value exceeding its total by at most
+`1e-12` population units is clamped to that total before computing shares or aggregate populations.
+This is an absolute tolerance with no relative component. Larger excesses and nonpositive totals
+are rejected; caller-owned arrays are unchanged.
+
 Matrix rows, matrix columns, and population vectors must use the same node order. `morans_I()`
 accepts a CSR matrix, a CSR array, or a dense weight matrix and uses its weights as supplied. It does not construct or
 row-standardize them. For inverse-distance scores, use `distance_morans_I(coordinates, shares,
