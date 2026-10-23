@@ -1,6 +1,7 @@
 """Compute population arrangements and segregation scores on Iowa county adjacency."""
 
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -9,7 +10,7 @@ import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pandas as pd
-from capy_metrics import MoranWeightType, build_moran_weights, capy, morans_I
+from capy_metrics import MoranWeightType, build_moran_weights, capy, morans_I, relative_diversity
 from national_pipeline.build_graphs.construct_graph import build_connected_graph
 from national_pipeline.derived_file_paths import (
     build_join_output_paths,
@@ -18,11 +19,27 @@ from national_pipeline.derived_file_paths import (
 from national_pipeline.geography_types import GeographyLevel
 from national_pipeline.pipeline_config import PipelineConfig
 from national_pipeline.population_table_columns import GeographyColumn, PopulationColumn
+from scipy import sparse
 from tqdm import trange
 
 
+# The n-th county added to a cluster gets first-group share decay**n; 1.0 keeps whole counties.
+CLUSTERED_DECAY = 0.98
+MULTICLUSTER_DECAY = 0.95
+WHOLE_COUNTY_SHARE = 0.8
+# Fraction of the target first-group population spread over all counties by total population,
+# giving every county share BACKGROUND_FRACTION * target_share before arrangement selection.
+BACKGROUND_FRACTION = 0.1
+# Add share noise after arrangement and background; half-width is a share of each county's TOTPOP.
+RANDOMIZE = True
+NOISE_HALF_WIDTH = 0.05
+# Stream tags keep noise seeds distinct; NumPy treats trailing zeros in seed lists as absent.
+NOISE_STREAM = 0
+MAP_NOISE_STREAM = 1
+
+
 class CountyArrangement(StrEnum):
-    """Constraints on the induced subgraph of entirely first-group counties."""
+    """Spatial patterns of first-group counties; cluster families use decaying partial shares."""
 
     ISOLATED = "isolated"
     CLUSTERED = "clustered"
@@ -75,52 +92,57 @@ class CountyConfigurationResult:
 
 def grow_county_cluster(
     graph: nx.Graph,
-    selected_counties: set[str],
+    selected_shares: dict[str, float],
     target_population: float,
     rng: random.Random,
-) -> set[str]:
-    """Add a randomized connected expansion until its added population reaches the target.
+    decay: float,
+) -> dict[str, float]:
+    """Add a randomized connected expansion whose decayed first-group population reaches target.
 
-    Existing selected nodes are excluded from growth. The final county can overshoot the target.
-    The input set and graph are unchanged; only the supplied rng advances.
+    The n-th county added in this call, counting from one, gets first-group share decay**n and
+    contributes that share of its population toward the target. Existing selected counties are
+    excluded from growth. The final county can overshoot the target. The inputs are unchanged;
+    only the supplied rng advances.
 
     Args:
         graph (nx.Graph): County adjacency with string IDs and positive TOTPOP counts.
-        selected_counties (set[str]): Counties already assigned to the first group.
-        target_population (float): Additional population sought in this expansion.
+        selected_shares (dict[str, float]): First-group shares of counties already assigned.
+        target_population (float): Additional first-group population sought in this expansion.
         rng (random.Random): Experiment-owned random stream for seed and frontier choices.
+        decay (float): Per-step share multiplier in (0, 1]; 1.0 assigns whole counties.
 
     Returns:
-        set[str]: Existing selection plus the newly grown component. Growth can stop below the
-            target if its remaining connected region is exhausted. No available nodes returns a
-            copy of the existing selection.
+        dict[str, float]: Existing shares plus the newly grown component's shares. Growth can stop
+            below the target if its remaining connected region is exhausted. No available nodes
+            returns a copy of the existing shares.
 
     Raises:
         KeyError: A county lacks its total-population attribute.
     """
-    available_counties = sorted(set(graph) - selected_counties)
+    available_counties = sorted(set(graph) - set(selected_shares))
 
     if not available_counties:
-        return set(selected_counties)
+        return dict(selected_shares)
 
     frontier = [rng.choice(available_counties)]
-    added_counties = set()
-    added_population = 0
+    added_shares: dict[str, float] = {}
+    added_population = 0.0
 
     while frontier and added_population < target_population:
         rng.shuffle(frontier)
         county_id = frontier.pop(0)
 
-        if county_id in selected_counties or county_id in added_counties:
+        if county_id in selected_shares or county_id in added_shares:
             continue
 
-        added_counties.add(county_id)
-        added_population += graph.nodes[county_id][PopulationColumn.TOTAL]
+        share = decay ** (len(added_shares) + 1)
+        added_shares[county_id] = share
+        added_population += share * graph.nodes[county_id][PopulationColumn.TOTAL]
         frontier.extend(
-            sorted(set(graph.neighbors(county_id)) - added_counties - selected_counties)
+            sorted(set(graph.neighbors(county_id)) - set(added_shares) - set(selected_shares))
         )
 
-    return selected_counties | added_counties
+    return selected_shares | added_shares
 
 
 def select_county_arrangement(
@@ -128,12 +150,18 @@ def select_county_arrangement(
     target_share: float,
     arrangement: CountyArrangement,
     rng: random.Random,
-) -> set[str] | None:
-    """Choose random counties, a greedy independent set, or connected county clusters.
+) -> dict[str, float] | None:
+    """Choose random counties, a greedy independent set, or decaying connected county clusters.
 
-    Each county is assigned wholly to one group. Independent sets can exhaust their eligible
-    nodes before the target; cluster growth can overshoot. Multicluster attempts split the target
-    equally among four seeds and retry up to 50 times, returning None if none retain 2–4 components.
+    Selection places the target's non-background part: (1 - BACKGROUND_FRACTION) of the target
+    first-group population, drawn from population left after the uniform background share. Returned
+    shares apply to that remaining population; calculate_first_shares() adds the background.
+    Random and isolated counties get share WHOLE_COUNTY_SHARE. Cluster families give the n-th
+    county added to each cluster share CLUSTERED_DECAY**n or MULTICLUSTER_DECAY**n, restarting n
+    for each multicluster seed. Independent sets and decaying clusters can exhaust their eligible
+    nodes before the target; cluster growth can overshoot. Multicluster attempts grow four seeds in
+    sequence, each toward a quarter of the arrangement target, and retry up to 100 times, returning
+    None if none retain 2–4 components.
     Random arrangements take counties in shuffled order until the target is reached or exceeded,
     without an adjacency constraint; they are not uniform draws from all feasible subsets.
 
@@ -144,7 +172,9 @@ def select_county_arrangement(
         rng (random.Random): Experiment-owned random stream, advanced by the selection.
 
     Returns:
-        set[str] | None: First-group county IDs, or None after unsuccessful multicluster attempts.
+        dict[str, float] | None: Share of each selected county's post-background population
+            assigned to the first group; unlisted counties have share zero. Keys are exactly the
+            arrangement's selected counties. None after unsuccessful multicluster attempts.
 
     Raises:
         ValueError: The target share is outside the open interval (0, 1).
@@ -156,21 +186,24 @@ def select_county_arrangement(
     target_population = target_share * sum(
         county_attributes[PopulationColumn.TOTAL] for county_attributes in graph.nodes.values()
     )
+    # Shares s of post-background population add s * (1 - background) * TOTPOP first-group people.
+    background_share = BACKGROUND_FRACTION * target_share
+    target_population *= (1 - BACKGROUND_FRACTION) / (1 - background_share)
 
     if arrangement == CountyArrangement.CLUSTERED:
-        return grow_county_cluster(graph, set(), target_population, rng)
+        return grow_county_cluster(graph, {}, target_population, rng, CLUSTERED_DECAY)
 
     if arrangement == CountyArrangement.MULTICLUSTER:
-        for _ in range(50):
-            selected_counties = set()
+        for _ in range(100):
+            selected_shares: dict[str, float] = {}
 
             for _ in range(4):
-                selected_counties = grow_county_cluster(
-                    graph, selected_counties, target_population / 4, rng
+                selected_shares = grow_county_cluster(
+                    graph, selected_shares, target_population / 4, rng, MULTICLUSTER_DECAY
                 )
 
-            if 2 <= nx.number_connected_components(graph.subgraph(selected_counties)) <= 4:
-                return selected_counties
+            if 2 <= nx.number_connected_components(graph.subgraph(selected_shares)) <= 4:
+                return selected_shares
 
         return None
 
@@ -189,12 +222,53 @@ def select_county_arrangement(
         if arrangement == CountyArrangement.ISOLATED:
             excluded_counties |= {county_id, *graph.neighbors(county_id)}
 
-        selected_population += graph.nodes[county_id][PopulationColumn.TOTAL]
+        selected_population += WHOLE_COUNTY_SHARE * graph.nodes[county_id][PopulationColumn.TOTAL]
 
         if selected_population >= target_population:
             break
 
-    return selected_counties
+    return {county_id: WHOLE_COUNTY_SHARE for county_id in selected_counties}
+
+
+def calculate_first_shares(
+    selected_shares: dict[str, float], county_ids: Iterable[str], target_share: float
+) -> np.ndarray:
+    """Combine the uniform background share with an arrangement's post-background shares.
+
+    Every county first gets share BACKGROUND_FRACTION * target_share. A selected county's
+    arrangement share then applies to its remaining population, so its total first-group share is
+    background + (1 - background) * selected share.
+
+    Args:
+        selected_shares (dict[str, float]): Arrangement shares from select_county_arrangement().
+        county_ids (Iterable[str]): County order for the returned shares.
+        target_share (float): Requested first-group population share that set the background.
+
+    Returns:
+        np.ndarray: Total first-group share of each county, in county_ids order.
+    """
+    background_share = BACKGROUND_FRACTION * target_share
+    arrangement_shares = np.array(
+        [selected_shares.get(county_id, 0.0) for county_id in county_ids]
+    )
+
+    return background_share + (1 - background_share) * arrangement_shares
+
+def perturb_first_shares(first_shares: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    """Add symmetric uniform share noise, narrowed near 0 and 1 so shares stay in [0, 1].
+
+    Each county's half-width is min(NOISE_HALF_WIDTH, share, 1 - share), so the expected share is
+    unchanged and no county gets negative or excess first-group population.
+
+    Args:
+        first_shares (np.ndarray): Total first-group shares in [0, 1].
+        rng (np.random.Generator): Noise stream, kept separate from county selection.
+
+    Returns:
+        np.ndarray: Perturbed shares in [0, 1], in the input order.
+    """
+    half_widths = np.minimum(NOISE_HALF_WIDTH, np.minimum(first_shares, 1 - first_shares))
+    return first_shares + rng.uniform(-half_widths, half_widths)
 
 
 def sample_county_configurations(
@@ -229,32 +303,51 @@ def sample_county_configurations(
         [graph.nodes[county_id][PopulationColumn.TOTAL] for county_id in county_ids]
     )
     adjacency = nx.to_scipy_sparse_array(graph, nodelist=county_ids, format="csr")
-    moran_weights = build_moran_weights(adjacency, MoranWeightType.ROW_STANDARDIZED)
+    moran_with_self_weights = build_moran_weights(adjacency, MoranWeightType.WITH_SELF)
+    moran_row_standardized_weights = build_moran_weights(
+        adjacency, MoranWeightType.ROW_STANDARDIZED
+    )
+
     results: list[CountyConfigurationResult] = []
 
     for sample in trange(samples_per_share, desc=arrangement.value, disable=None):
         rng = random.Random(seed + sample)
+        noise_rng = np.random.default_rng([seed, NOISE_STREAM, sample])
+
 
         for target_share in target_shares:
-            selected_counties = select_county_arrangement(graph, target_share, arrangement, rng)
+            selected_shares = select_county_arrangement(graph, target_share, arrangement, rng)
             configuration = None
 
-            if selected_counties is not None:
-                first_population = county_populations * np.isin(
-                    county_ids, sorted(selected_counties)
-                )
+            if selected_shares is not None:
+                first_shares = calculate_first_shares(selected_shares, county_ids, target_share)
+
+                if RANDOMIZE:
+                    first_shares = perturb_first_shares(first_shares, noise_rng)
+
+
+                first_population = county_populations * first_shares
+                second_population = county_populations - first_population
+                _, intensity, layout = calculate_capy_factors(adjacency, first_population, county_populations)
+                aspatial_r = relative_diversity(first_population, county_populations)
+                moran_with_self = morans_I(moran_with_self_weights, first_shares)
+
                 configuration = ScoredCountyConfiguration(
                     component_count=nx.number_connected_components(
-                        graph.subgraph(selected_counties)
+                        graph.subgraph(selected_shares)
                     ),
                     group_share=float(first_population.sum() / county_populations.sum()),
                     metric_values={
-                        "capy": capy(
-                            adjacency, first_population, county_populations - first_population
-                        ),
+                        "capy": capy(adjacency, first_population, second_population),
                         "moran_row_standardized": morans_I(
-                            moran_weights, first_population / county_populations
+                            moran_row_standardized_weights, first_shares
                         ),
+                        "intensity": intensity,
+                        "layout": layout,
+                        "relative_diversity": aspatial_r,
+                        "moran_with_self": moran_with_self,
+                        "intensity_minus_relative_diversity": intensity - aspatial_r,
+                        "layout_minus_moran_with_self": layout - moran_with_self,
                     },
                 )
 
@@ -322,21 +415,31 @@ def run_iowa_experiments(
             sample_county_configurations(graph, arrangement, target_shares, samples_per_share, seed)
         )
 
-        selected_counties = select_county_arrangement(graph, 0.3, arrangement, random.Random(seed))
+        selected_shares = select_county_arrangement(graph, 0.3, arrangement, random.Random(seed))
 
-        if selected_counties is None:
+        if selected_shares is None:
             raise ValueError("No multicluster map example; choose another seed")
+
+        geographic_ids = counties_df[GeographyColumn.GEOGRAPHIC_ID]
+        first_share = calculate_first_shares(selected_shares, geographic_ids, 0.3)
+
+        if RANDOMIZE:
+            first_share = perturb_first_shares(
+                first_share, np.random.default_rng([seed, MAP_NOISE_STREAM])
+            )
 
         example_tables.append(
             counties_df.assign(
                 arrangement=arrangement.value,
-                first_group=counties_df[GeographyColumn.GEOGRAPHIC_ID].isin(
-                    sorted(selected_counties)
-                ),
+                first_group=geographic_ids.isin(sorted(selected_shares)),
+                first_share=first_share,
             )
         )
 
-    scores_df = pd.DataFrame([result.to_record() for result in results])
+
+    scores_df = pd.DataFrame([result.to_record() for result in results]).assign(
+        randomized=RANDOMIZE
+    )
     examples_df = gpd.GeoDataFrame(pd.concat(example_tables), crs=counties_df.crs)
     edges_df = pd.DataFrame(
         sorted(tuple(sorted(edge)) for edge in graph.edges), columns=pd.Index(["source", "target"])
@@ -346,3 +449,19 @@ def run_iowa_experiments(
     scores_df.to_parquet(data_directory / "iowa_scores.parquet", index=False)
     examples_df.to_parquet(data_directory / "iowa_examples.parquet", index=False)
     edges_df.to_parquet(data_directory / "iowa_edges.parquet", index=False)
+
+def calculate_capy_factors(
+    adjacency: sparse.csr_array, group_population: np.ndarray, total_population: np.ndarray
+) -> tuple[float, float, float]:
+    closed_adjacency = adjacency + sparse.eye_array(len(total_population), format="csr")
+    shares = group_population / total_population
+    endpoint_mass = total_population * (closed_adjacency @ total_population)
+    endpoint_share = endpoint_mass @ shares / endpoint_mass.sum()
+    deviations = shares - endpoint_share
+    variance = endpoint_mass @ deviations**2 / endpoint_mass.sum()
+    covariance = (
+        (total_population * deviations)
+        @ (closed_adjacency @ (total_population * deviations))
+        / endpoint_mass.sum()
+    )
+    return float(endpoint_share), float(variance / (endpoint_share * (1 - endpoint_share))), float(covariance / variance)

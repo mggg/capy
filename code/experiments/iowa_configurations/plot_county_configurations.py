@@ -7,16 +7,21 @@ import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
+
 from matplotlib.patches import Patch
 from national_pipeline.compute_metrics.metric_types import MetricName
 from national_pipeline.population_table_columns import GeographyColumn, PopulationColumn
 from plotting.figure_style import (
+    BLACK,
     CADMIUM_GREEN,
     DARK_TANGERINE,
     DENIM,
     PURPLE_HEART,
     SLATE_GRAY,
     create_plot,
+    save_colorbar,
     save_legend,
     save_plot,
 )
@@ -29,6 +34,14 @@ COMPARISON_COLORS = {
     CountyArrangement.ISOLATED: CADMIUM_GREEN,
 }
 ARRANGEMENT_COLORS = COMPARISON_COLORS | {CountyArrangement.MULTICLUSTER: PURPLE_HEART}
+SHARE_COLORMAP = LinearSegmentedColormap.from_list("county_first_share", [DENIM, DARK_TANGERINE])
+DIFFERENCE_METRICS = ("intensity_minus_relative_diversity", "layout_minus_moran_with_self")
+ARRANGEMENT_LABELS = {
+    CountyArrangement.ISOLATED: "Isolated",
+    CountyArrangement.CLUSTERED: "OneCluster",
+    CountyArrangement.MULTICLUSTER: "Multicluster",
+    CountyArrangement.RANDOM: "Random",
+}
 
 
 def plot_iowa_experiments(data_directory: Path, output_directory: Path) -> None:
@@ -48,6 +61,10 @@ def plot_iowa_experiments(data_directory: Path, output_directory: Path) -> None:
     scores_df = pd.read_parquet(data_directory / "iowa_scores.parquet")
     examples_df = gpd.read_parquet(data_directory / "iowa_examples.parquet")
     edges_df = pd.read_parquet(data_directory / "iowa_edges.parquet")
+    noise_suffix = (
+        "_NOISE" if "randomized" in scores_df and scores_df.randomized.any() else ""
+    )
+
 
     if (
         not scores_df.arrangement.eq(CountyArrangement.RANDOM).any()
@@ -60,7 +77,10 @@ def plot_iowa_experiments(data_directory: Path, output_directory: Path) -> None:
         figure, axes = create_plot()
         plot_county_population_graph(axes, counties_df, edges_df)
 
-        save_plot(figure, output_directory / arrangement / f"dualgraph_ia_county_{arrangement}")
+        save_plot(
+            figure,
+            output_directory / arrangement / f"dualgraph_ia_county_{arrangement}{noise_suffix}",
+        )
         selected_scores_df = scores_df.loc[scores_df.arrangement.eq(arrangement)]
 
         for metric in (MetricName.CAPY, MetricName.MORAN_ROW_STANDARDIZED):
@@ -70,18 +90,36 @@ def plot_iowa_experiments(data_directory: Path, output_directory: Path) -> None:
 
             save_plot(
                 figure,
-                output_directory / arrangement / f"{metric}_by_share_ia_county_{arrangement}",
+                output_directory / arrangement / f"{metric}_by_share_ia_county_{arrangement}{noise_suffix}",
             )
+
+        for metric in DIFFERENCE_METRICS:
+            figure, axes = create_plot()
+            plot_score_difference_histogram(axes, selected_scores_df, metric, arrangement)
+            save_plot(
+                figure,
+                output_directory / arrangement / f"{metric}_histogram_ia_county_{arrangement}{noise_suffix}",
+            )
+
 
     for metric in (MetricName.CAPY, MetricName.MORAN_ROW_STANDARDIZED):
         figure, axes = create_plot()
         plot_county_arrangement_comparison(axes, scores_df, metric)
         axes.set_ylim((0, 1) if metric == MetricName.CAPY else (-1, 1))
-        save_plot(figure, output_directory / f"{metric}_by_share_ia_county_comparison")
+        save_plot(figure, output_directory / f"{metric}_by_share_ia_county_comparison{noise_suffix}")
 
     save_legend(
         [
-            Patch(color=color, label=arrangement.value.capitalize())
+            Line2D([], [], color=SLATE_GRAY, linestyle="--", lw=0.8, label="Mean"),
+            Line2D([], [], color=BLACK, lw=0.8, label="Zero"),
+        ],
+        output_directory / "difference_histogram_legend",
+    )
+    save_colorbar(output_directory / "county_share_colorbar", SHARE_COLORMAP, 0, 1)
+
+    save_legend(
+        [
+            Patch(color=color, label=ARRANGEMENT_LABELS[arrangement])
             for arrangement, color in COMPARISON_COLORS.items()
         ],
         output_directory / "county_arrangement_legend",
@@ -96,7 +134,8 @@ def plot_county_population_graph(
     Args:
         axes (Axes): Caller-owned axes, left open for adjustments and export.
         counties_df (gpd.GeoDataFrame): County polygons, geographic IDs, total populations,
-            and first_group assignments for one arrangement.
+            and first_share values in [0, 1] for one arrangement, colored from DENIM at zero
+            to DARK_TANGERINE at one.
         edges_df (pd.DataFrame): Saved undirected source/target geographic ID pairs.
 
     Raises:
@@ -115,7 +154,7 @@ def plot_county_population_graph(
     axes.scatter(
         county_positions[:, 0],
         county_positions[:, 1],
-        c=np.where(counties_df.first_group, DARK_TANGERINE, DENIM),
+        c=SHARE_COLORMAP(counties_df.first_share.to_numpy(dtype=float)),
         s=counties_df[PopulationColumn.TOTAL].to_numpy() / 4000,
         edgecolors="none",
         linewidths=0,
@@ -200,3 +239,46 @@ def set_county_population_share_axes(axes: Axes, scores_df: pd.DataFrame) -> Non
     axes.spines[:].set_visible(True)
     axes.spines[:].set_color(SLATE_GRAY)
     axes.set_xticks(np.arange(0, maximum_share + 0.05, 0.1))
+
+def plot_score_difference_histogram(
+    axes: Axes, scores_df: pd.DataFrame, metric: str, arrangement: CountyArrangement
+) -> None:
+    """Draw one arrangement's score-difference histogram with its mean and a corner label.
+
+    The label is axes text, so save_plot() keeps it while removing titles and axis labels.
+
+    Args:
+        axes (Axes): Caller-owned axes, left open for adjustments and export.
+        scores_df (pd.DataFrame): Saved scores for one arrangement. Failed attempts with null
+            scores are skipped.
+        metric (str): Saved difference column to draw.
+        arrangement (CountyArrangement): Family that sets the bar color and the label.
+
+    Raises:
+        KeyError: The difference column is absent.
+    """
+    values = scores_df[metric].dropna().to_numpy(dtype=float)
+    axes.hist(
+        values,
+        bins=np.linspace(-1, 1, 101),
+        color=ARRANGEMENT_COLORS[arrangement],
+        edgecolor="none",
+    )
+    axes.axvline(0, color=BLACK, lw=0.8)
+    axes.axvline(values.mean(), color=SLATE_GRAY, linestyle="--", lw=0.8)
+    axes.set_xlim(-1, 1)
+
+    axes.text(
+        0.03,
+        0.97,
+        ARRANGEMENT_LABELS[arrangement],
+        transform=axes.transAxes,
+        ha="left",
+        va="top",
+        color=SLATE_GRAY,
+        fontfamily="serif",
+        fontsize=9,
+    )
+    axes.grid(False)
+    axes.spines[["left", "bottom"]].set_visible(True)
+    axes.spines[["left", "bottom"]].set_color(SLATE_GRAY)
